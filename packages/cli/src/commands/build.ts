@@ -1,0 +1,62 @@
+import { Command, CommandRunner, Option } from 'nest-commander';
+import {
+  Cenv, Suite,
+} from '@stoked-cenv/cenv-ui';
+import { CenvLog, Package, BuildCommandOptions } from '@stoked-cenv/cenv-lib'
+import { BaseCommand } from './base'
+
+
+
+@Command({
+  name: 'build',
+  description: `Build packages`,
+})
+export default class BuildCommand extends BaseCommand {
+  defaultSuite;
+  @Option({
+    flags: '-ll, --log-level, <logLevel>',
+    description: `Logging mode`,
+  })
+  parseLogLevel(val: string): string {
+    return val;
+  }
+  @Option({
+    flags: '-f, --force',
+    description: `Force build by skipping cached builds`,
+  })
+  parseForce(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+    flags: '-i, --install',
+    description: `Run yarn install before build`,
+  })
+  parseInstall(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+    flags: '-p, --parallel, <concurrency>',
+    description: `Maximum concurrency`,
+  })
+  parseParallel(val: string): string {
+    return val;
+  }
+
+  async runCommand(params: string[], options: any, packages: Package[]) {
+    try {
+      this.defaultSuite = options.defaultSuite;
+      if ((params?.length === 1 && params[0] === 'all') || packages[0].root) {
+        new Suite(this.defaultSuite);
+        await Package.build(options);
+      } else if (packages.length) {
+        await Promise.all(packages.map(async (p: Package) => p.build(options.force, options.install)));
+      } else {
+        CenvLog.single.alertLog('No packages were supplied or picked up from the current working directory. In order to build something you can supply \'all\' to build everything in the monorepo, a space separated list of packages like "@stoked-cenv/core-middleware-service @stoked-cenv/live-data-service", or a suite such as "curb-cloud"');
+      }
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
+  }
+}

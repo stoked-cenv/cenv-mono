@@ -1,0 +1,250 @@
+import { EnvironmentStatus, IPackage, Package } from './package';
+import { SemVer, inc, coerce, parse } from 'semver';
+import { writeFileSync } from 'fs';
+import path from 'path';
+import semver from 'semver';
+import {
+  CenvLog,
+  Mouth,
+} from '../log';
+
+export enum PackageModuleType {
+  PARAMS = 'PARAMS',
+  DOCKER = 'DOCKER',
+  STACK = 'STACK',
+  LIB = 'LIB',
+  EXEC = 'EXEC'
+}
+
+export interface IPackageModule {
+  name: string;
+  path: string;
+  version: SemVer;
+  buildVersion?: SemVer;
+  currentVersion?: SemVer;
+  versionHash?: string;
+  buildHash?: string;
+  currentHash?: string;
+  uri?: string;
+  pkg: Package;
+  status?: PackageStatus;
+  checked?: boolean;
+}
+
+export interface PackageStatus {
+  incomplete: string[];
+  deployed: string[];
+  needsFix: string[];
+}
+
+export abstract class PackageModule implements IPackageModule {
+  name: string;
+  path: string;
+  version: SemVer;
+  buildVersion?: SemVer;
+  currentVersion?: SemVer;
+  versionHash?: string;
+  buildHash?: string;
+  currentHash?: string;
+  uri?: string;
+  pkg: Package;
+  checked? = false;
+  needsFix?: string[];
+  incomplete? = false;
+  cleanDeps = false;
+  fixedDeps = false;
+  removedDeps = [];
+  depCheckReport: string = null;
+  mouth: Mouth;
+  status: PackageStatus = { needsFix: [], deployed: [], incomplete: [] };
+
+  private _type: PackageModuleType;
+
+  protected constructor(module: IPackageModule, moduleType: PackageModuleType) {
+    this.name = module.name;
+    this.path = module.path;
+    this.pkg = module.pkg;
+
+    this.version = module.version;
+    this.buildVersion = module.buildVersion;
+    this.currentVersion = module.currentVersion;
+
+    this.versionHash = module.versionHash;
+    this.buildHash = module.buildHash;
+    this.currentHash = module.currentHash;
+    this.checked = false;
+    this._type = moduleType;
+    this.createMouth(moduleType, Package.packageNameToStackName(this.name));
+  }
+
+  abstract statusIssues(): void;
+  abstract reset(): void;
+  abstract getDetails(): void;
+  abstract get moduleStrings(): string[];
+
+  get type(): PackageModuleType {
+    return this._type;
+  }
+
+  abstract get anythingDeployed(): boolean;
+  abstract checkStatus(): Promise<void>;
+  abstract upToDate(): boolean;
+  abstract printCheckStatusComplete(): void;
+
+  createMouth(noun, stackName) {
+    this.mouth = new Mouth(noun, stackName);
+  }
+
+  bump(type) {
+    const pkgPath = path.join(this.path, 'package.json');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pkgJson = require(pkgPath);
+    if (type === 'reset') {
+      delete pkgJson.buildVersion;
+      delete pkgJson.currentVersion;
+      delete pkgJson.currentHash;
+      delete pkgJson.buildHash;
+      writeFileSync(pkgPath, JSON.stringify(pkgJson, null, 2));
+      return;
+    }
+
+    if (
+      this.pkg?.meta?.currentHash &&
+      this.pkg?.meta?.currentHash !==
+        (pkgJson?.buildHash || pkgJson?.versionHash)
+    ) {
+      pkgJson.currentHash = this.pkg.meta.currentHash;
+      pkgJson.currentVersion = this.pkg.meta.currentVersion;
+      if (!this.currentVersion && pkgJson.currentHash) {
+        delete pkgJson.currentHash;
+      }
+      pkgJson.buildVersion = this.pkg.meta.buildVersion;
+      if (!this.buildVersion && pkgJson.buildHash) {
+        delete pkgJson.buildHash;
+      }
+      writeFileSync(pkgPath, JSON.stringify(pkgJson, null, 2));
+    }
+  }
+
+  bumpComplete() {
+    const pkgPath = path.join(this.path, 'package.json');
+    const pkgJson = require(pkgPath);
+    const bHash = pkgJson?.buildHash;
+    const cHash = pkgJson?.currentHash;
+    if (!bHash || !cHash || bHash !== cHash) {
+      pkgJson.buildHash = cHash;
+      pkgJson.buildVersion = pkgJson?.currentVersion;
+      writeFileSync(pkgPath, JSON.stringify(pkgJson, null, 2));
+    }
+  }
+
+  get statusDetail(): string {
+    if (this.fixedDeps) {
+      return this.statusLine(
+        'up to date',
+        `removed dependencies [${this.removedDeps.join(', ')}`,
+        false,
+      );
+    }
+
+    if (this.cleanDeps) {
+      return this.statusLine(
+        'up to date',
+        `dependencies validated and confirmed solid by [depcheck]`,
+        false,
+      );
+    }
+
+    return this.statusLine(
+      'invalid dependencies',
+      `depcheck report:\t${this.depCheckReport}`,
+      true,
+    );
+  }
+
+  statusLineBase(title, description, colorCombo) {
+    const regex = /\[(.*?)\]/gm;
+    let m;
+    let newDesc = description;
+    while ((m = regex.exec(description)) !== null) {
+      if (m.index === regex.lastIndex) { regex.lastIndex++; }
+      newDesc = newDesc.replace(m[0], `${colorCombo.highlight(m[1])}`);
+    }
+
+    return `[${colorCombo.bold(this.type)}] ${colorCombo.highlight(title)}: ${colorCombo.bold(newDesc)}`;
+  }
+
+  printCheckStatusStart(): void {
+    this.mouth.info('check status');
+  }
+
+  statusLine(title, description, issue) {
+    const color = issue ? CenvLog.colorType('incomplete') : CenvLog.colorType('deployed');
+    return this.statusLineBase(title, description, color);
+  }
+
+  statusLineType(title, description, type) {
+    const color = CenvLog.colorType(type);
+    return this.statusLineBase(title, description, color);
+  }
+
+  versionMismatch(compareVersion) {
+    const versionMismatch = `the latest deployed version is [${compareVersion}] your local build is at version [${this.pkg.rollupVersion}]`;
+    if (semver.parse(compareVersion) < this.pkg.rollupVersion) {
+      return this.statusLine('old version deployed', versionMismatch, true);
+    } else if (semver.parse(compareVersion) > this.pkg.rollupVersion) {
+      return this.statusLine('newer version deployed', versionMismatch, true);
+    }
+  }
+
+  get moduleBaseStrings(): string[] {
+    const items = [];
+    items.push(`version: v${this.version}`);
+    if (this.buildVersion) {
+      items.push(`build version: v${this.buildVersion}`);
+    }
+    if (this.currentVersion) {
+      items.push(`current version: v${this.currentVersion}`);
+    }
+
+    if (
+      this.pkg?.deployedVersion &&
+      this.version !== semver.parse(this.pkg.deployedVersion)
+    ) {
+      items.push(`deployed version: v${this.pkg.deployedVersion}`);
+    }
+    return items;
+  }
+
+  get moduleInfo(): string[] {
+    const moduleItems = this.moduleStrings;
+    moduleItems.push(`path: ${this.path}`);
+    return moduleItems;
+  }
+
+  async depCheck() {
+    await this.pkg.pkgCmd(
+      `yarn remove $(depcheck --json | jq -r '[.dependencies[]]|join(" ")')`,
+    );
+  }
+
+  verbose(...text: string[]): void {
+    this.mouth.verbose(...text)
+  }
+
+  info(...text: string[]): void {
+    this.mouth.info(...text)
+  }
+
+  alert(...text: string[]): void {
+    this.mouth.alert(...text)
+  }
+
+  err(...text: string[]): void {
+    this.mouth.err(...text)
+  }
+
+  std(...text: string[]): void {
+    this.mouth.std(...text)
+  }
+}

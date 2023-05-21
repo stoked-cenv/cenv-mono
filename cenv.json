@@ -1,0 +1,5 @@
+{
+  "global": "@stoked-cenv/cenv-globals",
+  "defaultSuite": "cenv",
+  "scopeName": "@stoked-cenv"
+}

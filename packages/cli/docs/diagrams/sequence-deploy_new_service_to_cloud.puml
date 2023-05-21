@@ -1,0 +1,17 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+' need mechanism to figure out which services need to be updated if a given global parameter is updated
+title sequence diagram - deploy a new service to the cloud for the first time on the dev environment
+actor ServiceDeveloper
+
+ServiceDeveloper -> cenv_ci_cd: A developer merges the service from a feature branch to the main branch
+cenv_ci_cd -> cenv_cli: The cenv_ci_cd github action workflow invokes the cenv_cli and \npasses along that it has a push on a service that matches a list \nof predefined branch names and it also doesn't have a matching \nenvironment variable file .[environment].cenv
+cenv_cli -> GH_repo: The cenv_cli makes a copy of the .local.cenv in the root of the \nservice and saves it to the repo as .qa.cenv. This file contains all \nthe environment specific variables for the service. The rest of \nthe variables are contained in the .cenv file and are shared \nby all the other environments.
+cenv_cli -> AWS_AppConfig: The cenv_cli then deploys a new QA AWS AppConfig application, configuration profile, environment, and adds an SNS Extension Association with the newly created AppConfig application and the invalidate lambdas topic.
+cenv_cli -> AWS_ParameterStore: Then the cli will create an environment specific copy of\n the services environment variables to AWS Parameter Store from the local one the dev used to build the service.
+cenv_cli -> GH_repo: Then the cli saves an environment config to the repo ".qa.cenv.config" \nwhich the service will use as configuration when its running on \nthat environment.
+
+@enduml

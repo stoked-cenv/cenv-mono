@@ -1,0 +1,41 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+' need mechanism to figure out which services need to be updated if a given global parameter is updated
+title sequence diagram - cenv app implementation
+actor ServiceDeveloper
+
+ServiceDeveloper -> cenv: developer downloads \nsource via github
+cenv -> cenv_cdk_stack: developer runs 'cenv install -e dev \n--defaults' to configure the app \non the "dev" environment and the \ncdk bootstrapping variables required \nfor deployment
+cenv_cdk_stack -> SNS_Materialization_Topic: Create SNS topic to \ndeliver cenv Configuration \nProfile deploys to the cenv \nmaterialization Lambda
+cenv_cdk_stack -> SNS_Invalidation_Topic: Create SNS topic to \ndeliver deploy complete \nnotifications to any lambda's \ndepending on the application's \nconfiguration profile
+cenv_cdk_stack -> Lambda_Materialization: Create Lambda to \nmaterialize cenv \nConfiguration Profiles
+cenv_cdk_stack -> Lambda_Invalidation: Create Lambda to \ninvalidate Lambda \nfunctions that depend \non the service configuration \nvariables for this service
+cenv_cdk_stack -> AppConfig_App_Cenv: Create AppConfig \nApplication "cenv"
+cenv_cdk_stack -> AppConfig_App_Cenv: Create AppConfig \nEnvironment "local" for the "env" \nApplication
+cenv_cdk_stack -> AppConfig_App_Cenv: Create AppConfig \nConfiguration Profile \n "config" for the "env" \nApplication
+' cenv_cdk_stack -> ParameterStore: Create \nparameters from the default \n.cenv file
+
+ServiceDeveloper -> cenv: 'cenv init' in the root directory \nof a the "@stoked-cenv\backend-api", the \nservice being integrated with cenv
+cenv -> AppConfig_App_BackendApi: Create AppConfig Application "@stoked-cenv\backend-api"
+cenv -> AppConfig_App_BackendApi: Create AppConfig Environment "local" for the "@stoked-cenv\backend-api" \nApplication
+cenv -> AppConfig_App_BackendApi: Create AppConfig cenv Configuration Profile  "config" for the "@stoked-cenv\backend-api" \nApplication
+
+ServiceDeveloper -> cenv: 'cenv add -e baseUrl localhost:9196'
+cenv -> ParameterStore: Create parameter "/service/ec/backend-api/environment/local/port"\n with value "localhost:9196"
+
+ServiceDeveloper -> cenv: 'cenv add -g googleGeocodeApiKey'
+cenv -> ParameterStore: Adds a reference to an already existing global \nparameter (if it exists) located here: "/global/google/geocode/apiKey" by adding\n the path to the global link parameter for this service here: "/services/backend-api/global""
+
+ServiceDeveloper -> cenv: 'cenv deploy'
+cenv -> AppConfig_App_Cenv: Creates a new hosted configuration profile version that contains the configuration \ndata for the backend-api service on the cenv App Config Application and then creates a deployment from it
+AppConfig_App_Cenv -> SNS_Materialization_Topic: Publishes a message to the SNS topic
+Lambda_Materialization -> AppConfig_App_BackendApi: Generate a materialized yaml file containing all \nthe environment variables for this service
+AppConfig_App_BackendApi -> SNS_Invalidation_Topic: Publishes a message to the Invalidation SNS topic
+SNS_Invalidation_Topic -> Lambda_Invalidation: Invokes the Lambda_Invalidation function
+Lambda_Invalidation -> Lambda_Dependent_Service_Config: Invalidates the lambda's that match the specific service tag by updating a dummy environment variable with the latest timestamp
+AppConfig_App_BackendApi -> ECS_BackendApi_Service: Backend api polls for a new configuration update and receives the latest
+
+@enduml

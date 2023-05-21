@@ -1,0 +1,37 @@
+{
+  "name": "@stoked-cenv/cenv-params",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
+  "main": "index.js",
+  "scripts": {
+    "prebuild": "rimraf build",
+    "build": "./build.sh; rimraf build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "AWS",
+    "AppConfig",
+    "Lambda",
+    "SNS",
+    "Deployment",
+    "ConfigurationProfile"
+  ],
+  "author": "Brian Stoker",
+  "license": "MIT",
+  "dependencies": {
+    "@stoked-cenv/cenv-lib": "*",
+    "js-yaml": "^4.1.0",
+    "rimraf": "^4.4.1"
+  },
+  "nx": {
+    "tags": [
+      "ec:tool"
+    ]
+  },
+  "skipDeployBuild": true,
+  "verifyStack": "cenv i --verify",
+  "deployStack": "cenv i -cenv",
+  "destroyStack": "cenv u -cenv",
+  "license": "UNLICENSED"
+}
