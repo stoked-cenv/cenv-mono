@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cenv-lib",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Library responsible for cenv params.",
   "main": "dist/index.js",
   "scripts": {
@@ -48,5 +48,14 @@
       "ec:tool-lib"
     ]
   },
-  "license": "UNLICENSED"
+  "repository": {
+    "type": "git",
+    "url": "github.com:stoked-cenv/cenv-lib.git"
+  },
+  "keywords": [
+    "cenv",
+    "application",
+    "configuration",
+    "parameters"
+  ]
 }
