@@ -1,15 +1,10 @@
 import blessed from 'blessed';
 import {Dashboard} from './dashboard';
 import {Deployment, DeploymentMode} from '../deployment';
-import {
-  CenvLog,
-  getPkgContext,
-  Package,
-  PkgContextType,
-  ProcessStatus
-} from '@stoked-cenv/cenv-lib';
+import {CenvLog, getPkgContext, Package, PkgContextType, ProcessStatus} from '@stoked-cenv/cenv-lib';
 import chalk from 'chalk';
 import {HelpUI} from "./help";
+
 
 export default class MenuBar {
   box;
@@ -36,23 +31,15 @@ export default class MenuBar {
     async function launchDeployment(mode: DeploymentMode) {
       try {
         deploying = true;
-        const opt: any = dashboard.cmdOptions;
-        const dashboardMode = Dashboard.instance.mode;
-
         Dashboard.instance.cmd = mode;
 
-        const ctx = getPkgContext(Dashboard.instance.getPkg());
-        if (!ctx) {
-          dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
-          return;
-        }
-        opt.dependencies = Deployment.options.dependencies;
-        ctx.packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+        const packages = getContext();
+        packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
         if (mode === DeploymentMode.DESTROY) {
-          await Deployment.Destroy(ctx.packages, opt);
+          await Deployment.Destroy(packages, Deployment.options);
         } else {
-          await Deployment.Deploy(ctx.packages, opt);
+          await Deployment.Deploy(packages, Deployment.options);
         }
 
         Dashboard.instance.cmd = undefined;
@@ -61,6 +48,22 @@ export default class MenuBar {
       } catch (e) {
         CenvLog.single.catchLog(e);
       }
+    }
+
+    function getContext(type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true) {
+      const selectedPkg = Dashboard.instance.getPkg();
+      const ctx = getPkgContext(selectedPkg, type, failOnInvalid);
+      if (!ctx) {
+        dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
+        return;
+      }
+
+      if (selectedPkg?.stackName === 'GLOBAL') {
+        Deployment.options.dependencies = true;
+      } else {
+        Deployment.options.dependencies = false ;
+      }
+      return ctx.packages;
     }
 
     function statusText(titleText, descriptionText) {
@@ -279,12 +282,8 @@ export default class MenuBar {
           keys: ['d'],
           callback: async function () {
             debounceCallback('deploy', async () => {
-              const ctx = getPkgContext(Dashboard.instance.getPkg());
-              if (!ctx) {
-                dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
-                return;
-              }
-              const packages = ctx.packages.length > 1 ? `${ctx.packages.length} packages` : `${ctx.packages[0].packageName.toUpperCase()}`;
+              const pkgs = getContext();
+              const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName.toUpperCase()}`;
               dashboard.setStatusBar('launchDeployment', statusText(`deploy`, `${packages}`));
               await launchDeployment(DeploymentMode.DEPLOY);
             });
@@ -294,15 +293,12 @@ export default class MenuBar {
           keys: ['y'],
           callback: async function () {
             debounceCallback('destroy', async () => {
-              const ctx = getPkgContext(Dashboard.instance.getPkg());
-              if (!ctx) {
-                dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
-                return;
-              }
+              const pkgs = getContext();
+
               const packages =
-                ctx.packages.length > 1
-                  ? `${ctx.packages.length} packages`
-                  : `${ctx.packages[0].packageName.toUpperCase()}`;
+                  pkgs.length > 1
+                  ? `${pkgs.length} packages`
+                  : `${pkgs[0].packageName.toUpperCase()}`;
               dashboard.setStatusBar(
                 'launchDestroy',
                 statusText(`destroy`, packages),
@@ -363,13 +359,10 @@ export default class MenuBar {
         'cancel deploy': {
           keys: ['S-d'],
           callback: function () {
-            const ctx = getPkgContext(Dashboard.instance.getPkg(), PkgContextType.PROCESSING, false);
-            if (!ctx) {
-              dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
-              return;
-            }
+            const ctx = getContext(PkgContextType.PROCESSING, false);
+
             debounceCallback('cancelDeploy', async () => {
-              ctx.packages.map(p => {
+              ctx.map(p => {
                 CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', Dashboard.instance.cmdPanel.stdout), p.stackName);
                 if (Deployment.dependencies[p.stackName]) {
                   delete Deployment.dependencies[p.stackName];
@@ -386,7 +379,7 @@ export default class MenuBar {
                 p.processStatus = ProcessStatus.CANCELLED;
               })
 
-              dashboard.setStatusBar('cancel deployy', `cancel ${ctx.packages.length === 1 ? ctx.packages[0].packageName : ctx.packages.length + ' packages'}`);
+              dashboard.setStatusBar('cancel deploy', `cancel ${ctx.length === 1 ? ctx[0].packageName : ctx.length + ' packages'}`);
             });
           }.bind(this),
         },
@@ -411,12 +404,9 @@ export default class MenuBar {
         'check status': {
           keys: ['enter'],
           callback: async function () {
-            const ctx = getPkgContext(Dashboard.instance.getPkg());
-            if (!ctx) {
-              dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
-              return;
-            }
-            const packages = ctx.packages.length > 1 ? `${ctx.packages.length} packages` : `${ctx.packages[0]?.packageName?.toUpperCase()}`;
+            const ctx = getContext();
+
+            const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
             dashboard.setStatusBar(
               'checkStatus',
               statusText(
@@ -424,7 +414,7 @@ export default class MenuBar {
                 `check deployment status of ${packages}`,
               ),
             );
-            ctx.packages.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
+            ctx.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
           }.bind(this),
         },
         /*save: {
@@ -466,12 +456,8 @@ export default class MenuBar {
             try {
               const name = 'fix param dupes';
               debounceCallback(name, async () => {
-                const ctx = getPkgContext(Dashboard.instance.getPkg());
-                if (!ctx) {
-                  dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
-                  return;
-                }
-                await Promise.all(ctx?.packages?.map(async (p: Package) => await p?.params?.fixDupes()));
+                const ctx = getContext();
+                await Promise.all(ctx?.map(async (p: Package) => await p?.params?.fixDupes()));
                 dashboard.setStatusBar(name, statusText(name, 'remove dupes for global and globalEnv param types'));
               });
             } catch (e) {

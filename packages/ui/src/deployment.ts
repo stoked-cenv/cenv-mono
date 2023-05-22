@@ -1043,6 +1043,7 @@ export class Deployment {
       }),
     );
 
+    //Dashboard.debug('this?.options?.dependencies', this?.options?.dependencies, JSON.stringify(this.dependencies, null, 2));
 
     this.setDeploymentStatuses();
     this.logStatus('processInit()');
@@ -1312,9 +1313,7 @@ export class Deployment {
       const uninstallables = await this.getUninstallables(packages);
 
       if (packages?.length) {
-        await this.processInit(
-          uninstallables?.length ? uninstallables : packages,
-        );
+        await this.processInit(uninstallables?.length ? uninstallables : packages);
       }
     } catch (e) {
       CenvLog.single.catchLog(
