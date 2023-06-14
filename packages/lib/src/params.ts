@@ -510,8 +510,8 @@ export class CenvParams {
     return variables;
   }
 
-  public static async Materialize(test: boolean = false) {
-    let data: any = CenvFiles.GetConfig();
+  public static async Materialize(test = false) {
+    const data: any = CenvFiles.GetConfig();
     if (!data) {
       return;
     }
@@ -522,22 +522,29 @@ export class CenvParams {
       const res = await this.MaterializeCore(data);
       CenvLog.single.verboseLog('materialization test results:\n' + res);
     } else {
-      const { before, after } = await invoke('cenv-params', JSON.stringify(data))
-      let output = '';
-      for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
-        for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
-          if (afterKey === beforeKey) {
-            output += `'${infoBold(afterKey)}': '${infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${chalk.green(beforeValue)}` : ''}\n`;
+      const { before, after, error } = await invoke('cenv-params', JSON.stringify(data))
+      if (error) {
+        CenvLog.single.errorLog(error);
+        return;
+      }
+
+      if (before) {
+        let output = '';
+        for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
+          for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
+            if (afterKey === beforeKey) {
+              output += `'${infoBold(afterKey)}': '${infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${chalk.green(beforeValue)}` : ''}\n`;
+            }
           }
         }
+        CenvLog.single.verboseLog('materialization results:\n' + output, data.ApplicationName);
       }
-      CenvLog.single.verboseLog('materialization results:\n' + output, data.ApplicationName);
     }
   }
 
   public static async MaterializeCore(event: any = undefined, context: any = undefined) {
     try {
-      let {
+      const {
         ApplicationId,
         EnvironmentId,
         ConfigurationProfileId,
@@ -545,6 +552,7 @@ export class CenvParams {
         EnvironmentName,
         DeploymentStrategyId
       } = event;
+
       if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId || !DeploymentStrategyId) {
         console.log('Missing required parameters in event');
         return 'Missing required parameters in event';
@@ -575,11 +583,11 @@ export class CenvParams {
 
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);
-
-      const ulRes = await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace('@stoked-cenv/', '')}`);
+      const ulRes = await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Package.scopeName, '')}`);
       return { after, before }
     } catch(e) {
-      CenvLog.single.catchLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))
+      CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))
+      return { error: e };
     }
   }
 }

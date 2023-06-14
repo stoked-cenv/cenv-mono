@@ -252,7 +252,6 @@ export class Mouth {
     this.noun = noun;
     this.stackName = stackName;
   }
-
   getAction(...text : string[]): string {
     if (text.length > 1) {
       const parts = { title: text.pop(), description: text.join(' ') };
@@ -260,23 +259,18 @@ export class Mouth {
     }
     return CenvLog.actionLine(text[0],this.noun || this.stackName, ColorSet.INFO)
   }
-
   verbose(...text : string[]) {
     CenvLog.single.verboseLog(this.getAction(...text), this.stackName || this.noun);
   }
-
   info(...text : string[]) {
     CenvLog.single.infoLog(this.getAction(...text), this.stackName || this.noun);
   }
-
   err(...text) {
     CenvLog.single.errorLog(this.getAction(...text), this.stackName || this.noun,true);
   }
-
   alert(...text) {
     CenvLog.single.alertLog(this.getAction(...text), this.stackName || this.noun);
   }
-
   std(...text) {
     CenvLog.single.stdLog(this.getAction(...text), this.stackName || this.noun, true);
   }

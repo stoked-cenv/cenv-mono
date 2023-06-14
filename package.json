@@ -45,7 +45,7 @@
       "packages/*"
     ],
     "nohoist": [
-      "packages/materialization"
+      "packages/lib/params"
     ]
   },
   "license": "UNLICENSED"

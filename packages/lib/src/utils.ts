@@ -819,8 +819,10 @@ export function simplify(yamlData) {
   if (yamlData) {
     for (const [key, value] of Object.entries(yamlData)) {
       const val: any = value;
-      const keyVal = val.Value ? val.Value : val;
-      result[key] = keyVal;
+      if (val) {
+        const keyVal = val.Value ? val.Value : val;
+        result[key] = keyVal;
+      }
     }
   }
   return result;

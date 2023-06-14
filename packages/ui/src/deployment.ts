@@ -184,7 +184,7 @@ export class Deployment {
 
         await cenvParamsMutext.runExclusive(async () => {
           // switch dir
-          const cmd = pkg.createCmd('cenv params -D');
+          const cmd = pkg.createCmd(`cenv params ${pkg.packageName} -> Env Vars`);
           const toDirVars = path.relative(process.cwd(), pkg.params.path);
           if (toDirVars !== '') {
             process.chdir(toDirVars);

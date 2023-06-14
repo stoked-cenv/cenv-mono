@@ -2,9 +2,7 @@ import { computeMetaHash, execCmd, getMonoRoot, packagePath, spawnCmd, Timer } f
 import { existsSync, readFileSync } from 'fs';
 import path, {join} from 'path';
 import { PackageStatus } from './module'
-
 import { CenvLog, colors, LogLevel, Mouth } from '../log';
-// import { Dashboard, DashboardMode } from '../ui/dashboard';
 import { BumpMode, Version } from '../version';
 import semver, { coerce, inc, parse, SemVer } from 'semver';
 import { PackageModule, PackageModuleType } from './module';
@@ -12,7 +10,6 @@ import { ParamsModule } from './params';
 import { DockerModule } from './docker';
 import { StackModule } from './stack';
 import {BaseCommandOptions, CenvParams} from '../params';
-import util from 'util';
 import { AppVarsFile, EnvVarsFile } from '../file';
 import { LibModule } from './lib';
 import { ExecutableModule } from './executable';
@@ -72,14 +69,11 @@ function cmdResult(
     pkg?.std(`${completeMsg}exit code (${code}) [success]`, cmd);
     return true;
   }
-
   if (CenvLog.logLevel === LogLevel.MINIMAL && minOut !== '') {
-    pkg?.err('--- stdout on err ---')
-    pkg?.std(minOut)
-    pkg?.err('--- stdout on err ---')
+    pkg?.err(minOut)
   }
-  pkg.err(`${completeMsg}exit code (${code}) [failed]`, cmd);
 
+  pkg.err(`${completeMsg}exit code (${code}) [failed]`, cmd);
   if (failOnError) {
     Package?.callbacks?.cancelDependencies(pkg);
     return false;
@@ -189,7 +183,7 @@ export class PackageCmd implements Cmd {
     return this.code === undefined;
   }
 
-  ensureCommand() {
+  ensureCommand(){
     if (!this.running) {
       this.pkg.createCmd('log');
     }
@@ -351,7 +345,6 @@ export class Package implements IPackage {
   static callbacks: any = {};
 
   constructor(packageName: string, noCache = false) {
-    console.log(packageName);
     this.load(packageName, noCache);
   }
 
@@ -373,7 +366,7 @@ export class Package implements IPackage {
 
     try {
       const stackName = Package.packageNameToStackName(packageName);
-
+      packageName = Package.stackNameToPackageName(stackName);
       if (!noCache && Package.cache[stackName]) {
         return Package.cache[stackName];
       }
@@ -1226,9 +1219,7 @@ export class Package implements IPackage {
       );
       CenvParams.dashboard.log(badStackName.message, badStackName.stack);
       CenvLog.single.catchLog(badStackName);
-    } else if (
-      stackName.substring(stackPrefix.length) === Package.getRootPackageName()
-    ) {
+    } else if (stackName.substring(stackPrefix.length) === Package.getRootPackageName()) {
       stackName = stackName.substring(stackPrefix.length);
     } else {
       stackName = `${this.scopeName}/${stackName.substring(stackPrefix.length)}`;
@@ -1265,7 +1256,11 @@ export class Package implements IPackage {
   }
 
   std(...text) {
-    this.mouth?.std(...text);
+    try {
+      this.mouth?.std(...text);
+    } catch(e) {
+      console.log('std error', e)
+    }
   }
 
   getPackageMeta(packagePath): IPackageMeta {

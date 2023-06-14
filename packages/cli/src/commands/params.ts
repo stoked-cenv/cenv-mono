@@ -239,7 +239,7 @@ export default class ParamsCommand extends BaseCommand {
                 //  await p.params.fixDupes();
                 //}
               } else if (param === ParamCommands.materialize) {
-                await CenvParams.Materialize();
+                await CenvParams.Materialize(options.test);
               }
             }
           }

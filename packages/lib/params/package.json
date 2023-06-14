@@ -5,7 +5,7 @@
   "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
   "main": "index.js",
   "scripts": {
-    "prebuild": "rimraf build",
+    "prebuild": "yarn install; rimraf build",
     "build": "./build.sh; rimraf build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

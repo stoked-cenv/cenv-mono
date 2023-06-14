@@ -4,6 +4,7 @@ import {Deployment, DeploymentMode} from '../deployment';
 import {CenvLog, getPkgContext, Package, PkgContextType, ProcessStatus} from '@stoked-cenv/cenv-lib';
 import chalk from 'chalk';
 import {HelpUI} from "./help";
+import {validateBaseOptions} from "../utils";
 
 
 export default class MenuBar {
@@ -36,10 +37,13 @@ export default class MenuBar {
         const packages = getContext();
         packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
+        let deploymentOptions = {};
         if (mode === DeploymentMode.DESTROY) {
-          await Deployment.Destroy(packages, Deployment.options);
+          validateBaseOptions({packages}, deploymentOptions,  DeploymentMode.DESTROY)
+          await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
         } else {
-          await Deployment.Deploy(packages, Deployment.options);
+          validateBaseOptions({packages}, deploymentOptions,  DeploymentMode.DEPLOY)
+          await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
         }
 
         Dashboard.instance.cmd = undefined;
@@ -405,7 +409,9 @@ export default class MenuBar {
           keys: ['enter'],
           callback: async function () {
             const ctx = getContext();
-
+            if (!ctx.length) {
+                return;
+            }
             const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
             dashboard.setStatusBar(
               'checkStatus',

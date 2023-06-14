@@ -12,6 +12,7 @@ import { CenvFiles, EnvConfigFile } from '../file';
 import { packagePath, sleep } from '../utils';
 import { decryptValue, isEncrypted } from './parameterStore';
 import { readFileSync } from 'fs';
+import {Package} from "../package/package";
 
 let _client: AppConfigDataClient = null;
 
@@ -181,7 +182,7 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
       if (process.env.GLOBAL_PATH) {
         CenvFiles.GlobalPath = process.env.GLOBAL_PATH;
       } else {
-        CenvFiles.GlobalPath = packagePath('@stoked-cenv/cenv-globals');
+        CenvFiles.GlobalPath = packagePath(`${Package.scopeName}/cenv-globals`);
       }
     }
 

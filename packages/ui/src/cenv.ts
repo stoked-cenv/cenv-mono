@@ -475,78 +475,69 @@ export class Cenv {
 
 
   static async verifyCenv(silent = true) {
-    const mat = Package.getPackage(Package.packageNameToStackName('@stoked-cenv/cenv-params'));
-    mat.processStatus = ProcessStatus.STATUS_CHK;
-    const cmd = mat.createCmd('cenv deploy --verify');
-    const AppConfigGetArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/AppConfigGod`;
-    const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
+    try {
+      // const cmd = mat.createCmd('cenv deploy --verify');
+      const AppConfigGetArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/AppConfigGod`;
+      const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
 
-    const componentsMissing = [];
-    let verified = true;
-    const depStratRes = await getDeploymentStrategy();
-    if (!depStratRes.DeploymentStrategyId) {
-      verified = false;
-      componentsMissing.push(['Deployment Strategy', 'Instant.AllAtOnce']);
-    }
-
-    const policyExists = await getPolicy(AppConfigGetArn);
-    if (!policyExists) {
-      verified = false;
-      componentsMissing.push(['IAM Policy', 'AppConfigGod']);
-    }
-
-    const roleExists = await getRole('LambdaConfigRole');
-    if (!roleExists) {
-      verified = false;
-      componentsMissing.push(['IAM Role', 'LambdaConfigRole']);
-    }
-
-    const materializationExists = await getFunction('cenv-params');
-    if (!materializationExists) {
-      verified = false;
-      componentsMissing.push([
-        'Materialization Lambda',
-        'cenv-params',
-      ]);
-    }
-
-    if (!silent) {
-      if (!verified) {
-        CenvLog.info(
-          `cenv failed validation with the following missing components:`,
-        );
-        componentsMissing.map((component) =>
-          CenvLog.info(
-            ` - ${component[0]} (${infoBold(component[1])})`,
-          ),
-        );
-      } else {
-        CenvLog.info('cenv installation has been verified');
+      const componentsMissing = [];
+      let verified = true;
+      const depStratRes = await getDeploymentStrategy();
+      if (!depStratRes.DeploymentStrategyId) {
+        verified = false;
+        componentsMissing.push(['Deployment Strategy', 'Instant.AllAtOnce']);
       }
+      const policyExists = await getPolicy(AppConfigGetArn);
+      if (!policyExists) {
+        verified = false;
+        componentsMissing.push(['IAM Policy', 'AppConfigGod']);
+      }
+
+      const roleExists = await getRole('LambdaConfigRole');
+      if (!roleExists) {
+        verified = false;
+        componentsMissing.push(['IAM Role', 'LambdaConfigRole']);
+      }
+      const materializationExists = await getFunction('cenv-params');
+      if (!materializationExists) {
+        verified = false;
+        componentsMissing.push([
+          'Materialization Lambda',
+          'cenv-params',
+        ]);
+      }
+      if (!silent) {
+        if (!verified) {
+          CenvLog.info(
+              `cenv failed validation with the following missing components:`,
+          );
+          componentsMissing.map((component) =>
+              CenvLog.info(
+                  ` - ${component[0]} (${infoBold(component[1])})`,
+              ),
+          );
+        } else {
+          CenvLog.info('cenv installation has been verified');
+        }
+      }
+      //const res = verified ? 0 : 1;
+      //await cmd?.result(res);
+      return verified;
+    } catch (e) {
+      CenvLog.single.catchLog(e)
     }
-    const res = verified ? 0 : 1;
-    await cmd?.result(res);
-    return verified;
   }
 
   static async deployCenv(force = false): Promise<void> {
     try {
-      const mat = Package.getPackage(Package.packageNameToStackName('@stoked-cenv/cenv-params'));
-      mat.processStatus = ProcessStatus.PROCESSING;
       const cmdText = `cenv deploy -cenv${force ? ` --force` : ''}`;
-      const cmd = mat ? mat.createCmd(cmdText) : PackageCmd.createCmd(cmdText);
+      //const cmd = mat ? mat.createCmd(cmdText) : PackageCmd.createCmd(cmdText);
 
       if (force) {
-        cmd.out('force destroy cenv');
+        //cmd.out('force destroy cenv');
         await this.destroyCenv();
       }
 
-      if (process.env.ENV === 'local') {
-        const hostedZoneId = await ensureHostedZoneExists(
-          process.env.ROOT_DOMAIN,
-        );
-        cmd.out('local hostedZoneId');
-      }
       const AppConfigGetArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/AppConfigGod`;
       const roleArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:role/${this.roleName}`;
       const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
@@ -671,10 +662,9 @@ export class Cenv {
 
       const materializationExists = await getFunction('cenv-params');
 
-      let pkgPath = null;
+      const pkgPath = path.join(__dirname, '../../lib/params');
 
       if (!materializationExists) {
-        pkgPath = packagePath(this.materializationPkg);
         await execCmd(
           pkgPath,
           'yarn run build',
@@ -702,9 +692,9 @@ export class Cenv {
   static async destroyCenv(): Promise<boolean> {
     let destroyedAnything = false;
     try {
-      const mat = Package.getPackage(Package.packageNameToStackName('@stoked-cenv/cenv-params'));
-      mat.processStatus = ProcessStatus.PROCESSING;
-      const cmd = mat.createCmd('cenv destroy -cenv');
+
+
+      //const cmd = mat.createCmd('cenv destroy -cenv');
 
       const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
       const AppConfigGetArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/AppConfigGod`;
@@ -751,13 +741,13 @@ export class Cenv {
         destroyedAnything = true;
         await deleteHostedZone(process.env.ROOT_DOMAIN);
       }
-      cmd?.out('cenv components removed from aws account');
+      //cmd?.out('cenv components removed from aws account');
 
-      await cmd?.result(0);
+      //await cmd?.result(0);
 
-      if (Deployment.mode() === DeploymentMode.DESTROY || Deployment.mode() === DeploymentMode.DEPLOY) {
-        mat.processStatus = ProcessStatus.COMPLETED;
-      }
+      //if (Deployment.mode() === DeploymentMode.DESTROY || Deployment.mode() === DeploymentMode.DEPLOY) {
+        //mat.processStatus = ProcessStatus.COMPLETED;
+      //}
     } catch (e) {
       CenvLog.single.catchLog(
         'Cenv.destroyCenv err: ' + (e.stack ? e.stack : e),

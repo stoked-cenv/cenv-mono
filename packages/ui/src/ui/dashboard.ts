@@ -592,7 +592,7 @@ export class Dashboard {
       return;
     }
     this.cmdPanel?.out(stackName, finalMsg);
-    if (this.cmdPanel.stdout.hidden) {
+    if (this.cmdPanel?.stdout?.hidden) {
       this.cmdPanel.updateVis();
     }
   }

@@ -50,7 +50,7 @@ function parsePackageParams(params: string[]): { packages: Package[], nonPackage
   const packageNames: string[] = [];
   const newParams: string[] = [];
   while(params.length) {
-    if (params[0].startsWith('@stoked-cenv/') || Package.getRootPackageName() === params[0]) {
+    if (params[0].startsWith(`${Package.scopeName}/`) || Package.getRootPackageName() === params[0]) {
       packageNames.push(params.shift());
     } else {
       newParams.push(params.shift())
@@ -64,31 +64,37 @@ export function validateBaseOptions({packages = [], suite = undefined, environme
   options: any,
   cmd?: DeploymentMode
 ) {
-  if (options?.suite || options?.environment) {
-    if (options?.userInterface === undefined && options?.cli === undefined) {
-      options.cli = false;
-    }
-    options.dependencies = true;
-  } else if (!Package.realPackagesLoaded()) {
-    if (options?.userInterface === undefined && options?.cli === undefined) {
-      if (!options?.dependencies) {
-        options.cli = true;
+  try {
+    if (options?.suite || options?.environment) {
+      if (options?.userInterface === undefined && options?.cli === undefined) {
+        options.cli = false;
       }
+      options.dependencies = true;
+    } else if (!Package.realPackagesLoaded()) {
+      if (options?.userInterface === undefined && options?.cli === undefined) {
+        if (!options?.dependencies) {
+          options.cli = true;
+        }
+      }
+    } else if (!!(options.cenv || options.key)) {
+      options.cli = true;
     }
-  } else if (!!(options.cenv || options.key)) {
-    options.cli = true;
-  }
-  options.userInterface = !options.cli;
-  if (options?.userInterface && !process.env.CENV_SPAWNED) {
-    CenvParams.dashboard = new Dashboard({ packages, suite, environment, cmd }, options);
-    process.env.CENV_DEFAULTS = 'true';
-  }
-
-  if (cmd) {
-    if (!options.cenv && !options.key && !options.addKeyAccount && !options.stack && !options.parameters && !options.docker) {
-      options.stack = options.parameters = options.docker = true;
+    options.userInterface = !options.cli;
+    if (options?.userInterface && !process.env.CENV_SPAWNED) {
+      CenvParams.dashboard = new Dashboard({packages, suite, environment, cmd}, options);
+      process.env.CENV_DEFAULTS = 'true';
     }
+    if (cmd) {
+      if (!options.cenv && !options.key && !options.addKeyAccount && !options.stack && !options.parameters && !options.docker) {
+        options.stack = options.parameters = options.docker = true;
+      }
+      if (!options.skipBuild) {
+        options.build = true;
+      }
 
+    }
+  } catch (e) {
+    CenvLog.single.catchLog(e);
   }
 }
 
