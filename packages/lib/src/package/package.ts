@@ -366,7 +366,6 @@ export class Package implements IPackage {
 
     try {
       const stackName = Package.packageNameToStackName(packageName);
-      packageName = Package.stackNameToPackageName(stackName);
       if (!noCache && Package.cache[stackName]) {
         return Package.cache[stackName];
       }

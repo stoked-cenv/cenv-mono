@@ -623,7 +623,7 @@ export class Dashboard {
       return;
     }
 
-    this.cmdPanel.err(stackName, finalMsg);
+    this?.cmdPanel?.err(stackName, finalMsg);
   }
 
   static logErr(stackName: string, ...text: string[]) {

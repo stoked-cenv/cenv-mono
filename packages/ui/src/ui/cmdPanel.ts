@@ -3,6 +3,7 @@ import colors from 'colors/safe';
 import { Dashboard } from './dashboard';
 import { CenvPanel } from './panel';
 import chalk from 'chalk';
+import {CenvLog} from "@stoked-cenv/cenv-lib";
 
 export default class CmdPanel extends CenvPanel {
   grid;
@@ -17,188 +18,192 @@ export default class CmdPanel extends CenvPanel {
   }
 
   init() {
-    this.cmdList = this.addGridWidget(
-      blessed.list,
-      {
-        keys: true,
-        mouse: true,
-        interactive: true,
-        style: {
-          text: 'red',
-          selected: {
-            bold: true,
-            fg: [24, 242, 24],
-            bg: 'black',
+    try {
+      this.cmdList = this.addGridWidget(
+          blessed.list,
+          {
+            keys: true,
+            mouse: true,
+            interactive: true,
+            style: {
+              text: 'red',
+              selected: {
+                bold: true,
+                fg: [24, 242, 24],
+                bg: 'black',
+              },
+              border: {fg: 'grey'},
+              label: {side: 'left', fg: 'gray'},
+              focus: {fg: 'red'}
+            },
+            template: {lines: true},
+            selectedInverse: false,
           },
-          border: { fg: 'grey' },
-          label: { side: 'left', fg: 'gray' },
-          focus: { fg: 'red' }
-        },
-        template: { lines: true },
-        selectedInverse: false,
-      },
-      [0, 2, 1, 3],
-      true,
-    );
-    this.cmdList.name = 'tasks';
+          [0, 2, 1, 3],
+          true,
+      );
+      this.cmdList.name = 'tasks';
 
-    this.stdout = this.addGridWidget(
-      blessed.text,
-      {
-        vi: true,
-        fg: 'white',
-        label: 'stdout',
-        tags: true,
-        keys: true,
-        mouse: true,
-        scrollable: true,
-        scrollbar: {
-          ch: ' ',
-          inverse: true,
-        },
-        style: {
-          fg: 'white',
-          bg: 'black',
-          border: { fg: 'gray' },
-          label: { fg: 'gray' }
-        },
-        autoScroll: false,
-        padding: { left: 1, right: 1, top: 0, bottom: 0 }
-      },
-      [1, 2, 3, 3],
-      true,
-    );
-    this.stdout.name = 'stdout'
+      this.stdout = this.addGridWidget(
+          blessed.text,
+          {
+            vi: true,
+            fg: 'white',
+            label: 'stdout',
+            tags: true,
+            keys: true,
+            mouse: true,
+            scrollable: true,
+            scrollbar: {
+              ch: ' ',
+              inverse: true,
+            },
+            style: {
+              fg: 'white',
+              bg: 'black',
+              border: {fg: 'gray'},
+              label: {fg: 'gray'}
+            },
+            autoScroll: false,
+            padding: {left: 1, right: 1, top: 0, bottom: 0}
+          },
+          [1, 2, 3, 3],
+          true,
+      );
+      this.stdout.name = 'stdout'
 
-    this.stdout.on(
-      'wheeldown',
-      function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stdout);
-        this.setFocus(index);
-        this.stdout.scroll((this.stdout.height / 2) | 0 || 1);
-        this.stdout.screen.render();
-      }.bind(this),
-    );
-    this.stdout.on(
-      'wheelup',
-      function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stdout);
-        this.setFocus(index);
-        this.stdout.scroll(-((this.stdout.height / 2) | 0) || -1);
-        this.stderr.screen.render();
-      }.bind(this),
-    );
-    this.stdout.on(
-      'click',
-      function () {
-        const index = Dashboard.instance.focusPool()?.indexOf(this.stdout);
-        if (index !== undefined) {
-          this.setFocus(index);
-        }
-      }.bind(this),
-    );
+      this.stdout.on(
+          'wheeldown',
+          function () {
+            const index = Dashboard.instance.focusPool().indexOf(this.stdout);
+            this.setFocus(index);
+            this.stdout.scroll((this.stdout.height / 2) | 0 || 1);
+            this.stdout.screen.render();
+          }.bind(this),
+      );
+      this.stdout.on(
+          'wheelup',
+          function () {
+            const index = Dashboard.instance.focusPool().indexOf(this.stdout);
+            this.setFocus(index);
+            this.stdout.scroll(-((this.stdout.height / 2) | 0) || -1);
+            this.stderr.screen.render();
+          }.bind(this),
+      );
+      this.stdout.on(
+          'click',
+          function () {
+            const index = Dashboard.instance.focusPool()?.indexOf(this.stdout);
+            if (index !== undefined) {
+              this.setFocus(index);
+            }
+          }.bind(this),
+      );
 
-    this.stderr = this.addGridWidget(
-      blessed.box,
-      {
-        fg: 'brightRed',
-        label: 'stderr',
-        tags: true,
-        keys: true,
-        mouse: true,
-        scrollable: true,
-        scrollbar: {
-          ch: ' ',
-          inverse: true,
-        },
-        style: {
-          fg: 'brightRed',
-          bg: 'black',
-          border: { fg: 'gray' },
-          label: { fg: 'gray' }
-        },
-        autoScroll: false,
-        padding: { left: 1, right: 1, top: 0, bottom: 0 }
-      },
-      [4, 2, 2, 3],
-      true,
-    );
-    this.stderr.name = 'stderr'
-    this.stderr.setLabel(chalk.gray(`stderr`));
+      this.stderr = this.addGridWidget(
+          blessed.box,
+          {
+            fg: 'brightRed',
+            label: 'stderr',
+            tags: true,
+            keys: true,
+            mouse: true,
+            scrollable: true,
+            scrollbar: {
+              ch: ' ',
+              inverse: true,
+            },
+            style: {
+              fg: 'brightRed',
+              bg: 'black',
+              border: {fg: 'gray'},
+              label: {fg: 'gray'}
+            },
+            autoScroll: false,
+            padding: {left: 1, right: 1, top: 0, bottom: 0}
+          },
+          [4, 2, 2, 3],
+          true,
+      );
+      this.stderr.name = 'stderr'
+      this.stderr.setLabel(chalk.gray(`stderr`));
 
-    this.stderr.on(
-      'click',
-      function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stderr);
-        this.setFocus(index);
-      }.bind(this),
-    );
+      this.stderr.on(
+          'click',
+          function () {
+            const index = Dashboard.instance.focusPool().indexOf(this.stderr);
+            this.setFocus(index);
+          }.bind(this),
+      );
 
-    this.stderr.on(
-      'wheeldown',
-      function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stderr);
-        this.setFocus(index);
-        this.stderr.scroll((this.stderr.height / 2) | 0 || 1);
-        this.stderr.screen.render();
-      }.bind(this),
-    );
+      this.stderr.on(
+          'wheeldown',
+          function () {
+            const index = Dashboard.instance.focusPool().indexOf(this.stderr);
+            this.setFocus(index);
+            this.stderr.scroll((this.stderr.height / 2) | 0 || 1);
+            this.stderr.screen.render();
+          }.bind(this),
+      );
 
-    this.stderr.on(
-      'wheelup',
-      function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stderr);
-        this.setFocus(index);
-        this.stderr.scroll(-((this.stderr.height / 2) | 0) || -1);
-        this.stderr.screen.render();
-      }.bind(this),
-    );
+      this.stderr.on(
+          'wheelup',
+          function () {
+            const index = Dashboard.instance.focusPool().indexOf(this.stderr);
+            this.setFocus(index);
+            this.stderr.scroll(-((this.stderr.height / 2) | 0) || -1);
+            this.stderr.screen.render();
+          }.bind(this),
+      );
 
-    this.cmdList.on(
-      'click',
-      function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.cmdList);
-        this.setFocus(index);
-      }.bind(this),
-    );
+      this.cmdList.on(
+          'click',
+          function () {
+            const index = Dashboard.instance.focusPool().indexOf(this.cmdList);
+            this.setFocus(index);
+          }.bind(this),
+      );
 
-    this.cmdList.on(
-      'action',
-      function () {
-        //this.stdout.insertBottom('action')
-      }.bind(this),
-    );
+      this.cmdList.on(
+          'action',
+          function () {
+            //this.stdout.insertBottom('action')
+          }.bind(this),
+      );
 
-    this.cmdList.on(
-      'select',
-      function () {
-        //this.stdout.insertBottom('select')
-      }.bind(this),
-    );
+      this.cmdList.on(
+          'select',
+          function () {
+            //this.stdout.insertBottom('select')
+          }.bind(this),
+      );
 
-    this.cmdList.on(
-      'move',
-      function () {
-        //this.stdout.insertBottom('move')
-      }.bind(this),
-    );
+      this.cmdList.on(
+          'move',
+          function () {
+            //this.stdout.insertBottom('move')
+          }.bind(this),
+      );
 
-    this.cmdList.on('select item', function (item, index) {
-        if (this.selectedCmdIndex === index) {
-          return;
-        }
+      this.cmdList.on('select item', function (item, index) {
+            if (this.selectedCmdIndex === index) {
+              return;
+            }
 
-        const cmd = this.getPkgCmd(index);
-        if (!cmd) {
-          return;
-        }
-        this.stderr.setContent(cmd.stderr);
-        this.stdout.setContent(cmd.stdout);
-        this.selectedCmdIndex = index;
-        this.stderr.setScrollPerc(0);
-        this.stdout.setScrollPerc(0);
-      }.bind(this),
-    );
+            const cmd = this.getPkgCmd(index);
+            if (!cmd) {
+              return;
+            }
+            this.stderr.setContent(cmd.stderr);
+            this.stdout.setContent(cmd.stdout);
+            this.selectedCmdIndex = index;
+            this.stderr.setScrollPerc(0);
+            this.stdout.setScrollPerc(0);
+          }.bind(this),
+      );
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
   }
 
   getCmdText(cmdIndex, cmd) {
