@@ -1,6 +1,15 @@
 import {Command, Option} from 'nest-commander';
 import path from 'path';
-import { configure as cenvConfigure, errorInfo, packagePath, spawnCmd, startCenv, ClientMode, BaseCommandOptions } from '@stoked-cenv/cenv-lib';
+import {
+  configure as cenvConfigure,
+  errorInfo,
+  packagePath,
+  spawnCmd,
+  startCenv,
+  ClientMode,
+  BaseCommandOptions,
+  Package
+} from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base'
 
 
@@ -47,23 +56,20 @@ export default class ExecCommand extends BaseCommand {
     return val;
   }
 
-  async runCommand(
-    passedParam: string[],
-    options?: ExecCommandOptions,
-  ): Promise<void> {
+  async runCommand(params: string[], options: any, packages: Package[]): Promise<void> {
 
     try {
       await cenvConfigure(options);
       let vars = {};
-      if (options?.application) {
-        const pkgPath = packagePath(options?.application);
+      await Promise.all(packages.map(async (p: Package) => {
+        const pkgPath = packagePath(p.packageName);
         const relative = path.relative(process.cwd(), pkgPath);
         if (relative !== '') {
           process.chdir(path.relative(process.cwd(), pkgPath));
         }
         vars = await startCenv(ClientMode.REMOTE_ON_STARTUP);
-      }
-      await spawnCmd('./', passedParam.join(' '), passedParam.join(' '), { envVars: vars });
+        await spawnCmd('./', params.join(' '), params.join(' '), { envVars: vars }, p);
+      }));
     } catch (e) {
       console.log(errorInfo(e));
     }
