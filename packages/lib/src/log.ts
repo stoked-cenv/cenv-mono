@@ -1,5 +1,6 @@
 import chalk, { Chalk } from 'chalk';
 import { CenvParams } from './params';
+import {cleanup, destroyUI} from "./utils";
 
 const info = chalk.gray;
 const infoBold = chalk.blueBright.underline;
@@ -180,16 +181,14 @@ export class CenvLog {
   }
 
   catchLog(error: any) {
-    if (CenvParams.dashboard) {
-      CenvParams.dashboard.destroy();
-      delete CenvParams.dashboard;
-    }
+    cleanup('catchLog');
 
     this.errorLog(error);
     if (!error || !error.stack)
       this.errorLog(new Error().stack)
     else
       this.errorLog(error.stack)
+
     process.exit(23);
   }
 

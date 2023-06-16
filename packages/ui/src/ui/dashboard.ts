@@ -1582,7 +1582,7 @@ export class Dashboard {
   }
 
   destroy() {
-    this.screen.destroy();
+    this.screen?.destroy();
   }
 
   redraw() {

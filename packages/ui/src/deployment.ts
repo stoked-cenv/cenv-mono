@@ -261,6 +261,9 @@ export class Deployment {
         return 1;
       }
     }
+
+    Dashboard.debug(`Dashboard.options: ${JSON.stringify(this.options, null, 2)}`);
+
     if (pkg?.deploy && this.options?.stack &&  (!this.options?.strictVersions || !pkg.deploy.upToDate())) {
       if (pkg.deploy.needsAutoDelete()) {
         await this.deleteStack(pkg);
@@ -478,16 +481,14 @@ export class Deployment {
 
   static dockerBuild: { [key: string]: number } = {};
 
-
   public static async DockerBuild(
     pkg,
     args,
     options: DockerCommandOptions = { build: true, push: true, dependencies: false}
   ): Promise<number> {
     const { build, push, dependencies } = options;
-    console.log('options.force', options.force)
     if (options) {
-      this.options = options;
+      this.options = { ...this.options, ...options };
     }
     if (dependencies) {
       if (pkg?.meta?.service) {
@@ -1142,6 +1143,7 @@ export class Deployment {
     options = Deployment.deployDestroyOptions(options);
 
     this.options = { ...this.options, ...options };
+
     if (Object.keys(Package.cache).length === 0) {
       CenvLog.single.alertLog('no packages loaded');
       process.exit();

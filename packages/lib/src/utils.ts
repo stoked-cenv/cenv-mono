@@ -949,15 +949,19 @@ export function killRunningProcesses() {
   }
 }
 
+export function destroyUI() {
+  if (CenvParams.dashboard) {
+    CenvParams.dashboard.screen?.destroy();
+    delete CenvParams.dashboard;
+  }
+  if (CenvParams.dashboard) {
+    CenvParams.dashboard.screen?.destroy();
+    delete CenvParams.dashboard;
+  }
+}
+
 export function cleanup(eventType) {
-  if (CenvParams.dashboard) {
-    CenvParams.dashboard.screen?.destroy();
-    delete CenvParams.dashboard;
-  }
-  if (CenvParams.dashboard) {
-    CenvParams.dashboard.screen?.destroy();
-    delete CenvParams.dashboard;
-  }
+  destroyUI();
 
   if (process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     process.argv.shift();

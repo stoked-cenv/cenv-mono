@@ -287,6 +287,9 @@ export default class MenuBar {
           callback: async function () {
             debounceCallback('deploy', async () => {
               const pkgs = getContext();
+              if (!pkgs) {
+                return;
+              }
               const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName.toUpperCase()}`;
               dashboard.setStatusBar('launchDeployment', statusText(`deploy`, `${packages}`));
               await launchDeployment(DeploymentMode.DEPLOY);
