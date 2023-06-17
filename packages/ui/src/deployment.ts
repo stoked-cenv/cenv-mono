@@ -382,8 +382,8 @@ export class Deployment {
     }
     result = await spawnCmd(
       pkg?.deploy?.path,
-      'cenv clean --mode cdk',
-      'cenv clean --mode cdk',
+      `cenv clean ${pkg.packagePath} --mode cdk`,
+      `cenv clean ${pkg.packagePath} --mode cdk`,
       {},
       pkg,
     );

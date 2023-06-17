@@ -15,7 +15,9 @@ Commands.module = CenvModule;
 [`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`].forEach((eventType, ) => {
   process.on(eventType, err => {
     cleanup.bind(this, eventType)
-    console.error(err);
+    if (err) {
+      console.error(err);
+    }
     process.exit(0);
   });
 })

@@ -951,12 +951,12 @@ export function killRunningProcesses() {
 
 export function destroyUI() {
   if (CenvParams.dashboard) {
-    CenvParams.dashboard.screen?.destroy();
+    if (CenvParams.dashboard.screen) {
+      CenvParams.dashboard.screen?.destroy();
+      console.log('CenvParams.dashboard.screen?.destroy()');
+    }
     delete CenvParams.dashboard;
-  }
-  if (CenvParams.dashboard) {
-    CenvParams.dashboard.screen?.destroy();
-    delete CenvParams.dashboard;
+    console.log('CenvParams.dashboard');
   }
 }
 

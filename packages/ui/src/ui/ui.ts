@@ -23,6 +23,7 @@ export class CenvUI {
       environment: this.environment,
       cmd: this.cmd
     }, cmdOptions);
+    CenvParams.dashboard = this.dashboard;
   }
 
 }

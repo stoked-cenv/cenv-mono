@@ -73,7 +73,7 @@ export class HelpUI {
         return;
       }
 
-      CenvParams.dashboard = this;
+      // CenvParams.dashboard = this;
       this.providers = Commands.module.providers
       this.createBaseWidgets();
       HelpUI.instance = this;

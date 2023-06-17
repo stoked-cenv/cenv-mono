@@ -1,6 +1,6 @@
 import chalk, { Chalk } from 'chalk';
 import { CenvParams } from './params';
-import {cleanup, destroyUI} from "./utils";
+import {cleanup, destroyUI, killRunningProcesses} from "./utils";
 
 const info = chalk.gray;
 const infoBold = chalk.blueBright.underline;
@@ -181,7 +181,6 @@ export class CenvLog {
   }
 
   catchLog(error: any) {
-    cleanup('catchLog');
 
     this.errorLog(error);
     if (!error || !error.stack)

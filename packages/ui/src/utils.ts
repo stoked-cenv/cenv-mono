@@ -81,7 +81,9 @@ export function validateBaseOptions({packages = [], suite = undefined, environme
     }
     options.userInterface = !options.cli;
     if (options?.userInterface && !process.env.CENV_SPAWNED) {
-      CenvParams.dashboard = new Dashboard({packages, suite, environment, cmd}, options);
+      if (!CenvParams.dashboard) {
+        CenvParams.dashboard = new Dashboard({packages, suite, environment, cmd}, options);
+      }
       process.env.CENV_DEFAULTS = 'true';
     }
     if (cmd) {

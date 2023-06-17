@@ -1,5 +1,13 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, execAll, spawnCmd, configDefaults, CenvFiles, CleanCommandOptions } from '@stoked-cenv/cenv-lib';
+import {
+  CenvLog,
+  execAll,
+  spawnCmd,
+  configDefaults,
+  CenvFiles,
+  CleanCommandOptions,
+  Package
+} from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base'
 
 @Command({
@@ -43,16 +51,8 @@ export default class CleanCommand extends BaseCommand {
   parseGlobals(val: boolean): boolean {
     return val;
   }
-  @Option({
-    name: 'all applications',
-    flags: '-aa, --all-applications',
-    description: 'Cleans every directory in lerna.',
-  })
-  parseEncrypted(val: boolean): boolean {
-    return val;
-  }
 
-  async runCommand(param: string[], options: CleanCommandOptions) {
+  async runCommand(params: string[], options: any, packages: Package[]) {
     try {
 
       const modes = ['cenv', 'cdk', 'both'];
@@ -61,22 +61,16 @@ export default class CleanCommand extends BaseCommand {
         process.exit();
       }
 
-      if (options?.mode === 'cdk' || options?.mode === 'both') {
-        if (options?.allApplications) {
-          await spawnCmd('./', 'lerna exec --scope @*/*deploy -- rm -rf cdk.context.json cdk.out', 'cdk clear');
-        } else {
-          await spawnCmd('./', 'rm -rf cdk.context.json cdk.out', 'cdk clear');
+      await Promise.all(packages.map(async (p: Package) => {
+        if ((options?.mode === 'cdk' || options?.mode === 'both') && p.deploy) {
+          await spawnCmd('./', 'rm -rf cdk.context.json cdk.out', 'cdk clear', {}, p);
         }
-      }
 
-      if (options?.mode === 'cenv' || options?.mode === 'both') {
-        if (options?.allApplications) {
-          await execAll(`cenv clean -m ${options?.mode}`);
-
-        } else {
+        if ((options?.mode === 'cenv' || options?.mode === 'both') && p.params) {
           CenvFiles.Clean(undefined, options);
         }
-      }
+      }));
+
     } catch (e) {
       CenvLog.single.catchLog(e)
     }

@@ -9,8 +9,6 @@ import { CenvPanel } from './panel';
 import Groups from './group';
 import chalk from 'chalk';
 import { Dashboard } from './dashboard';
-import Dialogs from "./dialogs";
-import * as util from "util";
 
 export default class StatusPanel extends CenvPanel {
   grid;
@@ -79,7 +77,6 @@ export default class StatusPanel extends CenvPanel {
       );
 
       this.modules.name = 'modules';
-
 
       this.dependencies = this.addGridWidget(
         blessed.box,
@@ -168,7 +165,7 @@ export default class StatusPanel extends CenvPanel {
         },
         autoScroll: false,
         template: {lines: true},
-        label: '',
+        label: 'module info',
         columnWidth: [10, 10],
       });
       this.monoRoot = getMonoRoot();
@@ -343,7 +340,11 @@ export default class StatusPanel extends CenvPanel {
         bg: bg,
         border: {fg: 'gray'},
         label: {fg: 'gray',}
-      }
+      },
+      scrollbar: {
+        ch: ' ',
+        inverse: true,
+      },
     };
   }
 

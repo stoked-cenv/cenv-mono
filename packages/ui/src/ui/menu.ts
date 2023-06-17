@@ -35,6 +35,9 @@ export default class MenuBar {
         Dashboard.instance.cmd = mode;
 
         const packages = getContext();
+        if (!packages) {
+          return;
+        }
         packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
         let deploymentOptions = {};
@@ -301,7 +304,9 @@ export default class MenuBar {
           callback: async function () {
             debounceCallback('destroy', async () => {
               const pkgs = getContext();
-
+              if (!pkgs) {
+                return;
+              }
               const packages =
                   pkgs.length > 1
                   ? `${pkgs.length} packages`
@@ -367,7 +372,9 @@ export default class MenuBar {
           keys: ['S-d'],
           callback: function () {
             const ctx = getContext(PkgContextType.PROCESSING, false);
-
+            if (!ctx) {
+              return;
+            }
             debounceCallback('cancelDeploy', async () => {
               ctx.map(p => {
                 CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', Dashboard.instance.cmdPanel.stdout), p.stackName);
@@ -412,7 +419,7 @@ export default class MenuBar {
           keys: ['enter'],
           callback: async function () {
             const ctx = getContext();
-            if (!ctx.length) {
+            if (!ctx?.length) {
                 return;
             }
             const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
@@ -466,6 +473,9 @@ export default class MenuBar {
               const name = 'fix param dupes';
               debounceCallback(name, async () => {
                 const ctx = getContext();
+                if (!ctx) {
+                  return;
+                }
                 await Promise.all(ctx?.map(async (p: Package) => await p?.params?.fixDupes()));
                 dashboard.setStatusBar(name, statusText(name, 'remove dupes for global and globalEnv param types'));
               });

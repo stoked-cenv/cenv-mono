@@ -38,9 +38,15 @@ export default class CmdPanel extends CenvPanel {
             },
             template: {lines: true},
             selectedInverse: false,
+            scrollable: true,
+            scrollbar: {
+              ch: ' ',
+              inverse: true,
+            },
           },
           [0, 2, 1, 3],
           true,
+
       );
       this.cmdList.name = 'tasks';
 

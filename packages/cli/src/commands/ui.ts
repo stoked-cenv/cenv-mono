@@ -52,7 +52,6 @@ export default class UICommand extends BaseCommand {
       if (!packages.length) {
         options.suite = options.defaultSuite;
         const suite = new Suite(options.suite)
-        CenvLog.single.infoLog(suite.packages.map(p => p.packageName).join(', '))
         new CenvUI(options, suite.packages);
       } else {
         new CenvUI(options, packages);

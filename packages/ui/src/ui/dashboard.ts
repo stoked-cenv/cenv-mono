@@ -13,7 +13,7 @@ import {
   Package,
   ProcessStatus,
   Timer,
-  getPkgContext,
+  getPkgContext, cleanup, killRunningProcesses,
 } from '@stoked-cenv/cenv-lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
@@ -124,7 +124,6 @@ export class Dashboard {
         return;
       }
 
-      CenvParams.dashboard = this;
 
       this.cmdOptions = cmdOptions;
       this.blessedDeps = getBlessedDeps();
@@ -136,7 +135,7 @@ export class Dashboard {
       this.environment = options?.environment;
       this.cmd = options?.cmd;
 
-      Dashboard.instance = this;
+
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
@@ -383,6 +382,7 @@ export class Dashboard {
           this.show();
         } else {
           this.screen.destroy();
+          killRunningProcesses();
           return process.exit(0);
         }
       });
@@ -522,7 +522,7 @@ export class Dashboard {
           }.bind(this),
         );
       }
-
+      Dashboard.instance = this;
       this.initialized = true;
     } catch (e) {
       CenvLog.single.catchLog(e);
@@ -585,15 +585,15 @@ export class Dashboard {
   log(stackName: string, ...text: string[]) {
     stackName = blessed.cleanTags(stackName);
 
-    //
     const finalMsg = text.join(' ');
     this.storeLog(stackName, finalMsg, 'stdout');
     if (stackName !== Dashboard.stackName) {
       return;
     }
     this.cmdPanel?.out(stackName, finalMsg);
+
     if (this.cmdPanel?.stdout?.hidden) {
-      this.cmdPanel.updateVis();
+      this.cmdPanel?.updateVis();
     }
   }
 
