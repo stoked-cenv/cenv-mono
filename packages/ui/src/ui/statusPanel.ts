@@ -341,10 +341,6 @@ export default class StatusPanel extends CenvPanel {
         border: {fg: 'gray'},
         label: {fg: 'gray',}
       },
-      scrollbar: {
-        ch: ' ',
-        inverse: true,
-      },
     };
   }
 
