@@ -192,15 +192,24 @@ export interface ICmdOptions {
   returnOutput?: boolean;
   redirectStdErrToStdOut?: boolean;
   returnRegExp?: RegExp;
+  returnProperty?: string;
   pipedOutput?: boolean;
   pkgCmd?: PackageCmd;
   silent?: boolean;
 }
 
+function setDescendantProp(obj, desc, value) {
+  const arr = desc.split(".");
+  while(arr.length && (obj = obj[arr.shift()]));
+  obj = value;
+}
+
 function spawnInfo(options, chunk, output, pkg) {
   if (options.returnOutput) {
-    if (options?.returnRegExp) {
-      const regex = new RegExp(options?.returnRegExp, 'gim');
+      output += chunk;
+  } else {
+    if (options.returnRegExp) {
+      const regex = options?.returnRegExp;
 
       let m;
       while ((m = regex.exec(chunk)) !== null) {
@@ -211,14 +220,13 @@ function spawnInfo(options, chunk, output, pkg) {
 
         // The result can be accessed through the `m`-variable.
         m.forEach((match, groupIndex) => {
-          output.push(match);
+          if (match && groupIndex === 1) {
+            setDescendantProp(pkg, options.returnProperty, match)
+            CenvLog.single.errorLog('digest output: ' + match);
+          }
         });
       }
-      //console.log('output regex match', output)
-    } else {
-      output += chunk;
     }
-  } else {
     CenvLog.single.infoLog(chunk, pkg?.stackName);
   }
 }
@@ -240,6 +248,7 @@ export async function spawnCmd(
     returnOutput: false,
     redirectStdErrToStdOut: false,
     returnRegExp: undefined,
+    returnProperty: undefined,
     pipedOutput: false
   },
   packageInfo: Package = undefined,
@@ -762,14 +771,12 @@ export class Timer {
 
   reset() {
     this.start = process.hrtime();
+    delete this.finalElapsed;
+    delete this.final;
   }
 
-  stop() {
-    return this.elapsed(true);
-  }
-
-  static start = process.hrtime();
-
+  //static start = process.hrtime();
+/*
   static elapsed(note, format = 'seconds') {
     if (process.env.TIMING) {
       const res = elapsedBase(this.start, format, note);
@@ -781,6 +788,7 @@ export class Timer {
   static reset() {
     this.start = process.hrtime(); // reset the timer
   }
+  */
 }
 
 export class TimerModules {
@@ -1130,4 +1138,11 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
   }
 
   return { packages };
+}
+
+export function resolveHome(filepath) {
+  if (filepath[0] === '~') {
+    return path.join(process.env.HOME, filepath.slice(1));
+  }
+  return filepath;
 }
