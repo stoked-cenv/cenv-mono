@@ -390,9 +390,8 @@ export function updateTemplates(add,  envVar, type, value = undefined) {
     if (!existsSync(file.TEMPLATE_PATH)) {
       file.save({ [envVar]: value }, true, file.TEMPLATE, path);
     } else {
-      let varData = file.read(file.TEMPLATE_PATH, file.SCHEMA, true);
-      const hasIt = Object.keys(varData).includes(envVar);
-
+      const varData = file.read(file.TEMPLATE_PATH, file.SCHEMA, true) || {};
+      const hasIt = varData ? Object.keys(varData).includes(envVar) : false;
       if (add && !hasIt) {
         varData[envVar] = value || 'string';
         file.save(varData, true, file.TEMPLATE, path);
