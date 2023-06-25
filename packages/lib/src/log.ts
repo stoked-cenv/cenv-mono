@@ -182,11 +182,13 @@ export class CenvLog {
 
   catchLog(error: any) {
 
+    cleanup('catchLog');
     this.errorLog(error);
     if (!error || !error.stack)
       this.errorLog(new Error().stack)
     else
       this.errorLog(error.stack)
+
 
     process.exit(23);
   }
