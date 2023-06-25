@@ -175,7 +175,7 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   printCheckStatusStart(): void {
-    this.mouth.info('check status');
+    // this.mouth.info('check status');
   }
 
   statusLine(title, description, issue) {

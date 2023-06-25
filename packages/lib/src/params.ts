@@ -265,9 +265,6 @@ export class CenvParams {
         process.env.CENV_LOG_LEVEL = LogLevel.INFO
         CenvLog.logLevel = LogLevel.INFO;
       }
-      if (process.env.CENV_LOG_LEVEL && process.env.CENV_LOG_LEVEL != 'MINIMAL') {
-        CenvLog.single.infoLog(`CENV_LOG_LEVEL=${process.env.CENV_LOG_LEVEL}`)
-      }
 
       const monoRoot = getMonoRoot();
       if (path.resolve(process.cwd()) === path.resolve(monoRoot)) {
@@ -524,7 +521,7 @@ export class CenvParams {
     } else {
       const { before, after, error } = await invoke('cenv-params', JSON.stringify(data))
       if (error) {
-        CenvLog.single.errorLog(error);
+        CenvLog.single.errorLog(JSON.stringify(error, null, 2));
         return;
       }
 
