@@ -102,6 +102,10 @@ export default class AddCommand extends BaseCommand {
 
   async runCommand(params: string[], options?: AddParamCommandOptions, packages?: Package[]): Promise<void> {
     try {
+      if (!packages) {
+        CenvLog.single.mouth.err('could not determine which package to upsert this param to', 'add failed')
+        process.exit(0)
+      }
       await Promise.all(packages.map(async (p: Package) => {
         await Cenv.addParam(p, params, options);
       }));
