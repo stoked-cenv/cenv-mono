@@ -2,6 +2,7 @@ export class Commands {
   static module = null;
   static list() {
     return [
+      ['Cenv', 'cenv'],
       ['Deploy', 'deploy'],
       ['Destroy', 'destroy'],
       ['Add', 'add'],
