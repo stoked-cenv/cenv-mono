@@ -39,7 +39,7 @@ export class Environment {
 
     this.packages = this.stacks.map((s) => {
       const pkg = Package.cache[s.StackName];
-      pkg.deploy.summary = s;
+      pkg.stack.summary = s;
       return pkg;
     });
     if (this.packages?.length) {
@@ -74,6 +74,4 @@ export class Environment {
       return s.StackName.startsWith(environment + '-');
     })
   }
-
-
 }

@@ -1,59 +1,17 @@
 import {
-  addUserToGroup,
-  attachPolicyToGroup,
-  attachPolicyToRole,
-  BaseCommandOptions,
-  CenvFiles,
-  CenvLog,
-  CenvParams,
-  configure,
-  createApplication,
-  createConfigurationProfile,
-  createDeploymentStrategy,
-  createEnvironment,
-  createFunction,
-  createGroup,
-  createPolicy,
-  createRole,
-  deleteCenvData,
-  deleteFunction,
-  deleteGroup,
-  deleteHostedZone,
-  deletePolicy,
-  deleteRole,
-  ProcessStatus,
-  detachPolicyFromRole,
-  ensureHostedZoneExists,
-  errorBold,
-  execCmd,
-  exitWithoutTags,
-  getApplication,
-  getConfigParams,
-  getConfigurationProfile,
-  getDeploymentStrategy,
-  getEnvironment,
-  getFunction,
-  getMonoRoot,
-  getPolicy,
-  getRole,
-  infoAlertBold,
-  infoBold,
-  ioAppEnv,
-  ioYesOrNo,
-  listExports,
-  Package,
-  PackageCmd,
-  packagePath,
-  search_sync,
-  upsertParameter,
+  addUserToGroup, attachPolicyToGroup, attachPolicyToRole,
+  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, createApplication, createConfigurationProfile,
+  createDeploymentStrategy, createEnvironment, createFunction, createGroup, createPolicy, createRole,
+  deleteCenvData, deleteFunction, deleteGroup, deleteHostedZone, deletePolicy, deleteRole, detachPolicyFromRole,
+  errorBold, execCmd, exitWithoutTags, getApplication, getConfigParams, getConfigurationProfile,
+  getDeploymentStrategy, getEnvironment, getFunction, getPolicy, getRole, infoBold, ioAppEnv,
+  ioYesOrNo, listExports, Package, PackageCmd, packagePath, search_sync, upsertParameter
 } from '@stoked-cenv/cenv-lib';
-import semver from 'semver';
 
 import chalk from 'chalk';
 import path from 'path';
 import { validateOneType } from './validation';
-import { existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync } from 'fs';
-import { Deployment, DeploymentMode } from './deployment';
+import { Deployment } from '../../cli/src/deployment';
 import { Environment } from './environment';
 import { Export } from '@aws-sdk/client-cloudformation';
 
@@ -64,14 +22,6 @@ interface FlagValidation {
   envConfig;
 }
 
-export interface IVersionFile {
-  version: semver.SemVer;
-  previousVersion?: semver.SemVer;
-  initialVersion: semver.SemVer;
-  upgradedTs?: number;
-  lastTs: number;
-}
-
 interface IApplicationShiftExecutor {
   (envCtx: any, params: any, options: any): Promise<PackageCmd>;
 }
@@ -80,13 +30,13 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   app?: boolean;
   environment?: boolean;
   global?: boolean;
+  globalEnv?: boolean;
   simple?: boolean;
   detail?: boolean;
   decrypted?: boolean;
   deployed?: boolean;
   allApplications?: boolean;
   output?: string;
-  includeApplication?: boolean;
   test?: boolean;
   defaults?: boolean;
 }
@@ -193,7 +143,7 @@ export class Cenv {
       await new Promise((r) => setTimeout(r, 2000));
       await CenvParams.pull(false, false, false);
     }
-    if (options?.deploy) {
+    if (options?.stack) {
       cmd.out(
         `deploying ${infoBold(
           config.ApplicationName,
@@ -239,11 +189,11 @@ export class Cenv {
     if (options?.environment) {
       process.env.ENV = options.environment;
     }
-    if (options?.deploy && options?.push) {
+    if (options?.stack && options?.push) {
       CenvLog.single.alertLog(
         'The --push is redundant. It is implied when used with --deploy',
       );
-    } else if (options?.deploy) {
+    } else if (options?.stack) {
       options.push = true;
     }
 
@@ -402,16 +352,16 @@ export class Cenv {
     );
     CenvFiles.SaveEnvConfig(envConfig);
 
-    if (!options?.push && !options?.deploy) {
+    if (!options?.push && !options?.stack) {
       await CenvParams.pull(false, false, true, true);
     }
 
     if (options?.push) {
-      await CenvParams.push(options?.deploy);
+      await CenvParams.push(options?.stack);
     }
   }
 
-  static async init(options?: ParamsCommandOptions, tags: string[] = []) {
+  static async initParams(options?: ParamsCommandOptions, tags: string[] = []) {
     try {
       const flagValidateResponse = this.initFlagValidation(options, tags);
       let { application, environment, envConfig } = flagValidateResponse;
@@ -745,7 +695,7 @@ export class Cenv {
 
       //await cmd?.result(0);
 
-      //if (Deployment.mode() === DeploymentMode.DESTROY || Deployment.mode() === DeploymentMode.DEPLOY) {
+      //if (Deployment.mode() === ProcessMode.DESTROY || Deployment.mode() === ProcessMode.DEPLOY) {
         //mat.processStatus = ProcessStatus.COMPLETED;
       //}
     } catch (e) {
@@ -754,132 +704,6 @@ export class Cenv {
       );
     }
     return destroyedAnything;
-  }
-
-  static async Version() {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const currentVersion = require(path.resolve(
-      __dirname,
-      '../package.json',
-    )).version;
-    const versionFile = path.resolve(__dirname, '../.version.json');
-    let versionFileData: IVersionFile = {
-      version: semver.parse('0.1.0'),
-      initialVersion: semver.parse('0.1.0'),
-      lastTs: Date.now(),
-    };
-    if (existsSync(versionFile)) {
-      versionFileData = require(versionFile);
-    }
-
-    if (
-      !versionFileData.upgradedTs ||
-      semver.gt(currentVersion, versionFileData.version)
-    ) {
-      await this.Upgrade(currentVersion, versionFileData.version);
-      versionFileData.version = currentVersion.toString();
-      versionFileData.upgradedTs = Date.now();
-    }
-    process.env.CENV_VERSION = currentVersion;
-    writeFileSync(versionFile, JSON.stringify(versionFileData, null, 2));
-    return versionFileData;
-  }
-
-  static async Upgrade(
-    currentVersion: semver.SemVer,
-    previousVersion: semver.SemVer,
-    profile = 'default',
-  ) {
-    await configure({ profile });
-    CenvLog.info(
-      `upgrading from ${previousVersion.toString()} to ${currentVersion.toString()}`,
-    );
-    if (semver.lt(previousVersion.toString(), '1.0.0')) {
-      const monoRoot = getMonoRoot();
-      const search = search_sync(path.resolve(monoRoot), false, true, '.cenv', {
-        excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
-        startsWith: true,
-      });
-      const newDirs = {};
-      for (let i = 0; i < search.length; i++) {
-        const file = search[i];
-        const fileParts = path.parse(file);
-        const parentDir = fileParts.dir.split('/').pop();
-        if (parentDir === 'tempCenvDir') {
-          if (!newDirs[fileParts.dir]) {
-            newDirs[fileParts.dir] = 0;
-          }
-          newDirs[fileParts.dir]++;
-          continue;
-        }
-        const newDir = fileParts.dir + '/tempCenvDir';
-        if (!existsSync(newDir)) {
-          mkdirSync(newDir);
-        }
-        const newFile = newDir + '/' + fileParts.base;
-        if (!newDirs[newDir]) {
-          newDirs[newDir] = 0;
-        }
-        newDirs[newDir]++;
-        renameSync(file, newFile);
-      }
-      for (let i = 0; i < Object.keys(newDirs).length; i++) {
-        const dir = Object.keys(newDirs)[i];
-        const root = path.parse(dir);
-        const newPath = root.dir + '/.cenv';
-        if (existsSync(newPath)) {
-          const cenvSearch = search_sync(dir, false, true, '.cenv', {
-            excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
-            startsWith: true,
-          });
-          if (Array.isArray(cenvSearch)) {
-            cenvSearch.forEach((f) => {
-              const fileParts = path.parse(f);
-              renameSync(f, newPath + '/' + fileParts.base);
-            });
-          }
-          rmdirSync(dir);
-        } else {
-          renameSync(dir, newPath);
-        }
-      }
-      const searchF = '.cenv.' + process.env.ENV;
-      const cenvEnvSearch = search_sync(
-        path.resolve(monoRoot),
-        false,
-        true,
-        searchF,
-        { excludedDirs: ['node_modules', 'cdk.out'], startsWith: true },
-      );
-      for (let i = 0; i < cenvEnvSearch.length; i++) {
-        const file = cenvEnvSearch[i];
-        const newFile = file.replace(
-          process.env.ENV,
-          process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
-        );
-        if (
-          file.indexOf(
-            '.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
-          ) > -1
-        ) {
-          CenvLog.single.alertLog(`the file ${file} has already been upgraded`);
-          continue;
-        }
-        if (existsSync(newFile)) {
-          if (process.env.KILL_IT_WITH_FIRE) {
-            rmSync(file);
-          } else {
-            CenvLog.single.alertLog(
-              `attempting to upgrade file ${infoAlertBold(
-                file,
-              )} but the file ${infoAlertBold(newFile)} already exists`,
-            );
-          }
-          continue;
-        }
-        renameSync(file, newFile);
-      }
-    }
   }
 
   static BumpChanged() {

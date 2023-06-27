@@ -1,7 +1,7 @@
 import path from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { CenvLog, getMonoRoot, EnvironmentStatus, Package, ProcessStatus } from '@stoked-cenv/cenv-lib';
-import { Environment } from './environment';
+import { Environment } from '../../lib/src/environment';
 
 export class Suites {
   static data: any;
@@ -15,7 +15,7 @@ export class Suites {
       });
       return suites;
     }
-  };
+  }
 }
 
 export class Suite {
@@ -52,7 +52,7 @@ export class Suite {
     this.packages = this.packages.map((p: Package) => {
       const stack = this.environment?.stacks.filter(s => s?.StackName === p?.stackName);
       if (stack?.length === 1) {
-        p.deploy.detail = stack[0];
+        p.stack.detail = stack[0];
         p.environmentStatus = EnvironmentStatus.UP_TO_DATE;
         p.processStatus = ProcessStatus.COMPLETED;
         return p;
@@ -69,11 +69,15 @@ export class Suite {
     return !!this.getSuite(suite);
   }
 
-  static getSuite(suite) {
+  static getSuite(suite): any {
+    Suites.data = Package.suites;
     if (Suites.data)
       return Suites.data[suite];
     Suite.readSuites();
-    return Suites.data[suite];
+
+    if (Suites?.data && Suites.data[suite]) {
+      return new Suite(Suites.data[suite]);
+    }
   }
 
   static suitePath() {
@@ -87,7 +91,6 @@ export class Suite {
     }
     const suitesPath = this.suitePath();
     if (!existsSync(suitesPath)) {
-      CenvLog.single.errorLog(`the suites file ${suitesPath} could not be parsed`)
       return;
     }
     const suites: any = readFileSync(suitesPath, 'utf-8');

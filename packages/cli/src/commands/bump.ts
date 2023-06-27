@@ -7,7 +7,6 @@ import { BaseCommand } from './base'
   description: `Bump packages`,
 })
 export default class BumpCommand extends BaseCommand {
-  defaultSuite;
   @Option({
     flags: '-ll, --log-level, <logLevel>',
     description: `Logging mode`,
@@ -18,7 +17,6 @@ export default class BumpCommand extends BaseCommand {
 
   async runCommand(params: string[], options: BaseCommandOptions, packages: Package[]) {
     try {
-      this.defaultSuite = options.defaultSuite;
       if (params?.length === 1 && ['major', 'minor', 'patch', 'prerelease', 'reset'].indexOf(params[0]) > -1) {
         console.log(packages[0].isRoot);
         if (params[0] !== 'reset') {

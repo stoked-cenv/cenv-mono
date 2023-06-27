@@ -12,7 +12,6 @@ import { BaseCommand } from './base'
   description: `Build packages`,
 })
 export default class BuildCommand extends BaseCommand {
-  defaultSuite;
   @Option({
     flags: '-ll, --log-level, <logLevel>',
     description: `Logging mode`,
@@ -46,9 +45,9 @@ export default class BuildCommand extends BaseCommand {
 
   async runCommand(params: string[], options: any, packages: Package[]) {
     try {
-      this.defaultSuite = options.defaultSuite;
+
       if ((params?.length === 1 && params[0] === 'all') || packages[0].root) {
-        new Suite(this.defaultSuite);
+        new Suite(Package.defaultSuite);
         await Package.build(options);
       } else if (packages.length) {
         await Promise.all(packages.map(async (p: Package) => p.build(options.force, options.install)));

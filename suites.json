@@ -1,9 +1,0 @@
-{
-  "cenv": {
-    "packages": [
-      "@stoked-cenv/cenv-ui",
-      "@stoked-cenv/cenv-lib",
-      "@stoked-cenv/cenv-params",
-      "@stoked-cenv/cenv-cli"
-    ]}
-}
