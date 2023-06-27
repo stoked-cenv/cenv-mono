@@ -2,15 +2,10 @@
 import * as sms from 'source-map-support';
 sms.install();
 
-import { CommandFactory } from 'nest-commander';
+import {CommandFactory, RootCommand} from 'nest-commander';
 import { CenvModule } from './cli'
 import { Commands } from '@stoked-cenv/cenv-ui'
-import {
-  TimerModules,
-  cleanup
-} from '@stoked-cenv/cenv-lib';
-
-Commands.module = CenvModule;
+import { TimerModules, cleanup } from '@stoked-cenv/cenv-lib';
 
 [`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`].forEach((eventType, ) => {
   process.on(eventType, err => {

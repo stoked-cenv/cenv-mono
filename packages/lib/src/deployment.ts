@@ -1,11 +1,20 @@
-import {
-  BaseCommandOptions, CenvLog, colors, deleteParametersByPath, deleteRepository, ProcessStatus, describeRepositories, destroyAppConfig, destroyRemainingConfigs,
-  EnvironmentStatus, Fake, ICmdOptions, IPackage, listStacks, LogLevel, Package, PackageCmd, printFlag, sleep, stripPath, Timer, TimerModules, Version, ProcessMode,
-} from '@stoked-cenv/cenv-lib';
 import path from 'path';
 import { Repository } from '@aws-sdk/client-ecr';
 import chalk from 'chalk';
-import { Dashboard, Environments, Cenv } from '@stoked-cenv/cenv-ui';
+import { Environments } from './environment'
+import { Cenv } from './cenv'
+import {BaseCommandOptions, CenvParams} from "./params";
+import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from "./package/package";
+import {cleanup, ICmdOptions, printFlag, sleep, Timer, TimerModules} from "./utils";
+import Fake from "./fake";
+import {ProcessMode} from "./package/module";
+import {CenvLog, colors, LogLevel} from "./log";
+import {Version} from "./version";
+import {listStacks} from "./aws/cloudformation";
+import {deleteRepository, describeRepositories} from "./aws/ecr";
+import {deleteParametersByPath, stripPath} from "./aws/parameterStore";
+import {destroyAppConfig, destroyRemainingConfigs} from "./aws/appConfig";
+import * as util from "util";
 
 export interface CdkCommandOptions extends BaseCommandOptions {
   profile?: string;
@@ -113,9 +122,6 @@ export class Deployment {
   static processing: Package[] = [];
   static completed = [];
 
-
-
-
   static async cmdDestroy(pkg: Package) {
 
     if (pkg.params?.hasCenvVars && (this.options.docker || this.options.parameters || this.options.stack)) {
@@ -127,7 +133,6 @@ export class Deployment {
 
       const cmd = pkg.createCmd(`FIX ME ->>>>>>>>>  cenv destroy${printFlag(this.options, 'docker')}${printFlag(this.options,'parameters')}${printFlag(this.options, 'stack')}`);
       await this.destroyNonStack(pkg, this.options.docker, this.options.parameters, this.options.parameters);
-
     }
 
     if (pkg?.docker && this.options?.docker) {
@@ -143,8 +148,6 @@ export class Deployment {
       await pkg.pkgCmd('cenv destroy --parameters');
     }
   }
-
-
 
   static async handleFake(pkg: Package): Promise<void> {
     if (process.env.FAKE_SUCCESS) {
@@ -177,6 +180,7 @@ export class Deployment {
         } else {
           const deployRes = await pkg.deploy(this.options);
           await pkg.checkStatus(ProcessMode.DEPLOY.toString(), pkg.processStatus);
+          CenvParams.dashboard.debug(pkg.packageName, 'deploy complete - exit code:', deployRes)
           return deployRes;
         }
       } else {
@@ -191,6 +195,7 @@ export class Deployment {
       }
     } catch (e) {
       Deployment.cancelDependencies(pkg);
+      this.setDeployStatus(pkg, ProcessStatus.FAILED);
       pkg.err('deployment failed', '223', e);
       pkg.err(e.stack);
       return 223;
@@ -235,25 +240,19 @@ export class Deployment {
       process.env.BOOTSTRAP_COMPLETE = 'true';
     }
 
-    const code = await this.cmd(pkg.stackName, message, {
+    await this.cmd(pkg.stackName, message, {
       envVars,
       getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
     });
     const res = pkg.timer?.elapsed(true);
 
-    if (code === 0) {
-      pkg.setDeployStatus(ProcessStatus.COMPLETED);
-    } else {
-      pkg.setDeployStatus(ProcessStatus.FAILED);
-      Deployment.cancelDependencies(pkg);
-    }
 
+    pkg.setDeployStatus(ProcessStatus.COMPLETED);
     pkg.statusTime = Date.now();
-
     await sleep(5);
 
     CenvLog.single.alertLog([pkg.stackName, 'complete']);
-    const complete = await this.packageComplete(pkg, code);
+    const complete = await this.packageComplete(pkg);
     if (res) {
       TimerModules.push(res);
     }
@@ -295,7 +294,7 @@ export class Deployment {
     return false
   }
 
-  static async packageComplete(packageInfo: Package, code) {
+  static async packageComplete(packageInfo: Package) {
 
     if (this.options.bump) {
       await packageInfo.bumpComplete();
@@ -406,12 +405,16 @@ export class Deployment {
     }
   }
 
+  static maxProcessing = 4;
+
   static async start() {
 
     const packagesToProcess = Object.values(this.toProcess).filter(p => !this.processing.find(processingPkg => processingPkg.packageName === p.packageName));
     const serviceProcesses = packagesToProcess.filter((app: IPackage) => !this.dependencies[app.stackName]?.dependencies?.length);
+    const availableToProcess = this.maxProcessing - this.processing.length;
+    const availableProcesses = serviceProcesses.slice(0, availableToProcess);
     await Promise.all(
-      serviceProcesses.map(async (app: Package) => {
+      availableProcesses.map(async (app: Package) => {
         this.processing.push(app);
         delete this.toProcess[app.stackName];
         await this.packageStart(app.stackName, `${this.mode()} ${app.stackName}`);
@@ -429,7 +432,7 @@ export class Deployment {
       });
 
     //await Promise.all(serviceProcesses);
-    this.asyncProcesses = this.asyncProcesses.concat(serviceProcesses);
+    this.asyncProcesses = this.asyncProcesses.concat(availableToProcess);
     return (
       Object.keys(this.toProcess).length === 0 &&
       this.processing.length === 0 &&
@@ -450,9 +453,8 @@ export class Deployment {
       lines.push(`\t - ${d} => ${this.dependencies[d].dependencies.map(d => d.stackName).join(', ')}`);
     });
 
-    if (Dashboard.instance) {
-      const log = Dashboard.createBox(ctrl, title, [lines.join('\n')], chalk.bgBlue, colors.infoBold)
-      return log;
+    if (CenvParams.dashboard) {
+      return CenvParams.dashboard.createBox(ctrl, title, [lines.join('\n')], chalk.bgBlue, colors.infoBold);
     } else {
       return lines.join('\n');
 
@@ -460,16 +462,20 @@ export class Deployment {
   }
 
   static logStatus(title) {
+    //const dashboardInspection = util.inspect(CenvParams.dashboard.createBox);
+    //cleanup('kill it son');
+    //console.log(dashboardInspection);
+    //process.exit(0);
     try {
       let status: any;
-      if (Dashboard.instance) {
-        status = this.logStatusOutput(title, Dashboard.instance.cmdPanel.stdout);
+      if (CenvParams.dashboard) {
+        status = this.logStatusOutput(title, CenvParams.dashboard?.cmdPanel?.stdout);
       } else {
         const ctrl = { width: process.stdout.columns , padding: { left: 1, right: 1 } };
         status = this.logStatusOutput(title, ctrl);
       }
 
-      if (Dashboard.instance) {
+      if (CenvParams.dashboard) {
         CenvLog.single.verboseLog(status, 'GLOBAL');
       }
     } catch (e) {
@@ -546,11 +552,11 @@ export class Deployment {
     if (process.env.FAKE_SUCCESS) {
       Package.getPackages().map(p => p.environmentStatus = this.isDeploy() ? EnvironmentStatus.NOT_DEPLOYED : EnvironmentStatus.UP_TO_DATE);
     } else {
-      await Promise.all(items.map(async (p: Package) => p.checkStatus(this.options.mode)));
+      await Promise.allSettled(items.map(async (p: Package) => p.checkStatus(this.options.mode)));
     }
 
     this.processItems = items;
-    await Promise.all(
+    await Promise.allSettled(
       items.map(async (i) => {
         i.statusTime = Date.now();
         if (this?.options?.dependencies) {
@@ -558,8 +564,6 @@ export class Deployment {
         }
       }),
     );
-
-    //Dashboard.debug('this?.options?.dependencies', this?.options?.dependencies, JSON.stringify(this.dependencies, null, 2));
 
     this.setDeploymentStatuses();
     this.logStatus('processInit()');

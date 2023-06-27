@@ -23,5 +23,10 @@ export * from './package/docker'
 export * from './package/params'
 export * from './package/docker'
 export * from './package/module'
+export * from './deployment'
+export * from './environment'
+export * from './suite'
+export * from './cenv'
+
 export { toUtf8 } from '@aws-sdk/util-utf8-node';
 

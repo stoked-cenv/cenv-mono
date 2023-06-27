@@ -1,19 +1,42 @@
+import {CenvLog, errorBold, infoBold} from './log'
 import {
-  addUserToGroup, attachPolicyToGroup, attachPolicyToRole,
-  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, createApplication, createConfigurationProfile,
-  createDeploymentStrategy, createEnvironment, createFunction, createGroup, createPolicy, createRole,
-  deleteCenvData, deleteFunction, deleteGroup, deleteHostedZone, deletePolicy, deleteRole, detachPolicyFromRole,
-  errorBold, execCmd, exitWithoutTags, getApplication, getConfigParams, getConfigurationProfile,
-  getDeploymentStrategy, getEnvironment, getFunction, getPolicy, getRole, infoBold, ioAppEnv,
-  ioYesOrNo, listExports, Package, PackageCmd, packagePath, search_sync, upsertParameter
-} from '@stoked-cenv/cenv-lib';
-
+  createPolicy,
+  createRole,
+  createGroup,
+  addUserToGroup,
+  attachPolicyToGroup,
+  attachPolicyToRole,
+  getPolicy,
+  getRole,
+  detachPolicyFromRole,
+  deleteRole,
+  deleteGroup, deletePolicy,
+} from './aws/iam'
+import {Package, PackageCmd,} from './package/package'
+import {createFunction, deleteFunction, getFunction} from './aws/lambda'
+import {
+  createEnvironment,
+  createDeploymentStrategy,
+  getConfigParams,
+  getDeploymentStrategy,
+  getEnvironment,
+  createApplication,
+  getApplication,
+  getConfigurationProfile,
+  createConfigurationProfile, deleteCenvData
+} from './aws/appConfig'
 import chalk from 'chalk';
 import path from 'path';
-import { validateOneType } from './validation';
-import { Deployment } from '../../cli/src/deployment';
-import { Environment } from './environment';
+import {BaseCommandOptions, CenvParams, validateOneType} from './params';
+import { Deployment } from './deployment';
+import { Environment,  } from './environment';
 import { Export } from '@aws-sdk/client-cloudformation';
+import {listExports} from "./aws/cloudformation";
+import {CenvFiles} from "./file";
+import {upsertParameter} from "./aws/parameterStore";
+import {execCmd, exitWithoutTags, search_sync} from "./utils";
+import {ioAppEnv, ioYesOrNo} from "./stdIo";
+import {deleteHostedZone} from "./aws/route53";
 
 interface FlagValidation {
   application: string;
@@ -691,13 +714,7 @@ export class Cenv {
         destroyedAnything = true;
         await deleteHostedZone(process.env.ROOT_DOMAIN);
       }
-      //cmd?.out('cenv components removed from aws account');
 
-      //await cmd?.result(0);
-
-      //if (Deployment.mode() === ProcessMode.DESTROY || Deployment.mode() === ProcessMode.DEPLOY) {
-        //mat.processStatus = ProcessStatus.COMPLETED;
-      //}
     } catch (e) {
       CenvLog.single.catchLog(
         'Cenv.destroyCenv err: ' + (e.stack ? e.stack : e),

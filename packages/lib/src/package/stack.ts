@@ -1,13 +1,20 @@
-import { IPackageModule, PackageModule, PackageModuleType } from './module';
+import {IPackageModule, PackageModule, PackageModuleType, ProcessMode} from './module';
 import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
 import { describeStacks } from '../aws/cloudformation';
 import semver, { SemVer } from 'semver';
 import { colors } from '../log';
+import {join} from "path";
+import {CenvFiles} from "../file";
+import {spawnCmd} from "../utils";
 
 export enum DeployType {
   ECS = 'ECS',
   LAMBDA = 'LAMBDA'
 }
+
+
+
+
 
 export class StackModule extends PackageModule {
   detail?: Stack;
@@ -15,6 +22,14 @@ export class StackModule extends PackageModule {
   summary?: StackSummary;
   stackVersion?: SemVer;
   deployType?: DeployType;
+
+  public static get localEnv(): boolean { return process.env.ENV! === 'local'; }
+  public static get cdkExe(): string { return this.localEnv ? 'cdklocal' : 'cdk'; }
+
+  static commands = [
+    `${this.cdkExe} deploy --require-approval never --no-color -m direct`,
+    `${this.cdkExe} destroy --force --no-color`,
+  ];
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.STACK);
@@ -34,6 +49,14 @@ export class StackModule extends PackageModule {
     return (
       this.verified || !!this.detail || !!this.deployedDigest || !!this.deployedVersion
     );
+  }
+
+  async delete() {
+    const actualCommand = StackModule.commands[ProcessMode.DESTROY];
+    await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
+
+    const cleanCmd = `cenv clean ${this.pkg.packageName} --mode cdk`;
+    await spawnCmd(this.path, cleanCmd, cleanCmd,{}, this.pkg);
   }
 
   reset() {
@@ -256,7 +279,7 @@ export class StackModule extends PackageModule {
   }
 
   get hasLatestDeployedDigest(): boolean {
-    if (!this.pkg?.deploy) {
+    if (!this.pkg?.stack) {
       return true;
     }
     if (this?.deployedDigest === false) {

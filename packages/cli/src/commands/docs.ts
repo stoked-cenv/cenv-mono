@@ -12,7 +12,6 @@ interface DocsCommandOptions {
   arguments: '[command]',
   description: 'Display help UI'
 })
-
 export default class DocsCommand extends CommandRunner {
   async run(params: string[], options?: DocsCommandOptions): Promise<void> {
     try {

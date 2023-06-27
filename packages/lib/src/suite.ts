@@ -1,7 +1,8 @@
 import path from 'path';
 import { existsSync, readFileSync } from 'fs';
-import { CenvLog, getMonoRoot, EnvironmentStatus, Package, ProcessStatus } from '@stoked-cenv/cenv-lib';
-import { Environment } from '../../lib/src/environment';
+import { Environment } from './environment';
+import {EnvironmentStatus, Package, ProcessStatus} from "./package/package";
+import {getMonoRoot} from "./utils";
 
 export class Suites {
   static data: any;

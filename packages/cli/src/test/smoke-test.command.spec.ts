@@ -4,9 +4,8 @@ import DestroyCommand from '../commands/destroy';
 import AddCommand from '../commands/add';
 import ParamsCommand from '../commands/params'
 import { CommandTestFactory } from 'nest-commander-testing';
-import { EnvironmentStatus, Package } from '@stoked-cenv/cenv-lib';
-import { Suite } from '@stoked-cenv/cenv-ui';
-import { expect, it, jest, test } from '@jest/globals';
+import { EnvironmentStatus, Package, Suite } from '@stoked-cenv/cenv-lib';
+import { it, jest } from '@jest/globals';
 
 describe('Init Command', () => {
   let commandInstance: TestingModule;

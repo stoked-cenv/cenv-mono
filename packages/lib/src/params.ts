@@ -1,5 +1,4 @@
 import { deployConfig } from './aws/appConfig';
-import semver from 'semver';
 import {
   decryptValue,
   deleteParameters,
@@ -24,17 +23,43 @@ import chalk from "chalk";
 import { getDeployedVars } from './aws/appConfigData';
 import {ioReadVarList, readAsync} from './stdIo';
 import {
-  sleep,
-  expandTemplateVars, getMonoRoot, packagePath,
+  sleep, expandTemplateVars, getMonoRoot, packagePath,
 } from './utils';
 import { AppVarsFile, CenvFiles, EnvConfig, EnvVarsFile, GlobalEnvVarsFile, GlobalVarsFile } from './file';
 import { existsSync, } from 'fs';
-import { Package, PackageCmd } from './package/package';
+import { Package } from './package/package';
 import { updateLambdas } from './aws/lambda';
 import child_process from 'child_process';
 import path from 'path';
+import {Suite} from "./suite";
+import {Environment} from "./environment";
+import {ProcessMode} from "./package/module";
 
 export const variableTypes = [ 'app', 'environment', 'global', 'globalEnv' ];
+
+export function filteredCount(options: string[], types: string[]) {
+  const filtered = options.filter(el => {
+    return types.indexOf(el) > -1;
+  });
+  return filtered;
+}
+
+export function validateCount(options: string[], types: string[], silent = false) {
+  const filtered = filteredCount(options, types);
+  const valid = filtered.length === 1;
+  if (!valid && !silent) {
+    if (filtered.length === 0) {
+      console.log(errorInfo('The command did not include parameter type.'));
+    } else {
+      console.log(errorInfo('The command included more than one type - included: ' + filtered.join(', ')));
+    }
+  }
+  return valid ? filtered[0] : false;
+}
+
+export function validateOneType(options: string[]) {
+  return validateCount(options, variableTypes);
+}
 
 export interface BaseCommandOptions {
   profile?: string;
@@ -43,24 +68,28 @@ export interface BaseCommandOptions {
   localPackageAccepted?: boolean;
   defaultSuite?: string;
   scopeName?: string;
+  help?: boolean;
 }
+
+export interface DashboardCreateOptions {
+  packages?: Package[],
+  suite?: Suite,
+  environment?: Environment
+  options: any,
+  cmd?: ProcessMode
+}
+
+export declare class Dashboard{}
+export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => Dashboard;
 
 export class CenvParams {
 
   static dashboard = null;
   static runningProcesses: { [stackName: string]: { cmd: string, proc: child_process.ChildProcess }} = {};
-
-  static setDashboard(dashboard) {
-    this.dashboard = dashboard;
-  }
-
+  static dashboardCreator: DashboardCreator;
+  static dashboardCreateOptions: DashboardCreateOptions;
   static addSpawnedProcess(stackName, cmd, proc) {
     CenvParams.runningProcesses[stackName] = { cmd, proc };
-  }
-
-  static onStartUi() {
-    CenvLog.single.catchLog('start dashboard');
-    //this.dashboard
   }
 
   static async removeParameters(params, options, types) {
@@ -254,7 +283,7 @@ export class CenvParams {
     }
   }
 
-  static async commandPreload(options): Promise<void> {
+  static async cmdInit(options): Promise<void> {
     try {
       if (options?.logLevel) {
         options.logLevel = options.logLevel.toUpperCase();
@@ -274,8 +303,9 @@ export class CenvParams {
       if (existsSync(cenvConfigPath)) {
         const cenvConfig = require(cenvConfigPath);
         const globalPackage = cenvConfig.global
-        options.defaultSuite = cenvConfig.defaultSuite;
+        Package.defaultSuite = cenvConfig.defaultSuite;
         Package.scopeName = cenvConfig.scopeName;
+        Package.suites = cenvConfig.suites;
         const packageGlobalPath = packagePath(globalPackage);
         if (packageGlobalPath) {
           CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
@@ -423,7 +453,6 @@ export class CenvParams {
         }
         console.log('fileData', fileData);
         if (type === 'globalEnvTemplate') {
-          const env = fileData['ENVIRONMENT_NAME'];
           delete fileData['ENVIRONMENT_NAME'];
         }
         if (!process.env.CENV_LOCAL && !process.env.CENV_DEFAULTS) {
@@ -460,7 +489,7 @@ export class CenvParams {
       data = await CenvFiles.GetConfig();
     }
 
-    let variables = null;
+    let variables;
     if (!materialized) {
       variables = await getParams(data, 'allTyped', 'simple', decrypted, materialized, silent);
     } else {
@@ -539,7 +568,7 @@ export class CenvParams {
     }
   }
 
-  public static async MaterializeCore(event: any = undefined, context: any = undefined) {
+  public static async MaterializeCore(event: any = undefined) {
     try {
       const {
         ApplicationId,
@@ -580,7 +609,7 @@ export class CenvParams {
 
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);
-      const ulRes = await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Package.scopeName, '')}`);
+      await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Package.scopeName, '')}`);
       return { after, before }
     } catch(e) {
       CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))

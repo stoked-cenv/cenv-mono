@@ -1,6 +1,6 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, showPkgCmdsResult, BaseCommandOptions, PackageCmd, Package } from '@stoked-cenv/cenv-lib';
-import { Test, parseParamsExec } from '@stoked-cenv/cenv-ui';
+import { CenvLog, showPkgCmdsResult, BaseCommandOptions, parseParamsExec, Package } from '@stoked-cenv/cenv-lib';
+import { Test } from '@stoked-cenv/cenv-ui';
 import { BaseCommand } from './base'
 
 

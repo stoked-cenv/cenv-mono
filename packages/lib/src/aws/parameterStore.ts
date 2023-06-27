@@ -11,7 +11,7 @@ import {
 import { RateLimiter } from "limiter";
 
 import { getDeployedVars } from './appConfigData';
-import { CenvLog, infoAlertBold, infoBold } from '../log';
+import {CenvLog, infoAlertBold, infoBold, stdGreenBold} from '../log';
 import { CenvFiles, EnvVarsFile, GlobalEnvVarsFile, IParameter, File} from '../file';
 import {CenvParams} from "../params";
 import { AppConfigClient } from '@aws-sdk/client-appconfig';
@@ -403,25 +403,39 @@ export function updateTemplates(add,  envVar, type, value = undefined) {
   }
 }
 
-function printYamlPretty(yamlData: any, format: string) {
+function printYamlPretty(yamlData: any, format: string, printPkg?: string) {
+  const space = printPkg ? '  ' : '';
+  printPkgName(printPkg);
   for (const [key, value] of Object.entries(yamlData)) {
     const val: any = value;
     if (format === 'simple') {
       const keyVal = val.Value ? val.Value : val;
-      CenvLog.single.stdLog(`${infoBold(key)}: ${ keyVal}`);
+      console.log(`${space}${infoBold(key)}: ${ keyVal}`);
     }else {
-      console.log(`${infoBold(key)}: `);
-      console.log(`  ${infoBold('Value')}: ${val.Value}`);
-      console.log(`  ${infoBold('Path')}: ${val.Path}`);
-      console.log(`  ${infoBold('Type')}: ${val.Type}`);
+      console.log(`${space}${infoBold(key)}: `);
+      console.log(`${space}  ${infoBold('Value')}: ${val.Value}`);
+      console.log(`${space}  ${infoBold('Path')}: ${val.Path}`);
+      console.log(`${space}  ${infoBold('Type')}: ${val.Type}`);
     }
+  }
+  if (printPkg) {
+    console.log('')
   }
 }
 
-export async function getParams(config: any, type: string = 'all', format: string, decrypted: boolean = false, deployed: boolean = false, silent: boolean = false, includeTemplates: boolean = false) {
+function printPkgName(printPkg) {
+  if (printPkg) {
+    console.log(stdGreenBold(printPkg));
+  }
+}
+
+export async function getParams(config: any, type = 'all', format: string, decrypted = false, deployed = false, silent = false, includeTemplates = false) {
   if (!config) {
     config = CenvFiles.GetConfig();
   }
+  const printPkg = format.endsWith('-pkg') ? config.ApplicationName : undefined;
+  format = format.replace('-pkg', '');
+
   let parameters: any = {};
   if (!deployed) {
     parameters = await listParameters(config, decrypted);
@@ -439,7 +453,7 @@ export async function getParams(config: any, type: string = 'all', format: strin
   } else if (type === 'allTyped') {
     if (parameters) {
       if (!silent) {
-        printYamlPretty(output, format);
+        printYamlPretty(output, format, printPkg);
       }
       return {
         ...CenvFiles.AllTyped(parameters),
@@ -447,8 +461,8 @@ export async function getParams(config: any, type: string = 'all', format: strin
         globalEnvironmentTemplate: parameters.globalEnv
       };
     }
-  } else if (type === 'app' || type === 'environment' || type === 'global') {
-    output = parameters.app[type] ? parameters.app[type] : parameters;
+  } else if (type === 'app' || type === 'environment' || type === 'global' || type === 'globalEnv') {
+    output = parameters[type] ? parameters[type] : parameters;
   } else if (type === 'deployed') {
 
   } else {
@@ -457,12 +471,11 @@ export async function getParams(config: any, type: string = 'all', format: strin
 
   let result = noTypeSet ? { ...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv } : output;
   if (format === 'simple') {
-    result = simplify(result);
+    result = simplify(result, printPkg);
   }
   if (!silent) {
-    printYamlPretty(result, format);
+    printYamlPretty(result, format, printPkg);
   }
-
 
   return result;
 }

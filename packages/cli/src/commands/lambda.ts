@@ -1,5 +1,5 @@
 import { Command, Option } from 'nest-commander';
-import { configure, errorInfo, CenvLog, updateLambdas, BaseCommandOptions } from '@stoked-cenv/cenv-lib';
+import { CenvLog, updateLambdas, BaseCommandOptions } from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base'
 
 interface LambdaCommandOptions extends BaseCommandOptions{

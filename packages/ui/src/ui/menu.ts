@@ -1,10 +1,19 @@
 import blessed from 'blessed';
 import {Dashboard} from './dashboard';
-import {Deployment, DeploymentMode} from '../deployment';
-import {CenvLog, getPkgContext, Package, PkgContextType, ProcessStatus} from '@stoked-cenv/cenv-lib';
+import {
+  CenvLog,
+  getPkgContext,
+  Package,
+  PkgContextType,
+  ProcessStatus,
+  ProcessMode,
+  Deployment,
+  validateBaseOptions,
+  CenvParams, cleanup
+} from '@stoked-cenv/cenv-lib';
 import chalk from 'chalk';
 import {HelpUI} from "./help";
-import {validateBaseOptions} from "../utils";
+import util from "util";
 
 
 export default class MenuBar {
@@ -29,7 +38,7 @@ export default class MenuBar {
     });
 
     let deploying = false;
-    async function launchDeployment(mode: DeploymentMode) {
+    async function launchDeployment(mode: ProcessMode) {
       try {
         deploying = true;
         Dashboard.instance.cmd = mode;
@@ -40,12 +49,12 @@ export default class MenuBar {
         }
         packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
-        let deploymentOptions = {};
-        if (mode === DeploymentMode.DESTROY) {
-          validateBaseOptions({packages}, deploymentOptions,  DeploymentMode.DESTROY)
+        const deploymentOptions = {};
+        if (mode === ProcessMode.DESTROY) {
+          validateBaseOptions({packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
           await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
         } else {
-          validateBaseOptions({packages}, deploymentOptions,  DeploymentMode.DEPLOY)
+          validateBaseOptions({packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions })
           await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
         }
 
@@ -295,7 +304,7 @@ export default class MenuBar {
               }
               const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName.toUpperCase()}`;
               dashboard.setStatusBar('launchDeployment', statusText(`deploy`, `${packages}`));
-              await launchDeployment(DeploymentMode.DEPLOY);
+              await launchDeployment(ProcessMode.DEPLOY);
             });
           }.bind(this),
         },
@@ -315,11 +324,11 @@ export default class MenuBar {
                 'launchDestroy',
                 statusText(`destroy`, packages),
               );
-              await launchDeployment(DeploymentMode.DESTROY);
+              await launchDeployment(ProcessMode.DESTROY);
             });
           }.bind(this),
         },
-        'retry':{
+        retry:{
           keys: ['r'],
           callback: async function() {
             if (!Deployment?.mode()) {
@@ -336,7 +345,7 @@ export default class MenuBar {
             await Deployment.start();
           }.bind(this),
         },
-        'debug': {
+        debug: {
           keys: ['x'],
           callback: async function () {
             debounceCallback('toggle debug', async () => {
@@ -348,7 +357,7 @@ export default class MenuBar {
             });
           }.bind(this),
         },
-        'clear debug': {
+        clearDebug: {
           keys: ['c'],
           callback: function () {
             debounceCallback('clearVersions', async () => {
@@ -368,7 +377,7 @@ export default class MenuBar {
             });
           }.bind(this),
         },
-        'cancel deploy': {
+        cancelDeploy: {
           keys: ['S-d'],
           callback: function () {
             const ctx = getContext(PkgContextType.PROCESSING, false);
@@ -397,7 +406,7 @@ export default class MenuBar {
             });
           }.bind(this),
         },
-        'strict versions': {
+        strictVersions: {
           keys: ['S-v'],
           callback: function () {
             debounceCallback('strictVersions', async () => {
@@ -415,7 +424,7 @@ export default class MenuBar {
             });
           }.bind(this),
         },
-        'check status': {
+        checkStatus: {
           keys: ['enter'],
           callback: async function () {
             const ctx = getContext();
@@ -449,14 +458,14 @@ export default class MenuBar {
             });
           }.bind(this),
         },*/
-        'help': {
+        help: {
           keys: ['f1'],
           callback: function () {
             this.dashboard.hide();
             new HelpUI();
           }.bind(this),
         },
-        'dependencies': {
+        dependencies: {
           keys: ['8'],
           callback: async function () {
             debounceCallback('toggle dependencies', async () => {
@@ -466,7 +475,7 @@ export default class MenuBar {
             });
           }.bind(this),
         },
-        'fix dupes': {
+        fixDupes: {
           keys: ['9'],
           callback: async function () {
             try {
@@ -484,7 +493,7 @@ export default class MenuBar {
             }
           }.bind(this),
         },
-        'pre-build': {
+        preBuild: {
           keys: ['0'],
           callback: async function () {
             debounceCallback('toggle auto pre-build', async () => {
@@ -492,6 +501,14 @@ export default class MenuBar {
               const name = 'toggle auto pre-build';
               dashboard.setStatusBar(name, statusText(name, Deployment.options.skipBuild ? `auto pre-build disabled` : `auto pre-build enabled`));
             });
+          }.bind(this),
+        },
+        viewDebug: {
+          keys: ['u'],
+          callback: async function () {
+            cleanup('killIt')
+            console.log('derp', util.inspect(CenvParams.dashboard));
+            process.exit(0)
           }.bind(this),
         },
       },

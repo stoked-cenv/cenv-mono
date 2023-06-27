@@ -10,12 +10,8 @@ import { deleteParameters,
   CenvParams,
   configure,
   variableTypes,
+  filteredCount
 } from '@stoked-cenv/cenv-lib'
-
-import {
-  filteredCount,
-} from '@stoked-cenv/cenv-ui';
-
 import { BaseCommand } from './base'
 
 interface RemoveCommandOptions extends BaseCommandOptions {

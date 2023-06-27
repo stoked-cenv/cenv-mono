@@ -1,16 +1,14 @@
 import { Command, Option } from 'nest-commander';
-import {
-  Cenv,
-  DeployCommandOptions,
-  Deployment,
-  DeploymentMode,
-} from '@stoked-cenv/cenv-ui';
 
 import {
   addKeyAccount,
   createKey,
   Package,
   CenvLog,
+  ProcessMode,
+  Cenv,
+  DeployCommandOptions,
+  Deployment,
 } from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base';
 
@@ -21,11 +19,13 @@ import { BaseCommand } from './base';
   aliases: ['i', 'install']
 })
 export default class DeployCommand extends BaseCommand {
-  deploymentMode = DeploymentMode.DEPLOY;
+  deploymentMode = ProcessMode.DEPLOY;
   constructor() {
     super()
     this.allowUI = true;
+    this.packageRequired = true;
   }
+
 /*
   @Option({
     flags: '-b, --bump, <increment>',

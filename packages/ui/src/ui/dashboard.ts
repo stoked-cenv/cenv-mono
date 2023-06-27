@@ -1,7 +1,6 @@
 import {blessed, contrib, getBlessedDeps} from './blessed';
 import Dialogs from './dialogs';
 import Menu from './menu';
-import {Deployment, DeploymentMode} from '../deployment';
 import {
   CenvFiles,
   CenvLog,
@@ -13,18 +12,18 @@ import {
   Package,
   ProcessStatus,
   Timer,
-  getPkgContext, cleanup, killRunningProcesses,
+  getPkgContext,
+  killRunningProcesses,
+  ProcessMode,
+  Suite,
+  DashboardCreateOptions,
+  pbcopy, Deployment
 } from '@stoked-cenv/cenv-lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
-import {Suite} from '../suite';
-import {Environment} from '../environment';
 import chalk, {ChalkFunction} from 'chalk';
-import {pbcopy} from '../utils';
 import {isFunction} from "lodash";
-import * as util from "util";
 import {HelpUI} from "./help";
-
 
 export enum DashboardMode {
   MIXED = 'MIXED',
@@ -34,12 +33,11 @@ export enum DashboardMode {
   STATUS = 'STATUS'
 }
 
+
 export class Dashboard {
   screen;
   initialized = false;
-  interval = null;
   timer = new Timer('deployment', 'seconds', true);
-  debugTimer = new Timer('deployment debug', 'seconds', true);
   debugLog;
   status;
   statusText = '';
@@ -47,15 +45,13 @@ export class Dashboard {
   complete = false;
   packages;
   grid;
-  progress;
-  cmd: DeploymentMode;
+  cmd;
   focusIndex = -1;
   focusedBox;
   cmdPanel: CmdPanel;
   statusPanel: StatusPanel;
   globalPkg: Package;
   menu;
-  saveDump;
   priorityColumnWidth = [];
   columnWidth;
   columnSpacing = 2;
@@ -71,12 +67,10 @@ export class Dashboard {
   statusBar;
   static stackName = '';
   packageTs;
-  nextPanel;
   mode: DashboardMode = DashboardMode.MIXED;
   modeLastWide: DashboardMode = DashboardMode.WIDE_CMD_FIRST;
   modeLast: DashboardMode = DashboardMode.MIXED;
   dependencies: string;
-  dependenciesRemaining: string;
   cmdOptions: any;
   selectedPackage: string;
   selectedRowFg = undefined;
@@ -105,35 +99,25 @@ export class Dashboard {
   packageTimer = null;
   view = 'mixed';
   blessedDeps;
-  selectItem = {};
   fullScreenCtrl;
   hidden = false;
 
-  static shiftKeyDown = false;
-  constructor(
-    options: {
-      packages: Package[];
-      suite?: Suite;
-      environment?: Environment;
-      cmd?: DeploymentMode;
-    },
-    cmdOptions,
-  ) {
+  constructor(dashboardOptions: DashboardCreateOptions) {
     try {
       if (Dashboard.instance) {
         return;
       }
 
 
-      this.cmdOptions = cmdOptions;
+      this.cmdOptions = dashboardOptions.options;
       this.blessedDeps = getBlessedDeps();
       this.blessedDeps.dashboard = this;
       this.createBaseWidgets();
       this.statusPanel = new StatusPanel(this);
       this.cmdPanel = new CmdPanel(this);
-      this.suite = options?.suite;
-      this.environment = options?.environment;
-      this.cmd = options?.cmd;
+      this.suite = dashboardOptions?.suite;
+      this.environment = dashboardOptions?.environment;
+      this.cmd = dashboardOptions?.cmd;
 
 
     } catch (e) {
@@ -354,7 +338,7 @@ export class Dashboard {
         const pkg = this.getPkg();
         const typedVars = pkg.params?.localVarsTyped;
         delete typedVars[this.focusedBox.name][this.statusPanel.selectedParamKey];
-        let vars: any = {};
+        const vars: any = {};
         vars[this.focusedBox.name] = typedVars[this.focusedBox.name] ;
         if (this.focusedBox.name !== 'app') {
           vars.app = typedVars['app'];
@@ -518,7 +502,7 @@ export class Dashboard {
       if (!this.cmd) {
         setTimeout(
           async function init() {
-            await Package.checkStatus(DeploymentMode.DEPLOY.toString(), ProcessStatus.COMPLETED);
+            await Package.checkStatus(ProcessMode.DEPLOY.toString(), ProcessStatus.COMPLETED);
           }.bind(this),
         );
       }
@@ -577,6 +561,7 @@ export class Dashboard {
     if (text.join() === '') {
       return;
     }
+
     if (Dashboard.instance) {
       Dashboard.instance?.debugLog.setContent(text.join())
     }
@@ -592,9 +577,9 @@ export class Dashboard {
     }
     this.cmdPanel?.out(stackName, finalMsg);
 
-    if (this.cmdPanel?.stdout?.hidden) {
+    //if (this.cmdPanel?.stdout?.hidden) {
       this.cmdPanel?.updateVis();
-    }
+    //}
   }
 
   static log(stackName: string, ...text: string[]) {
@@ -690,7 +675,7 @@ export class Dashboard {
     let titleRoot = 'cenv';
     let titleNoun;
     if (this.cmd) {
-      titleRoot = this.cmd === DeploymentMode.DEPLOY ? 'deploy' : 'destroy';
+      titleRoot = this.cmd === ProcessMode.DEPLOY ? 'deploy' : 'destroy';
 
       const opt = Deployment?.options;
       if (opt?.suite) {
@@ -958,7 +943,7 @@ export class Dashboard {
     } else if (completed) {
       pks.map(p => p.processStatus = ProcessStatus.NONE)
     } else if (ctx) {
-      Package.global?.timer?.elapsed(true);
+
     }
 
     let packages: any = Object.values(Package.cache)
@@ -1186,7 +1171,7 @@ export class Dashboard {
     return text.match(regex)?.length;
   }
 
-  static createBox(ctrl, title: string, lines: string[], bgColor, fgColor, topPadding = 1, sidePadding = 2) {
+  createBox(ctrl, title: string, lines: string[], bgColor, fgColor, topPadding = 1, sidePadding = 2) {
     const statWidth = ctrl.width - 3;
     const leftPadding = sidePadding + ctrl.padding.left;
     const tab = '----';
@@ -1324,7 +1309,7 @@ export class Dashboard {
         this.statusBar.setFront();
 
         if (selectedPackage.status?.needsFix?.length) {
-          status += '\n' + Dashboard.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, chalk.bgRed, chalk.whiteBright.underline);
+          status += '\n' + Dashboard.instance.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, chalk.bgRed, chalk.whiteBright.underline);
         }
         if (selectedPackage.status?.incomplete?.length) {
           status += `\n${colors.error.underline.bold('NEEDS DEPLOY:')}\n\n`;

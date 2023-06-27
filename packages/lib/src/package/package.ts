@@ -5,7 +5,7 @@ import { PackageStatus } from './module'
 import { CenvLog, colors, LogLevel, Mouth } from '../log';
 import { BumpMode, Version } from '../version';
 import semver, { coerce, inc, parse, SemVer } from 'semver';
-import { PackageModule, PackageModuleType } from './module';
+import { PackageModule, PackageModuleType, ProcessMode } from './module';
 import { ParamsModule } from './params';
 import { DockerModule } from './docker';
 import { StackModule } from './stack';
@@ -13,7 +13,6 @@ import {BaseCommandOptions, CenvParams} from '../params';
 import { AppVarsFile, EnvVarsFile } from '../file';
 import { LibModule } from './lib';
 import { ExecutableModule } from './executable';
-
 
 export interface BuildCommandOptions extends BaseCommandOptions {
   install?: boolean,
@@ -76,6 +75,7 @@ function cmdResult(
   pkg.err(`${completeMsg}exit code (${code}) [failed]`, cmd);
   if (failOnError) {
     Package?.callbacks?.cancelDependencies(pkg);
+    pkg.setDeployStatus(ProcessStatus.FAILED);
     return false;
   }
 
@@ -271,7 +271,7 @@ export interface IPackage {
   fullType: string;
   params: ParamsModule;
   docker: DockerModule;
-  deploy: StackModule;
+  stack: StackModule;
   lib: LibModule;
   exec: ExecutableModule;
   meta: IPackageMeta;
@@ -302,7 +302,7 @@ export class Package implements IPackage {
   stackName: string;
   params: ParamsModule;
   docker: DockerModule;
-  deploy: StackModule;
+  stack: StackModule;
   lib: LibModule;
   exec: ExecutableModule;
   meta: IPackageMeta;
@@ -343,6 +343,8 @@ export class Package implements IPackage {
   static loading = true;
   static deployment: any;
   static callbacks: any = {};
+  static suites: any = {};
+  static defaultSuite;
 
   constructor(packageName: string, noCache = false) {
     this.load(packageName, noCache);
@@ -436,7 +438,7 @@ export class Package implements IPackage {
 
       if (deployPackage) {
         const meta = this.getPackageMeta(pkgPath);
-        metas['deploy'] = meta;
+        metas['stack'] = meta;
         deployType = new StackModule({
           pkg: this,
           name: packageName,
@@ -499,7 +501,7 @@ export class Package implements IPackage {
 
         if (deployPackage) {
           const meta = this.getPackageMeta(deployPath);
-          metas['deploy'] = meta;
+          metas['stack'] = meta;
           deployType = new StackModule({
             pkg: this,
             name: packageName + '-deploy',
@@ -524,7 +526,7 @@ export class Package implements IPackage {
       let meta: IPackageMeta;
       if (!isGlobal) {
         if (deployPackage) {
-          meta = metas['deploy'];
+          meta = metas['stack'];
         } else if (paramsPackage) {
           meta = metas['params'];
         } else if (dockerPackage) {
@@ -540,7 +542,7 @@ export class Package implements IPackage {
               ...pkgPathMeta
             })
           } else if (pkgPathMeta.deployStack) {
-            metas['deploy'] = meta;
+            metas['stack'] = meta;
             deployType = new StackModule({
               pkg: this,
               name: packageName,
@@ -578,7 +580,7 @@ export class Package implements IPackage {
       this.fullType = packageType;
       if (!isGlobal) {
         this.params = paramType;
-        this.deploy = deployType;
+        this.stack = deployType;
         this.docker = dockerType;
         this.lib = libType;
         this.exec = execType;
@@ -623,6 +625,77 @@ export class Package implements IPackage {
     this.broken = true;
     if (deploymentBlocked) {
       this.deploymentBlocked = deploymentBlocked;
+    }
+  }
+
+  isParamDeploy(options?: any) {
+    return this.params?.hasCenvVars && options?.parameters && (!options?.strictVersions || !this.params.upToDate())
+  }
+
+  isDockerDeploy(options?: any) {
+    return this.docker && options?.docker && (!options?.strictVersions || !this.docker.upToDate())
+  }
+
+  isStackDeploy(options?: any) {
+    return this.stack && options?.stack &&  (!options?.strictVersions || !this.stack.upToDate())
+  }
+
+  async deploy(deployOptions: any) {
+    const options: any = {
+      failOnError: true,
+      envVars: {
+        CENV_LOG_LEVEL: deployOptions.logLevel,
+        CENV_DEFAULTS: 'true'
+      },
+    };
+
+    if (this.isParamDeploy(deployOptions)) {
+      await this.params.deploy(options);
+    }
+
+    if (this.isDockerDeploy(deployOptions)) {
+      await this.docker.deploy(options);
+    }
+
+    if (this.isStackDeploy(deployOptions)) {
+      if (this.stack.needsAutoDelete()) {
+        await this.stack.delete();
+      }
+
+      if (this.meta?.preDeployScripts) {
+        for (let i = 0; i < this.meta.preDeployScripts.length; i++) {
+          const script = this.meta.preDeployScripts[i];
+          await this.pkgCmd(script, { failOnError: true})
+        }
+      }
+
+      let actualCommand = StackModule.commands[ProcessMode.DEPLOY];
+      if (deployOptions.force) {
+        actualCommand += ' --force';
+      }
+
+      deployOptions.cenvVars = {
+        CENV_PKG_VERSION: this.rollupVersion,
+        ...deployOptions.cenvVars
+      }
+      if (this.docker) {
+        deployOptions.cenvVars.CENV_PKG_DIGEST = this.docker?.digest;
+      }
+
+      if (!process.env.CENV_SKIP_CDK && this.stack) {
+        await this.pkgCmd(actualCommand, {
+          ...deployOptions,
+          packageModule: this.stack,
+          redirectStdErrToStdOut: true,
+        });
+      }
+
+      if (this?.meta?.postDeployScripts) {
+        for (let i = 0; i < this.meta.postDeployScripts.length; i++) {
+          const script = this.meta.postDeployScripts[i];
+          await spawnCmd(this.params.path, script, script,{ ...options, redirectStdErrToStdOut: true }, this);
+        }
+      }
     }
   }
 
@@ -683,7 +756,7 @@ export class Package implements IPackage {
       this.processStatus = ProcessStatus.BUILDING;
       if (!this.packageName) {
         console.log(
-          this.params?.path || this.deploy?.path || this.docker?.path,
+          this.params?.path || this.stack?.path || this.docker?.path,
         );
       }
       if (!this.isRoot) {
@@ -743,7 +816,7 @@ export class Package implements IPackage {
     if (type === PackageModuleType.PARAMS) {
       return this.params;
     } else if (type === PackageModuleType.STACK) {
-      return this.deploy;
+      return this.stack;
     } else {
       return this.docker;
     }
@@ -765,7 +838,7 @@ export class Package implements IPackage {
 
     const relativePath = path.relative(process.cwd(), pkgPath);
     if (relativePath !== '') {
-      this.info(pkgPath, 'pkg cwd');
+      this.verbose(pkgPath, 'pkg cwd');
       process.chdir(relativePath);
     }
     return true;
@@ -778,7 +851,7 @@ export class Package implements IPackage {
   }
 
   public get path() {
-    return this.params?.path || this.docker?.path || this.deploy?.path;
+    return this.params?.path || this.docker?.path || this.stack?.path;
   }
 
   static fromPackageName(packageName: string): Package {
@@ -888,8 +961,8 @@ export class Package implements IPackage {
     if (this.params) {
       this.params[versionType] = version;
     }
-    if (this.deploy) {
-      this.deploy[versionType] = version;
+    if (this.stack) {
+      this.stack[versionType] = version;
     }
     if (this.docker) {
       this.docker[versionType] = version;
@@ -936,7 +1009,7 @@ export class Package implements IPackage {
             delete this.statusTime;
             delete this.status;
             delete this.params;
-            delete this.deploy;
+            delete this.stack;
             delete this.docker;
             delete this.meta.service;
             delete this.modules;
@@ -1095,7 +1168,7 @@ export class Package implements IPackage {
     await this.exec?.checkStatus();
     await this.params?.checkStatus();
     await this.docker?.checkStatus();
-    await this.deploy?.checkStatus();
+    await this.stack?.checkStatus();
   }
 
   async finalizeStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
@@ -1138,7 +1211,7 @@ export class Package implements IPackage {
   }
 
   async checkStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
-    const cmd = this.createCmd('stat');
+    const cmd = this.createCmd('cenv stat ');
     this.resetStatus()
     await this.checkModuleStatus();
     await this.finalizeStatus(targetMode, endStatus);
@@ -1361,10 +1434,10 @@ export class Package implements IPackage {
     return Package.fromStackName(stackName);
   }
   get deployedVersion(): string | false {
-    if (!this.deploy?.deployedVersion) {
+    if (!this.stack?.deployedVersion) {
       return false;
     }
-    return this.deploy?.deployedVersion;
+    return this.stack?.deployedVersion;
   }
 
   static getPackageName(packagePath?: string) {

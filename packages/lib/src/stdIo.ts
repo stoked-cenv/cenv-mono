@@ -21,7 +21,7 @@ import { getExportValue } from './aws/cloudformation';
 export async function readAsync(prompt: string, defaultValue: string): Promise<string> {
   try {
     const finalPrompt = `${prompt}:`;
-    return await read({ prompt: finalPrompt, default: infoInput(defaultValue) });
+    return await read({ prompt: finalPrompt, default: `${infoInput(defaultValue)}` }, );
   } catch (e) {
     CenvLog.single.errorLog(`readAsync error:\n ${e}\nError: ${e.message}`);
   }
@@ -29,7 +29,7 @@ export async function readAsync(prompt: string, defaultValue: string): Promise<s
 function cleanString(input) {
   return input.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '')
 }
-export async function ioReadVar(prompt: string, varValue: string, defaultValue: string, defaults: boolean = false, protectedMode: boolean = false): Promise<string> {
+export async function ioReadVar(prompt: string, varValue: string, defaultValue: string, defaults = false, protectedMode = false): Promise<string> {
   if (!varValue) {
     if (!defaults) {
       if (protectedMode && defaultValue.match(/^<\].*?\[>$/)?.length) {
@@ -59,14 +59,14 @@ export async function ioAppEnv(config, application, environment, overwrite = fal
 }
 
 export async function ioReadVarList(keyValueList: any, protectedMode = false) {
-  for(let [key, value] of Object.entries(keyValueList)) {
+  for(const [key, value] of Object.entries(keyValueList)) {
     const output = await ioReadVar(key, undefined, value as string, false, protectedMode);
     keyValueList[key] = output;
   }
   return keyValueList;
 }
 
-export async function ioYesOrNo(prompt: string = 'Are you sure?', defaultValue: string = 'n'): Promise<boolean> {
+export async function ioYesOrNo(prompt = 'Are you sure?', defaultValue = 'n'): Promise<boolean> {
   const answer = await readAsync(
     infoAlert(`${prompt} (y/${infoInput('n')})`), defaultValue,
   );
@@ -110,7 +110,8 @@ async function getAccountInfo() {
   args['AWS_ACCOUNT_USER_ARN'] = callerIdentity.UserArn;
   return args;
 }
-export async function configure(options: any, alwaysAsk: boolean = false, verifyLocalRunning = false) {
+
+export async function configure(options: any, alwaysAsk = false, verifyLocalRunning = false) {
   if (process.env.CENV_LOCAL) {
     options.profile = 'local';
   }

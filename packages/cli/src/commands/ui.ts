@@ -1,6 +1,6 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvUI, Suite } from '@stoked-cenv/cenv-ui';
-import { CenvLog, Package, BaseCommandOptions } from '@stoked-cenv/cenv-lib'
+import { CenvUI } from '@stoked-cenv/cenv-ui';
+import { CenvLog, Package, BaseCommandOptions, Suite } from '@stoked-cenv/cenv-lib'
 
 import { BaseCommand } from './base';
 
@@ -12,7 +12,9 @@ export interface UICommandOptions extends BaseCommandOptions {
 @Command({
   name: 'ui',
   description: `Launch UI`,
-  aliases: ['s', 'suite', 'status']
+  aliases: ['s', 'suite'],
+
+
 })
 export default class UICommand extends BaseCommand {
 
@@ -50,7 +52,14 @@ export default class UICommand extends BaseCommand {
   async runCommand(passedParam: string[], options: UICommandOptions, packages: Package[]): Promise<void> {
     try {
       if (!packages.length) {
-        options.suite = options.defaultSuite;
+        if (!options.suite) {
+          if (Package.defaultSuite) {
+            options.suite = Package.defaultSuite;
+          } else {
+            CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
+            process.exit(0);
+          }
+        }
         const suite = new Suite(options.suite)
         new CenvUI(options, suite.packages);
       } else {

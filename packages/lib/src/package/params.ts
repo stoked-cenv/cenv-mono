@@ -1,4 +1,4 @@
-import { Package } from './package';
+import {Package, PackageCmd} from './package';
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
 import { AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList } from '../file';
 import path, { join } from 'path';
@@ -6,8 +6,9 @@ import { existsSync } from 'fs';
 import { getConfig } from '../aws/appConfig';
 import { CenvParams } from '../params';
 import { CenvLog, colors } from '../log';
-import {expandTemplateVars, randomRange, simplify, sleep} from '../utils';
-import { decryptValue, isEncrypted } from '../aws/parameterStore';
+import {execCmd, expandTemplateVars, randomRange, simplify, sleep, spawnCmd} from '../utils';
+import {decryptValue, getParams, isEncrypted} from '../aws/parameterStore';
+import { Mutex, Semaphore } from 'async-mutex';
 
 export interface CenvVarsCount {
   app: number;
@@ -69,6 +70,8 @@ export class ParamsModule extends PackageModule {
 
   random: number;
   duplicates: { key: string; types: string[] }[] = [];
+  static semaphore = new Semaphore(2);
+
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.PARAMS);
@@ -81,6 +84,7 @@ export class ParamsModule extends PackageModule {
     }
   }
 
+
   get anythingDeployed(): boolean {
     return (
       this.hasCenvVars &&
@@ -91,6 +95,36 @@ export class ParamsModule extends PackageModule {
         (this.materializedVars &&
           Object.keys(this.materializedVars).length > 0))
     );
+  }
+
+  async deploy(options: any) {
+    const [value, release] = await ParamsModule.semaphore.acquire();
+
+    await this.pkg.pkgCmd(`cenv params ${this.pkg.packageName} init`, options);
+
+    // switch dir
+    const toDirVars = path.relative(process.cwd(), this.path);
+    if (toDirVars !== '') {
+      process.chdir(toDirVars);
+    }
+
+    // load config
+    CenvFiles.LoadEnvConfig(process.env.ENV);
+    const config = CenvFiles.GetConfig();
+
+    // get deployed vars
+    options.cenvVars = await getParams({ ...config, AllValues: true },'all', 'simple', false, true, true);
+
+    for (let i = 0; i < Object.keys(options.cenvVars).length; i++) {
+      this.pkg.verbose(options.cenvVars[Object.keys(options.cenvVars)[i]], Object.keys(options.cenvVars)[i]);
+    }
+
+    // consider it a success if we have at least one parameter
+    if (!options.cenvVars || !Object.keys(options.cenvVars).length) {
+      throw new Error(`deploy params - get params failure`)
+    }
+
+    release();
   }
 
   async checkVarsUpToDate(): Promise<boolean> {

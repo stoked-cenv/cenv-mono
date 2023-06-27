@@ -1,5 +1,5 @@
-import { EnvironmentStatus, IPackage, Package } from './package';
-import { SemVer, inc, coerce, parse } from 'semver';
+import { Package } from './package';
+import { SemVer } from 'semver';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import semver from 'semver';
@@ -37,6 +37,11 @@ export interface PackageStatus {
   needsFix: string[];
 }
 
+export enum ProcessMode {
+  DEPLOY,
+  DESTROY,
+}
+
 export abstract class PackageModule implements IPackageModule {
   name: string;
   path: string;
@@ -58,7 +63,7 @@ export abstract class PackageModule implements IPackageModule {
   mouth: Mouth;
   status: PackageStatus = { needsFix: [], deployed: [], incomplete: [] };
 
-  private _type: PackageModuleType;
+  readonly _type: PackageModuleType;
 
   protected constructor(module: IPackageModule, moduleType: PackageModuleType) {
     this.name = module.name;
@@ -163,7 +168,7 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   statusLineBase(title, description, colorCombo) {
-    const regex = /\[(.*?)\]/gm;
+    const regex = /\[(.*?)]/gm;
     let m;
     let newDesc = description;
     while ((m = regex.exec(description)) !== null) {

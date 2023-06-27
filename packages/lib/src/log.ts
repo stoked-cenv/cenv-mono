@@ -1,6 +1,6 @@
 import chalk, { Chalk } from 'chalk';
 import { CenvParams } from './params';
-import {cleanup, destroyUI, killRunningProcesses} from "./utils";
+import {cleanup} from "./utils";
 
 const info = chalk.gray;
 const infoBold = chalk.blueBright.underline;

@@ -62,7 +62,7 @@ export default class CleanCommand extends BaseCommand {
       }
 
       await Promise.all(packages.map(async (p: Package) => {
-        if ((options?.mode === 'cdk' || options?.mode === 'both') && p.deploy) {
+        if ((options?.mode === 'cdk' || options?.mode === 'both') && p.stack) {
           await spawnCmd('./', 'rm -rf cdk.context.json cdk.out', 'cdk clear', {}, p);
         }
 

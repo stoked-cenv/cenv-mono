@@ -1,4 +1,4 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
+import { Command, Option } from 'nest-commander';
 import { CenvLog, CenvParams, getEnvironment, errorInfo, BaseCommandOptions, CenvFiles, configure } from '@stoked-cenv/cenv-lib'
 
 import { BaseCommand } from './base'

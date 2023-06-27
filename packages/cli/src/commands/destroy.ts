@@ -1,13 +1,6 @@
 import { Command, Option } from 'nest-commander';
-import {
-  Cenv,
-
-  Dashboard,
-  Deployment,
-  DeploymentMode,
-  DestroyCommandOptions,
-} from '@stoked-cenv/cenv-ui';
-import { Package, CenvLog, CenvFiles, EnvConfigFile } from '@stoked-cenv/cenv-lib';
+import { Dashboard,  } from '@stoked-cenv/cenv-ui';
+import { Package, CenvLog, CenvFiles, EnvConfigFile, ProcessMode, Deployment, DestroyCommandOptions, Cenv } from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base';
 
 @Command({
@@ -18,10 +11,11 @@ import { BaseCommand } from './base';
 
 })
 export default class DestroyCommand extends BaseCommand {
-  deploymentMode = DeploymentMode.DESTROY;
+  deploymentMode = ProcessMode.DESTROY;
   constructor() {
     super()
     this.allowUI = true;
+    this.packageRequired = true;
   }
 
   @Option({

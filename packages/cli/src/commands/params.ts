@@ -1,17 +1,14 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
+import { Command, Option } from 'nest-commander';
 import {
-  Cenv,
-  validateCount, ParamsCommandOptions,
-} from '@stoked-cenv/cenv-ui';
-import {
-  deleteFiles,
   errorInfo,
   CenvLog,
   getParams,
   Package,
   CenvParams,
   CenvFiles,
-  variableTypes, getConfig
+  variableTypes, getConfig,
+  Cenv,
+  validateCount, ParamsCommandOptions
 } from '@stoked-cenv/cenv-lib'
 
 import { BaseCommand } from './base'
@@ -68,11 +65,11 @@ export default class ParamsCommand extends BaseCommand {
   }
 
   @Option({
-    name: 'all',
-    flags: '-a, --all',
-    description: 'Print all the variable types config, environment, and config.',
+    name: 'globalEnv',
+    flags: '-ge, --global-env',
+    description: 'Displays global environment parameters. Global environment parameters are available to all applications in a specific environment.',
   })
-  parseAll(val: string): string {
+  parseGlobalEnv(val: string): string {
     return val;
   }
 
@@ -141,15 +138,6 @@ export default class ParamsCommand extends BaseCommand {
   }
 
   @Option({
-    name: 'include application',
-    flags: '-ia, --include-application',
-    description: 'Include application in response. Internally used by the -aa flag to track which variables belong to which app.',
-  })
-  parseIncludeApp(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
     name: 'test',
     flags: '-t, --test',
     description: 'Test mode for params.',
@@ -168,17 +156,28 @@ export default class ParamsCommand extends BaseCommand {
     return val;
   }
 
-  async callBase(options, type) {
-    const config = CenvFiles.GetConfig();
-    if (!config ) {
-      CenvLog.single.errorLog('could not load config');
+  async callBase(options, type, pkg) {
+    let config: any = CenvFiles.GetConfig();
+    if (!config) {
+      if (options.pkgCount === 1) {
+        CenvLog.single.errorLog(`the package ${pkg.packageName} does not have a valid .cenv config`, pkg.packageName);
+      }
       return;
     }
+    let format = 'simple';
     if (options?.detail) {
-      options.simple = false;
+      format = 'detail';
     }
 
-    const params = await getParams(options?.deployed ? {...config, AllValues: true } : config, type, options?.simple ? 'simple' : 'detail', options?.decrypted, options?.deployed);
+    if (options?.pkgCount > 1) {
+      format += '-pkg';
+    }
+
+    if (options?.deployed) {
+      config = {...config, AllValues: true};
+    }
+
+    await getParams(config, type, format, options?.decrypted, options?.deployed);
   }
 
   async runCommand(params: string[], options?: ParamsCommandOptions, packages?: Package[]): Promise<void> {
@@ -206,7 +205,7 @@ export default class ParamsCommand extends BaseCommand {
           for (const p of packages) {
             if (p.chDir()) {
               if (param === ParamCommands.init) {
-                await Cenv.init(options, this.tags);
+                await Cenv.initParams(options, this.tags);
               } else if (param === ParamCommands.fix) {
 
                 await p.checkStatus();
@@ -215,66 +214,36 @@ export default class ParamsCommand extends BaseCommand {
                   await p.params.fixDupes();
                 }
               } else if (param === ParamCommands.deploy) {
-                //await p.checkStatus();
-                //if (p.params.duplicates.length) {
-                //  await p.params.fixDupes();
-                //}
                 await CenvParams.push(false);
               } else if (param === ParamCommands.pull) {
                 const depRes = await getConfig(p.params.name);
                 if (depRes) {
-
-                  await CenvParams.pull(true,
-                    false,
-                    true,
-                    false,
-                    false,
-                    false,
-                    depRes.config,
-                    true);
+                  await CenvParams.pull(true, false, true,false,
+                    false,false,depRes.config,true);
                 }
 
-                //await p.checkStatus();
-                //if (p.params.duplicates.length) {
-                //  await p.params.fixDupes();
-                //}
               } else if (param === ParamCommands.materialize) {
                 await CenvParams.Materialize(options.test);
               }
             }
           }
         }
-        process.exit(0)
-      } else if (options?.test) {
-        process.env.CENV_PARAMS_EXTRACTION_TEST='true'
-        if (process.env.CENV_REGENERATE_FROM_TEMPLATES) {
-          const env = process.env.ENV;
-          const reg = new RegExp(`^\.cenv\.${process.env.ENV}\-[0-9]{12}(\.globals)?$`, '')
-          await deleteFiles(reg, { regex: true, excludedDirs: ['node_modules', 'cdk.out'], includedDirs:['.cenv']})
+      } else {
+
+        let type: string | false = validateCount(Object.keys(options), [...variableTypes, 'all'], true);
+
+        if (!type) {
+          type = 'all';
         }
 
-        await Promise.all(packages.map(async (p: Package) => {
-          const relativePath = path.relative(process.cwd(), p.params.path);
-          if (relativePath !== '') {
-            process.chdir(relativePath);
-          }
-          await CenvParams.pull(false, false, false, true, false, false);
-        }));
-
-        process.exit(0);
-      }
-      let type = validateCount(Object.keys(options), [...variableTypes, 'all'], true);
-      if (!type)
-        type = 'all';
-      if (packages?.length) {
+        const opts = { ...options, pkgCount: packages.length };
         for (let i = 0; i < packages.length; i++) {
           if (packages[i].chDir()) {
-            await this.callBase(options, type);
+            await this.callBase(opts, type, packages[i]);
           }
         }
-        return;
       }
-      await this.callBase(options, type);
+
     } catch (e) {
       console.log(errorInfo(e) + '\n' + e.stack );
     }

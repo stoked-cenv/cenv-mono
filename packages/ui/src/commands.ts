@@ -13,6 +13,7 @@ export class Commands {
       ['UI', 'ui'],
       ['Exec', 'exec'],
       ['Configure', 'configure'],
+      ['Stat', 'stat'],
       ['Test', 'test'],
       ['Pull', 'pull'],
       ['Push', 'push'],

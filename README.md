@@ -37,11 +37,7 @@ The ui package contains the ui code for the cli built on https://github.com/chjj
 
 ### support
 
-Call your congressperson.
-
-### contact
-
-- [Brian Stoker](mailto:b@stokedconsulting.com)
+Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b@stokedconsulting.com).
 
 ### license
 

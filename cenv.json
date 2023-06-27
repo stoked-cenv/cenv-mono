@@ -1,5 +1,15 @@
 {
   "global": "@stoked-cenv/cenv-globals",
   "defaultSuite": "cenv",
-  "scopeName": "@stoked-cenv"
+  "scopeName": "@stoked-cenv",
+  "suites": {
+    "cenv": {
+      "packages": [
+        "@stoked-cenv/cenv-ui",
+        "@stoked-cenv/cenv-lib",
+        "@stoked-cenv/cenv-params",
+        "@stoked-cenv/cenv-cli"
+      ]
+    }
+  }
 }

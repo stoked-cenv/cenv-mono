@@ -1,4 +1,6 @@
-import { CenvLog, Package, listStacks } from '@stoked-cenv/cenv-lib';
+import { CenvLog } from './log';
+import { Package } from './package/package';
+import { listStacks } from './aws/cloudformation'
 import { Suite } from './suite';
 import { StackSummary } from '@aws-sdk/client-cloudformation';
 
@@ -48,7 +50,7 @@ export class Environment {
   }
 
   async getStacks(): Promise<StackSummary[]> {
-    this.stacks = (await Environment.getStacks(this.name)).filter(s => s.StackName.startsWith(this.name + '-'));;;
+    this.stacks = (await Environment.getStacks(this.name)).filter(s => s.StackName.startsWith(this.name + '-'));
     return this.stacks;
   }
 

@@ -173,8 +173,8 @@ export default class Dialogs {
         if (p?.docker?.pkg) {
           delete p.docker.pkg;
         }
-        if (p?.deploy?.pkg) {
-          delete p.deploy.pkg;
+        if (p?.stack?.pkg) {
+          delete p.stack.pkg;
         }
       })
     }

@@ -1,6 +1,5 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { Deployment, DockerCommandOptions } from '@stoked-cenv/cenv-ui';
-import { errorInfo, Package, CenvLog } from '@stoked-cenv/cenv-lib';
+import { errorInfo, Package, CenvLog, Deployment, DockerCommandOptions } from '@stoked-cenv/cenv-lib';
 
 import { BaseCommand } from './base'
 import path from 'path';
@@ -63,13 +62,9 @@ export default class DockerCommand extends BaseCommand {
 
   async runCommand(param: string[], options?: DockerCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      if (packages.length && !packages[0].local) {
         for (let i = 0; i < packages.length; i++) {
-          await Deployment.DockerBuild(packages[i], this.args, options);
+          await packages[i]?.docker?.build(this.args, options);
         }
-      } else if (packages.length && packages[0].local) {
-        await Deployment.DockerBuild(packages[0], this.args, options);
-      }
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

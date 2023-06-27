@@ -1,9 +1,11 @@
 import { EnvironmentStatus, Package, PackageCmd } from './package';
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
-import { getRepository, listImages } from '../aws/ecr';
+import {createRepository, getRepository, hasTag, listImages, repositoryExists} from '../aws/ecr';
 import { ImageIdentifier, Repository } from '@aws-sdk/client-ecr';
 import semver from 'semver';
 import {CenvLog, colors} from '../log';
+import {StackModule} from "./stack";
+import {execCmd, sleep, spawnCmd} from "../utils";
 
 export class DockerModule extends PackageModule {
   digest?: string;
@@ -16,14 +18,182 @@ export class DockerModule extends PackageModule {
   containerStatus = 'container not deployed';
   repoContainsLatest = false;
   dockerName: string;
+  envVars = { DOCKER_BUILDKIT: 1 }
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.DOCKER);
     this.dockerName = Package.packageNameToDockerName(this.name);
   }
 
+  public static get ecrUrl(): string {
+    if (StackModule.localEnv) {
+      return 'localhost:4510';
+    } else {
+      return `${process.env.CDK_DEFAULT_ACCOUNT}.dkr.ecr.${process.env.AWS_REGION}.amazonaws.com`;
+    }
+  }
+
+  public static get digestRegex(): RegExp {
+    return new RegExp(/^|latest|: digest: (sha256:[0-9a-f]*) size: [0-9]*$/, 'gim')
+  }
+  static build: { [key: string]: number } = {};
+  static ecrAuthHelperInstalled = false;
+
+  private async verifyDigest() {
+    let digestFound = false;
+    let attempts = 0;
+    const maxAttempts = 5;
+    const attemptWaitSeconds = 2;
+    while (!digestFound) {
+      attempts++;
+      await sleep(attemptWaitSeconds);
+      if (await hasTag(this.dockerName, this.pkg.rollupVersion, this.digest)) {
+        digestFound = true;
+        this.info(`digest (${this.digest}) push verified`);
+      }
+      if (!digestFound && attempts < maxAttempts) {
+        throw new Error(`docker push - failed: the digest ${this.digest} could not be found for ${this.dockerName}:${this.pkg.rollupVersion} after ${maxAttempts * attemptWaitSeconds} seconds`)
+      }
+    }
+  }
+
+  async push(url: string) {
+    const cmd = `docker push ${url}/${this.dockerName} --all-tags`;
+    const pushOptions = {
+      redirectStdErrToStdOut: true,
+      returnRegExp: DockerModule.digestRegex,
+      returnProperty: 'docker.digest',
+    };
+
+    await spawnCmd(this.path, cmd, cmd, pushOptions, this.pkg);
+
+    if (!this.digest) {
+      CenvLog.single.errorLog(`digest from push not found ${this.dockerName}:${this.pkg.rollupVersion}`, this.pkg.packageName);
+      return
+    }
+
+    CenvLog.single.infoLog( '@@@@@@@@@@@ docker digest @@@@@@@@@@@' + this.digest, this.pkg.packageName)
+
+    // wait to exit until we can see the new image in the ecr (otherwise cdk build will show no changes)
+    await this.verifyDigest();
+  }
+
+  async build(args, cmdOptions: any = { build: true, push: true, dependencies: false}): Promise<number> {
+    const { build, push, dependencies } = cmdOptions;
+
+    if (dependencies) {
+      if (this.pkg?.meta?.service) {
+        await Promise.all(this.pkg?.meta?.service?.map(async (dep: Package) => {
+          this.pkg.info('pkg: ' + this.pkg.packageName + ' => DockerBuild(' + dep.packageName + ')')
+          await dep.docker.build(args, cmdOptions)
+        }));
+      }
+    }
+
+    const buildTitle = 'DockerBuild ' + this.pkg.packageName;
+    if (!this.build[buildTitle]) {
+      this.build[buildTitle] = 0;
+    }
+    this.build[buildTitle]++;
+
+    const exists = await repositoryExists(this.dockerName);
+    if (!exists) {
+      await createRepository(this.dockerName);
+    } else if (cmdOptions?.strictVersions && await hasTag(this.dockerName, this.pkg.rollupVersion)) {
+      return;
+    }
+
+    if (build) {
+      const force = cmdOptions.force ? ' --no-cache' : '';
+      const buildCmd = `docker build -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .${force}`;
+      const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars };
+      await spawnCmd(this.path, buildCmd, buildCmd, buildOptions, this.pkg);
+    }
+
+    if (push) {
+      await this.push(DockerModule.ecrUrl);
+    }
+  }
+
+  async pushBaseImage(pull = true, push = true): Promise<number> {
+
+    let repoName = this.pkg.meta.dockerBaseImage;
+    const repoParts = repoName.split(':');
+    let tag = 'latest';
+
+    if (repoParts.length > 1) {
+      repoName = repoParts[0];
+      tag = repoParts[1];
+    }
+
+    if (!await repositoryExists(repoName)) {
+      await createRepository(repoName);
+    }
+
+    const hasTagRes = await hasTag(repoName, tag);
+    if (hasTagRes && tag !== 'latest') {
+      return 0;
+    }
+
+    if (pull) {
+      const pullCmd = `docker pull ${this.pkg.meta.dockerBaseImage}`;
+      await spawnCmd(this.pkg.docker.path, pullCmd, pullCmd, { envVars: this.envVars }, this.pkg);
+    }
+    if (push) {
+
+      let cmd = `docker tag ${this.pkg.meta.dockerBaseImage} ${DockerModule.ecrUrl}/${this.pkg.meta.dockerBaseImage}`;
+      await spawnCmd(this.pkg.docker.path, cmd, cmd,{ returnOutput: true }, this.pkg);
+
+      cmd = `docker push ${DockerModule.ecrUrl}/${this.pkg.meta.dockerBaseImage}`;
+      await spawnCmd(this.pkg.docker.path, cmd, cmd,{ redirectStdErrToStdOut: true }, this.pkg);
+
+      // wait to exit until we can see the new image in the ecr (otherwise cdk build will show no changes)
+      await sleep(15);
+
+      /* wtf is happening here.. umm derp */
+
+
+      /*const digestFound = false;
+      let attempts = 0;
+      while (!digestFound && attempts < 5) {
+        attempts++;
+
+        //await getI
+      }*/
+    }
+  }
+
+  async deploy(options: any) {
+
+    if (!this.dockerName) {
+      CenvLog.single.catchLog(['docker module without docker name', this.pkg.packageName].join(' '));
+    }
+
+    if (!DockerModule.ecrAuthHelperInstalled) {
+      const dockerCredHelperRes = await execCmd('./', 'which docker-credential-ecr-login');
+      if (!dockerCredHelperRes.length) {
+
+        throw new Error(`docker deploy - failure: WAAA HAAAHHHHHAHHAHHAH`);
+      }
+    }
+
+    if (this.pkg?.meta?.preBuildScripts) {
+      for (let i = 0; i < this.pkg.meta.preBuildScripts.length; i++) {
+        const script = this.pkg.meta.preBuildScripts[i];
+        await spawnCmd(this.pkg.params.path, script, script,{ ...options,      redirectStdErrToStdOut: true }, this.pkg);
+
+      }
+    }
+    if (this.pkg?.meta?.dockerBaseImage) {
+      await this.pushBaseImage();
+    }
+
+    await this.build(options.cenvVars || {},{ build: true, push: true, dependencies: false, ...options });
+    options.cenvVars = { CENV_PKG_DIGEST: this.digest || this.pkg.stack?.deployedDigest };
+  }
+
   upToDate(): boolean {
-    return this.imageUpToDate() && (!this.pkg.deploy || this.pkg.deploy.upToDate());
+    return this.imageUpToDate() && (!this.pkg.stack || this.pkg.stack.upToDate());
   }
 
   imageUpToDate(): boolean {
@@ -72,7 +242,7 @@ export class DockerModule extends PackageModule {
   }
 
   statusIssues() {
-    const deploy = this.pkg?.deploy ? ` hasLatestDeployedVersion [${this.pkg?.deploy?.hasLatestDeployedVersion}] hasLatestDeployedVersion: [${this.pkg?.deploy.hasLatestDeployedDigest}]` : '';
+    const deploy = this.pkg?.stack ? ` hasLatestDeployedVersion [${this.pkg?.stack?.hasLatestDeployedVersion}] hasLatestDeployedVersion: [${this.pkg?.stack.hasLatestDeployedDigest}]` : '';
     this.verbose(`imageUpToDate: [${this.imageUpToDate()}] latest tag: [${this.latestImage?.imageTag}] ${deploy}`, 'docker status debug');
   }
 
@@ -162,7 +332,7 @@ export class DockerModule extends PackageModule {
     this.pkg.links.push(
       `ECR (repo): https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}?region=${process.env.AWS_REGION}`,
     );
-    this.digest = this.pkg.deploy?.deployedDigest ? this.pkg.deploy.deployedDigest : undefined;
+    this.digest = this.pkg.stack?.deployedDigest ? this.pkg.stack.deployedDigest : undefined;
     this.printCheckStatusComplete();
   }
 

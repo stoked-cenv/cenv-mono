@@ -1,4 +1,4 @@
-import { CommandRunner, Option, RootCommand} from 'nest-commander';
+import { CommandRunner, Option, RootCommand } from 'nest-commander';
 import { packagePath } from '@stoked-cenv/cenv-lib'
 
 import path from "path";
@@ -18,15 +18,6 @@ export default class CenvCommand extends CommandRunner {
     description: 'Display cenv\'s installed version',
   })
   parseVersion(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
-    name: 'help',
-    flags: '-h, --help',
-    description: 'Display help for the command',
-  })
-  parseHelp(val: boolean): boolean {
     return val;
   }
 

@@ -1,15 +1,21 @@
 import * as path from 'path';
 import child_process, { exec } from 'child_process';
 import { startCenv, ClientMode } from './aws/appConfigData';
-import { info, infoAlert, infoBold, LogLevel, CenvLog } from './log';
-import fs, { existsSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import {info, infoAlert, infoBold, CenvLog } from './log';
+import fs, {existsSync, readFileSync, rmSync} from 'fs';
 import { hostname } from 'os';
-import { CenvParams } from './params';
+import { CenvParams, DashboardCreateOptions, Dashboard, DashboardCreator } from './params';
 import {PackageCmd, Package, ProcessStatus} from './package/package';
 import { join } from 'path';
 import chalk from 'chalk';
 import * as fsp from 'fs/promises';
 import { createHash } from 'crypto';
+import * as os from "os";
+import {ProcessMode} from "./package/module";
+import {CenvFiles} from "./file";
+import {deleteCenvData} from "./aws/appConfig";
+import {Suite} from "./suite";
+import {Environment} from "./environment";
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
   return isString(value) ? !!value : value && value.length > 0;
@@ -231,6 +237,7 @@ function spawnInfo(options, chunk, output, pkg) {
   }
 }
 
+
 export async function spawnCmd(
   folder: string,
   cmd: string,
@@ -260,6 +267,7 @@ export async function spawnCmd(
   if (cmd === 'cenv destroy --parameters --config') {
     packageInfo.alert('cmdLog', cmdLog.cmd)
   }
+
   function log(...text: string[]) {
     if (options.silent) {
       return;
@@ -273,23 +281,52 @@ export async function spawnCmd(
     }
   }
 
-  function err(...text: string[]) {
-    if (options.silent) {
-      return;
-    }
-    if (cmdLog) {
-      cmdLog.err(...text);
-    } else if (packageInfo) {
-      packageInfo.err(...text);
-    } else if (!options.silent) {
-      CenvLog.single.errorLog(text)
-    }
-  }
-
+  let hasErrors = false;
+  const errors = [];
   try {
+
+    function err(...text: string[]) {
+      hasErrors = true;
+      errors.push(text);
+      if (options.silent) {
+        return;
+      } else if (cmdLog) {
+        cmdLog.err(...text);
+      } else if (packageInfo) {
+        packageInfo.err(...text);
+      } else if (!options.silent) {
+        CenvLog.single.errorLog(text)
+      }
+    }
+
+    function spawnErr(options, chunk, output, pkg, cmd) {
+      //if (pkg) {
+      //  chunk = '[' + pkg.packageName + '] ' + cmd + ': ' + chunk;
+      //}
+      if (options?.redirectStdErrToStdOut) {
+        const actualErrors = new RegExp(/ERROR/, 'i').exec(chunk);
+        if (!actualErrors) {
+          spawnInfo(options, chunk, output, pkg);
+        } else {
+          err(chunk, pkg ? pkg.stackName : undefined)
+        }
+      } else {
+        err(chunk, pkg ? pkg.stackName : undefined)
+      }
+    }
+
     const relativeDir = path.relative(process.cwd(), path.resolve(folder));
     const newCwd: string = './' + relativeDir;
     return new Promise(async (resolve, reject) => {
+
+      function handleErrors() {
+        if (hasErrors) {
+          errors.forEach((err) => {
+            packageInfo.err(err)
+          })
+        }
+      }
+
       if (relativeDir !== '') {
         process.chdir(newCwd);
       }
@@ -400,16 +437,12 @@ export async function spawnCmd(
           spawnInfo(options, chunk, output, packageInfo);
         });
         proc.stderr.on('data', function (chunk) {
-          if (options?.redirectStdErrToStdOut) {
-            spawnInfo(options, chunk, output, packageInfo);
-          } else {
-            err(chunk, packageInfo ? packageInfo.stackName : undefined)
-          }
+          spawnErr(options, chunk, output, packageInfo, cmd);
         });
       }
       // proc.on('close', function (code) { });
-      proc.on('error', function (code) {
-        err(`error ${code}`)
+      proc.on('error', function (error) {
+        spawnErr(options, error, output, packageInfo, cmd);
       });
 
       proc.on('exit', async function (code) {
@@ -422,7 +455,10 @@ export async function spawnCmd(
           if (cmdLog) {
             !cmdLog.result(code, output) ? reject(returnOutput) : resolve(returnOutput);
           } else {
-            if (code !== 0) {
+            if (code !== 0 || hasErrors) {
+              if (hasErrors) {
+                handleErrors();
+              }
               reject(returnOutput);
             } else {
               resolve(returnOutput);
@@ -430,7 +466,10 @@ export async function spawnCmd(
           }
         } else if (cmdLog) {
           !cmdLog.result(code) ? reject(code) : resolve(code);
-        } else if (code !== 0) {
+        } else if (code !== 0 || hasErrors) {
+          if (hasErrors) {
+            handleErrors();
+          }
           reject(code);
         } else {
           resolve(code);
@@ -446,11 +485,13 @@ export async function spawnCmd(
         }
       }
     });
+
+
+
   } catch (e) {
     if (packageInfo) {
       packageInfo.err(e)
     }
-    err(`${e?.stack || e}`);
     return 1;
   }
 }
@@ -774,21 +815,6 @@ export class Timer {
     delete this.finalElapsed;
     delete this.final;
   }
-
-  //static start = process.hrtime();
-/*
-  static elapsed(note, format = 'seconds') {
-    if (process.env.TIMING) {
-      const res = elapsedBase(this.start, format, note);
-      this.reset();
-      return res;
-    }
-  }
-
-  static reset() {
-    this.start = process.hrtime(); // reset the timer
-  }
-  */
 }
 
 export class TimerModules {
@@ -822,7 +848,7 @@ export class TimerModules {
 export const sleep = (seconds: number) =>
   new Promise((r) => setTimeout(r, seconds * 1000));
 
-export function simplify(yamlData) {
+export function simplify(yamlData, printPkg?: string) {
   const result = {};
   if (yamlData) {
     for (const [key, value] of Object.entries(yamlData)) {
@@ -961,15 +987,16 @@ export function destroyUI() {
   if (CenvParams.dashboard) {
     if (CenvParams.dashboard.screen) {
       CenvParams.dashboard.screen?.destroy();
-      console.log('CenvParams.dashboard.screen?.destroy()');
+      console.log('CenvParams.dashboard.screen?.destroy(kk)');
     }
     delete CenvParams.dashboard;
-    console.log('CenvParams.dashboard');
+    console.log('delete CenvParams.dashboard');
   }
 }
 
 export function cleanup(eventType) {
   destroyUI();
+  console.log('cleanup', new Error().stack);
 
   if (process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     process.argv.shift();
@@ -1140,9 +1167,251 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
   return { packages };
 }
 
-export function resolveHome(filepath) {
-  if (filepath[0] === '~') {
-    return path.join(process.env.HOME, filepath.slice(1));
+export function isOsSupported() {
+  switch (os.platform()) {
+    case 'darwin':
+      return true;
+    default:
+      return false;
   }
-  return filepath;
+}
+
+
+// suite param must be first and must be included inside the suites.json file
+function parseSuiteParam(params, options): { suite?: Suite, nonSuiteParams: string[] } {
+  if (params?.length) {
+    if (Suite.isSuite(params[0])) {
+      options.suite = params.shift();
+      const suite = new Suite(options.suite);
+      const { packages, nonPackageParams } = parsePackageParams(params);
+      if (packages.length) {
+        CenvLog.single.catchLog(`can not include package params and suite flag`);
+      }
+      return { suite: suite, nonSuiteParams: nonPackageParams }
+    }
+  }
+  return { nonSuiteParams: params };
+}
+
+
+// environment param must be first and must match existing environment variable "ENV"
+async function parseEnvironmentParam(params: string[], options: any): Promise<{ environment?: Environment, nonEnvironmentParams: string[] }> {
+  if (params?.length) {
+    if (params[0] === process.env.ENV) {
+      options.environment = params.shift();
+      const { packages } = parsePackageParams(params);
+      if (packages.length) {
+        CenvLog.single.catchLog(`can not include package params and suite flag`);
+      }
+
+      return { environment: await Environment.fromName(options.environment), nonEnvironmentParams: params }
+    }
+  }
+  return { nonEnvironmentParams: params };
+}
+
+function parsePackageParams(params: string[]): { packages: Package[], nonPackageParams: string[] }  {
+  const packageNames: string[] = [];
+  const newParams: string[] = [];
+  while(params.length) {
+    if (params[0].startsWith(`${Package.scopeName}/`) || Package.getRootPackageName() === params[0]) {
+      packageNames.push(params.shift());
+    } else {
+      newParams.push(params.shift())
+    }
+  }
+  return { packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams }
+}
+
+export function validateBaseOptions(deployCreateOptions: DashboardCreateOptions) {
+  try {
+    const { suite, environment, options, cmd  } = deployCreateOptions;
+    const packages = deployCreateOptions.packages;
+    if (options?.suite || options?.environment) {
+      if (options?.userInterface === undefined && options?.cli === undefined) {
+        options.cli = false;
+      }
+      options.dependencies = true;
+    } else if (!Package.realPackagesLoaded()) {
+      if (options?.userInterface === undefined && options?.cli === undefined) {
+        if (!options?.dependencies) {
+          options.cli = true;
+        }
+      }
+    } else if (!!(options.cenv || options.key)) {
+      options.cli = true;
+    }
+    options.userInterface = !options.cli;
+    if (cmd) {
+      if (!options.cenv && !options.key && !options.addKeyAccount && !options.stack && !options.parameters && !options.docker) {
+        options.stack = options.parameters = options.docker = true;
+      }
+      if (!options.skipBuild) {
+        options.build = true;
+      }
+
+    }
+  } catch (e) {
+    CenvLog.single.catchLog(e);
+  }
+}
+
+export async function processEnvFile(envFile: string, envName: string) {
+  const result = envFile.match(/^(.*)\/(\.cenv\.?([a-zA-Z0-9-\._]*)\.?(globals)?)$/);
+  if (result?.length === 5) {
+    const [ , servicePath, , configEnvironment ] = result;
+    if (configEnvironment === envName || configEnvironment === "" || configEnvironment === 'globals') {
+      CenvLog.info(infoBold(servicePath), 'service path');
+      return {valid: true, servicePath, environment: envName};
+    }
+  }
+  return { valid: false }
+}
+
+async function execEnvironment(environment: string, fileList: string[] = [], func: (application: string, environment: string) => Promise<void>) {
+  let processList = [];
+  if (fileList?.length > 0) {
+    processList = await Promise.all(fileList.map(async (envFile) => {
+      return await processEnvFile(envFile, environment);
+    }));
+  }
+  const servicePaths = new Set<string>();
+  processList.map((envFile) => {
+    if (envFile.valid)
+      servicePaths.add(envFile.servicePath)
+  });
+  const paths : string[] = Array.from(servicePaths);
+  const lernaPath = await execCmd('./', `git rev-parse --show-toplevel`, undefined) as string;
+
+  for (let i = 0; i < paths.length; i++) {
+    const servicePath = paths[i].toString();
+    console.log('change to service dir', path.join('./',servicePath))
+    process.chdir(path.join('./', servicePath));
+
+    // at this point we have to figure out which application we are updating
+    // we know the environment because of the branch but we don't know the application
+    // and there is no settings file to tell us
+    // so we have to look at the package.json and see if there is a cdk application
+    if(existsSync('package.json')) {
+      const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+      if (!pkg?.cenv?.ApplicationName) {
+        pkg.cenv = { ApplicationName: pkg.name, GlobalPath: CenvFiles.GlobalPath}
+      }
+      await func(pkg.cenv.ApplicationName, environment);
+    } else {
+      CenvLog.single.errorLog(`No package.json for ${path}`);
+    }
+
+    console.log('cwd', process.cwd());
+    console.log('change to lerna', )
+    process.chdir(lernaPath)
+  }
+}
+
+async function execInit(application: string, environment: string) {
+  //await Cenv.initVars({defaults: true, environment, application, push: true, force: true});
+}
+
+export async function processEnvFiles(environment, added, changed, deleted) {
+  if (changed) {
+    await execEnvironment(environment, changed, execInit);
+  }
+  if (deleted) {
+    async function execDestroy(application: string) {
+      await deleteCenvData(
+        application,
+        false,
+        true,
+      );
+    }
+
+    await execEnvironment(environment, deleted, execDestroy);
+  }
+}
+
+
+
+export async function parseCmdParams(params, options, cmd?: ProcessMode):
+  Promise<{ parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment }> {
+
+  // suite based command as parameter
+  if (params.length && Suite.isSuite(params[0])) {
+    const {suite, nonSuiteParams} = parseSuiteParam(params, options);
+    if (suite) {
+      options.suite = suite.name;
+      validateBaseOptions({suite, options, cmd});
+      return {packages: suite.packages, suite, parsedParams: nonSuiteParams, validatedOptions: options}
+    }
+  }
+
+  // application based command as parameter
+  const paramCount = params.length;
+  const { packages, nonPackageParams } = parsePackageParams(params);
+
+  if (packages.length) {
+    validateBaseOptions({ packages, options, cmd } );
+    return { packages, parsedParams: nonPackageParams, validatedOptions: options}
+  } else if (nonPackageParams.length !== paramCount) {
+    CenvLog.single.catchLog(`a param passed in looks like a package but was not loaded`);
+  }
+
+  let pkgs = [];
+  if (options.localPackageAccepted) {
+    const packageFile = path.resolve('./package.json')
+    if (existsSync(packageFile)) {
+      const packageName = require(packageFile).name;
+      const pkg = Package.fromPackageName(packageName);
+      pkg.local = true;
+      pkg.root = options.root;
+      pkgs.push(pkg)
+    }
+  }
+
+  if (!packages.length) {
+    if (Package.defaultSuite) {
+      options.suite = Package.defaultSuite;
+      const suite = new Suite(options.suite);
+      options.suite = suite.name;
+      pkgs = suite.packages;
+      validateBaseOptions({ suite, options, cmd } );
+    } else {
+      CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
+      process.exit(0);
+    }
+  } else {
+    validateBaseOptions({packages: pkgs, options, cmd});
+  }
+  return { packages: pkgs, parsedParams: nonPackageParams, validatedOptions: options };
+}
+
+
+export async function parseParamsExec(params, options, asyncExecFunc: (ctx: any, params: any, options: any) => Promise<PackageCmd>): Promise<PackageCmd[]> {
+  try {
+
+    const { packages, parsedParams, validatedOptions } = await parseCmdParams(params, options);
+    const result: PackageCmd[] = [];
+    if (packages?.length) {
+      for (let i = 0; i < packages?.length;) {
+        const app = packages.shift();
+        if (app.chDir()) {
+          const ctx: any = await CenvParams.getContext();
+          const resCmd = await asyncExecFunc(ctx, parsedParams, validatedOptions);
+          result.push(resCmd);
+          if (resCmd?.code !== 0) {
+            return result;
+          }
+        }
+      }
+      return result;
+    }
+
+  } catch(e) {
+    CenvLog.single.errorLog(e.stack);
+  }
+}
+
+export function pbcopy(data) {
+  const proc = child_process.spawn('pbcopy');
+  proc.stdin.write(data);
+  proc.stdin.end();
 }
