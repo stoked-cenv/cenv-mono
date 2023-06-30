@@ -17,8 +17,8 @@ import {
   DeleteHostedConfigurationVersionCommand,
 } from '@aws-sdk/client-appconfig';
 import yaml from 'js-yaml';
-import { deleteParametersByPath, stripPath, upsertParameter } from './parameterStore';
-import {infoBold, errorInfo, errorBold, CenvLog} from '../log';
+import { deleteParametersByPath, stripPath } from './parameterStore';
+import {infoBold, errorBold, CenvLog} from '../log';
 import { isString } from '../utils';
 import { EnvConfig } from '../file';
 
@@ -185,15 +185,15 @@ export async function getDeploymentStrategy() {
   }
 }
 
-export async function listApplications(getEnvironments: boolean = false) {
+export async function listApplications(getEnvironments = false) {
   const command = new ListApplicationsCommand({});
 
   try {
     const response = await getClient().send(command);
-    let result: any = response ? response.Items : [];
+    const result: any = response ? response.Items : [];
     if (getEnvironments ) {
       for (let appIdx = 0; appIdx < result.length; appIdx++) {
-        let app: any = result[appIdx];
+        const app: any = result[appIdx];
         const environments = await listEnvironments(app.Id);
         app.Environments = environments;
       }
@@ -209,10 +209,10 @@ export async function getEnvironmentAppConfigs() {
 
   try {
     const response = await getClient().send(command);
-    let result: any = response ? response.Items : [];
+    const result: any = response ? response.Items : [];
     const applications = {};
     for (let appIdx = 0; appIdx < result.length; appIdx++) {
-      let app: any = result[appIdx];
+      const app: any = result[appIdx];
 
       if (!applications[app.Id]) {
         applications[app.Id] = {}
@@ -245,7 +245,7 @@ export async function getEnvironmentAppConfigs() {
   }
 }
 
-export async function getApplication(applicationName: string, silent: boolean = true, environment: string | boolean = false, configurationProfile: string | boolean = false) {
+export async function getApplication(applicationName: string, silent = true, environment: string | boolean = false, configurationProfile: string | boolean = false) {
   const command = new ListApplicationsCommand({});
 
   try {
@@ -264,7 +264,7 @@ export async function getApplication(applicationName: string, silent: boolean = 
       }
       return false;
     }
-    let result: any = { ApplicationId: appId };
+    const result: any = { ApplicationId: appId };
     if (environment) {
       if (!isString(environment)) {
         result.Environments = await listEnvironments(appId,);
@@ -312,7 +312,7 @@ export async function getApplication(applicationName: string, silent: boolean = 
   }
 }
 
-export async function getConfig(ApplicationName: string, EnvironmentName: string = process.env.ENV, ConfigurationProfileName: string = 'config', Silent: boolean = true): Promise<false | { config: EnvConfig, version?: number }> {
+export async function getConfig(ApplicationName: string, EnvironmentName: string = process.env.ENV, ConfigurationProfileName = 'config', Silent = true): Promise<false | { config: EnvConfig, version?: number }> {
   const command = new ListApplicationsCommand({});
 
   try {
@@ -397,7 +397,7 @@ export async function listHostedConfigurationVersions(ApplicationId, Configurati
   }
 }
 
-export async function getEnvironment(applicationId, environmentName, silent: boolean = true) {
+export async function getEnvironment(applicationId, environmentName, silent = true) {
   try {
     const environments = await listEnvironments(applicationId);
     let envId = null;
@@ -423,7 +423,7 @@ export async function getEnvironment(applicationId, environmentName, silent: boo
   }
 }
 
-export async function getConfigurationProfile(applicationId, configurationProfileName, silent: boolean = true) {
+export async function getConfigurationProfile(applicationId, configurationProfileName, silent = true) {
   const result = { ConfigurationProfileId: null };
 
   try {
@@ -501,7 +501,7 @@ export async function getConfigParams (applicationName, environmentName, configu
 export async function deleteApplication(ApplicationId) {
   try {
     const command = new DeleteApplicationCommand({ ApplicationId });
-    let res = await getClient().send(command);
+    const res = await getClient().send(command);
     return res;
   } catch (e) {
     CenvLog.single.errorLog(['deleteApplication error', e.message])

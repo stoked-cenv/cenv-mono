@@ -1,14 +1,13 @@
-import {Package, PackageCmd} from './package';
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
 import { AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList } from '../file';
 import path, { join } from 'path';
 import { existsSync } from 'fs';
-import { getConfig } from '../aws/appConfig';
+import { destroyAppConfig, destroyRemainingConfigs, getConfig } from '../aws/appConfig';
 import { CenvParams } from '../params';
 import { CenvLog, colors } from '../log';
-import {execCmd, expandTemplateVars, randomRange, simplify, sleep, spawnCmd} from '../utils';
-import {decryptValue, getParams, isEncrypted} from '../aws/parameterStore';
-import { Mutex, Semaphore } from 'async-mutex';
+import { expandTemplateVars, randomRange, simplify } from '../utils';
+import { decryptValue, deleteParametersByPath, getParams, isEncrypted, stripPath } from '../aws/parameterStore';
+import { Semaphore } from 'async-mutex';
 
 export interface CenvVarsCount {
   app: number;
@@ -97,27 +96,76 @@ export class ParamsModule extends PackageModule {
     );
   }
 
+  static async getApplications(deployOptions: any, application: string) {
+    let applications = [];
+    if (application) {
+      applications.push(application);
+    } else if (deployOptions?.applications) {
+      applications = deployOptions?.applications;
+    }
+    return applications;
+  }
+
+  static async destroyGlobal() {
+      await deleteParametersByPath('/global', ' -');
+      await deleteParametersByPath('/globalenv', ' -');
+  }
+
+  static async destroyNonGlobal() {
+    await deleteParametersByPath('/service', ' -');
+  }
+
+  static async destroyAllParams() {
+    await this.destroyGlobal();
+    await this.destroyNonGlobal();
+  }
+
+  static async destroyAllConfigs() {
+    await destroyRemainingConfigs();
+  }
+
+  async destroy(parameterStore = true, appConfig = true) {
+    if (parameterStore) {
+      await deleteParametersByPath(`/service/${stripPath(this.pkg.packageName)}`, '    -', this.pkg.packageName);
+    }
+    if (appConfig) {
+      await destroyAppConfig(this.pkg.packageName, true);
+    }
+  }
+
   async deploy(options: any) {
     const [value, release] = await ParamsModule.semaphore.acquire();
 
-    await this.pkg.pkgCmd(`cenv params ${this.pkg.packageName} init`, options);
 
-    // switch dir
-    const toDirVars = path.relative(process.cwd(), this.path);
-    if (toDirVars !== '') {
-      process.chdir(toDirVars);
+    const commandEvents = {
+      postCommandFunc: async () => {
+
+        // switch dir
+        const toDirVars = path.relative(process.cwd(), this.path);
+        if (toDirVars !== '') {
+          process.chdir(toDirVars);
+        }
+
+        // load config
+        CenvFiles.LoadEnvConfig(process.env.ENV);
+        const config = CenvFiles.GetConfig();
+
+        // get deployed vars
+        options.cenvVars = await getParams({ ...config, AllValues: true },'all', 'simple', false, true, true);
+
+        if (CenvLog.isInfo) {
+          this.pkg.stdPlain('# cenv vars')
+          this.pkg.printEnvVars(options.cenvVars)
+        }
+
+        if (CenvLog.isVerbose) {
+          this.pkg.stdPlain('# env vars')
+          this.pkg.printEnvVars(process.env)
+        }
+      }
     }
 
-    // load config
-    CenvFiles.LoadEnvConfig(process.env.ENV);
-    const config = CenvFiles.GetConfig();
-
-    // get deployed vars
-    options.cenvVars = await getParams({ ...config, AllValues: true },'all', 'simple', false, true, true);
-
-    for (let i = 0; i < Object.keys(options.cenvVars).length; i++) {
-      this.pkg.verbose(options.cenvVars[Object.keys(options.cenvVars)[i]], Object.keys(options.cenvVars)[i]);
-    }
+    await this.pkg.pkgCmd(`cenv params ${this.pkg.packageName} init`, options, commandEvents);
 
     // consider it a success if we have at least one parameter
     if (!options.cenvVars || !Object.keys(options.cenvVars).length) {

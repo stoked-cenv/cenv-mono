@@ -1,4 +1,4 @@
-import { computeMetaHash, execCmd, getMonoRoot, packagePath, spawnCmd, Timer } from '../utils';
+import {computeMetaHash, execCmd, getMonoRoot, packagePath, printFlag, spawnCmd, Timer} from '../utils';
 import { existsSync, readFileSync } from 'fs';
 import path, {join} from 'path';
 import { PackageStatus } from './module'
@@ -9,10 +9,12 @@ import { PackageModule, PackageModuleType, ProcessMode } from './module';
 import { ParamsModule } from './params';
 import { DockerModule } from './docker';
 import { StackModule } from './stack';
-import {BaseCommandOptions, CenvParams} from '../params';
+import {BaseCommandOptions } from '../params';
+import { Cenv } from '../cenv'
 import { AppVarsFile, EnvVarsFile } from '../file';
 import { LibModule } from './lib';
 import { ExecutableModule } from './executable';
+import {Deployment} from "../deployment";
 
 export interface BuildCommandOptions extends BaseCommandOptions {
   install?: boolean,
@@ -41,10 +43,9 @@ export enum ProcessStatus {
   HAS_PREREQS = 'HAS_PREREQS',
   READY = 'READY',
   PROCESSING = 'PROCESSING',
-  SKIPPED = 'SKIPPED',
   CANCELLED = 'CANCELLED',
   FAILED = 'FAILED',
-  COMPLETED = 'COMPLETED',
+  COMPLETED = ' ',
 }
 
 function cmdResult(
@@ -128,6 +129,7 @@ export class PackageCmd implements Cmd {
   cmd: string;
   stdout? = '';
   stderr? = '';
+  stdtemp = undefined;
   vars: { [key: string]: string } = {};
   code: number = undefined;
   failOnError = true;
@@ -229,7 +231,7 @@ export class PackageCmd implements Cmd {
     code: number = undefined,
     message: string = undefined,
   ): Cmd {
-    if (CenvParams.dashboard) {
+    if (Cenv.dashboard) {
       return Package.getPackage('GLOBAL').createCmd(cmd, code, message);
     } else {
       return new LogCmd(cmd, code, message);
@@ -262,8 +264,10 @@ export interface IPackageMeta {
   deployStack?: string;
   destroyStack?: string;
   executables?: { exec: string, installed: boolean }[];
+  dockerType: string;
+  url?: string;
+  volatileContextKeys?: string[]
 }
-
 
 export interface IPackage {
   name: string;
@@ -296,6 +300,11 @@ export interface IPackage {
 
 }
 
+interface CommandEvents {
+  preCommandFunc?: () => Promise<void>,
+  postCommandFunc?: () => Promise<void>
+}
+
 export class Package implements IPackage {
   name: string;
   fullType: string;
@@ -311,6 +320,7 @@ export class Package implements IPackage {
   environmentStatus: EnvironmentStatus = EnvironmentStatus.NONE;
   environmentStatusReal: EnvironmentStatus = EnvironmentStatus.NONE;
   timer: Timer;
+  timerFinalElapsed: string;
   cmds: PackageCmd[];
   isGlobal = false;
   isRoot = false;
@@ -361,7 +371,7 @@ export class Package implements IPackage {
   load(packageName, noCache = false) {
     if (!Package.loading && !noCache) {
       const err = new Error(
-        `attempting to load ${packageName} after loading has been disabled`,
+          `attempting to load ${packageName} after loading has been disabled`,
       );
       this.err(err.stack);
     }
@@ -374,7 +384,7 @@ export class Package implements IPackage {
 
       let pkgPath;
       const isRoot =
-        packageName === Package.getRootPackageName() || packageName === 'root';
+          packageName === Package.getRootPackageName() || packageName === 'root';
       const isGlobal = packageName === 'GLOBAL';
       let packageType = null;
       let dockerName = null;
@@ -415,14 +425,14 @@ export class Package implements IPackage {
       const pkgPathParts = pkgPath.split('/');
       let deployPackage = existsSync(path.join(pkgPath, './cdk.json'));
       const paramsPackage =
-        existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
-        existsSync(path.join(pkgPath, EnvVarsFile.NAME));
+          existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
+          existsSync(path.join(pkgPath, EnvVarsFile.NAME));
       let dockerPackage = existsSync(path.join(pkgPath, './Dockerfile'));
       if (!packageType) {
         while (
-          pkgPathParts.shift() !== 'packages' &&
-          pkgPathParts.length > 0
-        ) {}
+            pkgPathParts.shift() !== 'packages' &&
+            pkgPathParts.length > 0
+            ) {}
       }
       packageType = isRoot || isGlobal ? packageType : pkgPathParts.shift();
       const metas: any = {};
@@ -460,12 +470,12 @@ export class Package implements IPackage {
 
       if (deployPackage && (!paramsPackage || !dockerPackage)) {
         const nestedInSrc =
-          pkgPathParts.pop() === 'deploy' && packageName.endsWith('-deploy');
+            pkgPathParts.pop() === 'deploy' && packageName.endsWith('-deploy');
         if (nestedInSrc) {
           const paramsPath = path.resolve(pkgPath, '../');
           const paramsExist =
-            existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
-            existsSync(path.join(pkgPath, EnvVarsFile.NAME));
+              existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
+              existsSync(path.join(pkgPath, EnvVarsFile.NAME));
           if (paramsExist) {
             const meta = this.getPackageMeta(paramsPath);
             if (!metas['params']) {
@@ -561,11 +571,11 @@ export class Package implements IPackage {
         }
 
         meta?.serviceStacks?.map((ss) =>
-          Package.cache[ss]?.meta?.serviceStacks?.map((childDep) => {
-            if (meta?.serviceStacks?.indexOf(childDep) === -1) {
-              meta.serviceStacks.push(childDep);
-            }
-          }),
+            Package.cache[ss]?.meta?.serviceStacks?.map((childDep) => {
+              if (meta?.serviceStacks?.indexOf(childDep) === -1) {
+                meta.serviceStacks.push(childDep);
+              }
+            }),
         );
       }
 
@@ -599,11 +609,11 @@ export class Package implements IPackage {
       this.meta = meta;
       this.statusTime = Date.now();
       this.processStatus = isGlobal
-        ? ProcessStatus.NONE
-        : ProcessStatus.INITIALIZING;
+          ? ProcessStatus.NONE
+          : ProcessStatus.INITIALIZING;
       this.environmentStatus = isGlobal
-        ? EnvironmentStatus.NONE
-        : EnvironmentStatus.INITIALIZING;
+          ? EnvironmentStatus.NONE
+          : EnvironmentStatus.INITIALIZING;
       this.timer = null;
       this.cmds = [];
       this.isGlobal = isGlobal;
@@ -611,6 +621,7 @@ export class Package implements IPackage {
       this.activeCmdIndex = -1;
       this.activeModuleIndex = 0;
       this.mouth = new Mouth(stackName, stackName);
+      this.timer = new Timer(stackName, 'seconds');
 
       if (!noCache) {
         Package.cache[stackName] = this;
@@ -637,7 +648,20 @@ export class Package implements IPackage {
   }
 
   isStackDeploy(options?: any) {
-    return this.stack && options?.stack &&  (!options?.strictVersions || !this.stack.upToDate())
+    return this.stack && options?.stack && (!options?.strictVersions || !this.stack.upToDate())
+  }
+  async destroy (deployOptions: any) {
+    if (this.isParamDeploy(deployOptions)) {
+      await this.params.destroy();
+    }
+
+    if (this.isDockerDeploy(deployOptions)) {
+      await this.docker.destroy();
+    }
+
+    if (this.isStackDeploy(deployOptions)) {
+      await this.stack.destroy();
+    }
   }
 
   async deploy(deployOptions: any) {
@@ -658,44 +682,7 @@ export class Package implements IPackage {
     }
 
     if (this.isStackDeploy(deployOptions)) {
-      if (this.stack.needsAutoDelete()) {
-        await this.stack.delete();
-      }
-
-      if (this.meta?.preDeployScripts) {
-        for (let i = 0; i < this.meta.preDeployScripts.length; i++) {
-          const script = this.meta.preDeployScripts[i];
-          await this.pkgCmd(script, { failOnError: true})
-        }
-      }
-
-      let actualCommand = StackModule.commands[ProcessMode.DEPLOY];
-      if (deployOptions.force) {
-        actualCommand += ' --force';
-      }
-
-      deployOptions.cenvVars = {
-        CENV_PKG_VERSION: this.rollupVersion,
-        ...deployOptions.cenvVars
-      }
-      if (this.docker) {
-        deployOptions.cenvVars.CENV_PKG_DIGEST = this.docker?.digest;
-      }
-
-      if (!process.env.CENV_SKIP_CDK && this.stack) {
-        await this.pkgCmd(actualCommand, {
-          ...deployOptions,
-          packageModule: this.stack,
-          redirectStdErrToStdOut: true,
-        });
-      }
-
-      if (this?.meta?.postDeployScripts) {
-        for (let i = 0; i < this.meta.postDeployScripts.length; i++) {
-          const script = this.meta.postDeployScripts[i];
-          await spawnCmd(this.params.path, script, script,{ ...options, redirectStdErrToStdOut: true }, this);
-        }
-      }
+      await this.stack.deploy(deployOptions, options);
     }
   }
 
@@ -762,13 +749,14 @@ export class Package implements IPackage {
       if (!this.isRoot) {
         await Promise.all(
           this.getPackageModules().map(async (packageModule: PackageModule) => {
-            const buildRes = await this.pkgCmd(
-              `yarn nx run ${packageModule.name}:build${force ? ' --skip-nx-cache' : ''}`,
-              { packageModule, returnOutput: true },
-            );
-
-            if (buildRes) {
+            try {
+              await this.pkgCmd(
+                  `yarn nx run ${packageModule.name}:build${force ? ' --skip-nx-cache' : ''}`,
+                  {packageModule, returnOutput: true},
+              );
+            } catch (e) {
               this.setBroken(`[${packageModule.name}] build failed`, true);
+              Deployment.setDeployStatus(this, ProcessStatus.FAILED);
               return false;
             }
           }),
@@ -1002,22 +990,6 @@ export class Package implements IPackage {
       this.processStatus = ProcessStatus.BUMP;
       if (type === 'reset') {
         this.info(colors.success(`v${this.moduleVersion}`));
-        if (!this.packageName) {
-          if (process.env.CENV_LOG_LEVEL === LogLevel.VERBOSE) {
-            delete this.cmds;
-            delete this.timer;
-            delete this.statusTime;
-            delete this.status;
-            delete this.params;
-            delete this.stack;
-            delete this.docker;
-            delete this.meta.service;
-            delete this.modules;
-            //this.createCmd('package details', 0, util.inspect(this));
-          }
-          return;
-        }
-
         this.modules.map((m) => {
           m.bump(type);
         });
@@ -1161,7 +1133,7 @@ export class Package implements IPackage {
   }
 
   protected async checkModuleStatus() {
-    delete this.timer;
+    //delete this.timer;
     this.processStatus = ProcessStatus.STATUS_CHK;
 
     await this.lib?.checkStatus();
@@ -1289,7 +1261,7 @@ export class Package implements IPackage {
       const badStackName = new Error(
         `stackNameToPackageName likely being called on something that isn\'t a stack: ${stackName}`,
       );
-      CenvParams.dashboard.log(badStackName.message, badStackName.stack);
+      Cenv.dashboard.log(badStackName.message, badStackName.stack);
       CenvLog.single.catchLog(badStackName);
     } else if (stackName.substring(stackPrefix.length) === Package.getRootPackageName()) {
       stackName = stackName.substring(stackPrefix.length);
@@ -1335,6 +1307,14 @@ export class Package implements IPackage {
     }
   }
 
+  stdPlain(...text) {
+    try {
+      this.mouth?.stdPlain(...text);
+    } catch(e) {
+      console.log('std plain error', e)
+    }
+  }
+
   getPackageMeta(packagePath): IPackageMeta {
     if (!packagePath) {
       CenvLog.single.catchLog(
@@ -1363,6 +1343,11 @@ export class Package implements IPackage {
       }
     }
 
+    let dockerType = undefined;
+    if (pkg?.dockerType) {
+      dockerType = pkg?.dockerType;
+    }
+
     return {
       service,
       destroy,
@@ -1383,6 +1368,9 @@ export class Package implements IPackage {
       verifyStack: pkg?.verifyStack,
       deployStack: pkg?.deployStack,
       destroyStack: pkg?.destroyStack,
+      dockerType,
+      url: pkg?.url,
+      volatileContextKeys: pkg?.volatileContextKeys
     };
   }
 
@@ -1456,6 +1444,7 @@ export class Package implements IPackage {
     return this.getPackageName(monoRepoRoot);
   }
 
+
   async pkgCmd(
     cmd,
     options: {
@@ -1473,22 +1462,29 @@ export class Package implements IPackage {
       redirectStdErrToStdOut: false,
       returnOutput: false
     },
+    commandEvents?: CommandEvents
+
   ) {
     try {
       const pkgCmd = !options.silent ? this.createCmd(cmd) : undefined;
-      const pkgPath = options?.packageModule
-        ? options.packageModule.path
-        : packagePath(this.packageName);
+
+      if (commandEvents?.preCommandFunc) {
+        await commandEvents.preCommandFunc();
+      }
+
+      const pkgPath = options?.packageModule ? options.packageModule.path : packagePath(this.packageName);
+
       if (!options.silent) {
-        if (!CenvParams.dashboard && process.env.CENV_LOG_LEVEL === 'VERBOSE') {
+        if (!Cenv.dashboard && process.env.CENV_LOG_LEVEL === 'VERBOSE') {
           pkgCmd.out(cmd + ' [started]', 'pkgCmd')
         }
         pkgCmd.info(`[${cmd}] cd ${colors.infoBold(pkgPath)}`);
       }
-      options.pkgCmd = pkgCmd;
+
       if (!options.failOnError) {
         options.failOnError = false;
       }
+
       const res = await spawnCmd(
         pkgPath,
         cmd,
@@ -1496,10 +1492,15 @@ export class Package implements IPackage {
         options,
         this,
       );
-      //pkgCmd.result(res);
+
+      if (commandEvents?.postCommandFunc) {
+        await commandEvents.postCommandFunc();
+      }
+
+      pkgCmd.result(res, 'derp');
       return res;
     } catch (e) {
-      this.err('z' +e.stack);
+      this.err(e || e.stack);
       return e;
     }
   }
@@ -1519,13 +1520,11 @@ export class Package implements IPackage {
       cenvVars: {},
       redirectStdErrToStdOut: false,
       output: false,
-    },
+    }
   ) {
     try {
       const pkgCmd = this.createCmd(cmd);
-      const pkgPath = options?.packageModule
-        ? options.packageModule.path
-        : packagePath(this.packageName);
+      const pkgPath = options?.packageModule ? options.packageModule.path : packagePath(this.packageName);
       pkgCmd.out(`[${cmd}] cd ${colors.infoBold(pkgPath)}`);
       options.pkgCmd = pkgCmd;
       if (!options.failOnError) {
@@ -1558,5 +1557,11 @@ export class Package implements IPackage {
   ): Promise<any> {
     const pkgCmd = await pkg?.pkgCmd(cmd, options);
     return pkgCmd;
+  }
+
+  printEnvVars(vars) {
+    for (let i = 0; i < Object.keys(vars).length; i++) {
+      this.stdPlain(`export ${vars[Object.keys(vars)[i]]}=${Object.keys(vars)[i]}`);
+    }
   }
 }

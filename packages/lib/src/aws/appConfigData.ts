@@ -11,7 +11,6 @@ import { CenvLog, info, infoAlertBold } from '../log';
 import { CenvFiles, EnvConfigFile } from '../file';
 import { packagePath, sleep } from '../utils';
 import { decryptValue, isEncrypted } from './parameterStore';
-import { readFileSync } from 'fs';
 import {Package} from "../package/package";
 
 let _client: AppConfigDataClient = null;
@@ -66,7 +65,7 @@ export async function getLatestConfiguration (token: any, allValues?: boolean) {
 }
 
 async function parseConfig(configInput, allValues?: boolean) {
-  let ymlConfig = YAML.parse(configInput);
+  const ymlConfig = YAML.parse(configInput);
   const updatedConfig = {};
   const env: { [key: string]: string } = process.env;
   for (const [key, value] of Object.entries(ymlConfig)) {
@@ -104,10 +103,15 @@ async function getInitialConfigVars(config) {
   return configVars;
 }
 
-function startConfigPolling(cronExpression = '* * * * *', postConfigCallback = async () => {}) {
-  console.log(chalk.green(`polling cron: ${cronExpression}`));
+interface StartConfigPollingParams {
+  cronExpression?: string;
+  postConfigCallback?: () => Promise<void>;
+}
+
+function startConfigPolling(options: StartConfigPollingParams) {
+  console.log(chalk.green(`polling cron: ${options?.cronExpression}`));
   let count = 0 ;
-  cron.schedule(cronExpression, async () => {
+  cron.schedule(options?.cronExpression, async () => {
     count += 1;
     console.log(count % 2 === 0 ? chalk.gray('poll') : info('poll'));
     if (process.env.NextPollConfigurationToken) {
@@ -118,7 +122,7 @@ function startConfigPolling(cronExpression = '* * * * *', postConfigCallback = a
       const configVars = await getInitialConfigVars(envConfig)
       displayConfigVars('UPDATED CONFIG VARS', configVars);
     }
-    await postConfigCallback();
+    await options?.postConfigCallback();
   });
 }
 
@@ -127,7 +131,7 @@ function displayConfigVars(title, configVars) {
     return;
   }
   const configVarsDisplay: {[key: string]: string} = configVars;
-  for(let [key, value] of Object.entries(configVarsDisplay)) {
+  for(const [key, value] of Object.entries(configVarsDisplay)) {
     if (key.toLowerCase().indexOf('pass') > -1) {
       configVarsDisplay[key] = '[****]'
     }
@@ -148,7 +152,7 @@ export async function getDeployedVars(config, cronExpression = undefined, silent
 
   if (cronExpression) {
 
-    startConfigPolling(cronExpression);
+    startConfigPolling({cronExpression : cronExpression});
 
   }
   return configVars;

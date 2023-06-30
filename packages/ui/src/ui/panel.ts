@@ -33,8 +33,9 @@ export abstract class CenvPanel {
     return this.focusPoolWidgets.filter(w => !w.hidden);
   }
 
-  addGridWidget(widget, widgetOptions, gridOptions, focusable = false) {
-    const newWidget = this.grid.set(
+  addGridWidget(widget, widgetOptions, gridOptions, focusable = false, grid?: undefined) {
+    const theGrid = grid || this.grid;
+    const newWidget = theGrid.set(
       gridOptions[0],
       gridOptions[1],
       gridOptions[2],

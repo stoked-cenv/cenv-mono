@@ -68,7 +68,7 @@ export async function deleteImages(repositoryName, imageIds = undefined) {
   return false;
 }
 
-export async function deleteRepository(repositoryName, images: boolean = false) {
+export async function deleteRepository(repositoryName, images = false) {
   try {
     const exists = await repositoryExists(repositoryName);
     if (!exists) {

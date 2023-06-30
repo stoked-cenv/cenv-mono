@@ -15,8 +15,8 @@ export default class StatusCommand extends BaseCommand {
 
   constructor() {
     super()
-    this.allowUI = true;
-    this.localPackageAccepted = false;
+    this.allowUI = false;
+    this.localPackageAccepted = true;
   }
 
   @Option({

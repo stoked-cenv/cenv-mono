@@ -11,7 +11,8 @@ import {
   DashboardCreateOptions,
   CenvLog,
   Deployment,
-  parseCmdParams
+  parseCmdParams,
+  Cenv
 } from '@stoked-cenv/cenv-lib';
 
 export abstract class BaseCommand extends CommandRunner {
@@ -32,7 +33,8 @@ export abstract class BaseCommand extends CommandRunner {
     if (!process.env.CENV_VERSION) {
       await Version.getVersion();
     }
-    await CenvParams.cmdInit(options);
+
+    await Cenv.cmdInit(options);
 
     this.args = await configure(options as ConfigureCommandOptions);
     if (!this.allowUI) {
@@ -42,14 +44,10 @@ export abstract class BaseCommand extends CommandRunner {
     const passThru = { skipBuild: options.skipBuild };
 
     const { packages, parsedParams, validatedOptions } = await parseCmdParams(passedParams, options, this.deploymentMode);
-
-    CenvParams.dashboardCreateOptions = { packages, suite: validatedOptions.suite, environment: validatedOptions.environment, cmd: this.deploymentMode, options: validatedOptions }
-    CenvParams.dashboardCreator = (deployCreateOptions: DashboardCreateOptions) => {
-      return new Dashboard(deployCreateOptions);
-    }
+    const deployCreateOptions = { packages, suite: validatedOptions.suite, environment: validatedOptions.environment, cmd: this.deploymentMode, options: validatedOptions }
     if (options?.userInterface && !process.env.CENV_SPAWNED) {
-      if (!CenvParams.dashboard) {
-        CenvParams.dashboard = CenvParams.dashboardCreator(CenvParams.dashboardCreateOptions);
+      if (!Cenv.dashboard) {
+        Cenv.dashboard = new Dashboard(deployCreateOptions);
       }
       process.env.CENV_DEFAULTS = 'true';
     }

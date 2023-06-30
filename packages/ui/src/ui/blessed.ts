@@ -65,6 +65,7 @@ contrib.grid.prototype.set = function (row, col, rowSpan, colSpan, obj, opts) {
 };
 
 blessed.Element.prototype.enableDrag = function (verify) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
   const self = this;
 
   if (this._draggable) return true;

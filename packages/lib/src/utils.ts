@@ -1,21 +1,23 @@
 import * as path from 'path';
-import child_process, { exec } from 'child_process';
-import { startCenv, ClientMode } from './aws/appConfigData';
-import {info, infoAlert, infoBold, CenvLog } from './log';
+import {join} from 'path';
+import child_process, {exec} from 'child_process';
+import {ClientMode, startCenv} from './aws/appConfigData';
+import {CenvLog, info, infoAlert, infoBold, LogLevel} from './log';
 import fs, {existsSync, readFileSync, rmSync} from 'fs';
-import { hostname } from 'os';
-import { CenvParams, DashboardCreateOptions, Dashboard, DashboardCreator } from './params';
-import {PackageCmd, Package, ProcessStatus} from './package/package';
-import { join } from 'path';
+import * as os from 'os';
+import {hostname} from 'os';
+import {CenvParams, DashboardCreateOptions} from './params';
+import {Package, PackageCmd, ProcessStatus} from './package/package';
 import chalk from 'chalk';
 import * as fsp from 'fs/promises';
-import { createHash } from 'crypto';
-import * as os from "os";
+import {createHash} from 'crypto';
 import {ProcessMode} from "./package/module";
 import {CenvFiles} from "./file";
 import {deleteCenvData} from "./aws/appConfig";
 import {Suite} from "./suite";
 import {Environment} from "./environment";
+import {Cenv, StackProc} from "./cenv"
+import {cancelUpdateStack} from "./aws/cloudformation";
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
   return isString(value) ? !!value : value && value.length > 0;
@@ -197,8 +199,6 @@ export interface ICmdOptions {
   failOnError?: boolean;
   returnOutput?: boolean;
   redirectStdErrToStdOut?: boolean;
-  returnRegExp?: RegExp;
-  returnProperty?: string;
   pipedOutput?: boolean;
   pkgCmd?: PackageCmd;
   silent?: boolean;
@@ -213,30 +213,12 @@ function setDescendantProp(obj, desc, value) {
 function spawnInfo(options, chunk, output, pkg) {
   if (options.returnOutput) {
       output += chunk;
+  } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
+    CenvLog.single.tempLog('t: ' + chunk, pkg?.stackName);
   } else {
-    if (options.returnRegExp) {
-      const regex = options?.returnRegExp;
-
-      let m;
-      while ((m = regex.exec(chunk)) !== null) {
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === regex.lastIndex) {
-          regex.lastIndex++;
-        }
-
-        // The result can be accessed through the `m`-variable.
-        m.forEach((match, groupIndex) => {
-          if (match && groupIndex === 1) {
-            setDescendantProp(pkg, options.returnProperty, match)
-            CenvLog.single.errorLog('digest output: ' + match);
-          }
-        });
-      }
-    }
-    CenvLog.single.infoLog(chunk, pkg?.stackName);
+    CenvLog.single.infoLog('s: ' + chunk, pkg?.stackName);
   }
 }
-
 
 export async function spawnCmd(
   folder: string,
@@ -254,8 +236,6 @@ export async function spawnCmd(
     failOnError: true,
     returnOutput: false,
     redirectStdErrToStdOut: false,
-    returnRegExp: undefined,
-    returnProperty: undefined,
     pipedOutput: false
   },
   packageInfo: Package = undefined,
@@ -300,9 +280,6 @@ export async function spawnCmd(
     }
 
     function spawnErr(options, chunk, output, pkg, cmd) {
-      //if (pkg) {
-      //  chunk = '[' + pkg.packageName + '] ' + cmd + ': ' + chunk;
-      //}
       if (options?.redirectStdErrToStdOut) {
         const actualErrors = new RegExp(/ERROR/, 'i').exec(chunk);
         if (!actualErrors) {
@@ -334,19 +311,13 @@ export async function spawnCmd(
       let configVarDisplay = null;
       if (options.getCenvVars && !packageInfo) {
         const useCurrentDirectory = existsSync('.cenv');
-        const useParentDirectory = useCurrentDirectory
-          ? false
-          : existsSync('../.cenv');
+        const useParentDirectory = useCurrentDirectory ? false : existsSync('../.cenv');
         const skipCenv = !useCurrentDirectory && !useParentDirectory;
         if (useParentDirectory) {
           process.chdir('../');
         }
         if (!skipCenv) {
-          configVars = await startCenv(
-            ClientMode.REMOTE_ON_STARTUP,
-            '0 * * * *',
-            true,
-          );
+          configVars = await startCenv(ClientMode.REMOTE_ON_STARTUP, '0 * * * *', true);
           if (Object.keys(configVars).length) {
             configVarDisplay = inputArgsToEnvVars(configVars);
             configVarDisplay = ' ' + configVarDisplay;
@@ -420,12 +391,13 @@ export async function spawnCmd(
         env: options.envVars,
       };
       opt.env.CENV_SPAWNED = 'true';
-      const output: any = options?.returnRegExp ? [] : '';
+      const output: any = '';
+      if (packageInfo && process.env.CENV_VERBOSE_SPAWN_OPTIONS) {
+        packageInfo.info(packageInfo.packageName, JSON.stringify(opt, null, 2));
+      }
       const proc = child_process.spawn(cmdFinal, spawnArgs, opt);
-      const processName = `${
-        packageInfo ? `[${packageInfo.stackName}] ` : ''
-      }${cmd}`;
-      CenvParams.addSpawnedProcess(packageInfo.stackName, processName, proc);
+      const processName = `${packageInfo ? `[${packageInfo.stackName}] ` : ''}${cmd}`;
+      Cenv.addSpawnedProcess(packageInfo.stackName, processName, proc);
 
       if (stdio?.length && stdio[0] === 'overlapped') {
         proc.stdin.pipe(options.stdin);
@@ -485,9 +457,6 @@ export async function spawnCmd(
         }
       }
     });
-
-
-
   } catch (e) {
     if (packageInfo) {
       packageInfo.err(e)
@@ -773,50 +742,66 @@ function elapsedBase(start, format = 'seconds', note, silent = false) {
 }
 
 export class Timer {
-  start: [number, number];
+  startTime: [number, number];
   final: [number, number];
   finalElapsed: string;
   note: string;
   format: string;
   silent: boolean;
+  running = false;
 
-  constructor(note, format, silent = false) {
-    this.start = process.hrtime();
-    this.format = format;
-    this.note = note;
-    this.silent = silent;
-  }
-
-  elapsed(stop = false, reset = false) {
-    if (process.env.TIMING) {
-      const res = {
-        elapsed: undefined,
-        format: this.format,
-        note: this.note,
-        final: this.final,
-      };
-      res.elapsed = this.finalElapsed
-        ? this.finalElapsed
-        : elapsedBase(this.start, this.format, this.note, this.silent);
-      if (stop) {
-        this.finalElapsed = res.elapsed;
-        this.final = process.hrtime();
-        res.final = this.final;
-      }
-      if (reset) {
-        this.reset();
-      }
-      return res;
+  get elapsed() {
+    if (this.running) {
+      return elapsedBase(this.startTime, this.format, this.note, this.silent) + this.format[0];
+    } else if (this.finalElapsed) {
+      return `${this.finalElapsed}${this.format[0]}`;
+    } else {
+      return 'N/A'
     }
   }
 
-  reset() {
-    this.start = process.hrtime();
+  constructor(note, format, start = false, silent = true) {
+    this.format = format;
+    this.note = note;
+    this.silent = silent;
+    if (start) {
+      this.start();
+    }
+  }
+
+  state() {
+    const res = {
+      elapsed: undefined,
+      format: this.format,
+      note: this.note,
+      final: this.final,
+    };
+
+    res.elapsed = this.elapsed;
+
+    return res;
+  }
+
+  stop() {
+    this.finalElapsed = elapsedBase(this.startTime, this.format, this.note, this.silent);
+    this.final = process.hrtime();
+    this.running = false;
+  }
+
+  start() {
+    this.clear();
+    this.startTime = process.hrtime();
+    this.running = true;
+  }
+
+  clear() {
+    delete this.startTime;
     delete this.finalElapsed;
     delete this.final;
+    this.running = false;
   }
 }
-
+/*
 export class TimerModules {
   private static timerList = [];
   private static timerMap = {};
@@ -843,7 +828,7 @@ export class TimerModules {
       CenvLog.single.alertLog(`\t${t.note}: ${t.elapsed} ${t.format}`);
     });
   }
-}
+}*/
 
 export const sleep = (seconds: number) =>
   new Promise((r) => setTimeout(r, seconds * 1000));
@@ -974,23 +959,30 @@ export function clamp(number, min, max) {
   return Math.min(Math.max(number, min), max);
 }
 
-export function killRunningProcesses() {
-  for (const [procTitle, procData] of Object.entries(CenvParams.runningProcesses) as [string, { cmd: string, proc: child_process.ChildProcess }][]) {
-    if (procData.proc.exitCode === null) {
-      console.log(`killing child process: ${procTitle}`);
-      procData.proc.kill();
+export async function killStackProcesses(stackName: string, stackProcs: StackProc[]) {
+  for(const stackProc of stackProcs) {
+    console.log(info(`[${stackName}] kill child process: ${infoBold(stackProc.cmd)}`));
+    stackProc.proc.kill();
+    if (stackProc.cmd.startsWith('cdk')) {
+      await cancelUpdateStack(stackName);
     }
   }
 }
 
+export async function killRunningProcesses() {
+  for (const [stackName, stackProcs ] of Object.entries(Cenv.runningProcesses) as [string, StackProc[]][] ) {
+    await killStackProcesses(stackName, stackProcs);
+  }
+}
+
 export function destroyUI() {
-  if (CenvParams.dashboard) {
-    if (CenvParams.dashboard.screen) {
-      CenvParams.dashboard.screen?.destroy();
-      console.log('CenvParams.dashboard.screen?.destroy(kk)');
+  if (Cenv.dashboard) {
+    if (Cenv.dashboard.screen) {
+      Cenv.dashboard.screen?.destroy();
+      console.log('Cenv.dashboard.screen?.destroy(kk)');
     }
-    delete CenvParams.dashboard;
-    console.log('delete CenvParams.dashboard');
+    delete Cenv.dashboard;
+    console.log('delete Cenv.dashboard');
   }
 }
 
@@ -1143,7 +1135,6 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
       }
     } else if (type === PkgContextType.COMPLETE) {
       switch(p.processStatus) {
-        case ProcessStatus.SKIPPED:
         case ProcessStatus.FAILED:
         case ProcessStatus.CANCELLED:
         case ProcessStatus.COMPLETED:
@@ -1394,7 +1385,7 @@ export async function parseParamsExec(params, options, asyncExecFunc: (ctx: any,
       for (let i = 0; i < packages?.length;) {
         const app = packages.shift();
         if (app.chDir()) {
-          const ctx: any = await CenvParams.getContext();
+          const ctx: any = await CenvParams.getParamsContext();
           const resCmd = await asyncExecFunc(ctx, parsedParams, validatedOptions);
           result.push(resCmd);
           if (resCmd?.code !== 0) {

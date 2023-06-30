@@ -6,15 +6,13 @@ import { colors } from '../log';
 import {join} from "path";
 import {CenvFiles} from "../file";
 import {spawnCmd} from "../utils";
+import {Package} from "./package";
+import {getVpcId} from "../aws/ec2";
 
 export enum DeployType {
   ECS = 'ECS',
   LAMBDA = 'LAMBDA'
 }
-
-
-
-
 
 export class StackModule extends PackageModule {
   detail?: Stack;
@@ -29,11 +27,88 @@ export class StackModule extends PackageModule {
   static commands = [
     `${this.cdkExe} deploy --require-approval never --no-color -m direct`,
     `${this.cdkExe} destroy --force --no-color`,
+    `${this.cdkExe} synth`,
   ];
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.STACK);
     this.deployType = this.pkg.fullType === 'services' ? DeployType.ECS : DeployType.LAMBDA;
+  }
+
+
+  async destroy() {
+    const actualCommand = StackModule.commands[ProcessMode.DESTROY];
+    await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
+
+    //const cleanCmd = `cenv clean ${this.pkg.packageName} --mode cdk`;
+    //await spawnCmd(this.path, cleanCmd, cleanCmd,{}, this.pkg);
+  }
+
+  async deploy(deployOptions: any, options: any) {
+    if (this.needsAutoDelete()) {
+      await this.destroy();
+    }
+
+    if (this.pkg.meta?.preDeployScripts) {
+      for (let i = 0; i < this.pkg.meta.preDeployScripts.length; i++) {
+        const script = this.pkg.meta.preDeployScripts[i];
+        await this.pkg.pkgCmd(script, options)
+      }
+    }
+
+
+
+    if (!process.env.CENV_SKIP_CDK && this.pkg.stack) {
+
+      deployOptions.cenvVars = {
+        ...deployOptions.cenvVars,
+        CENV_PKG_VERSION: this.pkg.rollupVersion
+      }
+      if (this.pkg.docker) {
+        deployOptions.cenvVars.CENV_PKG_DIGEST = this.pkg.docker?.digest;
+        this.info(deployOptions.cenvVars.CENV_PKG_DIGEST, 'CENV_PKG_DIGEST');
+      }
+
+      const commandEvents = {
+        preCommandFunc: async () => {
+          this.info(deployOptions.cenvVars.CENV_PKG_VERSION, 'CENV_PKG_VERSION');
+          if (this.pkg.docker) {
+            this.info(deployOptions.cenvVars.CENV_PKG_DIGEST, 'CENV_PKG_DIGEST');
+          }
+        }
+      }
+
+      if (this.pkg.meta.volatileContextKeys) {
+        await Promise.allSettled(this.pkg.meta.volatileContextKeys.map(async (key) => {
+            key = key.replace('CDK_DEFAULT_ACCOUNT', process.env.CDK_DEFAULT_ACCOUNT);
+            key = key.replace('CDK_DEFAULT_REGION', process.env.CDK_DEFAULT_REGION);
+            await this.pkg.pkgCmd(`cdk context --reset ${key}`, {
+              ...deployOptions,
+              packageModule: this.pkg.stack,
+              redirectStdErrToStdOut: true,
+            },
+            commandEvents);
+        }));
+      }
+
+      let deployCommand = StackModule.commands[ProcessMode.DEPLOY];
+      if (deployOptions.force) {
+        deployCommand += ' --force';
+      }
+
+      await this.pkg.pkgCmd(deployCommand, {
+        ...deployOptions,
+        packageModule: this.pkg.stack,
+        redirectStdErrToStdOut: true,
+      });
+    }
+
+    if (this?.pkg.meta?.postDeployScripts) {
+      for (let i = 0; i < this.pkg.meta.postDeployScripts.length; i++) {
+        const script = this.pkg.meta.postDeployScripts[i];
+        await spawnCmd(this.pkg.params.path, script, script,{ ...options, redirectStdErrToStdOut: true }, this.pkg);
+      }
+    }
   }
 
   get statusText(): string {
@@ -51,13 +126,6 @@ export class StackModule extends PackageModule {
     );
   }
 
-  async delete() {
-    const actualCommand = StackModule.commands[ProcessMode.DESTROY];
-    await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
-
-    const cleanCmd = `cenv clean ${this.pkg.packageName} --mode cdk`;
-    await spawnCmd(this.path, cleanCmd, cleanCmd,{}, this.pkg);
-  }
 
   reset() {
     this.verified = undefined;
@@ -247,7 +315,14 @@ export class StackModule extends PackageModule {
     return items;
   }
 
-  getTag(tag): string | false {
+  getTag(tag, stackName = undefined): string | false {
+    if (stackName) {
+      const pkg = Package.getPackage(stackName)
+      if (!pkg || !pkg.stack) {
+        return;
+      }
+      return pkg.stack.getTag('VPCID')
+    }
     if (!this.checked) {
       return false;
     }

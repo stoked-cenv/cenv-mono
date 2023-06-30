@@ -1,5 +1,5 @@
 import chalk, { Chalk } from 'chalk';
-import { CenvParams } from './params';
+import { Cenv } from './cenv';
 import {cleanup} from "./utils";
 
 const info = chalk.gray;
@@ -134,14 +134,32 @@ export class CenvLog {
       process.exit(10)
     }
 
-    if (!CenvParams.dashboard) {
-      console.log(logColor(message));
-    } else {
-      //console.log(logColor(message));
-      if (!CenvParams.dashboard.log || !CenvParams.dashboard.logErr) {
-        CenvLog.single.catchLog(['CenvParams.dashboard', CenvParams.dashboard].join(': '))
+    if (!Cenv.dashboard) {
+      if (logColor) {
+        console.log(logColor(message));
       }
-      const logFunc = logType === 'stdout' ? CenvParams.dashboard.log.bind(CenvParams.dashboard) : CenvParams.dashboard.logErr.bind(CenvParams.dashboard);
+    } else {
+      if (!Cenv.dashboard.log || !Cenv.dashboard.logErr) {
+        CenvLog.single.catchLog(['Cenv.dashboard', Cenv.dashboard].join(': '))
+      }
+
+      let logFunc;
+      switch(logType) {
+        case 'stdout':
+          logFunc = Cenv.dashboard.log.bind(Cenv.dashboard);
+          break;
+        case 'stderr':
+          logFunc = Cenv.dashboard.logErr.bind(Cenv.dashboard)
+          break;
+        case 'stdtemp':
+          default:
+            if (process.env.CENV_STDTEMP) {
+              logFunc = Cenv.dashboard.logTemp.bind(Cenv.dashboard);
+            } else {
+              logFunc = Cenv.dashboard.log.bind(Cenv.dashboard);
+            }
+      }
+
       logFunc(stackName ? stackName : 'GLOBAL', message);
       if (replicateToGlobal && stackName) {
         logFunc('GLOBAL', message);
@@ -149,46 +167,73 @@ export class CenvLog {
     }
   }
 
+  static isLevel(level: LogLevel) {
+    return Object.keys(LogLevel).indexOf(CenvLog.logLevel) >= Object.keys(LogLevel).indexOf(level);
+  }
+
+  static get isVerbose() {
+    return this.isLevel(LogLevel.VERBOSE);
+  }
+
+
+  static get isInfo() {
+    return this.isLevel(LogLevel.INFO);
+  }
+
+  static get isAlert() {
+    return this.isLevel(LogLevel.DEBUG);
+  }
+
+  static get isStdout() {
+    return this.isLevel(LogLevel.MINIMAL);
+  }
+
+  static get isNone() {
+    return this.isLevel(LogLevel.NONE);
+  }
+
   verboseLog(message: string | string[], stackName: string = undefined, replicateToGlobal= false): void {
-    if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.VERBOSE)) return
+    if (!CenvLog.isVerbose) return
     this.logBase(message, verbose, 'stdout', stackName, replicateToGlobal);
-    //Logs.push('verbose', joinArray(message) as string);
   }
 
   infoLog(message: string | string[], stackName: string = undefined, replicateToGlobal= false): void {
-    if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) return;
+    if (!CenvLog.isInfo) return;
     this.logBase(message, info, 'stdout', stackName, replicateToGlobal);
-    //Logs.push('debug', joinArray(message) as string);
+  }
+
+  tempLog(message: string | string[], stackName: string = undefined, replicateToGlobal= false): void {
+    if (!CenvLog.isInfo && process.env.CENV_STDTEMP) {
+      this.logBase(message, undefined, 'stdtemp', stackName, replicateToGlobal);
+    } else {
+      this.infoLog(message, stackName, replicateToGlobal);
+    }
   }
 
   errorLog(message: string | string[], stackName: string = undefined, replicateToGlobal= false): void {
     this.logBase(message, errorInfo, 'stderr', stackName, replicateToGlobal);
-    //Logs.push('err', joinArray(message) as string);
   }
-
 
   alertLog(message: string | string[], stackName: string = undefined, replicateToGlobal= false): void {
-    if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.DEBUG)) return;
+    if (!CenvLog.isAlert) return;
     this.logBase(message, infoAlert, 'stdout', stackName, replicateToGlobal);
-    //Logs.push('alert', joinArray(message) as string);
   }
 
-
   stdLog(message: string | string[], stackName: string = undefined, replicateToGlobal= false): void {
-    if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.MINIMAL)) return;
+    if (!CenvLog.isStdout) return;
     this.logBase(message, chalk.white, 'stdout', stackName, replicateToGlobal);
-    //Logs.push('std', joinArray(message) as string);
   }
 
   catchLog(error: any) {
 
     cleanup('catchLog');
+    this.errorLog('\n\n\n\n\n');
     this.errorLog(error);
+
     if (!error || !error.stack)
       this.errorLog(new Error().stack)
     else
       this.errorLog(error.stack)
-
 
     process.exit(23);
   }
@@ -273,6 +318,10 @@ export class Mouth {
   }
   std(...text) {
     CenvLog.single.stdLog(this.getAction(...text), this.stackName || this.noun, true);
+  }
+
+  stdPlain(...text) {
+    CenvLog.single.stdLog(text, this.stackName || this.noun);
   }
 }
 

@@ -73,7 +73,7 @@ export class HelpUI {
         return;
       }
 
-      // CenvParams.dashboard = this;
+      // Cenv.dashboard = this;
       this.providers = Commands.module.providers
       this.createBaseWidgets();
       HelpUI.instance = this;
@@ -168,7 +168,7 @@ export class HelpUI {
           autoScroll: false,
         });
 
-      let data = [];
+      const data = [];
       Object.values(Commands.module.providers).map((cm: any) => {
         data.push([cm.meta.name])
       });

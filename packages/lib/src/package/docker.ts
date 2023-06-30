@@ -1,11 +1,22 @@
 import { EnvironmentStatus, Package, PackageCmd } from './package';
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
-import {createRepository, getRepository, hasTag, listImages, repositoryExists} from '../aws/ecr';
+import {
+  createRepository,
+  deleteRepository,
+  describeRepositories,
+  getRepository,
+  hasTag,
+  listImages,
+  repositoryExists
+} from '../aws/ecr';
 import { ImageIdentifier, Repository } from '@aws-sdk/client-ecr';
 import semver from 'semver';
 import {CenvLog, colors} from '../log';
 import {StackModule} from "./stack";
 import {execCmd, sleep, spawnCmd} from "../utils";
+import path from "path";
+import {CenvFiles} from "../file";
+import {getParams} from "../aws/parameterStore";
 
 export class DockerModule extends PackageModule {
   digest?: string;
@@ -19,6 +30,7 @@ export class DockerModule extends PackageModule {
   repoContainsLatest = false;
   dockerName: string;
   envVars = { DOCKER_BUILDKIT: 1 }
+  doNotPush: false;
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.DOCKER);
@@ -57,25 +69,25 @@ export class DockerModule extends PackageModule {
     }
   }
 
+  async getDigest() {
+    const repoDigest = await execCmd('./', `echo $(docker inspect ${this.dockerName}) | jq -r '.[].RepoDigests[]'`);
+    return repoDigest.split('@')[1].trim();
+  }
+
   async push(url: string) {
-    const cmd = `docker push ${url}/${this.dockerName} --all-tags`;
-    const pushOptions = {
-      redirectStdErrToStdOut: true,
-      returnRegExp: DockerModule.digestRegex,
-      returnProperty: 'docker.digest',
-    };
 
-    await spawnCmd(this.path, cmd, cmd, pushOptions, this.pkg);
+    const commandEvents = {
+      postCommandFunc: async () => {
 
-    if (!this.digest) {
-      CenvLog.single.errorLog(`digest from push not found ${this.dockerName}:${this.pkg.rollupVersion}`, this.pkg.packageName);
-      return
+        // get the digest from the pushed container
+        this.digest = await this.getDigest();
+
+        // verify that the digest exists in the docker repo
+        await this.verifyDigest();
+      }
     }
 
-    CenvLog.single.infoLog( '@@@@@@@@@@@ docker digest @@@@@@@@@@@' + this.digest, this.pkg.packageName)
-
-    // wait to exit until we can see the new image in the ecr (otherwise cdk build will show no changes)
-    await this.verifyDigest();
+    await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, {}, commandEvents);
   }
 
   async build(args, cmdOptions: any = { build: true, push: true, dependencies: false}): Promise<number> {
@@ -106,12 +118,18 @@ export class DockerModule extends PackageModule {
     if (build) {
       const force = cmdOptions.force ? ' --no-cache' : '';
       const buildCmd = `docker build -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .${force}`;
-      const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars };
-      await spawnCmd(this.path, buildCmd, buildCmd, buildOptions, this.pkg);
+      const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars, packageModule: this };
+      await this.pkg.pkgCmd(buildCmd, buildOptions)
     }
 
     if (push) {
-      await this.push(DockerModule.ecrUrl);
+      if (process.env.CENV_MULTISTAGE) {
+        if (this.pkg.meta?.dockerType !== 'base') {
+          await this.push(DockerModule.ecrUrl);
+        }
+      } else {
+        await this.push(DockerModule.ecrUrl);
+      }
     }
   }
 
@@ -146,20 +164,33 @@ export class DockerModule extends PackageModule {
 
       cmd = `docker push ${DockerModule.ecrUrl}/${this.pkg.meta.dockerBaseImage}`;
       await spawnCmd(this.pkg.docker.path, cmd, cmd,{ redirectStdErrToStdOut: true }, this.pkg);
+    }
+  }
 
-      // wait to exit until we can see the new image in the ecr (otherwise cdk build will show no changes)
-      await sleep(15);
+  static async destroyAll() {
+    const repositories = await describeRepositories();
+    if (!repositories || !repositories?.length) {
+      CenvLog.info(` - no ecr repos / images to destroy`);
+      return;
+    }
 
-      /* wtf is happening here.. umm derp */
+    await Promise.all(
+      repositories.map(
+        async (r) => await deleteRepository(r.repositoryName, true),
+      ),
+    );
+  }
 
+  async destroy() {
+    const repositories = await describeRepositories();
 
-      /*const digestFound = false;
-      let attempts = 0;
-      while (!digestFound && attempts < 5) {
-        attempts++;
+    if (!repositories || !repositories?.length) {
+      CenvLog.info(` - no ecr repos / images to destroy`);
+      return;
+    }
 
-        //await getI
-      }*/
+    if (repositories.map((r: Repository) => r.repositoryName)?.filter((r) => this.dockerName === r)?.length) {
+      await deleteRepository(this.dockerName, true);
     }
   }
 

@@ -13,6 +13,7 @@ export default class CmdPanel extends CenvPanel {
   selectedCmdIndex = -1;
   debugStr;
   dashboard;
+
   constructor(dashboard) {
     super(dashboard);
   }
@@ -43,9 +44,11 @@ export default class CmdPanel extends CenvPanel {
               ch: ' ',
               inverse: true,
             },
+            hidden: true
           },
           [0, 2, 1, 3],
           true,
+
 
       );
       this.cmdList.name = 'tasks';
@@ -96,14 +99,12 @@ export default class CmdPanel extends CenvPanel {
             this.stderr.screen.render();
           }.bind(this),
       );
-      this.stdout.on(
-          'click',
-          function () {
-            const index = Dashboard.instance.focusPool()?.indexOf(this.stdout);
-            if (index !== undefined) {
-              this.setFocus(index);
-            }
-          }.bind(this),
+      this.stdout.on('click', function () {
+          const index = Dashboard.instance.focusPool()?.indexOf(this.stdout);
+          if (index !== undefined) {
+            this.setFocus(index);
+          }
+        }.bind(this),
       );
 
       this.stderr = this.addGridWidget(
@@ -170,42 +171,34 @@ export default class CmdPanel extends CenvPanel {
           }.bind(this),
       );
 
-      this.cmdList.on(
-          'action',
-          function () {
-            //this.stdout.insertBottom('action')
-          }.bind(this),
-      );
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      this.cmdList.on('action', function () {}.bind(this));
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      this.cmdList.on('select', function () {}.bind(this));
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      this.cmdList.on('move', function () {}.bind(this));
 
-      this.cmdList.on(
-          'select',
-          function () {
-            //this.stdout.insertBottom('select')
-          }.bind(this),
-      );
-
-      this.cmdList.on(
-          'move',
-          function () {
-            //this.stdout.insertBottom('move')
-          }.bind(this),
-      );
 
       this.cmdList.on('select item', function (item, index) {
-            if (this.selectedCmdIndex === index) {
-              return;
-            }
+          if (this.selectedCmdIndex === index) {
+            return;
+          }
 
-            const cmd = this.getPkgCmd(index);
-            if (!cmd) {
-              return;
-            }
-            this.stderr.setContent(cmd.stderr);
+          const cmd = this.getPkgCmd(index);
+          if (!cmd) {
+            return;
+          }
+          this.stderr.setContent(cmd.stderr);
+          if (process.env.CENV_STDTEMP) {
+            this.stdout.setContent(cmd.stdtemp || cmd.stdout);
+          } else {
             this.stdout.setContent(cmd.stdout);
-            this.selectedCmdIndex = index;
-            this.stderr.setScrollPerc(0);
-            this.stdout.setScrollPerc(0);
-          }.bind(this),
+          }
+
+          this.selectedCmdIndex = index;
+          this.stderr.setScrollPerc(0);
+          this.stdout.setScrollPerc(0);
+        }.bind(this),
       );
     } catch (e) {
       CenvLog.single.catchLog(e);
@@ -236,6 +229,12 @@ export default class CmdPanel extends CenvPanel {
 
       let cmds = this.getPkgCmds();
       cmds = cmds.map((c, i) => {
+        if (process.env.CENV_STDTEMP) {
+          if (c.code && c.code === 0 && c.stdtemp) {
+            delete c.stdtemp;
+          }
+        }
+
         return this.getCmdText(i, c);
       });
 
@@ -274,7 +273,6 @@ export default class CmdPanel extends CenvPanel {
     this.updateCmds();
     const pkgCmds = this.getPkgCmds();
     this.stderr.setContent('');
-    //this.stdout.setContent('');
     this.cmdList.setItems([]);
     if (!pkgCmds) {
       return;
@@ -407,34 +405,34 @@ export default class CmdPanel extends CenvPanel {
       return;
     }
     if (pkgCmds[cmdIndex]) {
-      //const err = removeTrailing(pkgCmds[cmdIndex].stderr);
       if (pkgCmds[cmdIndex].stderr) {
         this.stderr.setContent(pkgCmds[cmdIndex].stderr);
       } else {
         this.stderr.setContent('');
       }
-      //const out = removeTrailing(pkgCmds[cmdIndex].stdout);
-      if (pkgCmds[cmdIndex].stdout) {
+      if (pkgCmds[cmdIndex].stdtemp && process.env.CENV_STDTEMP) {
+        this.stdout.setContent(pkgCmds[cmdIndex].stdtemp);
+      } else if (pkgCmds[cmdIndex].stdout) {
         this.stdout.setContent(pkgCmds[cmdIndex].stdout);
       } else {
-        this.stdout.setContent(' ');
+        this.stdout.setContent(' - ');
       }
     }
   }
 
   set(left, width, top, height) {
     this.cmdList.top = top;
-    this.stdout.top = top + this.cmdList.height;
+    this.stdout.top = !this.getPkg()?.isGlobal ? top + this.cmdList.height : top;
     const cmds = this.getPkgCmds();
     const multiplier = this.selectedCmdIndex > -1 && cmds[this.selectedCmdIndex]?.stderr?.length ? 0.5 : 1;
-    this.stdout.height = Math.floor(((this.screen.height - 1) - (top + this.cmdList.height)) * multiplier);
+    this.stdout.height = Math.floor(((height - 1) - (top + (!this.getPkg()?.isGlobal ? this.cmdList.height : 0))) * multiplier);
     this.cmdList.left = left;
     this.stderr.left = left;
     this.stdout.left = left;
     this.cmdList.width = width;
     this.stderr.top = this.stdout.top + this.stdout.height;
     this.stderr.width = width;
-    this.stderr.height = this.screen.height - (this.stdout.top + this.stdout.height) - 1;
+    this.stderr.height = height - (this.stdout.top + this.stdout.height) - 1;
     this.stdout.width = width;
   }
 
@@ -462,7 +460,9 @@ export default class CmdPanel extends CenvPanel {
     }
 
     if (cmds?.length) {
-      this.cmdList.show();
+      if (!this.getPkg().isGlobal) {
+        this.cmdList.show();
+      }
     } else {
       this.cmdList.hide();
       this.stderr.hide();
@@ -476,7 +476,7 @@ export default class CmdPanel extends CenvPanel {
       this.stderr.hide();
     }
 
-    if (cmds[this.selectedCmdIndex]?.stdout && !Dashboard.toggleDebug) {
+    if ((cmds[this.selectedCmdIndex]?.stdout || (cmds[this.selectedCmdIndex]?.stdtemp && process.env.CENV_STDTEMP)) && !Dashboard.toggleDebug) {
       this.stdout.show();
     } else {
       this.stdout.hide();

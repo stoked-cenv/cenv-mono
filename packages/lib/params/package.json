@@ -24,14 +24,9 @@
     "js-yaml": "^4.1.0",
     "rimraf": "^4.4.1"
   },
-  "nx": {
-    "tags": [
-      "ec:tool"
-    ]
-  },
+
   "skipDeployBuild": true,
   "verifyStack": "cenv i --verify",
   "deployStack": "cenv i -cenv",
-  "destroyStack": "cenv u -cenv",
-  "license": "UNLICENSED"
+  "destroyStack": "cenv u -cenv"
 }

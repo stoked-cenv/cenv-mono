@@ -90,7 +90,7 @@ export async function invoke(FunctionName: string, PayloadString: string) {
   return false
 }
 
-export async function getFunction(FunctionName: string, silent: boolean = true) {
+export async function getFunction(FunctionName: string, silent = true) {
   try {
     const cmd = new GetFunctionCommand({FunctionName});
     const res = await getClient().send(cmd);

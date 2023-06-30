@@ -1,6 +1,16 @@
 import { Command, Option } from 'nest-commander';
 import { Dashboard,  } from '@stoked-cenv/cenv-ui';
-import { Package, CenvLog, CenvFiles, EnvConfigFile, ProcessMode, Deployment, DestroyCommandOptions, Cenv } from '@stoked-cenv/cenv-lib';
+import {
+  Package,
+  CenvLog,
+  CenvFiles,
+  EnvConfigFile,
+  ProcessMode,
+  Deployment,
+  DestroyCommandOptions,
+  Cenv,
+  ParamsModule
+} from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base';
 
 @Command({
@@ -149,6 +159,7 @@ export default class DestroyCommand extends BaseCommand {
     return val;
   }
 
+  /*
   async destroyAppData(options) {
     const config = CenvFiles.GetConfig();
     if (!config) {
@@ -159,11 +170,15 @@ export default class DestroyCommand extends BaseCommand {
     const cenvPackage = Package.getPackageName();
 
     if (options?.parameters) {
-      await Deployment.destroyParameters(cenvPackage, !!options?.global, !!options?.global);
+      if (!!options?.global) {
+        await ParamsModule.destroyGlobal();
+      }
       await Deployment.destroyConfig(options?.global ? undefined : cenvPackage);
     }
 
   }
+
+ */
 
   async runCommand(
     params: string[],
@@ -172,7 +187,7 @@ export default class DestroyCommand extends BaseCommand {
   ): Promise<void> {
     try {
 
-      if (!options?.suite && !options?.environment && (options?.parameters || options?.stack || options?.docker || options?.cenv)) {
+      /*if (!options?.suite && !options?.environment && (options?.parameters || options?.stack || options?.docker || options?.cenv)) {
         options.cli = true;
         options.userInterface = false;
 
@@ -186,19 +201,19 @@ export default class DestroyCommand extends BaseCommand {
           for (let i = 0; i < packages.length; i++) {
             const pkg = packages[i]
             if (pkg.chDir()) {
-              await Deployment.destroyNonStack(pkg, options.docker, options.parameters, options.parameters);
+              await pkg.destroy(options);
             }
           }
           return;
         }
-      }
+      }*/
 
-      Dashboard.log('pre deploy')
+
       if (options?.suite || options?.environment || packages?.length > 0) {
-        Dashboard.log('pre deploy w/ packages')
         options = Deployment.deployDestroyOptions(options);
         await Deployment.Destroy(packages, options);
       }
+
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

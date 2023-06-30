@@ -1,4 +1,4 @@
-import {CenvLog, errorBold, infoBold} from './log'
+import {CenvLog, errorBold, infoBold, LogLevel} from './log'
 import {
   createPolicy,
   createRole,
@@ -27,16 +27,18 @@ import {
 } from './aws/appConfig'
 import chalk from 'chalk';
 import path from 'path';
-import {BaseCommandOptions, CenvParams, validateOneType} from './params';
+import {BaseCommandOptions, CenvParams, DashboardCreateOptions, DashboardCreator, validateOneType} from './params';
 import { Deployment } from './deployment';
 import { Environment,  } from './environment';
 import { Export } from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
 import {CenvFiles} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import {execCmd, exitWithoutTags, search_sync} from "./utils";
+import {execCmd, exitWithoutTags, getMonoRoot, packagePath, search_sync} from "./utils";
 import {ioAppEnv, ioYesOrNo} from "./stdIo";
 import {deleteHostedZone} from "./aws/route53";
+import {existsSync} from "fs";
+import child_process from "child_process";
 
 interface FlagValidation {
   application: string;
@@ -64,7 +66,24 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   defaults?: boolean;
 }
 
+export interface StackProc {
+  cmd: string,
+  proc: child_process.ChildProcess
+}
+
 export class Cenv {
+  static runningProcesses?: { [stackName: string]: StackProc[] } = undefined;
+  static dashboard = null;
+  static dashboardCreator: DashboardCreator;
+  static dashboardCreateOptions: DashboardCreateOptions;
+  static addSpawnedProcess(stackName, cmd, proc) {
+    if (!Cenv.runningProcesses[stackName]) {
+      Cenv.runningProcesses[stackName] = [{cmd, proc}];
+    } else {
+      Cenv.runningProcesses[stackName].push({cmd, proc});
+    }
+  }
+
   static async env(params, options) {
     if (!params.length) {
       CenvLog.info(
@@ -133,7 +152,7 @@ export class Cenv {
     if (!pkg.chDir()) {
       return;
     }
-    const ctx: any = await CenvParams.getContext();
+    const ctx: any = await CenvParams.getParamsContext();
     const config = ctx.EnvConfig;
     const key = params[0].toLowerCase().replace(/_/g, '/');
     const keyPath = CenvParams.GetRootPath(
@@ -284,12 +303,7 @@ export class Cenv {
         `The service has previously been configured with the application name ${envConfig?.ApplicationName}. Would you like to destroy the previously configured application, all of it's related resources, as well as the local configuration?`,
       );
       if (destroyIt) {
-        await Deployment.destroyNonStack(
-          pkg,
-          true,
-          true,
-          true,
-        );
+        await pkg.params.destroy({}, )
       }
       return { application, environment };
     }
@@ -438,6 +452,41 @@ export class Cenv {
     return true;
   }
 
+  static async cmdInit(options): Promise<void> {
+    try {
+      if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
+        options.logLevel = process.env.CENV_LOG_LEVEL || options?.logLevel?.toUpperCase();
+        process.env.CENV_LOG_LEVEL = LogLevel[options.logLevel];
+        CenvLog.logLevel = LogLevel[options.logLevel];
+        CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
+      } else {
+        process.env.CENV_LOG_LEVEL = LogLevel.INFO
+        CenvLog.logLevel = LogLevel.INFO;
+      }
+
+      const monoRoot = getMonoRoot();
+      if (path.resolve(process.cwd()) === path.resolve(monoRoot)) {
+        options.root = true;
+      }
+      const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
+      if (existsSync(cenvConfigPath)) {
+        const cenvConfig = require(cenvConfigPath);
+        const globalPackage = cenvConfig.global
+        Package.defaultSuite = cenvConfig.defaultSuite;
+        Package.scopeName = cenvConfig.scopeName;
+        Package.suites = cenvConfig.suites;
+        const packageGlobalPath = packagePath(globalPackage);
+        if (packageGlobalPath) {
+          CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
+        }
+      } else {
+        CenvLog.single.catchLog(new Error('could not load the global package from the "global" property in the root cenv.json file'))
+      }
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
+  }
+
   static materializationPkg = '@stoked-cenv/cenv-params';
 
   static roleName = 'LambdaConfigRole';
@@ -445,6 +494,7 @@ export class Cenv {
   static policyLambdaBasic =
     'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole';
   static keyGroupName = 'key-users';
+
 
 
   static async verifyCenv(silent = true) {

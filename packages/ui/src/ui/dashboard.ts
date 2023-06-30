@@ -11,13 +11,12 @@ import {
   EnvironmentStatus,
   Package,
   ProcessStatus,
-  Timer,
   getPkgContext,
   killRunningProcesses,
   ProcessMode,
   Suite,
   DashboardCreateOptions,
-  pbcopy, Deployment
+  pbcopy, Deployment, PkgContextType, validateBaseOptions, killStackProcesses, Cenv
 } from '@stoked-cenv/cenv-lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
@@ -37,7 +36,6 @@ export enum DashboardMode {
 export class Dashboard {
   screen;
   initialized = false;
-  timer = new Timer('deployment', 'seconds', true);
   debugLog;
   status;
   statusText = '';
@@ -101,11 +99,19 @@ export class Dashboard {
   blessedDeps;
   fullScreenCtrl;
   hidden = false;
+  processOptions;
+  debounceFlags = {};
+  clearLabelTimeout = null;
+  deploying = false;
+  statusOptions;
+  static moduleToggle = true;
+  static dependencyToggle = true;
+  static paramsToggle = false;
 
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
       if (Dashboard.instance) {
-        return;
+        return Dashboard.instance;
       }
 
 
@@ -145,6 +151,112 @@ export class Dashboard {
         hideBorder: true,
       });
 
+      function statusText(titleText, descriptionText) {
+        return `${chalk.blueBright.bold(titleText)}: ${descriptionText}`;
+      }
+
+      const pkgButtons = {
+        deploy: {
+          keys: ['d'],
+            callback: async function () {
+            this.debounceCallback('deploy', async () => {
+              const pkgs = this.getContext();
+              if (!pkgs) {
+                return;
+              }
+              const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName.toUpperCase()}`;
+              this.setStatusBar('launchDeployment', statusText(`deploy`, `${packages}`));
+              await this.launchDeployment(ProcessMode.DEPLOY);
+            });
+          }.bind(this),
+        },
+        destroy: {
+          keys: ['y'],
+            callback: async function () {
+            this.debounceCallback('destroy', async () => {
+              const pkgs = this.getContext();
+              if (!pkgs) {
+                return;
+              }
+              const packages =
+                pkgs.length > 1
+                  ? `${pkgs.length} packages`
+                  : `${pkgs[0].packageName.toUpperCase()}`;
+              this.setStatusBar(
+                'launchDestroy',
+                statusText(`destroy`, packages),
+              );
+              await this.launchDeployment(ProcessMode.DESTROY);
+            });
+          }.bind(this),
+        },
+
+        build: {
+          keys: ['b'],
+          callback: async function () {
+            this.debounceCallback('build', async () => {
+              const ctx = this.getContext(PkgContextType.COMPLETE, false);
+              if (!ctx || !ctx.length) {
+                return;
+              }
+              const name = 'build';
+              this.setStatusBar(name, statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
+              await Promise.all(ctx?.map(async (p: Package) => await p.build()));
+            });
+          }.bind(this),
+        },
+        "check status": {
+          keys: ['enter'],
+          callback: async function () {
+            const ctx = this.getContext(PkgContextType.COMPLETE, false);
+            if (!ctx?.length) {
+              return;
+            }
+            const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
+            this.setStatusBar(
+              'checkStatus',
+              statusText(
+                'status check',
+                `check deployment status of ${packages}`,
+              ),
+            );
+            ctx.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
+          }.bind(this),
+        },
+        cancel: {
+          keys: ['S-c'],
+          callback: function () {
+            const ctx = this.getContext(PkgContextType.PROCESSING, false);
+            if (!ctx) {
+              return;
+            }
+            this.debounceCallback('cancel', async () => {
+              await Promise.allSettled(ctx.map(async (p) => {
+                CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', Dashboard.instance.cmdPanel.stdout), p.stackName);
+
+                await Deployment.packageComplete(p);
+
+                if (Deployment.dependencies) {
+                  Object.keys(Deployment.dependencies).map(stackName => {
+                    Deployment.dependencies[stackName].dependencies = Deployment.dependencies[stackName].dependencies.filter(d => d.stackName !== p.stackName);
+                  })
+                }
+
+                if (Deployment.toProcess && Deployment.toProcess[p.stackName]) {
+                  delete Deployment.toProcess[p.stackName];
+                }
+                p.processStatus = ProcessStatus.CANCELLED;
+                await killStackProcesses(p.stackName, Cenv.runningProcesses[p.stackName])
+              }));
+
+              this.setStatusBar('cancel deploy', `cancel ${ctx.length === 1 ? ctx[0].packageName : ctx.length + ' packages (does not cancel cloudformation)'}`);
+            });
+          }.bind(this),
+        },
+      }
+
+      this.processOptions = new Menu(this.screen, pkgButtons, {top: 0, left: 0, right: 0});
+
       this.statusBar = this.grid.set(5, 0, 1, 2, blessed.box, {
         fg: 'white',
         label: '',
@@ -179,7 +291,7 @@ export class Dashboard {
       this.packageTimer = null;
 
       this.packages.on('element mouseover',
-        async function mouseover(el, data) {
+        async function mouseover(el, _data) {
 
           if (el.parent?.name !== 'packageRows') {
             return;
@@ -481,7 +593,290 @@ export class Dashboard {
         }.bind(this),
       );
 
-      this.menu = new Menu(this);
+      const commandButtons = {
+        /*
+
+                bump: {
+                  keys: ['b'],
+                  callback: function () {
+                    debounceCallback('bump', async () => {
+                      function getBumpText() {
+                        const bumpType = Version.bumpTypeText;
+                        const bumpMode = Version.bumpModeText;
+                        const ctx = getPkgCompleteContext();
+                        if (!ctx) {
+                          dashboard.setStatusBar('invalid state', 'at least one package is in an invalid state');
+                          return;
+                        }
+                        const packages =
+                          ctx.packages.length > 1
+                            ? `${ctx.packages.length} package version numbers`
+                            : '1 package version number';
+                        const packages2 =
+                          ctx.packages.length > 1
+                            ? `${ctx.packages.length} packages`
+                            : `1 package`;
+                        switch (bumpType) {
+                          case BumpType.BUMP:
+                            return statusText(
+                              `${bumpType} builds`,
+                              `increment ${packages} by ${bumpMode} if changes detected`,
+                            );
+                          case BumpType.DECREMENT:
+                            return statusText(
+                              `${bumpType} builds`,
+                              `decrement ${packages} by ${bumpMode} if changes detected`,
+                            );
+                          case BumpType.FINALIZE_PRERELEASE:
+                            return statusText(
+                              `${bumpType}`,
+                              `remove ${bumpMode} build identifiers from ${packages2} if they exist`,
+                            );
+                        }
+                      }
+
+                      dashboard.setStatusBar('bumpAction', getBumpText());
+                    });
+                  }.bind(this),
+                },
+                'next bump mode': {
+                  keys: ['C-b'],
+                  callback: function () {
+                    debounceCallback('nextBumpMode', async () => {
+                      const nextMode = Version.nextBumpMode;
+                      dashboard.setStatusBar(
+                        'nextBumpMode',
+                        statusText(`cycle bump mode`, `${nextMode} enabled`),
+                      );
+                    });
+                  }.bind(this),
+                },
+                'next bump type': {
+                  keys: ['S-b'],
+                  callback: function () {
+                    debounceCallback('nextBumpType', async () => {
+                      const nextType = Version.nextBumpType;
+                      dashboard.setStatusBar(
+                        'nextBumpMode',
+                        statusText(`cycle bump type`, `${nextType}`),
+                      );
+                    });
+                  }.bind(this),
+                },
+                'next color': {
+                  keys: ['n'],
+                  callback: function() {
+                    debounceCallback('nextColor', async () => {
+                      CenvLog.nextColor();
+                      dashboard.setStatusBar(
+                        'nextColor',
+                        statusText(
+                          `active color`,
+                          `${CenvLog.getRgb()}`,
+                        ),
+                      );
+                    })
+                  }
+                },
+                'increment color': {
+                  keys: ['m'],
+                  callback: function() {
+                    debounceCallback('incrementColor', async () => {
+                      CenvLog.incrementColor();
+                      dashboard.setStatusBar(
+                        'incrementColor',
+                        statusText(
+                          `increment ${CenvLog.getRgb()}`,
+                          `${CenvLog[CenvLog.getRgb()]}`,
+                        ),
+                      );
+                    })
+                  }
+                },
+                'clear versions': {
+                  keys: ['o'],
+                  callback: function () {
+                    debounceCallback('clearVersions', async () => {
+                      const ctx = getPkgCompleteContext();
+                      const packages =
+                        ctx.packages.length > 1
+                          ? `${ctx.packages.length} packages`
+                          : `${ctx.packages[0].packageName.toUpperCase()}`;
+                      dashboard.setStatusBar(
+                        'resetBump',
+                        statusText(
+                          `reset bump versions`,
+                          `remove all bump versions from ${packages}`,
+                        ),
+                      );
+                      await Version.Bump(ctx.packages, 'reset');
+                    });
+                  }.bind(this),
+                },
+                */
+        help: {
+          keys: ['h'],
+          callback: function () {
+            this.dashboard.hide();
+            new HelpUI();
+          }.bind(this),
+        },
+        debug: {
+          keys: ['x'],
+          callback: async function () {
+            this.debounceCallback('toggle debug', async () => {
+              Dashboard.toggleDebug = !Dashboard.toggleDebug;
+              this.setStatusBar('toggleDebug',
+                statusText(
+                  Dashboard.toggleDebug ? `toggle debug view` : `toggle status view`,
+                  Dashboard.toggleDebug ? `debug view enabled` : `status view enabled`));
+            });
+          }.bind(this),
+        },
+
+        /*save: {
+          keys: ['s'],
+          callback: function () {
+            debounceCallback('create dump', async () => {
+              dashboard.setStatusBar(
+                'createDump',
+                statusText(
+                  'log dump',
+                  `generate a log dump for all packages currently loaded`,
+                ),
+              );
+              // Dialogs.saveDump(this.screen);
+              this.screen.render();
+            });
+          }.bind(this),
+        },*/
+
+        "fix dupes": {
+          keys: ['u'],
+          callback: async function () {
+            try {
+              const name = 'fix param dupes';
+              this.debounceCallback(name, async () => {
+                const ctx = this.getContext();
+                if (!ctx) {
+                  return;
+                }
+                await Promise.all(ctx?.map(async (p: Package) => await p?.params?.fixDupes()));
+                this.setStatusBar(name, statusText(name, 'remove dupes for global and globalEnv param types'));
+              });
+            } catch (e) {
+              CenvLog.single.catchLog(e);
+            }
+          }.bind(this),
+        },
+        /*
+        preBuild: {
+          keys: ['0'],
+          callback: async function () {
+            debounceCallback('toggle auto pre-build', async () => {
+              Deployment.options.skipBuild = !Deployment?.options.skipBuild;
+              const name = 'toggle auto pre-build';
+              this.setStatusBar(name, statusText(name, Deployment.options.skipBuild ? `auto pre-build disabled` : `auto pre-build enabled`));
+            });
+          }.bind(this),
+        },
+        */
+        "strict versions": {
+          keys: ['S-v'],
+          callback: function () {
+            this.debounceCallback('strictVersions', async () => {
+              if (Deployment?.options) {
+                Deployment.options.strictVersions =
+                  !Deployment.options?.strictVersions;
+                this.setStatusBar(
+                  'toggleView',
+                  statusText(
+                    'strict versions mode',
+                    Deployment.options.strictVersions ? 'enabled' : 'disabled',
+                  ),
+                );
+              }
+            });
+          }.bind(this),
+        },
+        "clear logs": {
+          keys: ['l'],
+          callback: function () {
+            this.debounceCallback('clearVersions', async () => {
+              Dashboard.instance.statusBarInUse = true;
+              if (
+                this.dashboard.focusedBox === this.dashboard.cmdPanel.stdout
+              ) {
+                this.dashboard.cmdPanel.stdout.setContent('');
+                this.setStatusBar('clearStdout', statusText('clear', 'stdout panel'));
+              } else if (this.dashboard.focusedBox === this.dashboard.cmdPanel.stderr) {
+                this.dashboard.cmdPanel.stderr.setContent('');
+                this.setStatusBar('clearStderr', statusText('clear', 'stderr panel'));
+              } else {
+                Dashboard.instance.debugLog.setContent('');
+                this.setStatusBar('clearDebug', statusText('clear', 'debug log'));
+              }
+            });
+          }.bind(this),
+        },
+        "clear debug": {
+          keys: ['C-d'],
+          callback: function () {
+            this.debounceCallback('clearVersions', async () => {
+              Dashboard.instance.statusBarInUse = true;
+              if (
+                this.dashboard.focusedBox === this.dashboard.cmdPanel.stdout
+              ) {
+                this.dashboard.cmdPanel.stdout.setContent('');
+                this.setStatusBar('clearStdout', statusText('clear', 'stdout panel'));
+              } else if (this.dashboard.focusedBox === this.dashboard.cmdPanel.stderr) {
+                this.dashboard.cmdPanel.stderr.setContent('');
+                this.setStatusBar('clearStderr', statusText('clear', 'stderr panel'));
+              } else {
+                Dashboard.instance.debugLog.setContent('');
+                this.setStatusBar('clearDebug', statusText('clear', 'debug log'));
+              }
+            });
+          }.bind(this),
+        },
+      }
+
+      this.menu = new Menu(this.screen, commandButtons, { bottom: 0, left: 0, right: 0});
+
+      const statusButtons = {
+        modules: {
+          keys: ['m'],
+          callback: async function () {
+            this.debounceCallback('modules', async () => {
+              Dashboard.moduleToggle = !Dashboard.moduleToggle;
+              this.statusPanel.updateVis();
+              this.setStatusBar('toggle panel', statusText(`toggle panel`, 'module info'));
+            });
+          }.bind(this),
+        },
+        dependencies: {
+          keys: ['S-d'],
+          callback: async function () {
+            this.debounceCallback('toggle dependencies', async () => {
+              Dashboard.dependencyToggle = !Dashboard.dependencyToggle;
+              this.statusPanel.updateVis();
+              this.setStatusBar('toggle panel', statusText(`toggle panel`, 'dependencies'));
+            });
+          }.bind(this),
+        },
+        params: {
+          keys: ['p'],
+          callback: async function () {
+            this.debounceCallback('toggle params', async () => {
+              Dashboard.paramsToggle = !Dashboard.paramsToggle;
+              this.statusPanel.updateVis();
+              this.setStatusBar('toggle panel', statusText(`toggle panel`, 'params'));
+            });
+          }.bind(this),
+        },
+      }
+
+      this.statusOptions = new Menu(this.statusPanel.screen, statusButtons, {top: 0, left: 0, right: 0});
       this.packages.focus();
       this.statusPanel.init();
       this.cmdPanel.init();
@@ -497,7 +892,7 @@ export class Dashboard {
             //await selectIt(item);
           //}
         }.bind(this),
-        10,
+        25,
       );
       if (!this.cmd) {
         setTimeout(
@@ -508,9 +903,90 @@ export class Dashboard {
       }
       Dashboard.instance = this;
       this.initialized = true;
+
+      this.debug('CENV_LOG_LEVEL=' + process.env.CENV_LOG_LEVEL)
+      this.debug(`isVerbose=${CenvLog.isVerbose}`)
+      this.debug(`isInfo=${CenvLog.isInfo}`)
+      this.debug(`isDebug=${CenvLog.isAlert}`)
+      this.debug(`isMinimal=${CenvLog.isStdout}`)
+      this.debug(`isNone=${CenvLog.isNone}`)
+
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+  }
+
+  async launchDeployment(mode: ProcessMode) {
+    try {
+      if (this.deploying) {
+        return;
+      }
+
+      this.deploying = true;
+      Dashboard.instance.cmd = mode;
+
+      const packages = this.getContext();
+      if (!packages) {
+        return;
+      }
+      packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+
+      const deploymentOptions = {};
+      if (mode === ProcessMode.DESTROY) {
+        validateBaseOptions({packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
+        await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
+      } else {
+        validateBaseOptions({packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions })
+        await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
+      }
+
+      Dashboard.instance.cmd = undefined;
+
+      this.deploying = false;
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
+  }
+
+  getContext(type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true) {
+    const selectedPkg = Dashboard.instance.getPkg();
+    const ctx = getPkgContext(selectedPkg, type, failOnInvalid);
+    if (!ctx) {
+      this.setStatusBar('invalid state', 'at least one package is in an invalid state');
+      return;
+    }
+
+    if (selectedPkg?.stackName === 'GLOBAL') {
+      Deployment.options.dependencies = true;
+    } else {
+      Deployment.options.dependencies = false ;
+    }
+    return ctx.packages;
+  }
+
+  debounceCallback(name, callback, onTimeout = undefined) {
+    if (this.debounceFlags[name]) {
+      return;
+    }
+    Dashboard.instance.statusBarInUse = true;
+    callback();
+
+    this.debounceFlags[name] = true;
+
+    setTimeout(() => {
+      Dashboard.instance.statusBarInUse = false;
+      delete this.debounceFlags[name];
+    }, 250);
+
+    if (this.clearLabelTimeout) {
+      clearTimeout(this.clearLabelTimeout);
+    }
+    this.clearLabelTimeout = setTimeout(() => {
+      if (onTimeout) {
+        onTimeout();
+      }
+      Dashboard.instance.statusBar.setLabel('');
+    }, 2000);
   }
 
   isWideMode() {
@@ -567,6 +1043,25 @@ export class Dashboard {
     }
   }
 
+  logTemp(stackName: string, ...text: string[]) {
+    if (process.env.CENV_STDTEMP) {
+      stackName = blessed.cleanTags(stackName);
+
+      const finalMsg = text.join(' ');
+      this.storeLog(stackName, finalMsg, 'stdtemp');
+      if (stackName !== Dashboard.stackName) {
+        return;
+      }
+      this.cmdPanel?.out(stackName, finalMsg);
+
+      //if (this.cmdPanel?.stdout?.hidden) {
+      this.cmdPanel?.updateVis();
+      //}
+    } else {
+      this.log(stackName, ...text);
+    }
+  }
+
   log(stackName: string, ...text: string[]) {
     stackName = blessed.cleanTags(stackName);
 
@@ -578,7 +1073,7 @@ export class Dashboard {
     this.cmdPanel?.out(stackName, finalMsg);
 
     //if (this.cmdPanel?.stdout?.hidden) {
-      this.cmdPanel?.updateVis();
+    this.cmdPanel?.updateVis();
     //}
   }
 
@@ -786,11 +1281,7 @@ export class Dashboard {
       if (this.focusedBox?.style?.border?.fg) {
         this.focusedBox.style.border.fg = [24, 242, 24];
       }
-      if (this.focusedBox.type === 'params' || this.focusedBox.type === 'paramsUI') {
-        this.statusPanel.paramLabel.show();
-        this.statusPanel.paramTextbox.show();
-        this.statusPanel.paramForm.show();
-      }
+
       this.focusedBox.focus();
     }
 
@@ -802,6 +1293,16 @@ export class Dashboard {
     return Package.cache[stackName ? stackName : Dashboard.stackName];
   }
 
+  storeLogBase(cmd, type, msg) {
+    if (cmd[type]) {
+      cmd[type] += msg;
+    } else {
+      cmd[type] = msg;
+    }
+    if (type === 'stdout' && !CenvLog.isInfo && process.env.CENV_STDTEMP) {
+      this.storeLogBase(cmd, 'stdtemp', msg);
+    }
+  }
   storeLog(stackName, message: string, type) {
     const pkg = this.getPkg(stackName);
     if (!pkg) {
@@ -821,11 +1322,7 @@ export class Dashboard {
       cmd = pkg.cmds[pkg.cmds.length - 1];
     }
     const finalMsg = message.endsWith('\n') ? message : message + '\n';
-    if (cmd[type]) {
-      cmd[type] += finalMsg;
-    } else {
-      cmd[type] = finalMsg;
-    }
+    this.storeLogBase(cmd, type, finalMsg);
   }
 
   lastSelectedFully = false;
@@ -893,8 +1390,6 @@ export class Dashboard {
     }
   }
 
-  debounceFlags = {};
-  clearLabelTimeout = undefined;
   setStatusBar(name, msg) {
     if (msg === '' || this.debounceFlags[name]) {
       delete this.debounceFlags[name];
@@ -919,14 +1414,12 @@ export class Dashboard {
 
   getUpdatePackages() {
 
-    const pks = Object.values(Package.cache).filter((p: Package) => !p.skipUI || Deployment.toggleDependencies);
+    const pks: Package[] = Object.values(Package.cache).filter((p: Package) => !p.skipUI || Deployment.toggleDependencies);
     const noGlobals = pks.filter(p => p.stackName !== 'GLOBAL');
     const upToDate = !noGlobals.filter(p => p.environmentStatus !== EnvironmentStatus.UP_TO_DATE).length;
     const notDeployed = !noGlobals.filter(p => p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED).length;
     const processing = !!noGlobals.filter(p => p.processStatus === ProcessStatus.PROCESSING).length;
-    const completed = !noGlobals.filter(p => p.processStatus !== ProcessStatus.COMPLETED).length;
     const statusCheck = !!noGlobals.filter(p => p.processStatus === ProcessStatus.STATUS_CHK).length;
-    const ctx = this.getPkg() ? getPkgContext(this.getPkg()) : false;
 
     let envStatus = EnvironmentStatus.NEEDS_UPDATE;
     if (upToDate) {
@@ -940,10 +1433,6 @@ export class Dashboard {
       processStatus = ProcessStatus.PROCESSING;
     } else if (statusCheck) {
       processStatus = ProcessStatus.STATUS_CHK;
-    } else if (completed) {
-      pks.map(p => p.processStatus = ProcessStatus.NONE)
-    } else if (ctx) {
-
     }
 
     let packages: any = Object.values(Package.cache)
@@ -954,17 +1443,18 @@ export class Dashboard {
             stackName: p.stackName,
             processStatus: processStatus,
             environmentStatus: envStatus || 'NONE',
-            timer: Package.global.timer?.elapsed()?.elapsed ? `${Package.global.timer?.elapsed()?.elapsed}s` : '-----',
+            timer: p.timer.elapsed,
             type: '-----',
             statusTime: p.statusTime,
             version: '-----'
           }
         }
+
         return {
           stackName: p.stackName,
           processStatus: p.processStatus,
           environmentStatus: p.environmentStatus,
-          timer: p.timer ? `${p.timer?.elapsed()?.elapsed}s` : 'N/A',
+          timer: p.timer.elapsed,
           type: p.type,
           statusTime: p.statusTime,
           version: p.rollupVersion,
@@ -1123,7 +1613,6 @@ export class Dashboard {
       case EnvironmentStatus.NOT_DEPLOYED:
       case EnvironmentStatus.NEEDS_FIX:
         return this.getChalkColor(this.red, hover, 15, rgb);
-      case ProcessStatus.SKIPPED:
       case EnvironmentStatus.INITIALIZING:
         return this.getChalkColor(this.gray, hover, 15, rgb);
       case ProcessStatus.NONE:
@@ -1371,7 +1860,6 @@ export class Dashboard {
 
       if (complete) {
         this.complete = true;
-        Package.global?.timer?.elapsed(true);
       }
 
       if (Object.keys(Package.cache).length) {
@@ -1466,22 +1954,28 @@ export class Dashboard {
       this.statusBar.setFront();
       this.splitter.render();
 
-      this.statusBar.show();
+      if (this.selectedPackage !== 'GLOBAL') {
+        this.statusOptions.show();
+      } else {
+        this.statusOptions.hide();
+      }
 
+      this.statusBar.show();
       this.menu.setFront();
+      this.menu.render();
       this.redraw();
     }
   }
 
-  resizeMode(tableCalcs = undefined) {
-    const screenHeight = this.screen.height - 1;
+  resizeMode(tableCalcs = undefined, bottomOffset = 0) {
+    const screenHeight = this.screen.height - bottomOffset;
     const top = 2;
     const panelWidth = this.screen.width - tableCalcs.tableWidth - 2;
 
-    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, top, screenHeight);
+    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions.bar.top + (this.statusOptions.active ? 3 : 0), screenHeight);
     this.cmdPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusPanel.bottom, screenHeight);
 
-    this.splitter.height = this.screen.height - 2;
+    this.splitter.height = this.screen.height - 2 - bottomOffset;
   }
 
   resizeWidgets(tableCalcs = undefined) {
@@ -1491,6 +1985,9 @@ export class Dashboard {
     this.packages.width = tableCalcs.tableWidth;
     this.packages.top = 0;
     this.packages.height = Package.getPackages().length + 5;
+    this.processOptions.bar.width = tableCalcs.tableWidth;
+    this.processOptions.bar.top = this.packages.height;
+    this.processOptions.show();
 
     const screenHeight = this.screen.height - 1;
 
@@ -1502,13 +1999,12 @@ export class Dashboard {
 
     const fifthHeight = Math.floor(screenHeight / 5);
     const parameterHeight = Math.floor((screenHeight - fifthHeight - StatusPanel.modulesHeight + 1) / 2) - 1;
+    const bottomOffset = this.menu.active ? 3 : 0;
+    this.resizeMode(tableCalcs, bottomOffset);
 
-    this.resizeMode(tableCalcs);
-
-    this.status.top = this.packages.height;
-    this.status.height = screenHeight - this.status.top;
+    this.status.top = this.packages.height + 3;
+    this.status.height = screenHeight - this.status.top - bottomOffset;
     this.status.width = this.packages.width;
-
 
     this.splitter.left = this.tableWidth;
     this.packageBox.left = this.packages.width;
@@ -1516,7 +2012,16 @@ export class Dashboard {
     this.packageBox.setFront();
     this.packageBox.show();
     this.statusBar.width = this.screen.width;
-    this.statusBar.position.top = this.screen.height - 1;
+    this.statusBar.position.top = this.screen.height - 1 - bottomOffset;
+
+
+    if (this.statusOptions) {
+      this.statusOptions.bar.width = this.screen.width - tableCalcs.tableWidth - 2;
+      this.statusOptions.bar.top = 2;
+      this.statusOptions.bar.left = tableCalcs.tableWidth + 1;
+      this.statusOptions.bar.height = 3;
+    }
+
     this.splitter.setFront();
     this.statusBar.setFront();
     this.screen.clearRegion(0, this.screen.width, 0, screenHeight);

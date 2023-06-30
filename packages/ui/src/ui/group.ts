@@ -7,7 +7,7 @@ export default class Groups extends Object {
   static fullScreenActive = false;
 
   static openFullScreen(focusWidget) {
-    let group = this['fullScreen']
+    const group = this['fullScreen']
 
     if (!group) {
       return;

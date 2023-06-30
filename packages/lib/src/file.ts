@@ -65,9 +65,9 @@ interface ParameterSet {
 }
 
 export class File {
-  public static get PATH(): string { return join(CenvFiles.PATH, this.NAME); };
-  public static get NAME(): string { return `.invalid.file`; };
-  public static get DESCRIPTION(): string { return 'invalid description' };
+  public static get PATH(): string { return join(CenvFiles.PATH, this.NAME); }
+  public static get NAME(): string { return `.invalid.file`; }
+  public static get DESCRIPTION(): string { return 'invalid description' }
   public static get SCHEMA(): any { return {}; }
 
   public static notReserved: object = {anyOf: [{required: ['newGlobal']}, {required: ['global']}]};
@@ -104,7 +104,7 @@ export class File {
     return sortedObject;
   }
 
-  public static save(data: any, silent: boolean = false, name: string = this.NAME, path: string = CenvFiles.PATH) {
+  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.PATH) {
     if (!silent) {
       CenvLog.info(` - saving ${infoBold(name)}`);
     }
@@ -123,7 +123,7 @@ export class File {
     writeFileSync(join(path, name), yaml.dump(sortedObject));
   }
 
-  public static delete(silent: boolean = false, name: string) {
+  public static delete(silent = false, name: string) {
     unlinkSync(join(cenvRoot, name));
   }
 
@@ -154,8 +154,8 @@ export class File {
 }
 
 export class SettingsFile extends File {
-  public static get NAME(): string { return `${appExt}.settings`; };
-  public static get DESCRIPTION(): string { return 'local settings' };
+  public static get NAME(): string { return `${appExt}.settings`; }
+  public static get DESCRIPTION(): string { return 'local settings' }
   public static get SCHEMA(): any {
     return {
       type: 'object',
@@ -176,8 +176,8 @@ export class EnvConfigFile extends File {
       return name.replace('[--env--]', CenvFiles.ENVIRONMENT).replace('[--accountId--]', CenvFiles.AWS_ACCOUNT_ID);
     }
     return name;
-  };
-  public static get DESCRIPTION(): string { return 'environment config' };
+  }
+  public static get DESCRIPTION(): string { return 'environment config' }
   public static get SCHEMA(): any {
     return {
       type: 'object',
@@ -188,12 +188,12 @@ export class EnvConfigFile extends File {
       required: ['ApplicationName', 'EnvironmentName'],
       additionalProperties: false,
     }
-  };
+  }
 }
 
 export class AppVarsFile extends File {
-  public static get NAME(): string { return `${appExt}`; };
-  public static get DESCRIPTION(): string { return 'variables file' };
+  public static get NAME(): string { return `${appExt}`; }
+  public static get DESCRIPTION(): string { return 'variables file' }
   public static get SCHEMA(): any {
     return {
       type: 'object',
@@ -227,7 +227,7 @@ export class AppVarsFile extends File {
       },
       title: 'config'
     }
-  };
+  }
 }
 
 export class EnvVarsFile extends File {
@@ -237,8 +237,8 @@ export class EnvVarsFile extends File {
       return name.replace('[--env--]', CenvFiles.ENVIRONMENT).replace('[--accountId--]', CenvFiles.AWS_ACCOUNT_ID);
     }
     return name;
-  };
-  public static get DESCRIPTION(): string { return 'environment variables file' };
+  }
+  public static get DESCRIPTION(): string { return 'environment variables file' }
   public static get SCHEMA(): any {
     return {
       type: "object",
@@ -256,9 +256,9 @@ export class GlobalVarsFile extends File {
   public static get PATH(): string {
     const p = join(CenvFiles.GlobalPath as string, this.NAME as string);
     return p.toString();
-  };
-  public static get NAME(): string { return `${appExt}.globals`; };
-  public static get DESCRIPTION(): string { return 'global variables file' };
+  }
+  public static get NAME(): string { return `${appExt}.globals`; }
+  public static get DESCRIPTION(): string { return 'global variables file' }
   public static get SCHEMA(): any  {
     return {
       type: "object",
@@ -267,9 +267,9 @@ export class GlobalVarsFile extends File {
         type: "string"
       },
     }
-  };
+  }
 
-  public static save(data: any, silent: boolean = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
+  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
     let merged = data;
     if (existsSync(this.PATH)) {
       const globalData = super.read(this.PATH, this.SCHEMA, false);
@@ -287,12 +287,12 @@ export class GlobalEnvVarsFile extends File {
   public static get PATH(): string {
     const p = join(CenvFiles.GlobalPath as string, this.NAME as string);
     return p.toString();
-  };
+  }
   public static get NAME(): string {
     const name = `${appExt}.[--env--]-[--accountId--].globals`;
     return name.replace('[--env--]', CenvFiles.ENVIRONMENT).replace('[--accountId--]', CenvFiles.AWS_ACCOUNT_ID);
-  };
-  public static get DESCRIPTION(): string { return 'environment specific global variables file' };
+  }
+  public static get DESCRIPTION(): string { return 'environment specific global variables file' }
 
   public static get SCHEMA(): any  {
     return {
@@ -302,9 +302,9 @@ export class GlobalEnvVarsFile extends File {
         type: "string"
       },
     }
-  };
+  }
 
-  public static save(data: any, silent: boolean = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
+  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
     let merged = data;
     if (existsSync(this.PATH)) {
       const globalData = super.read(this.PATH, this.SCHEMA, false);
@@ -330,7 +330,7 @@ export interface CleanCommandOptions extends BaseCommandOptions {
 }
 
 export class CenvFiles {
-  private static path: string = './.cenv/'
+  private static path = './.cenv/'
   public static get PATH(): any { return this.path; }
   public static set PATH(path: string ) { this.path = path; }
 
@@ -368,7 +368,7 @@ export class CenvFiles {
     this.Load();
   }
 
-  private static async LoadVars(decrypted: boolean = true) {
+  private static async LoadVars(decrypted = true) {
     const appData = File.read(AppVarsFile.PATH, AppVarsFile.SCHEMA, true) as AppVars;
     const envVarTemplate = File.read(EnvVarsFile.TEMPLATE_PATH, EnvVarsFile.SCHEMA, true) as VarList;
     this.EnvVars = File.read(EnvVarsFile.PATH, EnvVarsFile.SCHEMA, true) as VarList;
@@ -419,7 +419,7 @@ export class CenvFiles {
   private static async DecryptVarsBase(rootPath, vars) {
     if (!vars) return undefined;
     const newVars: VarList = {};
-    for (let [key, value] of Object.entries<string>(vars)) {
+    for (const [key, value] of Object.entries<string>(vars)) {
       const newKey = envVarToKey(key);
 
       newVars[key] = value;
@@ -497,7 +497,7 @@ export class CenvFiles {
       ApplicationName: config.ApplicationName,
       EnvironmentName: config.EnvironmentName,
     };
-    CenvFiles.ENVIRONMENT = config.EnvironmentName;;
+    CenvFiles.ENVIRONMENT = config.EnvironmentName;
     //SettingsFile.save(this.Settings);
     EnvConfigFile.save(this.EnvConfig);
   }
@@ -616,7 +616,7 @@ export class CenvFiles {
 
   public static async decodeParameter(paramName: string, paramValue: string, paramType: string, rootPath: string): Promise<{[x: string]: IParameter}> {
 
-    let param: IParameter = { Value: paramValue, Type: 'String', ParamType: paramType, Name: paramName };
+    const param: IParameter = { Value: paramValue, Type: 'String', ParamType: paramType, Name: paramName };
     return { [`${rootPath}/${paramName}`]: param };
   }
 

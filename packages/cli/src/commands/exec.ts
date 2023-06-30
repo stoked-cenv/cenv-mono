@@ -8,13 +8,13 @@ import {
   startCenv,
   ClientMode,
   BaseCommandOptions,
-  Package
+  Package, CenvFiles
 } from '@stoked-cenv/cenv-lib';
 import { BaseCommand } from './base'
 
 
 interface ExecCommandOptions extends BaseCommandOptions {
-  application?: string;
+  module?: string;
   doubleDash?: string;
 }
 
@@ -40,10 +40,10 @@ export default class ExecCommand extends BaseCommand {
   }
 
   @Option({
-    flags: '-a, --application [application]',
-    description: 'Cenv application to run the command on',
+    flags: '-m, --module [application]',
+    description: 'Provide the module directory to run the command from',
   })
-  parseApplication(val: string): string {
+  parseModule(val: string): string {
     return val;
   }
 
@@ -67,7 +67,17 @@ export default class ExecCommand extends BaseCommand {
         if (relative !== '') {
           process.chdir(path.relative(process.cwd(), pkgPath));
         }
-        vars = await startCenv(ClientMode.REMOTE_ON_STARTUP);
+        const config = CenvFiles.GetConfig();
+        if (config) {
+          vars = await startCenv(ClientMode.REMOTE_ON_STARTUP);
+        }
+        options.module = options.module?.toLowerCase();
+        if (options.module && p[options.module]) {
+          const modulePath = path.relative(process.cwd(), p[options.module].path);
+          if (modulePath !== process.cwd()) {
+            process.chdir(path.relative(process.cwd(), p[options.module].path));
+          }
+        }
         await spawnCmd('./', params.join(' '), params.join(' '), { envVars: vars }, p);
       }));
     } catch (e) {

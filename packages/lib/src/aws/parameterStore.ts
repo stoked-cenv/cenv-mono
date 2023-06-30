@@ -106,7 +106,8 @@ export async function getParametersByPath(path, decrypted = false)  {
       const remainingRequests = await ssmLimiter.removeTokens(1);
       const response = await getClient().send(command);
       await Promise.all(response.Parameters.map(async (param) =>  {
-        let { Name, Value, Type } = param;
+        const { Name, Type } = param;
+        let Value = param.Value;
         if (decrypted && isEncrypted(Value)) {
           Value = Value.replace(/^--(ENC)=/, '');
           if (Value !== 'undefined') {
@@ -194,8 +195,8 @@ export async function deleteParameters(Names: string[]) {
   }
 }
 
-export async function deleteParametersByPath(path: string, outputPrefix: string = '', packageName: string = undefined) {
-  let nextToken = null;
+export async function deleteParametersByPath(path: string, outputPrefix = '', packageName: string = undefined) {
+  const nextToken = null;
   let total = 0;
   const parametersToDelete = await getParametersByPath(path, false);
   total += Object.keys(parametersToDelete).length;
@@ -211,7 +212,7 @@ export async function deleteParametersByPath(path: string, outputPrefix: string 
 
 export function envVarToKey(envVar: string) {
   let key = envVar.toLowerCase().replace(/\-[a-z]*/g, (match) => {
-    let re = match.replace('-','_')
+    const re = match.replace('-','_')
     return  re[0].toUpperCase() + re.slice(1);
   });
   key = key.replace(/\_[a-z]/g, (match) => {
@@ -248,13 +249,13 @@ export async function getVarsByType(type, path, decrypted) {
   return convertToEnvVar(type, params, path);
 }
 
-export async function listParameters(config, decrypted, allGlobals: boolean = false, allGlobalEnvs: boolean = false) : Promise<any> {
+export async function listParameters(config, decrypted, allGlobals = false, allGlobalEnvs = false) : Promise<any> {
   try {
     const roots = CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName);
     const appVars = await getVarsByType('app', roots.app, decrypted);
     const environmentVars = await getVarsByType('environment', roots.environment, decrypted);
 
-    let res: any = {
+    const res: any = {
       app: appVars,
       environment: environmentVars,
       global: {},

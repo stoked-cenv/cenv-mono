@@ -2,10 +2,12 @@ import {
   CloudFormationClient,
   ListStacksCommand,
   DescribeStacksCommand,
-  ListExportsCommand
+  ListExportsCommand,
+  CancelUpdateStackCommand
 } from '@aws-sdk/client-cloudformation';
 
 import { CenvLog, errorBold } from '../log';
+import {Package} from "../package/package";
 
 let _client: CloudFormationClient = null;
 
@@ -39,7 +41,7 @@ export async function listStacks(StackStatusFilter: string[]) {
   }
 }
 
-export async function describeStacks(stackName: string, silent: boolean = false) {
+export async function describeStacks(stackName: string, silent = false) {
   try {
     let cmd = new DescribeStacksCommand({StackName: stackName});
     let res = await getClient().send(cmd);
@@ -72,6 +74,17 @@ export async function listExports() {
     CenvLog.single.errorLog(`list exports failed: ${errorBold(e.message)}, ${e}`)
   }
 }
+
+export async function cancelUpdateStack(StackName: string) {
+  try {
+    const cmd = new CancelUpdateStackCommand({ StackName });
+    const res= await getClient().send(cmd);
+    Package.cache[StackName]?.info(JSON.stringify(res.$metadata));
+  } catch (e) {
+    CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`)
+  }
+}
+
 
 export async function getExportValue(exportName, silent = false): Promise<string | false> {
   let exports = await listExports();

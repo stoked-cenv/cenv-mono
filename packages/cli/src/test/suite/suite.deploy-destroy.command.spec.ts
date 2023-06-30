@@ -56,7 +56,7 @@ describe('deploy / destroy suite', () => {
     new Suite(suiteName);
     await Package.checkStatus();
     const packages = Package.getPackages()
-    const notCorrect = packages.filter(p => p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED).map(p => p.packageName);;
+    const notCorrect = packages.filter(p => p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED).map(p => p.packageName);
     expect(notCorrect.join(', ')).toBe('');
   }, hour);
 

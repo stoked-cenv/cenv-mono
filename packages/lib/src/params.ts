@@ -84,14 +84,6 @@ export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => 
 
 export class CenvParams {
 
-  static dashboard = null;
-  static runningProcesses: { [stackName: string]: { cmd: string, proc: child_process.ChildProcess }} = {};
-  static dashboardCreator: DashboardCreator;
-  static dashboardCreateOptions: DashboardCreateOptions;
-  static addSpawnedProcess(stackName, cmd, proc) {
-    CenvParams.runningProcesses[stackName] = { cmd, proc };
-  }
-
   static async removeParameters(params, options, types) {
     const { cenvPackage, paramData, rootPaths, inCenvRoot } = await this.buildDataRemoveLinks(params, options, types);
     await CenvParams.removeParameter(params, options, paramData, rootPaths, inCenvRoot, cenvPackage);
@@ -283,42 +275,7 @@ export class CenvParams {
     }
   }
 
-  static async cmdInit(options): Promise<void> {
-    try {
-      if (options?.logLevel) {
-        options.logLevel = options.logLevel.toUpperCase();
-        process.env.CENV_LOG_LEVEL = LogLevel[options.logLevel.toUpperCase()];
-        CenvLog.logLevel = LogLevel[options.logLevel.toUpperCase()];
-        CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
-      } else {
-        process.env.CENV_LOG_LEVEL = LogLevel.INFO
-        CenvLog.logLevel = LogLevel.INFO;
-      }
-
-      const monoRoot = getMonoRoot();
-      if (path.resolve(process.cwd()) === path.resolve(monoRoot)) {
-        options.root = true;
-      }
-      const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
-      if (existsSync(cenvConfigPath)) {
-        const cenvConfig = require(cenvConfigPath);
-        const globalPackage = cenvConfig.global
-        Package.defaultSuite = cenvConfig.defaultSuite;
-        Package.scopeName = cenvConfig.scopeName;
-        Package.suites = cenvConfig.suites;
-        const packageGlobalPath = packagePath(globalPackage);
-        if (packageGlobalPath) {
-          CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
-        }
-      } else {
-        CenvLog.single.catchLog(new Error('could not load the global package from the "global" property in the root cenv.json file'))
-      }
-    } catch (e) {
-      CenvLog.single.catchLog(e);
-    }
-  }
-
-  static async getContext() {
+  static async getParamsContext() {
     const packageName = Package.getPackageName();
     const pkg = await Package.fromPackageName(packageName);
     if (pkg.params?.hasCenvVars) {
