@@ -2,7 +2,7 @@
 <a href="http://stokedconsulting.com/" target="blank">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./sc-logo.white.png">
-  <img alt="Text changing depending on mode. Light: 'So light!' Dark: 'So dark!'" src="./sc-logo.png">
+  <img width="200" alt="STOKED" src="./sc-logo.png">
 </picture>
 </a>
 </p>
