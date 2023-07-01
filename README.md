@@ -1,8 +1,8 @@
 <p align="center">
 <a href="http://poweredbyelevation.com/" target="blank">
-![Elevation Logo](https://github.com/stoked-cenv/cenv-mono/blob/main/elevation.png?raw=true#gh-dark-mode-only)
+![Elevation Logo](https://raw.githubusercontent.com/stoked-cenv/cenv-mono/main/elevation.png?raw=true#gh-dark-mode-only)
 
-![Elevation Logo](https://github.com/stoked-cenv/cenv-mono/blob/main/elevation.white.png?raw=true#gh-light-mode-only)
+![Elevation Logo](https://raw.githubusercontent.com/stoked-cenv/cenv-mono/main/elevation.white.png?raw=true#gh-light-mode-only)
 </a>
 </p>
 
