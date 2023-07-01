@@ -2758,7 +2758,7 @@
     tslib "^2.5.0"
 
 "@stoked-cenv/cli@file:/Users/stoked/code/mono/packages/cli":
-  version "0.2.0-a.3"
+  version "0.2.0-a.4"
   resolved "file:packages/cli"
   dependencies:
     "@nestjs/common" "^9.1.6"
