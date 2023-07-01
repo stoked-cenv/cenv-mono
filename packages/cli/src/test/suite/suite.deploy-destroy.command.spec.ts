@@ -25,7 +25,7 @@ describe('deploy / destroy suite', () => {
   });
 
   const suiteName = 'curb-cloud'
-  CenvFiles.GlobalPath = path.join(packagePath('@stoked-cenv/cenv-globals'), CenvFiles.PATH);
+  CenvFiles.GlobalPath = path.join(packagePath('@stoked-cenv/globals'), CenvFiles.PATH);
 
   const spawnSpy = jest.spyOn(global.console, 'log');
   const spawnSpy1 = jest.spyOn(global.console, 'error');

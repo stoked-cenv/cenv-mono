@@ -24,6 +24,16 @@ import chalk, {ChalkFunction} from 'chalk';
 import { isFunction } from "lodash";
 import {HelpUI} from "./help";
 
+interface PkgInfo {
+  stackName: string,
+  processStatus: ProcessStatus;
+  environmentStatus: EnvironmentStatus;
+  timer: string;
+  type: string;
+  statusTime: number;
+  version: string;
+}
+
 export enum DashboardMode {
   MIXED = 'MIXED',
   WIDE_CMD_FIRST = 'WIDE_CMD_FIRST',
@@ -1409,14 +1419,15 @@ export class Dashboard {
       processStatus = ProcessStatus.STATUS_CHK;
     }
 
-    let packages: any = Object.values(Package.cache)
+
+    let packages: PkgInfo[] = Object.values(Package.cache)
       .filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
       .map((p: Package) => {
         if (p.isGlobal) {
           return {
             stackName: p.stackName,
             processStatus: processStatus,
-            environmentStatus: envStatus || 'NONE',
+            environmentStatus: envStatus,
             timer: p.timer.elapsed,
             type: '-----',
             statusTime: p.statusTime,
@@ -1431,25 +1442,25 @@ export class Dashboard {
           timer: p.timer.elapsed,
           type: p.type,
           statusTime: p.statusTime,
-          version: p.rollupVersion,
+          version: `${p.meta.version}`,
         };
       });
 
     const environmentOrder = Object.values(EnvironmentStatus);
     const deploymentOrder = Object.values(ProcessStatus);
-    const global = packages.filter((p: Package) => p.stackName === 'GLOBAL')[0];
+    const global = packages.filter((p: PkgInfo) => p.stackName === 'GLOBAL')[0];
     packages = packages
-      .filter((p: Package) => p.stackName !== 'GLOBAL')
-      .sort((a: Package, b: Package) => (a?.statusTime < b?.statusTime ? 1 : -1))
-      .sort((a: Package, b: Package) =>
+      .filter((p: PkgInfo) => p.stackName !== 'GLOBAL')
+      .sort((a: PkgInfo, b: PkgInfo) => (a?.statusTime < b?.statusTime ? 1 : -1))
+      .sort((a: PkgInfo, b: PkgInfo) =>
           environmentOrder.indexOf(a.environmentStatus) - environmentOrder.indexOf(b.environmentStatus))
-      .sort((a: Package, b: Package) =>
+      .sort((a: PkgInfo, b: PkgInfo) =>
           deploymentOrder.indexOf(a.processStatus) - deploymentOrder.indexOf(b.processStatus));
     packages.unshift(global)
     return packages;
   }
 
-  async getUpdateData(packages: Package[]) {
+  async getUpdateData(packages: PkgInfo[]) {
     try {
       let complete = true;
       let hasNonGlobals = false;
@@ -1476,21 +1487,22 @@ export class Dashboard {
               this.tableHeaders[this.columnPriority[j]];
           }
         }
-        const pkg: Package = packages[i];
+        const pkg: PkgInfo = packages[i];
         if (
           pkg.stackName === Dashboard.stackName &&
           this.selectedRowIndex !== i
         ) {
           selectedPos = i;
         }
-        if (!pkg.isGlobal) {
+        const global = pkg.stackName === 'GLOBAL';
+        if (!global) {
           hasNonGlobals = true;
         }
         const isHoverRow = i === this.hoverRowIndex;
         const isSelectedRow = i === this.selectedRowIndex;
         const envColor = this.getStatusColor(pkg.environmentStatus, isHoverRow) as ChalkFunction;
         const processColor = this.getStatusColor(pkg.processStatus, isHoverRow) as ChalkFunction;
-        if (!pkg.isGlobal) {
+        if (!global) {
           complete = false;
         }
 
@@ -1522,7 +1534,7 @@ export class Dashboard {
           rowColor = chalk.rgb(rowColor[0], rowColor[1], rowColor[2])
         }
         row.push(rowColor(pkg.stackName));
-        row.push(rowColor(pkg.isGlobal ? '-----' : pkg.rollupVersion));
+        row.push(rowColor(global ? '-----' : pkg.version));
         row.push(rowColor(pkg.type));
         row.push(rowColor(pkg.processStatus));
         row.push(rowColor(pkg.environmentStatus));

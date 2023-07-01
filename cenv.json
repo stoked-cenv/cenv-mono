@@ -1,5 +1,5 @@
 {
-  "global": "@stoked-cenv/cenv-globals",
+  "global": "@stoked-cenv/globals",
   "defaultSuite": "cenv",
   "scopeName": "@stoked-cenv",
   "suites": {
@@ -7,7 +7,7 @@
       "packages": [
         "@stoked-cenv/ui",
         "@stoked-cenv/lib",
-        "@stoked-cenv/cenv-params",
+        "@stoked-cenv/params",
         "@stoked-cenv/cli"
       ]
     }

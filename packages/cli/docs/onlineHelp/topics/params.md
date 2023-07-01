@@ -61,7 +61,7 @@ dev application configuration parameters are up to date
 {
   ...
   "dependencies": {
-    "@stoked-cenv/lib": "*",
+    "@stoked-cenv/lib": "^0.2.0-a.3",
   }
   ...
 }

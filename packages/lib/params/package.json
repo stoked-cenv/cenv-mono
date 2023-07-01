@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/params",
-  "version": "0.2.0-a.0",
+  "version": "0.2.0-a.3",
   "private": true,
   "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
   "main": "index.js",

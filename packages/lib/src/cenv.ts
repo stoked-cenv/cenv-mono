@@ -481,7 +481,7 @@ export class Cenv {
     }
   }
 
-  static materializationPkg = '@stoked-cenv/cenv-params';
+  static materializationPkg = '@stoked-cenv/params';
 
   static roleName = 'LambdaConfigRole';
   static policySsmFullAccessArn = 'arn:aws:iam::aws:policy/AmazonSSMFullAccess';

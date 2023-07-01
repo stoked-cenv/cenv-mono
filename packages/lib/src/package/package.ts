@@ -651,16 +651,17 @@ export class Package implements IPackage {
     return this.stack && options?.stack && (!options?.strictVersions || !this.stack.upToDate())
   }
   async destroy (deployOptions: any) {
-    if (this.isParamDeploy(deployOptions)) {
-      await this.params.destroy();
+
+    if (this.isStackDeploy(deployOptions)) {
+      await this.stack.destroy();
     }
 
     if (this.isDockerDeploy(deployOptions)) {
       await this.docker.destroy();
     }
 
-    if (this.isStackDeploy(deployOptions)) {
-      await this.stack.destroy();
+    if (this.isParamDeploy(deployOptions)) {
+      await this.params.destroy();
     }
   }
 
@@ -1474,7 +1475,7 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
   ) {
     try {
       const pkgCmd = !options.silent ? this.createCmd(cmd) : undefined;
-
+      options.pkgCmd = pkgCmd;
       if (commandEvents?.preCommandFunc) {
         await commandEvents.preCommandFunc();
       }
@@ -1504,7 +1505,7 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
         await commandEvents.postCommandFunc();
       }
 
-      pkgCmd.result(res, 'derp');
+      pkgCmd.result(res);
       return res;
     } catch (e) {
       this.err(e || e.stack);
