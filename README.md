@@ -1,7 +1,9 @@
 <p align="center">
 <a href="http://stokedconsulting.com/" target="blank">
-![Stoked Consulting](./sc-logo.png#gh-dark-mode-only)
-![Stoked Consulting](./sc-logo.white.png#gh-light-mode-only)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./sc-logo.white.png">
+  <img alt="Text changing depending on mode. Light: 'So light!' Dark: 'So dark!'" src="./sc-logo.png">
+</picture>
 </a>
 </p>
 
