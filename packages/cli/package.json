@@ -13,6 +13,7 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "npm run lint -- --fix",
     "build": "npm run unlink && tsc && npm link",
+    "push": "npm publish --access public",
     "unlink": "npm unlink @stoked-cenv/cli -g",
     "package": "tsc && webpack --config webpack.config.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
