@@ -51,15 +51,15 @@ export class Version {
   }
 
   static get bumpType() {
-    const keys = Object.keys(BumpType)
-    const type = BumpType[keys[this.typeKey]];
+    const keys: string[] = Object.keys(BumpType)
+    const type: BumpType = BumpType[keys[this.typeKey] as BumpType];
     process.env[bumpTypeID] = type;
     return type;
   }
 
   static get bumpMode() {
     const keys = Object.keys(BumpMode)
-    const mode = BumpMode[keys[this.modeKey]];
+    const mode = BumpMode[keys[this.modeKey] as BumpMode];
     process.env[bumpModeID] = mode;
     return mode;
   }
@@ -91,10 +91,10 @@ export class Version {
 
     const typeKeys = Object.keys(BumpType);
     this.typeKey = this.typeKey + 1 === typeKeys.length ? 1 : this.typeKey + 1;
-    let next = BumpType[typeKeys[this.typeKey]];
+    let next = BumpType[typeKeys[this.typeKey] as BumpType];
     if (next === BumpType.FINALIZE_PRERELEASE && this.bumpMode.indexOf('PRERELEASE') === -1) {
       this.typeKey = 0;
-      next = BumpType[typeKeys[this.typeKey]];
+      next = BumpType[typeKeys[this.typeKey] as BumpType];
     }
     return this.textOutput(next);
   }
@@ -102,10 +102,10 @@ export class Version {
   static get nextBumpMode() {
     const modeKeys = Object.keys(BumpMode);
     this.modeKey = this.modeKey + 1 === modeKeys.length ? 0 : this.modeKey + 1;
-    let next = BumpMode[modeKeys[this.modeKey]];
+    let next = BumpMode[modeKeys[this.modeKey] as BumpMode];
     if (next.indexOf('PRERELEASE') === -1 && this.bumpType === BumpType.FINALIZE_PRERELEASE) {
       this.modeKey = 0;
-      next = BumpMode[modeKeys[this.modeKey]];
+      next = BumpMode[modeKeys[this.modeKey] as BumpMode];
     }
     if(this.bumpType === BumpType.DISABLED) {
       this.setBumpType(BumpType.BUMP);
@@ -113,10 +113,10 @@ export class Version {
     return this.textOutput(next);
   }
 
-  static async Bump(packages, type) {
+  static async Bump(packages: any, type: string) {
     try {
       CenvLog.single.infoLog(`bump ${packages.length} potential packages: ${type}`)
-      await Promise.all(packages.filter(p => !p.isGlobal).map(async (p: Package) => await p.bump(type)));
+      await Promise.all(packages.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.bump(type)));
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
@@ -150,8 +150,8 @@ export class Version {
 
   static async Upgrade(currentVersion: semver.SemVer, previousVersion: semver.SemVer, profile = 'default') {
     await configure({ profile });
-    CenvLog.info(
-      `upgrading from ${previousVersion.toString()} to ${currentVersion.toString()}`,
+    CenvLog.single.infoLog(
+      `upgrading from ${previousVersion.toString()} to ${currentVersion.toString()}`, 'GLOBAL'
     );
     if (semver.lt(previousVersion.toString(), '1.0.0')) {
       const monoRoot = getMonoRoot();
@@ -159,7 +159,7 @@ export class Version {
         excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
         startsWith: true,
       });
-      const newDirs = {};
+      const newDirs: any = {};
       for (let i = 0; i < search.length; i++) {
         const file = search[i];
         const fileParts = path.parse(file);

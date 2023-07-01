@@ -16,6 +16,7 @@ import { inputArgsToEnvVars, isLocalStackRunning } from './utils';
 import { getKey } from './aws/kms';
 import { listHostedZones } from './aws/route53';
 import { getExportValue } from './aws/cloudformation';
+import {EnvConfig} from "./file";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 
 export async function readAsync(prompt: string, defaultValue: string): Promise<string> {
@@ -26,7 +27,7 @@ export async function readAsync(prompt: string, defaultValue: string): Promise<s
     CenvLog.single.errorLog(`readAsync error:\n ${e}\nError: ${e.message}`);
   }
 }
-function cleanString(input) {
+function cleanString(input: string) {
   return input.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '')
 }
 export async function ioReadVar(prompt: string, varValue: string, defaultValue: string, defaults = false, protectedMode = false): Promise<string> {
@@ -45,7 +46,7 @@ export async function ioReadVar(prompt: string, varValue: string, defaultValue: 
   return cleanString(varValue);
 }
 
-export async function ioAppEnv(config, application, environment, overwrite = false, defaults = false) {
+export async function ioAppEnv(config: any, application: any, environment: any, overwrite = false, defaults = false) {
   if (config?.ConfigurationId && !overwrite) {
     CenvLog.single.errorLog(
       `This application is already initialized. Run "${errorBold('cenv init --force')}" to reset the application to start from scratch.`,
@@ -101,7 +102,7 @@ async function getAccountInfo() {
   if (!accountId) {
     return false;
   }
-  const args = {};
+  const args: any = {};
   process.env['CDK_DEFAULT_ACCOUNT'] = accountId;
   args['CDK_DEFAULT_ACCOUNT'] = accountId;
   process.env['AWS_ACCOUNT_USER'] = callerIdentity.User;

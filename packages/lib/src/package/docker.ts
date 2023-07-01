@@ -59,7 +59,7 @@ export class DockerModule extends PackageModule {
     while (!digestFound) {
       attempts++;
       await sleep(attemptWaitSeconds);
-      if (await hasTag(this.dockerName, this.pkg.rollupVersion, this.digest)) {
+      if (await hasTag(this.dockerName, this.pkg.rollupVersion.toString(), this.digest)) {
         digestFound = true;
         this.info(`digest (${this.digest}) push verified`);
       }
@@ -90,7 +90,7 @@ export class DockerModule extends PackageModule {
     await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, {}, commandEvents);
   }
 
-  async build(args, cmdOptions: any = { build: true, push: true, dependencies: false}): Promise<number> {
+  async build(args: any, cmdOptions: any = { build: true, push: true, dependencies: false}): Promise<number> {
     const { build, push, dependencies } = cmdOptions;
 
     if (dependencies) {
@@ -103,15 +103,15 @@ export class DockerModule extends PackageModule {
     }
 
     const buildTitle = 'DockerBuild ' + this.pkg.packageName;
-    if (!this.build[buildTitle]) {
-      this.build[buildTitle] = 0;
+    if (!DockerModule.build[buildTitle]) {
+      DockerModule.build[buildTitle] = 0;
     }
-    this.build[buildTitle]++;
+    DockerModule.build[buildTitle]++;
 
     const exists = await repositoryExists(this.dockerName);
     if (!exists) {
       await createRepository(this.dockerName);
-    } else if (cmdOptions?.strictVersions && await hasTag(this.dockerName, this.pkg.rollupVersion)) {
+    } else if (cmdOptions?.strictVersions && await hasTag(this.dockerName, this.pkg.rollupVersion.toString())) {
       return;
     }
 

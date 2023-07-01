@@ -97,9 +97,9 @@ export class File {
     return undefined;
   }
 
-  static sortObjectKeys(data) {
+  static sortObjectKeys(data: Record<string, any>) {
     const sortedKeys = Object.keys(data).filter(k => k !== 'global' && k !== 'globalEnv').sort();
-    const sortedObject = {};
+    const sortedObject: any = {};
     sortedKeys.forEach(k => sortedObject[k] = data[k]);
     return sortedObject;
   }
@@ -127,7 +127,7 @@ export class File {
     unlinkSync(join(cenvRoot, name));
   }
 
-  protected static printErrors(errors, name, description, data, path) {
+  protected static printErrors(errors: any, name: string, description: string, data: any, path: string) {
     const typeTitle = description.toLowerCase().split(' ').map((word) => {
       return word.charAt(0).toUpperCase() + word.slice(1);
     }).join(' ');
@@ -375,7 +375,7 @@ export class CenvFiles {
     this.EnvVars = { ...envVarTemplate, ...this.EnvVars };
     const allGlobals = File.read(GlobalVarsFile.PATH, GlobalVarsFile.SCHEMA, true) as VarList;
     const allGlobalEnvVars = File.read(GlobalEnvVarsFile.PATH, GlobalEnvVarsFile.SCHEMA, true) as VarList;
-    const globals = {};
+    const globals: any = {};
 
     if (appData?.global) {
       for (let i = 0; i < appData.global?.length; i++) {
@@ -387,7 +387,7 @@ export class CenvFiles {
       delete appData.global;
     }
 
-    const globalEnvs = {};
+    const globalEnvs: any = {};
     if (appData?.globalEnv) {
       for (let i = 0; i < appData.globalEnv?.length; i++) {
         const globalEnvVar = appData.globalEnv[i];
@@ -416,7 +416,7 @@ export class CenvFiles {
     return this.EnvConfig;
   }
 
-  private static async DecryptVarsBase(rootPath, vars) {
+  private static async DecryptVarsBase(rootPath: string, vars: any) {
     if (!vars) return undefined;
     const newVars: VarList = {};
     for (const [key, value] of Object.entries<string>(vars)) {
@@ -540,7 +540,7 @@ export class CenvFiles {
     }
   }
 
-  private static getLocalCenvFiles(startPath: string = cenvRoot, environment = undefined) {
+  private static getLocalCenvFiles(startPath: string = cenvRoot, environment: string = undefined) {
 
     const config = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})\.config$`) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, null);
     const envVars = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})$`) : /^\.cenv\.[a-zA-Z0-9]*$/, null);
@@ -621,7 +621,7 @@ export class CenvFiles {
   }
 
   private static encodeParameters(parameters: Parameters) {
-    const result = {};
+    const result: any = {};
     if (parameters) {
       for (const [key, value] of Object.entries(parameters)) {
         result[key] = this.encodeParameter(value);
@@ -640,5 +640,5 @@ export class CenvFiles {
     };
   }
 
-  public static GlobalPath = undefined;
+  public static GlobalPath: string = undefined;
 }

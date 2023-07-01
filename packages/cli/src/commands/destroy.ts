@@ -1,5 +1,5 @@
 import { Command, Option } from 'nest-commander';
-import { Dashboard,  } from '@stoked-cenv/cenv-ui';
+import { Dashboard,  } from '@stoked-cenv/ui';
 import {
   Package,
   CenvLog,
@@ -10,7 +10,7 @@ import {
   DestroyCommandOptions,
   Cenv,
   ParamsModule
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 import { BaseCommand } from './base';
 
 @Command({

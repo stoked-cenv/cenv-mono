@@ -5,7 +5,7 @@ import AddCommand from '../../commands/add';
 import BuildCommand from '../../commands/build';
 import ParamsCommand from '../../commands/params'
 import { CommandTestFactory } from 'nest-commander-testing';
-import { CenvFiles, EnvironmentStatus, Package, packagePath, Suite } from '@stoked-cenv/cenv-lib';
+import { CenvFiles, EnvironmentStatus, Package, packagePath, Suite } from '@stoked-cenv/lib';
 import { beforeAll, expect, it, jest, test } from '@jest/globals';
 import path from 'path';
 

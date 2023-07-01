@@ -1,1 +1,1 @@
-import { errorInfo, variableTypes } from '@stoked-cenv/cenv-lib';
+import { errorInfo, variableTypes } from '@stoked-cenv/lib';

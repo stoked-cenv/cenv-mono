@@ -9,10 +9,9 @@ import {
   variableTypes, getConfig,
   Cenv,
   validateCount, ParamsCommandOptions
-} from '@stoked-cenv/cenv-lib'
+} from '@stoked-cenv/lib'
 
 import { BaseCommand } from './base'
-
 
 enum ParamCommands {
   init = 'init',
@@ -95,7 +94,7 @@ export default class ParamsCommand extends BaseCommand {
   @Option({
     name: 'decrypted',
     flags: '-de, --decrypted',
-    description: 'Display decrypted values on SecureString types.',
+    description: 'Display decrypted values on SecureString blessed.',
   })
   parseEncrypted(val: boolean): boolean {
     return val;
@@ -156,7 +155,7 @@ export default class ParamsCommand extends BaseCommand {
     return val;
   }
 
-  async callBase(options, type, pkg) {
+  async callBase(options: any, type: string, pkg: Package) {
     let config: any = CenvFiles.GetConfig();
     if (!config) {
       if (options.pkgCount === 1) {
@@ -192,7 +191,9 @@ export default class ParamsCommand extends BaseCommand {
         // sort command order
         params = Array.from(commandSet)
         const commandOrder = Object.values(ParamCommands);
-        params = params.sort((a, b) => commandOrder.indexOf(ParamCommands[a]) - commandOrder.indexOf(ParamCommands[b]))
+        params = params.sort((a: string, b: string) => {
+          return commandOrder.indexOf( Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf( Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)])
+        });
 
         if (params.length > 3) {
           CenvLog.single.errorLog(`The cenv params command does not accept more than one additional argument. The following additional arguments were supplied in error: ${params.join(', ')}`)

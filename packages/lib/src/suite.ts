@@ -8,7 +8,7 @@ export class Suites {
   static data: any;
   static cache: Suite[] = [];
 
-  static hasPackage(packageName) : string[] {
+  static hasPackage(packageName: string) : string[] {
     const suitesJson = Suite.readSuites();
     if (Object.keys(suitesJson)?.length) {
       const suites = Object.keys(suitesJson).filter(k => {
@@ -26,7 +26,7 @@ export class Suite {
   packageNames: string[];
   environment: Environment = undefined;
 
-  constructor(name) {
+  constructor(name: string) {
     this.name = name;
     const suite = Suite.getSuite(name);
     this.packageNames = suite.packages;
@@ -36,7 +36,7 @@ export class Suite {
       });
     }
   }
-  static load(name) {
+  static load(name: any) {
     if (Suites.cache[name]) {
       return Suites.cache[name]
     }
@@ -66,11 +66,11 @@ export class Suite {
     return { deployed, undeployed };
   }
 
-  static isSuite(suite) {
+  static isSuite(suite: string) {
     return !!this.getSuite(suite);
   }
 
-  static getSuite(suite): any {
+  static getSuite(suite: string): any {
     Suites.data = Package.suites;
     if (Suites.data)
       return Suites.data[suite];

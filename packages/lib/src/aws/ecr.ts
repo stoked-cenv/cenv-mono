@@ -24,7 +24,7 @@ function getClient() {
   return _client;
 }
 
-export async function createRepository(repositoryName) {
+export async function createRepository(repositoryName: string) {
   try {
     const cmd = new CreateRepositoryCommand({repositoryName});
     const res = await getClient().send(cmd);
@@ -37,7 +37,7 @@ export async function createRepository(repositoryName) {
   return false;
 }
 
-export async function listImages(repositoryName) {
+export async function listImages(repositoryName: string) {
   try {
     const cmd = new ListImagesCommand({repositoryName});
     const res = await getClient().send(cmd);
@@ -50,7 +50,7 @@ export async function listImages(repositoryName) {
   return false;
 }
 
-export async function deleteImages(repositoryName, imageIds = undefined) {
+export async function deleteImages(repositoryName: string, imageIds: any = undefined) {
   try {
 
     if (!imageIds) {
@@ -68,7 +68,7 @@ export async function deleteImages(repositoryName, imageIds = undefined) {
   return false;
 }
 
-export async function deleteRepository(repositoryName, images = false) {
+export async function deleteRepository(repositoryName: string, images = false) {
   try {
     const exists = await repositoryExists(repositoryName);
     if (!exists) {
@@ -107,7 +107,7 @@ export async function describeRepositories(): Promise<Repository[] | false> {
   return false;
 }
 
-export async function getRepository(repositoryName): Promise<Repository | false> {
+export async function getRepository(repositoryName: string): Promise<Repository | false> {
   const repositories: any = await describeRepositories();
   if (!repositories)
     return false;
@@ -121,7 +121,7 @@ export async function getRepository(repositoryName): Promise<Repository | false>
   return false;
 }
 
-export async function repositoryExists(repositoryName) {
+export async function repositoryExists(repositoryName: string) {
   const repository = await getRepository(repositoryName);
   if (!repository)
     return false;
@@ -129,7 +129,7 @@ export async function repositoryExists(repositoryName) {
   return true;
 }
 
-export async function hasTag(repositoryName, tag, digest = undefined) {
+export async function hasTag(repositoryName: string, tag: string, digest: any = undefined) {
   const images = await listImages(repositoryName);
   if (!images) {
     return false;

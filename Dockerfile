@@ -6,5 +6,5 @@ WORKDIR /app
 COPY  . .
 RUN yarn install
 COPY ./lerna.json ./
-COPY ./tsconfig.base.json ./
+COPY tsconfig.base.json.old ./
 RUN yarn global add lerna

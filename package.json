@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "bootstrap": "lerna bootstrap",
+    "publish": "nx run-many --target=publish --all",
     "build": "nx run-many --target=build --all",
     "build:skip-cache": "nx run-many --target=build --all --skip-nx-cache",
     "lint": "nx run-many --target=lint --all",
@@ -50,5 +51,10 @@
       "packages/lib/params"
     ]
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "@typescript-eslint/parser": "^5.60.1",
+    "eslint": "^8.44.0"
+  }
 }

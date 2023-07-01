@@ -1,5 +1,5 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, Package, BaseCommandOptions, Version } from '@stoked-cenv/cenv-lib'
+import { CenvLog, Package, BaseCommandOptions, Version } from '@stoked-cenv/lib'
 import { BaseCommand } from './base'
 
 @Command({

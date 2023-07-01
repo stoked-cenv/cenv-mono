@@ -315,7 +315,7 @@ export class StackModule extends PackageModule {
     return items;
   }
 
-  getTag(tag, stackName = undefined): string | false {
+  getTag(tag: string, stackName: string = undefined): string | false {
     if (stackName) {
       const pkg = Package.getPackage(stackName)
       if (!pkg || !pkg.stack) {

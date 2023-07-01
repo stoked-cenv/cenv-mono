@@ -72,6 +72,7 @@ export class CenvLog {
     CenvLog.instance = this;
   }
 
+  /*
   static incrementColor() {
     this[this.colors[this.currentColor]] += 5;
     if (this[this.colors[this.currentColor]] > 255) {
@@ -87,8 +88,8 @@ export class CenvLog {
   static green = 255;
   static blue = 255;
 
-  static colors = ['red', 'green', 'blue'];
-  static currentColor = 0;
+  static colors: string[] = ['red', 'green', 'blue'];
+  static currentColor: number = 0;
 
   static getRgb() {
     return this.colors[this.currentColor];
@@ -101,7 +102,9 @@ export class CenvLog {
     }
   }
 
-  static colorType(type) {
+   */
+
+  static colorType(type: string) {
     switch(type) {
       case 'incomplete':
       return { bold: errorBold, color: errorInfo, highlight: chalk.hex('#FFAAAA') };
@@ -119,7 +122,7 @@ export class CenvLog {
     return this.instance;
   }
 
-  joinArray(strArray) {
+  joinArray(strArray: any) {
     return Array.isArray(strArray) ? strArray.join(' ') : strArray;
   }
 
@@ -243,7 +246,7 @@ export class CenvLog {
     return { color: set[0], dim: set[1], bold: set[2] }
   }
 
-  static actionLine(description, title: string = undefined, noun = undefined, colorSet: ColorSet = ColorSet.INFO) {
+  static actionLine(description: string, title: string = undefined, noun: string = undefined, colorSet: ColorSet = ColorSet.INFO) {
     const set = this.getColorSet(colorSet);
     const regex = /\[(.*?)\]/gm;
     let m;
@@ -260,7 +263,7 @@ export class CenvLog {
       title = `${set.color(title)}: `;
     }
 
-    if (noun.length) {
+    if (noun?.length) {
       noun = `[${set.dim(noun)}] `;
     } else {
       noun = '';
@@ -277,15 +280,15 @@ export class CenvLog {
     CenvLog.single?.mouth?.info(...text);
   }
 
-  static err(...text) {
+  static err(...text: string[]) {
     CenvLog.single?.mouth?.err(...text);
   }
 
-  static alert(...text) {
+  static alert(...text: string[]) {
     CenvLog.single?.mouth?.alert(...text);
   }
 
-  static std(...text) {
+  static std(...text: string[]) {
     CenvLog.single?.mouth?.std(...text);
   }
 }
@@ -302,7 +305,7 @@ export class Mouth {
       const parts = { title: text.pop(), description: text.join(' ') };
       return CenvLog.actionLine(parts.description, parts.title, this.noun || this.stackName, ColorSet.INFO)
     }
-    return CenvLog.actionLine(text[0],this.noun || this.stackName, ColorSet.INFO)
+    return CenvLog.actionLine(text[0],this.noun || this.stackName, undefined, ColorSet.INFO)
   }
   verbose(...text : string[]) {
     CenvLog.single.verboseLog(this.getAction(...text), this.stackName || this.noun);
@@ -310,21 +313,22 @@ export class Mouth {
   info(...text : string[]) {
     CenvLog.single.infoLog(this.getAction(...text), this.stackName || this.noun);
   }
-  err(...text) {
+  err(...text: string[]) {
     CenvLog.single.errorLog(this.getAction(...text), this.stackName || this.noun,true);
   }
-  alert(...text) {
+  alert(...text: string[]) {
     CenvLog.single.alertLog(this.getAction(...text), this.stackName || this.noun);
   }
-  std(...text) {
+  std(...text: string[]) {
     CenvLog.single.stdLog(this.getAction(...text), this.stackName || this.noun, true);
   }
 
-  stdPlain(...text) {
+  stdPlain(...text: string[]) {
     CenvLog.single.stdLog(text, this.stackName || this.noun);
   }
 }
 
+/*
 export class Logs {
   static err: string[] = [];
   static std: string[] = [];
@@ -340,3 +344,4 @@ export class Logs {
     arr.push(message.join(' '));
   }
 }
+*/

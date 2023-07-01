@@ -9,7 +9,7 @@ import {
   Cenv,
   DeployCommandOptions,
   Deployment,
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 import { BaseCommand } from './base';
 
 @Command({

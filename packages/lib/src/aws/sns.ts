@@ -23,7 +23,7 @@ function getClient() {
   return _client;
 }
 
-async function getTopicAttributes(topicArn) {
+async function getTopicAttributes(topicArn: string) {
   try {
     const cmd = new GetTopicAttributesCommand({
       TopicArn: topicArn,
@@ -47,7 +47,7 @@ async function listTopics() {
   }
 }
 
-export async function getTopicArn(topicName) {
+export async function getTopicArn(topicName: string) {
   const res = await listTopics();
   if (res && res.Topics) {
     for (let i = 0; i < res.Topics.length; i += 1) {

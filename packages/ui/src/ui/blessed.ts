@@ -1,19 +1,20 @@
 import blessed from 'blessed';
 import contrib from 'blessed-contrib';
 
-const blessedDeps = { dashboard: undefined, splitterOverride: null };
-let colorTimeout;
+
+const blessedDeps: { dashboard: Dashboard, splitterOverride: any } = { dashboard: undefined, splitterOverride: null };
+let colorTimeout: NodeJS.Timeout;
 const widgetSpacing = 0;
 
 function getBlessedDeps() {
   return blessedDeps;
 }
 
-blessed.List.prototype.move = async function (offset) {
+blessed.List.prototype.move = async function (offset: number) {
   this.select(this.selected + offset);
 };
 
-function MergeRecursive(obj1, obj2) {
+function MergeRecursive(obj1: any, obj2: any) {
   if (obj1 == null) {
     return obj2;
   }
@@ -38,7 +39,7 @@ function MergeRecursive(obj1, obj2) {
   return obj1;
 }
 
-contrib.grid.prototype.set = function (row, col, rowSpan, colSpan, obj, opts) {
+contrib.grid.prototype.set = function (row: number, col: number, rowSpan: number, colSpan: number, obj: any, opts: Record<string, any>) {
   if (obj instanceof contrib.grid) {
     throw (
       'Error: A Grid is not allowed to be nested inside another grid.\r\n' +
@@ -64,14 +65,17 @@ contrib.grid.prototype.set = function (row, col, rowSpan, colSpan, obj, opts) {
   return instance;
 };
 
-blessed.Element.prototype.enableDrag = function (verify) {
+blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean) {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
   const self = this;
 
   if (this._draggable) return true;
 
   if (typeof verify !== 'function') {
-    verify = function () {
+    verify = function (data: any) {
+      if (process.env.CENV_UI_DEBUG) {
+        Dashboard.debug(JSON.stringify(data, null, 2));
+      }
       return true;
     };
   }
@@ -80,7 +84,7 @@ blessed.Element.prototype.enableDrag = function (verify) {
 
   this.on(
     'mousedown',
-    (this._dragMD = function (data) {
+    (this._dragMD = function (data: any) {
       if (self.screen._dragging) return;
       if (!verify(data)) return;
       self.screen._dragging = self;
@@ -95,7 +99,7 @@ blessed.Element.prototype.enableDrag = function (verify) {
 
   this.onScreenEvent(
     'mouse',
-    (this._dragM = function (data) {
+    (this._dragM = function (data: any) {
       if (self.screen._dragging !== self){
         return;
       }
@@ -134,7 +138,7 @@ blessed.Element.prototype.enableDrag = function (verify) {
       }
 
       blessedDeps.dashboard.resizeWidgets();
-      blessedDeps.dashboard.render();
+      // blessedDeps.dashboard.render();
 
       const ox = self._drag.x,
         px = self.parent.aleft,
@@ -160,3 +164,4 @@ blessed.Element.prototype.enableDrag = function (verify) {
 
 export { blessed, getBlessedDeps };
 export { contrib };
+import { Dashboard } from './dashboard';

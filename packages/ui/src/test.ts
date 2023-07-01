@@ -1,8 +1,8 @@
-import { ClientMode, startCenv, PackageCmd, Package } from '@stoked-cenv/cenv-lib';
+import { ClientMode, startCenv, PackageCmd, Package } from '@stoked-cenv/lib';
 
 export class Test {
 
-  static async exec(ctx, test, options): Promise<PackageCmd> {
+  static async exec(ctx: any, test: any): Promise<PackageCmd> {
     if (Array.isArray(test)) {
       test = test[0];
     }

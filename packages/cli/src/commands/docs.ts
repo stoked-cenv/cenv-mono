@@ -1,6 +1,6 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { HelpUI } from '@stoked-cenv/cenv-ui';
-import { CenvLog } from '@stoked-cenv/cenv-lib';
+import { HelpUI } from '@stoked-cenv/ui';
+import { CenvLog } from '@stoked-cenv/lib';
 
 
 interface DocsCommandOptions {

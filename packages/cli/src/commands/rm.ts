@@ -11,7 +11,7 @@ import { deleteParameters,
   configure,
   variableTypes,
   filteredCount
-} from '@stoked-cenv/cenv-lib'
+} from '@stoked-cenv/lib'
 import { BaseCommand } from './base'
 
 interface RemoveCommandOptions extends BaseCommandOptions {
@@ -109,7 +109,7 @@ export default class RemoveCommand extends BaseCommand {
     return val;
   }
 
-  printRm(key, type) {
+  printRm(key: string, type: string) {
     info(
       'removing parameter ' + infoBold(key) + ' from ' + infoBold(type)
     )
@@ -129,7 +129,7 @@ export default class RemoveCommand extends BaseCommand {
 
       const types = filteredCount(Object.keys(options), variableTypes);
       if (types.length > 1) {
-        CenvLog.single.errorLog('You must specify zero or one parameter types: --app, --global, --global-env or --environment');
+        CenvLog.single.errorLog('You must specify zero or one parameter blessed: --app, --global, --global-env or --environment');
        return;
       }
 

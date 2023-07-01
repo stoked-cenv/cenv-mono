@@ -1,3 +1,5 @@
+
+// @ts-ignore
 import cron from "node-cron";
 import {
   AppConfigDataClient,
@@ -28,7 +30,7 @@ function getClient() {
   return _client;
 }
 
-export async function startSession (config) {
+export async function startSession (config: any) {
   const startConfigParams = {
     ApplicationIdentifier: config.ApplicationId,
     ConfigurationProfileIdentifier: config.ConfigurationProfileId,
@@ -64,9 +66,9 @@ export async function getLatestConfiguration (token: any, allValues?: boolean) {
   }
 }
 
-async function parseConfig(configInput, allValues?: boolean) {
+async function parseConfig(configInput: any, allValues?: boolean) {
   const ymlConfig = YAML.parse(configInput);
-  const updatedConfig = {};
+  const updatedConfig: any = {};
   const env: { [key: string]: string } = process.env;
   for (const [key, value] of Object.entries(ymlConfig)) {
     if ((env[key] != value as string && value !== undefined) || allValues) {
@@ -85,7 +87,7 @@ async function parseConfig(configInput, allValues?: boolean) {
   return updatedConfig;
 }
 
-async function getInitialConfigVars(config) {
+async function getInitialConfigVars(config: any) {
   const allValues = config.AllValues;
   delete config.AllValues;
   let token = await startSession(config);
@@ -126,7 +128,7 @@ function startConfigPolling(options: StartConfigPollingParams) {
   });
 }
 
-function displayConfigVars(title, configVars) {
+function displayConfigVars(title: string, configVars: any) {
   if (Object.keys(configVars).length === 0) {
     return;
   }
@@ -144,7 +146,7 @@ function displayConfigVars(title, configVars) {
   CenvLog.info('*******************************************************************');
 }
 
-export async function getDeployedVars(config, cronExpression = undefined, silent = false): Promise<any> {
+export async function getDeployedVars(config: any, cronExpression: string = undefined, silent = false): Promise<any> {
   const configVars = await getInitialConfigVars(config);
   if (configVars && !silent) {
     displayConfigVars('INITIAL CONFIG VARS', configVars);

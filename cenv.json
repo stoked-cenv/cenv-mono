@@ -5,10 +5,10 @@
   "suites": {
     "cenv": {
       "packages": [
-        "@stoked-cenv/cenv-ui",
-        "@stoked-cenv/cenv-lib",
+        "@stoked-cenv/ui",
+        "@stoked-cenv/lib",
         "@stoked-cenv/cenv-params",
-        "@stoked-cenv/cenv-cli"
+        "@stoked-cenv/cli"
       ]
     }
   }

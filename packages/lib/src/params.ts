@@ -61,6 +61,12 @@ export function validateOneType(options: string[]) {
   return validateCount(options, variableTypes);
 }
 
+export interface LambdaProcessResponse {
+  before?: string,
+  after?: string,
+  error?: Error
+}
+
 export interface BaseCommandOptions {
   profile?: string;
   cli?: boolean;
@@ -84,12 +90,12 @@ export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => 
 
 export class CenvParams {
 
-  static async removeParameters(params, options, types) {
+  static async removeParameters(params: any, options: any, types: string[]) {
     const { cenvPackage, paramData, rootPaths, inCenvRoot } = await this.buildDataRemoveLinks(params, options, types);
     await CenvParams.removeParameter(params, options, paramData, rootPaths, inCenvRoot, cenvPackage);
   }
 
-  static async removeAll(varTypes, rootPaths, type, pkg) {
+  static async removeAll(varTypes: any, rootPaths: string[], type: string, pkg: Package) {
     let totalRemoved = 0;
     for (let j = 0; j < varTypes.length; j++) {
       await sleep(4);
@@ -117,7 +123,7 @@ export class CenvParams {
     }
   }
 
-  static async buildDataRemoveLinks(params, options, types) {
+  static async buildDataRemoveLinks(params: any, options: any, types: string[]) {
     try {
       await sleep(3);
 
@@ -140,8 +146,8 @@ export class CenvParams {
 
       const paramData = [];
       const varTypes = inCenvRoot ? variableTypes : ['global', 'globalEnv'];
-      const vars = {};
-      const rootPaths = inCenvRoot ?
+      const vars: any = {};
+      const rootPaths: any = inCenvRoot ?
         CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName) :
         {global: `/global/${process.env.ENV}`, globalEnv: `/globalenv/${process.env.ENV}`};
 
@@ -206,8 +212,8 @@ export class CenvParams {
   }
 
 
-  static async removeParameter(params, options, paramData, rootPaths, inCenvRoot, cenvPackage) {
-    const linksUpdated = [];
+  static async removeParameter(params: any, options: any, paramData: any, rootPaths: any, inCenvRoot: boolean, cenvPackage: string) {
+    const linksUpdated: any = [];
     const linksAttempted = []
     const paramsUpdated = [];
 
@@ -290,11 +296,11 @@ export class CenvParams {
   }
 
   public static GetRootPath(ApplicationName: string, EnvironmentName: string, type: string) {
-    const paths = this.GetRootPaths(ApplicationName, EnvironmentName);
+    const paths: any = this.GetRootPaths(ApplicationName, EnvironmentName);
     return paths[type];
   }
 
-  public static GetRootPaths(ApplicationName, EnvironmentName) : {
+  public static GetRootPaths(ApplicationName: string, EnvironmentName: string) : {
     app: string,
     globalLink: string,
     global: string,
@@ -353,7 +359,7 @@ export class CenvParams {
     while (!parametersVerified || count === 0) {
       const params = await getParams(config, 'all', 'simple', true, false, true)
       let matching = true;
-      const unmatched = { existing: { }, updated: {}};
+      const unmatched: any = { existing: { }, updated: {}};
       for (let i = 0; i < Object.keys(params).length; i++) {
         const key = Object.keys(params)[i];
         const param = params[key];
@@ -393,7 +399,7 @@ export class CenvParams {
     }
   }
 
-  static async mergeDataType(file, vars, type) {
+  static async mergeDataType(file: any, vars: any, type: string) {
 
     let fileData = null;
     let changed = false;
@@ -525,7 +531,7 @@ export class CenvParams {
     }
   }
 
-  public static async MaterializeCore(event: any = undefined) {
+  public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
     try {
       const {
         ApplicationId,
@@ -538,7 +544,7 @@ export class CenvParams {
 
       if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId || !DeploymentStrategyId) {
         console.log('Missing required parameters in event');
-        return 'Missing required parameters in event';
+        return {error: new Error('Missing required parameters in event')}
       }
 
       if (event.isLocalStack) {
@@ -567,7 +573,7 @@ export class CenvParams {
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);
       await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Package.scopeName, '')}`);
-      return { after, before }
+      return { before, after }
     } catch(e) {
       CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))
       return { error: e };

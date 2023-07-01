@@ -180,13 +180,13 @@ export class ParamsModule extends PackageModule {
       return this.varsUpToDateFlag;
     }
     try {
-      let expandedMaterializedVars = {};
+      let expandedMaterializedVars: any = {};
       if (this.materializedVars) {
         expandedMaterializedVars = expandTemplateVars(
           JSON.parse(JSON.stringify(this.materializedVars)),
         );
       }
-      let expandedPushedVars = {};
+      let expandedPushedVars: any = {};
       if (this.pushedVars) {
         expandedPushedVars = expandTemplateVars(
           JSON.parse(JSON.stringify(this.pushedVars)),
@@ -415,7 +415,7 @@ export class ParamsModule extends PackageModule {
     }
   }
 
-  printDuplicate(d) {
+  printDuplicate(d: any) {
     return `param ${d.key}: exists in ${d.types.length} param types: [${d.types.join(', ')}]`;
   }
 
@@ -448,7 +448,7 @@ export class ParamsModule extends PackageModule {
     );
   }
 
-  convertToCenvVars(vars): VarList {
+  convertToCenvVars(vars: any): VarList {
     delete vars.environmentTemplate;
     delete vars.globalEnvironmentTemplate;
     if (vars.app) {
@@ -562,13 +562,13 @@ export class ParamsModule extends PackageModule {
     }
   }
 
-  pushDuplicate(key, section, dupeSection) {
+  pushDuplicate(key: string, section: string, dupeSection: any) {
     const exists = this.duplicates.find(d => d.key === key);
     if (exists) {
       exists.types.push(dupeSection);
       exists.types = [...new Set(exists.types)];
     } else {
-      this.duplicates.push({key: key, types: [section, dupeSection]});
+      this.duplicates.push({key, types: [section, dupeSection]});
     }
   }
 
@@ -613,17 +613,11 @@ export class ParamsModule extends PackageModule {
     }
   }
 
-  getVarCounts(typedVars): CenvVarsCount {
+  getVarCounts(typedVars: any): CenvVarsCount {
     const app = typedVars?.app ? Object.keys(typedVars?.app)?.length : 0;
-    const environment = typedVars?.environment
-      ? Object.keys(typedVars?.environment)?.length
-      : 0;
-    const globalEnv = typedVars?.globalEnv
-      ? Object.keys(typedVars?.globalEnv)?.length
-      : 0;
-    const global = typedVars?.global
-      ? Object.keys(typedVars?.global)?.length
-      : 0;
+    const environment = typedVars?.environment ? Object.keys(typedVars?.environment)?.length : 0;
+    const globalEnv = typedVars?.globalEnv ? Object.keys(typedVars?.globalEnv)?.length : 0;
+    const global = typedVars?.global ? Object.keys(typedVars?.global)?.length : 0;
     return { app, environment, globalEnv, global };
   }
 
@@ -637,8 +631,8 @@ export class ParamsModule extends PackageModule {
       return items;
     }
 
-    const getColor = (valid) => valid ? colors.std : colors.error;
-    const getColorBold = (valid) => valid ? colors.stdBold : colors.errorBold;
+    const getColor = (valid: boolean) => valid ? colors.std : colors.error;
+    const getColorBold = (valid: boolean) => valid ? colors.stdBold : colors.errorBold;
 
     const appColor = getColor(this.appValid);
     const appBold = getColorBold(this.appValid);

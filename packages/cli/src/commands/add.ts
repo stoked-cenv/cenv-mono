@@ -2,11 +2,11 @@ import { Command, CommandRunner, Option } from 'nest-commander';
 import {
   BaseCommandOptions,
   CenvLog, Package,
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 
 
 import { BaseCommand } from './base'
-import {Cenv} from "@stoked-cenv/cenv-lib";
+import {Cenv} from "@stoked-cenv/lib";
 
 interface AddParamCommandOptions extends BaseCommandOptions {
   app?: boolean;

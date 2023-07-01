@@ -36,7 +36,7 @@ function getClient() {
   return _client;
 }
 
-export async function getPolicy(PolicyArn, silent = true) {
+export async function getPolicy(PolicyArn: string, silent = true) {
   try {
     const cmd = new GetPolicyCommand({PolicyArn});
     const res = await getClient().send(cmd);
@@ -51,7 +51,7 @@ export async function getPolicy(PolicyArn, silent = true) {
   return false
 }
 
-export async function createPolicy(PolicyName, PolicyDocument) {
+export async function createPolicy(PolicyName: string, PolicyDocument: any) {
   try {
     const cmd = new CreatePolicyCommand({PolicyName, PolicyDocument});
     const res = await getClient().send(cmd);
@@ -64,7 +64,7 @@ export async function createPolicy(PolicyName, PolicyDocument) {
   return false
 }
 
-export async function deletePolicy(PolicyArn) {
+export async function deletePolicy(PolicyArn: string) {
   try {
     const listPolicyVersionsCmd = new ListPolicyVersionsCommand({PolicyArn});
     const listPolicyVersionsRes = await getClient().send(listPolicyVersionsCmd);
@@ -86,7 +86,7 @@ export async function deletePolicy(PolicyArn) {
   return false
 }
 
-export async function attachPolicyToRole(RoleName, PolicyArn) {
+export async function attachPolicyToRole(RoleName: string, PolicyArn: string) {
   try {
     const cmd = new AttachRolePolicyCommand({PolicyArn, RoleName});
     const res = await getClient().send(cmd);
@@ -99,7 +99,7 @@ export async function attachPolicyToRole(RoleName, PolicyArn) {
   return false
 }
 
-export async function attachPolicyToGroup(GroupName, PolicyName, PolicyArn) {
+export async function attachPolicyToGroup(GroupName: string, PolicyName: string, PolicyArn: string) {
   try {
     const listGroupPolicyCmd = new ListAttachedGroupPoliciesCommand( {GroupName});
     const listGroupPolicyRes = await getClient().send(listGroupPolicyCmd);
@@ -121,7 +121,7 @@ export async function attachPolicyToGroup(GroupName, PolicyName, PolicyArn) {
   }
 }
 
-export async function deleteGroup(GroupName, silent = true) {
+export async function deleteGroup(GroupName: string, silent = true) {
   try {
     const listGroupsCmd = new ListGroupsCommand({});
     const listGroupsRes = await getClient().send(listGroupsCmd);
@@ -171,7 +171,7 @@ export async function deleteGroup(GroupName, silent = true) {
   return false
 }
 
-export async function createGroup(GroupName) {
+export async function createGroup(GroupName: string) {
   try {
     const listGroupsCmd = new ListGroupsCommand({});
     const listGroupsRes = await getClient().send(listGroupsCmd);
@@ -194,7 +194,7 @@ export async function createGroup(GroupName) {
   return false
 }
 
-export async function addUserToGroup(GroupName, UserName) {
+export async function addUserToGroup(GroupName: string, UserName: string) {
   try {
     const cmd = new AddUserToGroupCommand({GroupName, UserName})
     const res = await getClient().send(cmd);
@@ -206,7 +206,7 @@ export async function addUserToGroup(GroupName, UserName) {
   }
 }
 
-export async function detachPolicyFromRole(RoleName, PolicyArn) {
+export async function detachPolicyFromRole(RoleName: string, PolicyArn: string) {
   try {
     const cmd = new DetachRolePolicyCommand({PolicyArn, RoleName});
     const res = await getClient().send(cmd);
@@ -219,7 +219,7 @@ export async function detachPolicyFromRole(RoleName, PolicyArn) {
   return false
 }
 
-export async function createRole(RoleName, AssumeRolePolicyDocument) {
+export async function createRole(RoleName: string, AssumeRolePolicyDocument: any) {
   try {
     const cmd = new CreateRoleCommand({RoleName, AssumeRolePolicyDocument});
     const res = await getClient().send(cmd);
@@ -232,7 +232,7 @@ export async function createRole(RoleName, AssumeRolePolicyDocument) {
   return false
 }
 
-export async function deleteRole(RoleName,) {
+export async function deleteRole(RoleName: string) {
   try {
 
     const cmd = new DeleteRoleCommand({RoleName});
@@ -246,7 +246,7 @@ export async function deleteRole(RoleName,) {
   return false
 }
 
-export async function getRole(RoleName, silent = true) {
+export async function getRole(RoleName: string, silent = true) {
   try {
     const cmd = new GetRoleCommand({RoleName});
     const res = await getClient().send(cmd);

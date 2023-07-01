@@ -20,7 +20,7 @@ function getClient() {
   return _client;
 }
 
-export async function getVpcId(name) {
+export async function getVpcId(name: string) {
   try {
     const input = { // DescribeVpcsRequest
       Filters: [ // FilterList

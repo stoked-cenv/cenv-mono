@@ -1,38 +1,39 @@
 import {CenvLog, errorBold, infoBold, LogLevel} from './log'
 import {
-  createPolicy,
-  createRole,
-  createGroup,
   addUserToGroup,
   attachPolicyToGroup,
   attachPolicyToRole,
+  createGroup,
+  createPolicy,
+  createRole,
+  deleteGroup,
+  deletePolicy,
+  deleteRole,
+  detachPolicyFromRole,
   getPolicy,
   getRole,
-  detachPolicyFromRole,
-  deleteRole,
-  deleteGroup, deletePolicy,
 } from './aws/iam'
 import {Package, PackageCmd,} from './package/package'
 import {createFunction, deleteFunction, getFunction} from './aws/lambda'
 import {
-  createEnvironment,
-  createDeploymentStrategy,
-  getConfigParams,
-  getDeploymentStrategy,
-  getEnvironment,
   createApplication,
+  createConfigurationProfile,
+  createDeploymentStrategy,
+  createEnvironment,
+  deleteCenvData,
   getApplication,
+  getConfigParams,
   getConfigurationProfile,
-  createConfigurationProfile, deleteCenvData
+  getDeploymentStrategy,
+  getEnvironment
 } from './aws/appConfig'
 import chalk from 'chalk';
 import path from 'path';
 import {BaseCommandOptions, CenvParams, DashboardCreateOptions, DashboardCreator, validateOneType} from './params';
-import { Deployment } from './deployment';
-import { Environment,  } from './environment';
-import { Export } from '@aws-sdk/client-cloudformation';
+import {Environment,} from './environment';
+import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
-import {CenvFiles} from "./file";
+import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
 import {execCmd, exitWithoutTags, getMonoRoot, packagePath, search_sync} from "./utils";
 import {ioAppEnv, ioYesOrNo} from "./stdIo";
@@ -44,7 +45,7 @@ interface FlagValidation {
   application: string;
   environment: string;
   options: ParamsCommandOptions;
-  envConfig;
+  envConfig: EnvConfig;
 }
 
 interface IApplicationShiftExecutor {
@@ -72,11 +73,12 @@ export interface StackProc {
 }
 
 export class Cenv {
-  static runningProcesses?: { [stackName: string]: StackProc[] } = undefined;
-  static dashboard = null;
+  static runningProcesses?: { [stackName: string]: StackProc[] } = {};
+  static dashboard: any = null;
   static dashboardCreator: DashboardCreator;
   static dashboardCreateOptions: DashboardCreateOptions;
-  static addSpawnedProcess(stackName, cmd, proc) {
+
+  static addSpawnedProcess(stackName: string, cmd: string, proc: child_process.ChildProcess) {
     if (!Cenv.runningProcesses[stackName]) {
       Cenv.runningProcesses[stackName] = [{cmd, proc}];
     } else {
@@ -84,7 +86,7 @@ export class Cenv {
     }
   }
 
-  static async env(params, options) {
+  static async env(params: string[], options: Record<string, any>) {
     if (!params.length) {
       CenvLog.info(
         `current environment: ${infoBold(process.env.ENV)}`,
@@ -96,12 +98,12 @@ export class Cenv {
         exports = exports.filter((e: Export) =>
           params.includes(e.Name.replace(`${process.env.ENV}-`, '')),
         );
-        exports = exports.map((e) => e.Value);
+        exports = exports.map((e: Export) => e.Value);
         CenvLog.single.stdLog(exports.join(' '));
         return;
       }
       CenvLog.info('exports');
-      const coloredLines = exports.map((e) => {
+      const coloredLines = exports.map((e: Export) => {
         return `\t${e.Name}: ${infoBold(e.Value)}`;
       });
       CenvLog.info(coloredLines.join('\n'));
@@ -115,12 +117,8 @@ export class Cenv {
     );
   }
 
-  static addParam = async (
-    pkg: Package,
-    params,
-    options,
-  ) => {
-    function getAddParam(application = undefined) {
+  static addParam = async (pkg: Package, params: string[], options: Record<string, any>) => {
+    function getAddParam(application: string = undefined) {
       return `cenv add ${application ? application + ' ' : ''}${
         options?.app ? '-a' : ''
       } ${options?.environment ? '-e' : ''} ${options?.global ? '-g' : ''} ${
@@ -227,7 +225,7 @@ export class Cenv {
     await CenvFiles.SaveEnvConfig(config);
   }
 
-  private static initFlagValidation(options, tags): FlagValidation | undefined {
+  private static initFlagValidation(options: Record<string, any>, tags: string[]): FlagValidation | undefined {
     if (options?.environment) {
       process.env.ENV = options.environment;
     }
@@ -239,7 +237,7 @@ export class Cenv {
       options.push = true;
     }
 
-    const envConfig = CenvFiles.GetConfig(
+    const envConfig: EnvConfig = CenvFiles.GetConfig(
       options?.environment || process.env.ENV,
     );
     const { application, environment } = options;
@@ -262,12 +260,7 @@ export class Cenv {
     return { application, environment, options, envConfig };
   }
 
-  private static async processApplicationEnvironmentNames(
-    options,
-    application,
-    environment,
-    envConfig,
-  ) {
+  private static async processApplicationEnvironmentNames(options: Record<string, any>, application: string, environment: string, envConfig: EnvConfig) {
     const pkgPath = search_sync(process.cwd(), true);
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pkg = require(pkgPath[0].toString());
@@ -310,7 +303,7 @@ export class Cenv {
     return { application, environment };
   }
 
-  private static async processApplication(application, environment) {
+  private static async processApplication(application: string, environment: string) {
     let createdApp = false;
     const envConfig: any = {};
     const appRes = await getApplication(application, true);
@@ -335,7 +328,7 @@ export class Cenv {
     return { createdApp, envConfig };
   }
 
-  private static async processEnvironment(envConfig, application, environment) {
+  private static async processEnvironment(envConfig: EnvConfig, application: string, environment: string) {
     let createdEnv = false;
     envConfig.EnvironmentName = environment;
     const existingEnv = await getEnvironment(
@@ -363,7 +356,7 @@ export class Cenv {
     return { createdEnv, envConfig };
   }
 
-  private static async processConfigurationProfile(envConfig) {
+  private static async processConfigurationProfile(envConfig: EnvConfig) {
     const confProf = await getConfigurationProfile(
       envConfig.ApplicationId,
       'config',
@@ -383,7 +376,7 @@ export class Cenv {
     return envConfig;
   }
 
-  private static async processInitData(envConfig, options) {
+  private static async processInitData(envConfig: EnvConfig, options: Record<string, any>) {
     CenvLog.info(
       `${envConfig.ApplicationName}:${envConfig.EnvironmentName} - saving local files`,
     );
@@ -442,7 +435,7 @@ export class Cenv {
     }
   }
 
-  public static async destroyAppConfig(application, options) {
+  public static async destroyAppConfig(application: string, options: Record<string, any>) {
     await deleteCenvData(
       application,
       options?.parameters || options?.all,
@@ -452,12 +445,13 @@ export class Cenv {
     return true;
   }
 
-  static async cmdInit(options): Promise<void> {
+  static async cmdInit(options: any): Promise<void> {
     try {
       if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
         options.logLevel = process.env.CENV_LOG_LEVEL || options?.logLevel?.toUpperCase();
-        process.env.CENV_LOG_LEVEL = LogLevel[options.logLevel];
-        CenvLog.logLevel = LogLevel[options.logLevel];
+        const { logLevel }: {logLevel: keyof typeof LogLevel} = options;
+        process.env.CENV_LOG_LEVEL = LogLevel[logLevel] ;
+        CenvLog.logLevel = LogLevel[logLevel];
         CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
       } else {
         process.env.CENV_LOG_LEVEL = LogLevel.INFO

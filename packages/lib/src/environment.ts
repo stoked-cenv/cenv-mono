@@ -45,7 +45,7 @@ export class Environment {
       return pkg;
     });
     if (this.packages?.length) {
-      Environments[this.name] = this;
+      //Environments[this.name] = this;
     }
   }
 
@@ -72,7 +72,7 @@ export class Environment {
         'UPDATE_ROLLBACK_COMPLETE'
       ]);
 
-    return existingStacks.filter(s => {
+    return existingStacks.filter((s: any) => {
       return s.StackName.startsWith(environment + '-');
     })
   }

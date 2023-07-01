@@ -58,7 +58,7 @@ export abstract class PackageModule implements IPackageModule {
   incomplete? = false;
   cleanDeps = false;
   fixedDeps = false;
-  removedDeps = [];
+  removedDeps: any[] = [];
   depCheckReport: string = null;
   mouth: Mouth;
   status: PackageStatus = { needsFix: [], deployed: [], incomplete: [] };
@@ -96,11 +96,11 @@ export abstract class PackageModule implements IPackageModule {
   abstract upToDate(): boolean;
   abstract printCheckStatusComplete(): void;
 
-  createMouth(noun, stackName) {
+  createMouth(noun: string, stackName: string) {
     this.mouth = new Mouth(noun, stackName);
   }
 
-  bump(type) {
+  bump(type: string) {
     const pkgPath = path.join(this.path, 'package.json');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pkgJson = require(pkgPath);
@@ -167,7 +167,7 @@ export abstract class PackageModule implements IPackageModule {
     );
   }
 
-  statusLineBase(title, description, colorCombo) {
+  statusLineBase(title: string, description: string, colorCombo: any) {
     const regex = /\[(.*?)]/gm;
     let m;
     let newDesc = description;
@@ -183,17 +183,17 @@ export abstract class PackageModule implements IPackageModule {
     // this.mouth.info('check status');
   }
 
-  statusLine(title, description, issue) {
+  statusLine(title: string, description: string, issue: boolean) {
     const color = issue ? CenvLog.colorType('incomplete') : CenvLog.colorType('deployed');
     return this.statusLineBase(title, description, color);
   }
 
-  statusLineType(title, description, type) {
+  statusLineType(title: string, description: string, type: string) {
     const color = CenvLog.colorType(type);
     return this.statusLineBase(title, description, color);
   }
 
-  versionMismatch(compareVersion) {
+  versionMismatch(compareVersion: string) {
     const versionMismatch = `the latest deployed version is [${compareVersion}] your local build is at version [${this.pkg.rollupVersion}]`;
     if (semver.parse(compareVersion) < this.pkg.rollupVersion) {
       return this.statusLine('old version deployed', versionMismatch, true);

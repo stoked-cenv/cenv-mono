@@ -83,7 +83,11 @@ function cmdResult(
   return true;
 }
 
-type Cmd = {
+export type Cmd = {
+  stdout?: string;
+  stderr?: string;
+  cmd?: string;
+  code?: number;
   out: (...message: string[]) => void;
   err: (...message: string[]) => void;
   result: (code: number, message?: string | string[]) => boolean;
@@ -93,7 +97,9 @@ class LogCmd implements Cmd {
   cmd;
   code;
   res;
-  constructor(cmd, code: number = undefined, message: string = undefined) {
+  stdout?: string;
+  stderr?: string;
+  constructor(cmd: string, code: number = undefined, message: string = undefined) {
     this.cmd = cmd;
 
     if (code) {
@@ -111,15 +117,16 @@ class LogCmd implements Cmd {
     }
   }
 
-  out(message) {
+  out(message: string) {
     CenvLog.info(message);
   }
-  err(message) {
+  err(message: string) {
     CenvLog.single.errorLog(message);
   }
+
   result(code: number, message?: string | string[]) {
     if (this.code) {
-      return this.code;
+      return !!this.code;
     }
     return cmdResult('GLOBAL', 'GLOBAL', this.cmd, false, code, message);
   }
@@ -129,7 +136,7 @@ export class PackageCmd implements Cmd {
   cmd: string;
   stdout? = '';
   stderr? = '';
-  stdtemp = undefined;
+  stdtemp: any = undefined;
   vars: { [key: string]: string } = {};
   code: number = undefined;
   failOnError = true;
@@ -226,11 +233,7 @@ export class PackageCmd implements Cmd {
     return this.res;
   }
 
-  static createCmd(
-    cmd,
-    code: number = undefined,
-    message: string = undefined,
-  ): Cmd {
+  static createCmd(cmd: string, code: number = undefined, message: string = undefined): Cmd {
     if (Cenv.dashboard) {
       return Package.getPackage('GLOBAL').createCmd(cmd, code, message);
     } else {
@@ -354,7 +357,7 @@ export class Package implements IPackage {
   static deployment: any;
   static callbacks: any = {};
   static suites: any = {};
-  static defaultSuite;
+  static defaultSuite: string;
 
   constructor(packageName: string, noCache = false) {
     this.load(packageName, noCache);
@@ -368,7 +371,7 @@ export class Package implements IPackage {
     return Package.fromStackName('GLOBAL');
   }
 
-  load(packageName, noCache = false) {
+  load(packageName: string, noCache = false) {
     if (!Package.loading && !noCache) {
       const err = new Error(
           `attempting to load ${packageName} after loading has been disabled`,
@@ -429,10 +432,7 @@ export class Package implements IPackage {
           existsSync(path.join(pkgPath, EnvVarsFile.NAME));
       let dockerPackage = existsSync(path.join(pkgPath, './Dockerfile'));
       if (!packageType) {
-        while (
-            pkgPathParts.shift() !== 'packages' &&
-            pkgPathParts.length > 0
-            ) {}
+        while ( pkgPathParts.shift() !== 'packages' &&pkgPathParts.length > 0) { /* loop  until done sucka */ }
       }
       packageType = isRoot || isGlobal ? packageType : pkgPathParts.shift();
       const metas: any = {};
@@ -796,7 +796,7 @@ export class Package implements IPackage {
     }
   }
 
-  setCmdIndex(cmdIndex) {
+  setCmdIndex(cmdIndex: number) {
     this.activeCmdIndex = cmdIndex;
   }
 
@@ -877,7 +877,7 @@ export class Package implements IPackage {
     });
   }
 
-  confirmPrerelease(prerelease) {
+  confirmPrerelease(prerelease: string) {
     if (!this.meta) {
       return;
     }
@@ -885,7 +885,7 @@ export class Package implements IPackage {
 
     if (pre.prerelease[0] !== prerelease) {
       CenvLog.single.catchLog(
-        `[${this.packageName}] attempting to bump in ${process.env.CENV_BUILD_TYPE} mode but prerelease version doesn\'t match. Expecting ${prerelease} but found ${pre.prerelease[0]} while bumping module ${this.type}.`,
+        `[${this.packageName}] attempting to bump in ${ process.env.CENV_BUILD_TYPE } mode but prerelease version doesn't match. Expecting ${prerelease} but found ${pre.prerelease[0]} while bumping module ${this.type}.`,
       );
     }
     this.meta.version = coerce(pre);
@@ -945,17 +945,25 @@ export class Package implements IPackage {
     );
   }
 
-  setVersion(versionType, version) {
+  setVersion(versionType: any, version: SemVer) {
     if (this.params) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       this.params[versionType] = version;
     }
     if (this.stack) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       this.stack[versionType] = version;
     }
     if (this.docker) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       this.docker[versionType] = version;
     }
     if (this.meta) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       this.meta[versionType] = version;
     }
   }
@@ -972,7 +980,7 @@ export class Package implements IPackage {
       await Package.install();
     }
 
-    let packages = []
+    let packages: any = []
     Package.getPackages().map((p: Package) => {
       p.processStatus = ProcessStatus.BUILDING;
       packages = packages.concat(p.getPackageModuleNames());
@@ -985,7 +993,7 @@ export class Package implements IPackage {
     await Package.global.pkgCmd(`yarn nx affected:build --all --output-style=static${options.force ? ' --skip-nx-cache' : ''} ${parallel}`);
   }
 
-  async bump(type) {
+  async bump(type: string) {
     try {
       this.processStatus = ProcessStatus.BUMP;
       if (type === 'reset') {
@@ -1105,10 +1113,8 @@ export class Package implements IPackage {
 
   public static cache: { [stackName: string]: Package } = {};
 
-  static packageNameToDockerName(packageName) {
-    return packageName
-      .replace('@', ``)
-      .replace(/-(deploy)$/, '');
+  static packageNameToDockerName(packageName: string) {
+    return packageName.replace('@', ``).replace(/-(deploy)$/, '');
   }
 
   async hasCheckedStatus() {
@@ -1187,7 +1193,7 @@ export class Package implements IPackage {
     this.resetStatus()
     await this.checkModuleStatus();
     await this.finalizeStatus(targetMode, endStatus);
-    cmd.result(0, `[${EnvironmentStatus[this.environmentStatus]}]`);
+    cmd.result(0, `[${this.environmentStatus}]`);
   }
 
   get needsFix() {
@@ -1210,7 +1216,7 @@ export class Package implements IPackage {
     Package.statusCompleted = true;
   }
 
-  setDeployStatus(status) {
+  setDeployStatus(status: ProcessStatus) {
     if (this.processStatus === ProcessStatus.FAILED || this.processStatus === ProcessStatus.CANCELLED) {
       return;
     }
@@ -1225,8 +1231,8 @@ export class Package implements IPackage {
     return null;
   }
 
-  static scopeName = undefined;
-  static packageNameToStackName(packageName) {
+  static scopeName: string = undefined;
+  static packageNameToStackName(packageName: string) {
     if (!packageName.replace) {
       const e = new Error();
       CenvLog.single.catchLog(e);
@@ -1235,7 +1241,8 @@ export class Package implements IPackage {
       return packageName;
     }
     if (this.scopeName) {
-      const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
+      // language=JSRegexp format=false
+const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
       packageName = packageName.replace(scopeRegEx, '')
     }
     return `${process.env.ENV}-${packageName.replace(/-(deploy)$/, '')}`;
@@ -1247,7 +1254,7 @@ export class Package implements IPackage {
     return pkgs?.length;
   }
 
-  static stackNameToPackageName(stackName) {
+  static stackNameToPackageName(stackName: string) {
     if (
       stackName === 'GLOBAL' ||
       stackName === 'root' ||
@@ -1259,7 +1266,7 @@ export class Package implements IPackage {
     const stackPrefix = `${process.env.ENV}-`;
     if (!stackName.startsWith(stackPrefix)) {
       const badStackName = new Error(
-        `stackNameToPackageName likely being called on something that isn\'t a stack: ${stackName}`,
+        `stackNameToPackageName likely being called on something that isn't a stack: ${stackName}`,
       );
       Cenv.dashboard.log(badStackName.message, badStackName.stack);
       CenvLog.single.catchLog(badStackName);
@@ -1271,14 +1278,14 @@ export class Package implements IPackage {
     return stackName;
   }
 
-  assertLines(title: string, ...text) {
+  assertLines(title: string, ...text: string[]) {
     const intro = `[${this.packageName}] ${title}: `;
     CenvLog.single.catchLog(
       new Error(text.map((t) => `${intro}${t}\n`).join('')),
     );
   }
 
-  assert(title: string, ...text) {
+  assert(title: string, ...text: string[]) {
     const intro = `[${this.packageName}] ${title}: `;
     CenvLog.single.catchLog(new Error(`${intro}${text.join(' ')}`));
   }
@@ -1291,15 +1298,15 @@ export class Package implements IPackage {
     this.mouth?.info(...text);
   }
 
-  err(...text) {
+  err(...text: string[]) {
     this.mouth?.err(...text);
   }
 
-  alert(...text) {
+  alert(...text: string[]) {
     this.mouth?.alert(...text);
   }
 
-  std(...text) {
+  std(...text: string[]) {
     try {
       this.mouth?.std(...text);
     } catch(e) {
@@ -1307,7 +1314,7 @@ export class Package implements IPackage {
     }
   }
 
-  stdPlain(...text) {
+  stdPlain(...text: string[]) {
     try {
       this.mouth?.stdPlain(...text);
     } catch(e) {
@@ -1315,7 +1322,7 @@ export class Package implements IPackage {
     }
   }
 
-  getPackageMeta(packagePath): IPackageMeta {
+  getPackageMeta(packagePath: string): IPackageMeta {
     if (!packagePath) {
       CenvLog.single.catchLog(
         new Error(
@@ -1374,7 +1381,7 @@ export class Package implements IPackage {
     };
   }
 
-  static getCurrentVersion(dir, isRoot = false) {
+  static getCurrentVersion(dir: string, isRoot = false) {
     const pkgPath = path.resolve(dir, isRoot ? 'lerna.json' : 'package.json');
     if (existsSync(pkgPath)) {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -1383,7 +1390,7 @@ export class Package implements IPackage {
     return undefined;
   }
 
-  static getVersion(dir, isRoot = false) {
+  static getVersion(dir: string, isRoot = false) {
     const pkgPath = path.resolve(dir, isRoot ? 'lerna.json' : 'package.json');
     if (existsSync(pkgPath)) {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -1392,7 +1399,7 @@ export class Package implements IPackage {
     return undefined;
   }
 
-  static getVersions(dir, isRoot = false) {
+  static getVersions(dir: string, isRoot = false) {
     const pkgPath = path.resolve(dir, isRoot ? 'lerna.json' : 'package.json');
     if (existsSync(pkgPath)) {
       const pkg = require(pkgPath);
@@ -1446,7 +1453,7 @@ export class Package implements IPackage {
 
 
   async pkgCmd(
-    cmd,
+    cmd: string,
     options: {
       envVars?: any;
       cenvVars?: any;
@@ -1506,7 +1513,7 @@ export class Package implements IPackage {
   }
 
   async pkgShell(
-    cmd,
+    cmd: string,
     options: {
       envVars?: any;
       cenvVars?: any;
@@ -1559,7 +1566,7 @@ export class Package implements IPackage {
     return pkgCmd;
   }
 
-  printEnvVars(vars) {
+  printEnvVars(vars: Record<string, string>) {
     for (let i = 0; i < Object.keys(vars).length; i++) {
       this.stdPlain(`export ${vars[Object.keys(vars)[i]]}=${Object.keys(vars)[i]}`);
     }

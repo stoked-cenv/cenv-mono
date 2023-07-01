@@ -3,18 +3,18 @@ import colors from 'colors/safe';
 import { Dashboard } from './dashboard';
 import { CenvPanel } from './panel';
 import chalk from 'chalk';
-import {CenvLog} from "@stoked-cenv/cenv-lib";
+import { CenvLog, Cmd, PackageCmd } from '@stoked-cenv/lib';
 
 export default class CmdPanel extends CenvPanel {
-  grid;
-  cmdList;
-  stdout;
-  stderr;
+  grid: any;
+  cmdList: any;
+  stdout: any;
+  stderr: any;
   selectedCmdIndex = -1;
-  debugStr;
-  dashboard;
+  debugStr: any;
+  dashboard: Dashboard;
 
-  constructor(dashboard) {
+  constructor(dashboard: Dashboard) {
     super(dashboard);
   }
 
@@ -179,7 +179,7 @@ export default class CmdPanel extends CenvPanel {
       this.cmdList.on('move', function () {}.bind(this));
 
 
-      this.cmdList.on('select item', function (item, index) {
+      this.cmdList.on('select item', function (item: any, index: number) {
           if (this.selectedCmdIndex === index) {
             return;
           }
@@ -205,7 +205,7 @@ export default class CmdPanel extends CenvPanel {
     }
   }
 
-  getCmdText(cmdIndex, cmd) {
+  getCmdText(cmdIndex: number, cmd: Cmd) {
     const selected = this.cmdList.selected === cmdIndex;
     let color = '';
     if (cmd.code === undefined) {
@@ -217,7 +217,11 @@ export default class CmdPanel extends CenvPanel {
       //Dashboard.debug('code != undefined || 0')
       color = 'red';
     }
-    return colors[color](cmd.cmd);
+    const colorFunc = colors[color as keyof typeof colors];
+    if (colorFunc !== false && colorFunc !== true) {
+      return colorFunc(cmd.cmd);
+    }
+    return cmd.cmd;
   }
 
   updateCmds() {
@@ -227,20 +231,20 @@ export default class CmdPanel extends CenvPanel {
         this.selectedCmdIndex = this.getPkg().activeCmdIndex;
       }
 
-      let cmds = this.getPkgCmds();
-      cmds = cmds.map((c, i) => {
+      const cmds = this.getPkgCmds();
+      const cmdText = cmds.map((c: PackageCmd, i: number) => {
         if (process.env.CENV_STDTEMP) {
           if (c.code && c.code === 0 && c.stdtemp) {
             delete c.stdtemp;
           }
         }
 
-        return this.getCmdText(i, c);
+        return this.getCmdText(i, c) as string;
       });
 
-      if (cmds && cmds.length) {
-        this.cmdList.setItems(cmds);
-        this.cmdList?.children?.map((c, i) => {
+      if (cmdText && cmdText.length) {
+        this.cmdList.setItems(cmdText);
+        this.cmdList?.children?.map((c: any, i: number) => {
           if (!c.hasClicker) {
             c.on('click', function () {
                 this.getPkg().activeCmdIndex = i;
@@ -265,7 +269,7 @@ export default class CmdPanel extends CenvPanel {
     }
   }
 
-  setFocus(focusIndex) {
+  setFocus(focusIndex: number) {
     this.dashboard.setFocusIndex(focusIndex);
   }
 
@@ -296,7 +300,7 @@ export default class CmdPanel extends CenvPanel {
     }
   }
 
-  createCmd(cmd) {
+  createCmd(cmd: string): any {
     return {
       cmd: colors.green(cmd),
       vars: {},
@@ -306,7 +310,7 @@ export default class CmdPanel extends CenvPanel {
     };
   }
 
-  processCmd(cmdIndex) {
+  processCmd(cmdIndex: number) {
     const pkgCmds = this.getPkgCmds();
     if (cmdIndex === undefined || cmdIndex === -1) {
       if (!pkgCmds.length) {
@@ -380,21 +384,23 @@ export default class CmdPanel extends CenvPanel {
       } else {
         this.stderr.setScrollPerc(100);
       }
-    } catch (e) {}
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
   }
 
-  exitCmd(cmdIndex) {
+  exitCmd(cmdIndex: number) {
     this.cmdList.items[cmdIndex] = this.getCmdText(
       cmdIndex,
       this.getPkgCmds()[cmdIndex],
     );
   }
 
-  isCmdActive(cmdIndex) {
+  isCmdActive(cmdIndex: number) {
     return cmdIndex === this.selectedCmdIndex;
   }
 
-  selectCmdOutput(cmdIndex) {
+  selectCmdOutput(cmdIndex: number) {
     const pkgCmds = this.getPkgCmds();
     cmdIndex = this.processCmd(cmdIndex);
 
@@ -420,7 +426,7 @@ export default class CmdPanel extends CenvPanel {
     }
   }
 
-  set(left, width, top, height) {
+  set(left: number, width: number, top: number, height: number) {
     this.cmdList.top = top;
     this.stdout.top = !this.getPkg()?.isGlobal ? top + this.cmdList.height : top;
     const cmds = this.getPkgCmds();

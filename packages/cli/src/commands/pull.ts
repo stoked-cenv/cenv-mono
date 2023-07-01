@@ -1,5 +1,5 @@
 import { Command, Option } from 'nest-commander';
-import { CenvLog, CenvParams, getEnvironment, errorInfo, BaseCommandOptions, CenvFiles, configure } from '@stoked-cenv/cenv-lib'
+import { CenvLog, CenvParams, getEnvironment, errorInfo, BaseCommandOptions, CenvFiles, configure } from '@stoked-cenv/lib'
 
 import { BaseCommand } from './base'
 import chalk from 'chalk';

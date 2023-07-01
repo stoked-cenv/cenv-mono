@@ -8,8 +8,8 @@ import {
   startCenv,
   ClientMode,
   BaseCommandOptions,
-  Package, CenvFiles
-} from '@stoked-cenv/cenv-lib';
+  Package, CenvFiles, PackageModule,
+} from '@stoked-cenv/lib';
 import { BaseCommand } from './base'
 
 
@@ -72,10 +72,28 @@ export default class ExecCommand extends BaseCommand {
           vars = await startCenv(ClientMode.REMOTE_ON_STARTUP);
         }
         options.module = options.module?.toLowerCase();
-        if (options.module && p[options.module]) {
-          const modulePath = path.relative(process.cwd(), p[options.module].path);
+        if (options.module) {
+          let pkgModule: PackageModule;
+          switch (options.module) {
+            case 'docker':
+              pkgModule = p.docker;
+              break;
+            case 'stack':
+              pkgModule = p.stack;
+              break;
+            case 'params':
+              pkgModule = p.params;
+              break;
+            case 'lib':
+              pkgModule = p.lib;
+              break;
+            case 'exec':
+              pkgModule = p.exec;
+              break;
+          }
+          const modulePath = path.relative(process.cwd(), pkgModule.path);
           if (modulePath !== process.cwd()) {
-            process.chdir(path.relative(process.cwd(), p[options.module].path));
+            process.chdir(path.relative(process.cwd(), pkgModule.path));
           }
         }
         await spawnCmd('./', params.join(' '), params.join(' '), { envVars: vars }, p);

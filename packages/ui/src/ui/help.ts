@@ -4,7 +4,7 @@ import {
   Package,
   CenvLog,
   PackageStatus, CenvParams, readFiles,
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 import StatusPanel from './statusPanel';
 import chalk from 'chalk';
 import { readFileSync, existsSync } from "fs";
@@ -16,54 +16,40 @@ enum MenuType {
 }
 
 export class HelpUI {
-  screen;
+  screen: any;
   initialized = false;
   commands;
-  grid;
-  priorityColumnWidth = [];
+  grid: any;
+  priorityColumnWidth: any = [];
   columnWidth;
   columnSpacing = 2;
   maxColumnWidth;
   focusIndex = -1;
   focusedBox;
   titleBox;
-  tableWidth;
+  tableWidth: number;
   static commandName = 'intro';
   static instance: HelpUI = undefined;
   statusBar;
-  nextPanel;
   dependencies: string;
-  dependenciesRemaining: string;
   cmdOptions: any;
-  selectedCommand: string;
-  selectedRowFg = undefined;
   selectedCommandFg = [255, 255, 255];
-  selectedCommandFgHover = [20, 20, 20];
   selectedCommandBg = [30, 30, 30];
-  hoverRowIndex = undefined;
-  selectedRowIndex = undefined;
-  selectedFully = false;
   blue = chalk.blue;
   blueBright = [0, 150, 255];
   red = [255, 0, 0];
   gray = [140, 140, 140];
   yellow = [225, 225, 0];
-  orange = [255, 165, 0];
   white = [255, 255, 255];
   green = [0, 255, 0];
-  pkgStatus: PackageStatus;
-  statusBarInUse = false;
-  packageHover = null;
-  packageTimer = null;
-  blessedDeps;
+  packageHover: boolean = null;
   providers;
-  currentProvider;
+  currentProvider: any;
   cmdInfo;
   cmdMain;
   topics;
-  topicList = {};
+  topicList: any = {};
   currentMenuType = MenuType.TOPICS;
-  startingTopic: 'intro'
 
   static shiftKeyDown = false;
   constructor(startingCmd?: string) {
@@ -109,7 +95,12 @@ export class HelpUI {
         hideBorder: true,
       });
 
-      function tableRender() {
+      const tableRender =
+
+      // border focus: [24, 242, 24]
+
+      this.topics = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('topics'));
+      this.topics.render = function() {
         if(this.screen.focused === this.rows) {
           this.rows.focus();
         }
@@ -117,12 +108,7 @@ export class HelpUI {
         this.rows.width = this.width-3;
         this.rows.height = this.rows?.length+2;
         blessed.Box.prototype.render.call(this);
-      }
-
-      // border focus: [24, 242, 24]
-
-      this.topics = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('topics'));
-      this.topics.render = tableRender.bind(this.topics);
+      }.bind(this.topics);
 
       this.commands = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('commands'));
       this.commands.render = tableRender.bind(this.commands);
@@ -168,7 +154,7 @@ export class HelpUI {
           autoScroll: false,
         });
 
-      const data = [];
+      const data: any = [];
       Object.values(Commands.module.providers).map((cm: any) => {
         data.push([cm.meta.name])
       });
@@ -180,9 +166,8 @@ export class HelpUI {
       this.commands.rows.items.name = 'packageItems';
       this.commands.rows.selected = -1;
       this.packageHover = false;
-      this.packageTimer = null;
 
-      this.titleBox.on('element mouseout', function mouseout(el, data) {
+      this.titleBox.on('element mouseout', function mouseout() {
           this.packageHover = false;
         }.bind(this),
       );
@@ -199,7 +184,7 @@ export class HelpUI {
 
       this.focusedBox = this.commands;
 
-      this.commands.on('move', function move(offset) {
+      this.commands.on('move', function move(offset: number) {
         console.log('offset', offset);
         //CenvLog.single.catchLog('offset: ' + offset);
       }.bind(this));
@@ -222,13 +207,13 @@ export class HelpUI {
       }.bind(this));
 
 
-      this.screen.key(['tab'], function (ch, key) {
+      this.screen.key(['tab'], function (ch: any, key: any) {
         this.loadTopics();
         this.selectCommand(MenuType.TOPICS)
         }.bind(this),
       );
 
-      this.screen.key(['S-tab'], function (ch, key) {
+      this.screen.key(['S-tab'], function (ch: any, key: any) {
           //console.log('S-tab derp derp');
           //const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
           //this.setFocusIndex(newIndex);
@@ -262,7 +247,7 @@ export class HelpUI {
     const topicNames = require(topicPath).topics;
     const topicList = {};
 
-    topicNames.forEach((name) => {
+    topicNames.forEach((name: string) => {
       const content = readFileSync(join(__dirname, `../../../cli/docs/onlineHelp/topics/${name.replace(/ /g, '_')}.md`), 'utf-8')
       this.topicList[name] = { name, content };
     })
@@ -272,7 +257,7 @@ export class HelpUI {
     this.topics.setData({headers: [''], data})
   }
 
-  getMenuOptions(name) {
+  getMenuOptions(name: string) {
     return {
       mouse: true,
       keys: true,
@@ -294,15 +279,6 @@ export class HelpUI {
       },
       padding: { bottom: 0, top: 0}
     };
-  }
-
-  postConstructor(topicList) {
-    try {
-
-
-    } catch(e) {
-      CenvLog.single.catchLog('=' + e);
-    }
   }
 
   setCmdInfo() {
@@ -334,7 +310,7 @@ export class HelpUI {
       }
       this.cmdMain.setMarkdown(this.currentProvider.content)
     } else {
-      this.cmdMain.setMarkdown(this.topicList[HelpUI.commandName].content);
+      this.cmdMain.setMarkdown(this.topicList[HelpUI.commandName as keyof object].content);
     }
   }
 
@@ -391,10 +367,6 @@ export class HelpUI {
 
   focusPool() {
     return [this.commands];
-  }
-
-  setFocusIndex(index) {
- //
   }
 
   getPkg(commandName?: string) {

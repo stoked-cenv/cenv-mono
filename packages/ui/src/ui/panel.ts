@@ -1,16 +1,17 @@
 import blessed from 'blessed';
-import { PackageCmd, Package, PackageModule } from '@stoked-cenv/cenv-lib';
+import contrib from 'blessed-contrib'
+import { PackageCmd, Package, PackageModule } from '@stoked-cenv/lib';
 import { Dashboard } from './dashboard'
 
 export abstract class CenvPanel {
-  grid: blessed.Widgets.GridElement;
+  grid: contrib.Widgets.GridElement;
   active = false;
   dashboard: Dashboard;
   screen: blessed.Screen;
   widgets: any [];
   focusPoolWidgets: any [];
 
-  constructor(dashboard) {
+  constructor(dashboard: Dashboard) {
     this.dashboard = dashboard;
     this.grid = dashboard.grid;
     this.screen = dashboard.screen;
@@ -18,7 +19,7 @@ export abstract class CenvPanel {
     this.focusPoolWidgets = [];
   }
 
-  addWidget(widget) {
+  addWidget(widget: any) {
     this.widgets.push(widget);
   }
 
@@ -33,7 +34,7 @@ export abstract class CenvPanel {
     return this.focusPoolWidgets.filter(w => !w.hidden);
   }
 
-  addGridWidget(widget, widgetOptions, gridOptions, focusable = false, grid?: undefined) {
+  addGridWidget(widget: any, widgetOptions: Record<string, any>, gridOptions: number[], focusable = false, grid?: undefined) {
     const theGrid = grid || this.grid;
     const newWidget = theGrid.set(
       gridOptions[0],
@@ -51,7 +52,7 @@ export abstract class CenvPanel {
     return newWidget
   }
 
-  getPkgCmd(cmdIndex) {
+  getPkgCmd(cmdIndex: number) {
     const cmds = this.getPkgCmds();
     if (cmds)  {
       return cmds[cmdIndex];
@@ -62,7 +63,7 @@ export abstract class CenvPanel {
     return this.getPkg()?.cmds;
   }
 
-  getPkgModule(cmdIndex) {
+  getPkgModule(cmdIndex: number) {
     return this.getPkgModules()[cmdIndex];
   }
 
@@ -74,16 +75,16 @@ export abstract class CenvPanel {
     return Package?.cache[Dashboard.stackName]
   }
 
-  setFocus(focusIndex){
+  setFocus(focusIndex: number){
     this.dashboard.setFocusIndex(focusIndex);
   }
 
-  debug(message) {
+  debug(message: string) {
     this.dashboard.debugStr = message;
   }
 
-  abstract set(left, width, top, height);
-  abstract render();
+  abstract set(left: number, width: number, top: number, height: number): void;
+  abstract render(): void;
 
   hide() {
     this.active = false;
@@ -93,7 +94,7 @@ export abstract class CenvPanel {
     this.active = true;
     //Dashboard.log('hide from cmdPanel');
   }
-  abstract setBack();
-  abstract setFront();
-  abstract init();
+  abstract setBack(): void;
+  abstract setFront(): void;
+  abstract init(): void;
 }

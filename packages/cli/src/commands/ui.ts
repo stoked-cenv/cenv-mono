@@ -1,6 +1,6 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvUI } from '@stoked-cenv/cenv-ui';
-import { CenvLog, Package, BaseCommandOptions, Suite } from '@stoked-cenv/cenv-lib'
+import { CenvUI } from '@stoked-cenv/ui';
+import { CenvLog, Package, BaseCommandOptions, Suite } from '@stoked-cenv/lib'
 
 import { BaseCommand } from './base';
 
@@ -36,7 +36,7 @@ export default class UICommand extends BaseCommand {
     flags: '-s, --suite <suite>',
     description: 'Load a suite into the UI'
   })
-  parseSuite(val: string, val2): string {
+  parseSuite(val: string): string {
     return val;
   }
 
@@ -45,7 +45,7 @@ export default class UICommand extends BaseCommand {
     flags: '-e, --environment <environment>',
     description: 'Load an environment into the UI',
   })
-  parseEnvironment(val: string, val2): string {
+  parseEnvironment(val: string): string {
     return val;
   }
 

@@ -1,6 +1,6 @@
 {
-  "name": "@stoked-cenv/cenv-lib",
-  "version": "0.0.9",
+  "name": "@stoked-cenv/lib",
+  "version": "0.2.0-a.1",
   "description": "Library responsible for cenv params.",
   "main": "dist/index.js",
   "scripts": {
@@ -9,9 +9,8 @@
     "build": "tsc;",
     "lint": "eslint src --ext .ts",
     "lint:fix": "npm run lint -- --fix",
-    "docker": "cenv docker @stoked-cenv/cenv-lib -d; ",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "hash": ""
+    "docker": "cenv docker @stoked-cenv/lib -d; ",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "types": "dist/index.d.ts",
   "author": "Brian Stoker",
@@ -43,12 +42,13 @@
   "devDependencies": {
     "@types/jest": "^28.1.3",
     "@types/node": "^18.11.18",
+    "@types/js-yaml": "^4.0.5",
     "jest": "^28.1.3",
     "ts-jest": "^28.0.8"
   },
   "repository": {
     "type": "git",
-    "url": "github.com:stoked-cenv/cenv-lib.git"
+    "url": "github.com:stoked-cenv/lib.git"
   },
   "keywords": [
     "cenv",

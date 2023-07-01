@@ -15,6 +15,10 @@ import {
   DeleteEnvironmentCommand,
   DeleteConfigurationProfileCommand,
   DeleteHostedConfigurationVersionCommand,
+  Application,
+  HostedConfigurationVersions,
+  ConfigurationProfileSummary,
+  Environment,
 } from '@aws-sdk/client-appconfig';
 import yaml from 'js-yaml';
 import { deleteParametersByPath, stripPath } from './parameterStore';
@@ -37,7 +41,7 @@ function getClient() {
   return _client;
 }
 
-export async function createApplication(name): Promise<any> {
+export async function createApplication(name: string): Promise<any> {
   const res = await getApplication(name, undefined, false);
   if (res) {
     return { Id: res.ApplicationId, exists: true };
@@ -47,16 +51,14 @@ export async function createApplication(name): Promise<any> {
   }
   const command = new CreateApplicationCommand(createAppParams);
   try {
-    const response = await getClient().send(command);
-
-    return response;
+    return await getClient().send(command);
   } catch (e) {
     CenvLog.single.errorLog(['CreateApplicationCommand error', e, e.message]);
     return null;
   }
 }
 
-export async function createEnvironment(applicationId, name): Promise<any> {
+export async function createEnvironment(applicationId: string, name: string): Promise<any> {
   const response = await getEnvironment(applicationId, name, true);
   if (response) {
     return { Id: response.EnvironmentId, exists: true };
@@ -76,7 +78,7 @@ export async function createEnvironment(applicationId, name): Promise<any> {
   }
 }
 
-export async function createConfigurationProfile(applicationId, name = 'config'): Promise<any> {
+export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<any> {
   const response = await getConfigurationProfile(applicationId, name);
   if (response && response.ConfigurationProfileId) {
     return { Id: response.ConfigurationProfileId, exists: true };
@@ -97,7 +99,7 @@ export async function createConfigurationProfile(applicationId, name = 'config')
   }
 }
 
-export async function createHostedConfigurationVersion(ApplicationId, ConfigurationProfileId, content): Promise<any> {
+export async function createHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string, content: any): Promise<any> {
   try {
     const enc = new TextEncoder();
     const awsFormat = enc.encode(content);
@@ -144,7 +146,7 @@ export async function createDeploymentStrategy(
   }
 }
 
-export async function startDeployment(ApplicationId, ConfigurationProfileId, ConfigurationVersion, EnvironmentId, DeploymentStrategyId): Promise<any> {
+export async function startDeployment(ApplicationId: string, ConfigurationProfileId: string, ConfigurationVersion: string, EnvironmentId: string, DeploymentStrategyId: string): Promise<any> {
   const startDeploymentParams = {
     ApplicationId,
     ConfigurationProfileId,
@@ -185,17 +187,16 @@ export async function getDeploymentStrategy() {
   }
 }
 
-export async function listApplications(getEnvironments = false) {
+export async function listApplications(getEnvironments = false): Promise<Application[]> {
   const command = new ListApplicationsCommand({});
 
   try {
     const response = await getClient().send(command);
-    const result: any = response ? response.Items : [];
+    const result: Application[] = response ? response.Items : [];
     if (getEnvironments ) {
       for (let appIdx = 0; appIdx < result.length; appIdx++) {
         const app: any = result[appIdx];
-        const environments = await listEnvironments(app.Id);
-        app.Environments = environments;
+        app.Environments = await listEnvironments(app.Id);
       }
     }
     return result
@@ -210,7 +211,7 @@ export async function getEnvironmentAppConfigs() {
   try {
     const response = await getClient().send(command);
     const result: any = response ? response.Items : [];
-    const applications = {};
+    const applications: { [key: string]: { ApplicationId?: string, ApplicationName?: string, EnvironmentName?: string, EnvironmentId?: string, ConfigurationProfileId?: string, VersionNumber?: number } } = {};
     for (let appIdx = 0; appIdx < result.length; appIdx++) {
       const app: any = result[appIdx];
 
@@ -236,7 +237,6 @@ export async function getEnvironmentAppConfigs() {
       const version = await getHostedConfigurationVersion(app.Id, configurationProfile.ConfigurationProfileId);
       if (version) {
         applications[app.Id].VersionNumber = version.VersionNumber
-
       }
     }
     return applications;
@@ -265,7 +265,7 @@ export async function getApplication(applicationName: string, silent = true, env
       return false;
     }
     const result: any = { ApplicationId: appId };
-    if (environment) {
+    if (!!environment) {
       if (!isString(environment)) {
         result.Environments = await listEnvironments(appId,);
         if (!result.Environments || result.Environments.length === 0) {
@@ -275,7 +275,7 @@ export async function getApplication(applicationName: string, silent = true, env
           return false;
         }
       } else {
-        const env = await getEnvironment(appId, environment, silent);
+        const env = await getEnvironment(appId, environment as string, silent);
         if (!env) {
           if (!silent) {
             CenvLog.single.errorLog(`Environment ${errorBold(environment)} does not exist`);
@@ -295,7 +295,7 @@ export async function getApplication(applicationName: string, silent = true, env
           return false;
         }
       } else {
-        const env = await getConfigurationProfile(appId, configurationProfile, silent);
+        const env = await getConfigurationProfile(appId, configurationProfile as string, silent);
         if (!env) {
           if (!silent) {
             CenvLog.single.errorLog(`configuration profile ${errorBold(configurationProfile)} does not exist.`);
@@ -365,8 +365,8 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
   }
 }
 
-export async function listEnvironments(applicationId) {
-  const cmd = new ListEnvironmentsCommand({ ApplicationId: applicationId});
+export async function listEnvironments(ApplicationId: string) {
+  const cmd = new ListEnvironmentsCommand({ ApplicationId });
 
   try {
     const res = await getClient().send(cmd);
@@ -376,8 +376,8 @@ export async function listEnvironments(applicationId) {
   }
 }
 
-async function listConfigurationProfiles(applicationId) {
-  const cmd = new ListConfigurationProfilesCommand({ ApplicationId: applicationId});
+async function listConfigurationProfiles(ApplicationId: string) {
+  const cmd = new ListConfigurationProfilesCommand({ ApplicationId });
 
   try {
     const res = await getClient().send(cmd);
@@ -387,7 +387,7 @@ async function listConfigurationProfiles(applicationId) {
   }
 }
 
-export async function listHostedConfigurationVersions(ApplicationId, ConfigurationProfileId) {
+export async function listHostedConfigurationVersions(ApplicationId: string, ConfigurationProfileId: string) {
   const cmd = new ListHostedConfigurationVersionsCommand({ApplicationId, ConfigurationProfileId});
   try {
     const res = await getClient().send(cmd);
@@ -397,7 +397,7 @@ export async function listHostedConfigurationVersions(ApplicationId, Configurati
   }
 }
 
-export async function getEnvironment(applicationId, environmentName, silent = true) {
+export async function getEnvironment(applicationId: string, environmentName: string, silent = true) {
   try {
     const environments = await listEnvironments(applicationId);
     let envId = null;
@@ -423,9 +423,8 @@ export async function getEnvironment(applicationId, environmentName, silent = tr
   }
 }
 
-export async function getConfigurationProfile(applicationId, configurationProfileName, silent = true) {
-  const result = { ConfigurationProfileId: null };
-
+export async function getConfigurationProfile(applicationId: string, configurationProfileName: string, silent = true) {
+  const result: { ConfigurationProfileId: string } = { ConfigurationProfileId: null };
   try {
     const res = await listConfigurationProfiles(applicationId);
     let confProfId = null;
@@ -450,7 +449,7 @@ export async function getConfigurationProfile(applicationId, configurationProfil
   }
 }
 
-export async function getHostedConfigurationVersion(ApplicationId, ConfigurationProfileId) {
+export async function getHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string) {
   const command = new ListHostedConfigurationVersionsCommand({ApplicationId, ConfigurationProfileId});
   const result = { VersionNumber: 0 };
 
@@ -470,8 +469,8 @@ export async function getHostedConfigurationVersion(ApplicationId, Configuration
   }
 }
 
-export async function getConfigParams (applicationName, environmentName, configurationProfileName) {
-  const result = { ApplicationId: null, EnvironmentId: null, ConfigurationProfileId: null };
+export async function getConfigParams (applicationName: string, environmentName: string, configurationProfileName: string) {
+  const result: { ApplicationId: string, EnvironmentId: string, ConfigurationProfileId: string } = { ApplicationId: null, EnvironmentId: null, ConfigurationProfileId: null };
 
   try {
     const appRes = await getApplication(applicationName, undefined, false);
@@ -498,7 +497,7 @@ export async function getConfigParams (applicationName, environmentName, configu
   }
 }
 
-export async function deleteApplication(ApplicationId) {
+export async function deleteApplication(ApplicationId: string) {
   try {
     const command = new DeleteApplicationCommand({ ApplicationId });
     const res = await getClient().send(command);
@@ -508,7 +507,7 @@ export async function deleteApplication(ApplicationId) {
   }
 }
 
-export async function deleteEnvironments(ApplicationId, environments) {
+export async function deleteEnvironments(ApplicationId: string, environments: Environment[]) {
   if (!environments || environments.length === 0) {
     CenvLog.single.errorLog(`There are no environments that belong to the application id ${ApplicationId}`);
     return;
@@ -525,7 +524,7 @@ export async function deleteEnvironments(ApplicationId, environments) {
   }
 }
 
-export async function deleteEnvironment(ApplicationId, EnvironmentId) {
+export async function deleteEnvironment(ApplicationId: string, EnvironmentId: string) {
   try {
     const command = new DeleteEnvironmentCommand({ ApplicationId, EnvironmentId });
     const res = await getClient().send(command);
@@ -534,7 +533,7 @@ export async function deleteEnvironment(ApplicationId, EnvironmentId) {
   }
 }
 
-export async function deleteConfigurationProfiles(ApplicationId, profiles) {
+export async function deleteConfigurationProfiles(ApplicationId: string, profiles: ConfigurationProfileSummary[]) {
   if (!profiles || profiles.length === 0) {
     CenvLog.single.errorLog(`There are no configuration profiles that belong to the application id ${ApplicationId}`);
     return;
@@ -551,7 +550,7 @@ export async function deleteConfigurationProfiles(ApplicationId, profiles) {
   }
 }
 
-export async function deleteConfigurationProfile(ApplicationId, ConfigurationProfileId) {
+export async function deleteConfigurationProfile(ApplicationId: string, ConfigurationProfileId: string) {
   try {
     const command = new DeleteConfigurationProfileCommand({ ApplicationId, ConfigurationProfileId });
     const res = await getClient().send(command);
@@ -561,7 +560,7 @@ export async function deleteConfigurationProfile(ApplicationId, ConfigurationPro
 }
 
 
-export async function deleteHostedConfigurationVersions({ApplicationName, ApplicationId, ConfigurationProfileName, ConfigurationProfileId}, versions) {
+export async function deleteHostedConfigurationVersions({ApplicationName, ApplicationId, ConfigurationProfileName, ConfigurationProfileId}: {ApplicationName: string, ApplicationId: string, ConfigurationProfileName: string, ConfigurationProfileId: string }, versions: any) {
   if (!versions || versions.length === 0) {
     CenvLog.info(`  - no configuration versions for ${infoBold(ApplicationName)} [${infoBold(ApplicationId)}] and configuration profile ${infoBold(ConfigurationProfileName)} [${infoBold(ConfigurationProfileId)}]`);
     return;
@@ -571,14 +570,14 @@ export async function deleteHostedConfigurationVersions({ApplicationName, Applic
   try {
     for (let idx = 0; idx < versions.length; idx++) {
       const version = versions[idx];
-      await deleteHostedConfigurationVersion(ApplicationId, ConfigurationProfileId, version.VersionNumber.toString());
+      await deleteHostedConfigurationVersion(ApplicationId, ConfigurationProfileId, version.VersionNumber);
     }
   } catch (e) {
     CenvLog.single.errorLog(`deleteHostedConfigurationVersions error: ${e.message} \n${e.stack}`);
   }
 }
 
-export async function deleteHostedConfigurationVersion(ApplicationId, ConfigurationProfileId, VersionNumber) {
+export async function deleteHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string, VersionNumber: number) {
   try {
     const command = new DeleteHostedConfigurationVersionCommand({ ApplicationId, ConfigurationProfileId, VersionNumber });
     const res = await getClient().send(command);
@@ -588,24 +587,25 @@ export async function deleteHostedConfigurationVersion(ApplicationId, Configurat
 }
 
 export async function destroyRemainingConfigs() {
-  let apps = await listApplications();
-  apps = apps?.map((app) => {
+  const res: any = await listApplications();
+  const apps: string[] = res?.map((app: Application) => {
     return app.Name;
   });
 
   if (apps?.length > 0) {
     CenvLog.single.infoLog(` - destroy all remaining app configs`)
 
-    const destroyEm = apps?.map(async (app) => {
+    const destroyEm = apps?.map(async (app: string) => {
       await destroyAppConfig(app);
-    })
+    });
+
     await Promise.allSettled(destroyEm);
   } else {
     CenvLog.single.infoLog(` - no app configs to destroy`)
   }
 }
 
-export async function destroyAppConfig(applicationName, silentErrors = false) {
+export async function destroyAppConfig(applicationName: string, silentErrors = false) {
   const application = await getApplication(applicationName);
   if (!application.ApplicationId) {
     if (!silentErrors) {
@@ -618,7 +618,7 @@ export async function destroyAppConfig(applicationName, silentErrors = false) {
     const configurationProfiles = await listConfigurationProfiles(application.ApplicationId);
     if (configurationProfiles && configurationProfiles.length) {
       for (let idx = 0; idx < configurationProfiles.length; idx++) {
-        const profile = configurationProfiles[idx];
+        const profile: ConfigurationProfileSummary = configurationProfiles[idx];
         const versions = await listHostedConfigurationVersions(application.ApplicationId, profile.Id);
         if (versions) {
           CenvLog.single.infoLog(`  - deleting application ${infoBold(applicationName)} configuration versions`);
@@ -647,7 +647,7 @@ export async function destroyAppConfig(applicationName, silentErrors = false) {
   }
 }
 
-export async function deployConfig(configProfileContent, appConfigArgs = undefined) {
+export async function deployConfig(configProfileContent: any, appConfigArgs: any = undefined) {
 
   const hostedConfigurationVersion = await createHostedConfigurationVersion(
     appConfigArgs.ApplicationId,
@@ -662,7 +662,7 @@ export async function deployConfig(configProfileContent, appConfigArgs = undefin
     appConfigArgs.DeploymentStrategyId);
 }
 
-export async function deleteCenvData(applicationName, parameters, applicationConfig, globalParameters = false) {
+export async function deleteCenvData(applicationName: string, parameters: any, applicationConfig: any, globalParameters = false) {
   if (applicationConfig) {
     await destroyAppConfig(applicationName, true);
   }
@@ -677,7 +677,7 @@ export async function deleteCenvData(applicationName, parameters, applicationCon
   }
 }
 
-export async function createAppEnvConf(applicationName, environmentName, configurationProfileName) {
+export async function createAppEnvConf(applicationName: any, environmentName: any, configurationProfileName: any) {
   const appRes = await createApplication(applicationName);
   if (!appRes) {
     return false;

@@ -1,8 +1,8 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
 import {
 
-} from '@stoked-cenv/cenv-lib';
-import { CenvLog, infoBold, configure as cenvConfigure, ConfigureCommandOptions } from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
+import { CenvLog, infoBold, configure as cenvConfigure, ConfigureCommandOptions } from '@stoked-cenv/lib';
 import { BaseCommand } from './base'
 
 import { copyFileSync, existsSync,  } from 'fs';
@@ -54,7 +54,7 @@ export default class ConfigureCommand extends BaseCommand {
     return val;
   }
 
-  set(params, options, isFirstPass) {
+  set(params: string[], options: ConfigureCommandOptions, isFirstPass: boolean) {
     if (params.length === 2) {
       if (params[0] !== 'set') {
         process.exit(6);

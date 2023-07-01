@@ -152,7 +152,7 @@ export async function createKey() {
   }
 }
 
-export async function addKeyAccount(Account) {
+export async function addKeyAccount(Account: string) {
   try {
     const key = await getKey();
     if (!key) {
@@ -190,7 +190,7 @@ export async function addKeyAccount(Account) {
   }
 }
 
-export async function encrypt(Plaintext){
+export async function encrypt(Plaintext: any){
   try {
     if (!process.env.KMS_KEY) {
       CenvLog.single.errorLog(`no KMS_KEY configured run ${colors.errorBold('cenv install -k')} to install a key on this account or ${colors.errorBold('cenv config -k')} to configure a key from another account`);
@@ -210,7 +210,7 @@ export async function encrypt(Plaintext){
   }
 }
 
-export async function decrypt(CiphertextBlob) {
+export async function decrypt(CiphertextBlob: any) {
   try {
     const cmd = new DecryptCommand({ KeyId: process.env.KeyId, CiphertextBlob: Uint8Array.from(atob(CiphertextBlob), (v) => v.charCodeAt(0)), });
     const decryptedBinaryData = await getClient().send(cmd);

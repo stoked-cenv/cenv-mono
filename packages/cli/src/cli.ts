@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { Commands } from '@stoked-cenv/cenv-ui';
-import { CenvLog } from '@stoked-cenv/cenv-lib';
+import { Commands } from '@stoked-cenv/ui';
+import { CenvLog } from '@stoked-cenv/lib';
 
 const commands = Commands.list();
 function getProviders() {
-  const providers = [];
+  const providers: any = [];
   commands.map(async (cmd: string[]) => {
     const command = await import(`./commands/${cmd[1]}`)
     command.meta = Reflect.getMetadata('CommandBuilder:Command:Meta', command.default);

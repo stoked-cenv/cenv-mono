@@ -13,7 +13,7 @@
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
@@ -21,6 +21,8 @@
     "esModuleInterop": true,
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist",
-    "cdk.out"]
+  "exclude": ["node_modules",
+    "dist",
+    "cdk.out"
+  ]
 }

@@ -1,4 +1,4 @@
-import {IPackage, Package, getMonoRoot, CenvLog} from '@stoked-cenv/cenv-lib';
+import {IPackage, Package, getMonoRoot, CenvLog} from '@stoked-cenv/lib';
 import path from 'path';
 import blessed from 'blessed';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
@@ -7,14 +7,14 @@ import { Dashboard } from './dashboard';
 export default class Dialogs {
   static dialogs: blessed.element[] = []
 
-  static add(dialog) {
+  static add(dialog: any) {
     dialog.show();
     if (!this.dialogs.filter(d => d === dialog)?.length) {
       this.dialogs.push(dialog);
     }
   }
 
-  static close(dialog = undefined) {
+  static close(dialog: any = undefined) {
     if (this.dialogs?.length) {
       if (dialog !== undefined) {
         const diagIndex = this.dialogs.indexOf(dialog);
@@ -43,11 +43,11 @@ export default class Dialogs {
     return this.dialogs?.length
   }
 
-  static saveSuiteDialog(screen) {
+  static saveSuiteDialog(screen: any) {
     const packages = Object.values(Package.cache);
     const screenContent = '\n\n\nCreate a deployment with the following packages:\n\n' + packages.map((p: Package) => p.packageName).join(', ')
     const bg = 'gray';
-    let form = undefined;
+    let form: any = undefined;
 
     form = blessed.form({
       parent: screen,
@@ -91,7 +91,7 @@ export default class Dialogs {
       form.destroy();
     });
 
-    form.on('submit', function(data) {
+    form.on('submit', function(data: any) {
       //output.setContent(JSON.stringify(data, null, 2));
       const rootPath = getMonoRoot();
       let suites: any = {};
@@ -162,7 +162,7 @@ export default class Dialogs {
     });
   }
 
-  static saveDump(screen, exit = false) {
+  static saveDump(screen: any, exit = false) {
     CenvLog.single.catchLog(new Error('hi'));
     const dump = {
       ts: Date.now(),
@@ -179,9 +179,9 @@ export default class Dialogs {
       })
     }
 
-    let form = undefined;
+    let form: any = undefined;
     let selfDestructTimer = 3000;
-    let timer = undefined;
+    let timer: NodeJS.Timer = undefined;
     const interval = 250;
     const baseScreenContent = "Creating a deployment status dump. \n\nThis message will self destruct in: ";
     let screenContent = baseScreenContent + (selfDestructTimer / 1000).toFixed(2);
@@ -219,7 +219,7 @@ export default class Dialogs {
       form.destroy();
     });
 
-    form.on('submit', function(data) {
+    form.on('submit', function(data: any) {
       //output.setContent(JSON.stringify(data, null, 2));
       const rootPath = getMonoRoot();
       const suitesPath = path.join(rootPath, 'dump.json');

@@ -1,5 +1,5 @@
 import { CommandRunner, Option } from 'nest-commander';
-import { Dashboard } from '@stoked-cenv/cenv-ui';
+import { Dashboard } from '@stoked-cenv/ui';
 import {
   ConfigureCommandOptions,
   BaseCommandOptions,
@@ -13,7 +13,7 @@ import {
   Deployment,
   parseCmdParams,
   Cenv
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 
 export abstract class BaseCommand extends CommandRunner {
   allowUI = false;
@@ -21,7 +21,7 @@ export abstract class BaseCommand extends CommandRunner {
   deploymentMode: ProcessMode;
   localPackageAccepted = true;
   packageRequired = false;
-  meta;
+  meta: any;
 
   async run(passedParams: string[], options?: any) {
 

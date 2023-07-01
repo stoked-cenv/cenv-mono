@@ -10,7 +10,7 @@ import {
   Deployment,
   validateBaseOptions,
   CenvParams, cleanup
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 import chalk from 'chalk';
 import {HelpUI} from "./help";
 import util from "util";
@@ -97,7 +97,7 @@ export default class MenuBar {
     this.screen.render();
   }
 
-  set(position) {
+  set(position: any) {
     this.bar.left = position.left;
     this.bar.right = position.right;
     this.bar.top = position.top;

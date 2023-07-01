@@ -16,12 +16,12 @@ import {
   ProcessMode,
   Suite,
   DashboardCreateOptions,
-  pbcopy, Deployment, PkgContextType, validateBaseOptions, killStackProcesses, Cenv
-} from '@stoked-cenv/cenv-lib';
+  pbcopy, Deployment, PkgContextType, validateBaseOptions, killStackProcesses, Cenv, Cmd, PackageCmd,
+} from '@stoked-cenv/lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import chalk, {ChalkFunction} from 'chalk';
-import {isFunction} from "lodash";
+import { isFunction } from "lodash";
 import {HelpUI} from "./help";
 
 export enum DashboardMode {
@@ -34,29 +34,29 @@ export enum DashboardMode {
 
 
 export class Dashboard {
-  screen;
+  screen: any;
   initialized = false;
   debugLog;
   status;
-  statusText = '';
+  statusPanelText = '';
   debugStr = '';
   complete = false;
   packages;
-  grid;
-  cmd;
+  grid: any;
+  cmd: ProcessMode = undefined;
   focusIndex = -1;
   focusedBox;
   cmdPanel: CmdPanel;
   statusPanel: StatusPanel;
   globalPkg: Package;
-  menu;
-  priorityColumnWidth = [];
+  menu: Menu;
+  priorityColumnWidth: any = [];
   columnWidth;
   columnSpacing = 2;
   maxColumnWidth;
   minColumnWidth = 12;
-  tableWidth;
-  splitter;
+  tableWidth: number;
+  splitter: any;
   suite: Suite;
   environment;
   packageBox;
@@ -64,14 +64,14 @@ export class Dashboard {
   static instance: Dashboard = undefined;
   statusBar;
   static stackName = '';
-  packageTs;
+  packageTs: number;
   mode: DashboardMode = DashboardMode.MIXED;
   modeLastWide: DashboardMode = DashboardMode.WIDE_CMD_FIRST;
   modeLast: DashboardMode = DashboardMode.MIXED;
   dependencies: string;
   cmdOptions: any;
   selectedPackage: string;
-  selectedRowFg = undefined;
+  selectedRowFg: number[] = undefined;
   selectedPackageFg = [14, 221, 14];
   selectedFullPackageFg = [40, 40, 40];
   selectedPackageFgHover = [20, 20, 20];
@@ -80,8 +80,8 @@ export class Dashboard {
   selectedPackageBgHover = [24, 255, 24];
   selectedFullPackageBgHover = [24, 255, 24];
   packageBgHover = [15, 40, 15];
-  hoverRowIndex = undefined;
-  selectedRowIndex = undefined;
+  hoverRowIndex: number = undefined;
+  selectedRowIndex: number = undefined;
   selectedFully = false;
   blue = chalk.blue;
   blueBright = [0, 150, 255];
@@ -93,17 +93,16 @@ export class Dashboard {
   lightGray = [220, 220, 220];
   green = [0, 255, 0];
   statusBarInUse = false;
-  packageHover = null;
-  packageTimer = null;
+  packageHover: boolean = null;
   view = 'mixed';
   blessedDeps;
-  fullScreenCtrl;
+  fullScreenCtrl: any;
   hidden = false;
   processOptions;
-  debounceFlags = {};
-  clearLabelTimeout = null;
+  debounceFlags: Record<string, any> = {};
+  clearLabelTimeout: NodeJS.Timeout = null;
   deploying = false;
-  statusOptions;
+  statusOptions: Menu;
   static moduleToggle = true;
   static dependencyToggle = true;
   static paramsToggle = false;
@@ -151,9 +150,7 @@ export class Dashboard {
         hideBorder: true,
       });
 
-      function statusText(titleText, descriptionText) {
-        return `${chalk.blueBright.bold(titleText)}: ${descriptionText}`;
-      }
+
 
       const pkgButtons = {
         deploy: {
@@ -165,7 +162,7 @@ export class Dashboard {
                 return;
               }
               const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName.toUpperCase()}`;
-              this.setStatusBar('launchDeployment', statusText(`deploy`, `${packages}`));
+              this.setStatusBar('launchDeployment', this.statusText(`deploy`, `${packages}`));
               await this.launchDeployment(ProcessMode.DEPLOY);
             });
           }.bind(this),
@@ -184,7 +181,7 @@ export class Dashboard {
                   : `${pkgs[0].packageName.toUpperCase()}`;
               this.setStatusBar(
                 'launchDestroy',
-                statusText(`destroy`, packages),
+                this.statusText(`destroy`, packages),
               );
               await this.launchDeployment(ProcessMode.DESTROY);
             });
@@ -200,7 +197,7 @@ export class Dashboard {
                 return;
               }
               const name = 'build';
-              this.setStatusBar(name, statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
+              this.setStatusBar(name, this.statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
               await Promise.all(ctx?.map(async (p: Package) => await p.build()));
             });
           }.bind(this),
@@ -213,12 +210,7 @@ export class Dashboard {
               return;
             }
             const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
-            this.setStatusBar(
-              'checkStatus',
-              statusText(
-                'status check',
-                `check deployment status of ${packages}`,
-              ),
+            this.setStatusBar('checkStatus', this.statusText('status check',`check deployment status of ${packages}`),
             );
             ctx.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
           }.bind(this),
@@ -231,14 +223,14 @@ export class Dashboard {
               return;
             }
             this.debounceCallback('cancel', async () => {
-              await Promise.allSettled(ctx.map(async (p) => {
+              await Promise.allSettled(ctx.map(async (p: Package) => {
                 CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', Dashboard.instance.cmdPanel.stdout), p.stackName);
 
                 await Deployment.packageComplete(p);
 
                 if (Deployment.dependencies) {
                   Object.keys(Deployment.dependencies).map(stackName => {
-                    Deployment.dependencies[stackName].dependencies = Deployment.dependencies[stackName].dependencies.filter(d => d.stackName !== p.stackName);
+                    Deployment.dependencies[stackName].dependencies = Deployment.dependencies[stackName].dependencies.filter((d: Package) => d.stackName !== p.stackName);
                   })
                 }
 
@@ -288,10 +280,9 @@ export class Dashboard {
       this.packages.rows.items.name = 'packageItems';
 
       this.packageHover = false;
-      this.packageTimer = null;
 
       this.packages.on('element mouseover',
-        async function mouseover(el, _data) {
+        async function mouseover(el: any) {
 
           if (el.parent?.name !== 'packageRows') {
             return;
@@ -318,7 +309,7 @@ export class Dashboard {
         }.bind(this),
       );
 
-      this.packages.on('element mouseout', function mouseout(el, data) {
+      this.packages.on('element mouseout', function mouseout(el: any) {
 
           if (el.parent?.name !== 'packageRows') return;
 
@@ -352,43 +343,43 @@ export class Dashboard {
 
       this.focusedBox = this.packages;
       const debugPackageEvents = process.env.CENV_DEBUG_PACKAGE_EVENTS;
-      this.packages.rows.on('move', async function move(item, index) {
-        if (debugPackageEvents) Dashboard.debug('move', index);
+      this.packages.rows.on('move', async function move(item: any, index: number) {
+        if (debugPackageEvents) Dashboard.debug('move', index.toString());
       }.bind(this));
 
-      this.packages.rows.on('action', async function action(var1, var2) {
+      this.packages.rows.on('action', async function action(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('rows action', var2);
         if (var2 !== undefined) {
           this.selectedFully = true;
         }
       }.bind(this));
 
-      this.packages.on('element click', async function elementClick(var1, var2) {
+      this.packages.on('element click', async function elementClick(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('packages element click', var1, var2);
         await this.selectPackage();
       }.bind(this));
 
-      this.packages.on('click', async function packagesClick(var1, var2) {
+      this.packages.on('click', async function packagesClick(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('packages click', var1, var2);
       });
 
-      this.packages.on('click select', async function clickSelect(var1, var2) {
+      this.packages.on('click select', async function clickSelect(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('package click select', var1, var2);
       });
 
-      this.packages.on('select item', async function packageSelectItem(var1, var2) {
+      this.packages.on('select item', async function packageSelectItem(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('package select item', var1, var2);
       });
 
-      this.packages.rows.on('click', async function rowClick(var1, var2) {
+      this.packages.rows.on('click', async function rowClick(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('rows click', var1, var2);
       });
 
-      this.packages.rows.on('click select', async function clickSelect(var1, var2) {
+      this.packages.rows.on('click select', async function clickSelect(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug('rows click select', var1, var2);
       });
 
-      this.packages.rows.on('select item', async function packageSelectItem(var1, var2) {
+      this.packages.rows.on('select item', async function packageSelectItem(var1: any, var2: any) {
         if (debugPackageEvents) Dashboard.debug(`select item - selected index: ${var2}, selectedRowIndex: ${this.selectedRowIndex}, full: ${this.selectedFully}`);
         await this.selectPackage();
       }.bind(this));
@@ -443,7 +434,7 @@ export class Dashboard {
 
       this.status.setContent('');
 
-      this.screen.key('backspace', async function (ch, key) {
+      this.screen.key('backspace', async function (ch: any, key: any) {
         if (!this.statusPanel?.enableSelection || this.focusedBox.type !== 'params') {
           return;
         }
@@ -471,7 +462,7 @@ export class Dashboard {
 
       }.bind(this));
 
-      this.screen.key(['escape', 'q', 'C-c'], function (ch, key) {
+      this.screen.key(['escape', 'q', 'C-c'], function (ch: any, key: any) {
         if (Dialogs.open()) {
           Dialogs.close();
         } else if (HelpUI.instance) {
@@ -483,7 +474,7 @@ export class Dashboard {
         }
       });
 
-      this.screen.key(['f'], function(ch, key) {
+      this.screen.key(['f'], function(ch: any, key: any) {
         if (!this.fullScreenCtrl) {
           this.fullScreenCtrl = this.focusPool()[this.focusIndex];
         } else {
@@ -491,33 +482,20 @@ export class Dashboard {
         }
       }.bind(this))
 
-      function printCmd(cmd) {
-        let cmdText = `\n${cmd.cmd}:`;
-        if (cmd.stdout && cmd.stdout != '') {
-          cmdText += `\nstdout: ${cmd.stdout}`;
-        }
-        if (cmd.stderr && cmd.stderr != '') {
-          cmdText += `\nstderr: ${cmd.stderr}`;
-        }
-        if (cmd.code) {
-          cmdText += `\nexit code: ${cmd.code}`;
-        }
-        cmdText += '\n';
-        return cmdText;
-      }
+
 
       this.screen.key(
         ['ç'],
         function () {
           if (this.focusIndex === 0) {
             let text = Dashboard.stackName + ':\n';
-            text += Package.cache[Dashboard.stackName].cmds.map((cmd) =>
-              printCmd(cmd),
+            text += Package.cache[Dashboard.stackName].cmds.map((cmd: PackageCmd) =>
+              this.printCmd(cmd),
             );
             pbcopy(blessed.cleanTags(text));
           } else if (this.focusIndex === 1) {
             pbcopy(
-              blessed.cleanTags(printCmd(
+              blessed.cleanTags(this.printCmd(
                 Package.cache[Dashboard.stackName].cmds[this.cmdPanel.cmdList.selected],
               ))
             );
@@ -533,26 +511,26 @@ export class Dashboard {
 
       this.screen.key(
         ['C-s'],
-        async function (ch, key) {
+        async function (ch: any, key: any) {
           Dialogs.saveSuiteDialog(this.screen);
         }.bind(this),
       );
 
       this.screen.key(
         ['C-d'],
-        async function (ch, key) {
+        async function (ch: any, key: any) {
           //Dialogs.saveDump(this.screen);
         }.bind(this),
       );
 
-      this.screen.key(['tab'],function (ch, key) {
+      this.screen.key(['tab'],function (ch: any, key: any) {
           const isLastIndex = this.focusIndex + 1 > this.focusPool().length - 1;
           const newIndex = isLastIndex ? 0 : this.focusIndex + 1;
           this.setFocusIndex(newIndex);
         }.bind(this),
       );
 
-      this.screen.key(['S-tab'], function (ch, key) {
+      this.screen.key(['S-tab'], function (ch: any, key: any) {
           const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
           this.setFocusIndex(newIndex);
         }.bind(this),
@@ -561,7 +539,7 @@ export class Dashboard {
       /*
       this.screen.key(
         ['f'],
-        async function (ch, key) {
+        async function (ch: any, key: any) {
           Groups.toggleFullscreen();
         }.bind(this),
       );
@@ -618,17 +596,17 @@ export class Dashboard {
                             : `1 package`;
                         switch (bumpType) {
                           case BumpType.BUMP:
-                            return statusText(
+                            return this.statusText(
                               `${bumpType} builds`,
                               `increment ${packages} by ${bumpMode} if changes detected`,
                             );
                           case BumpType.DECREMENT:
-                            return statusText(
+                            return this.statusText(
                               `${bumpType} builds`,
                               `decrement ${packages} by ${bumpMode} if changes detected`,
                             );
                           case BumpType.FINALIZE_PRERELEASE:
-                            return statusText(
+                            return this.statusText(
                               `${bumpType}`,
                               `remove ${bumpMode} build identifiers from ${packages2} if they exist`,
                             );
@@ -646,7 +624,7 @@ export class Dashboard {
                       const nextMode = Version.nextBumpMode;
                       dashboard.setStatusBar(
                         'nextBumpMode',
-                        statusText(`cycle bump mode`, `${nextMode} enabled`),
+                        this.statusText(`cycle bump mode`, `${nextMode} enabled`),
                       );
                     });
                   }.bind(this),
@@ -658,7 +636,7 @@ export class Dashboard {
                       const nextType = Version.nextBumpType;
                       dashboard.setStatusBar(
                         'nextBumpMode',
-                        statusText(`cycle bump type`, `${nextType}`),
+                        this.statusText(`cycle bump type`, `${nextType}`),
                       );
                     });
                   }.bind(this),
@@ -670,7 +648,7 @@ export class Dashboard {
                       CenvLog.nextColor();
                       dashboard.setStatusBar(
                         'nextColor',
-                        statusText(
+                        this.statusText(
                           `active color`,
                           `${CenvLog.getRgb()}`,
                         ),
@@ -685,7 +663,7 @@ export class Dashboard {
                       CenvLog.incrementColor();
                       dashboard.setStatusBar(
                         'incrementColor',
-                        statusText(
+                        this.statusText(
                           `increment ${CenvLog.getRgb()}`,
                           `${CenvLog[CenvLog.getRgb()]}`,
                         ),
@@ -704,7 +682,7 @@ export class Dashboard {
                           : `${ctx.packages[0].packageName.toUpperCase()}`;
                       dashboard.setStatusBar(
                         'resetBump',
-                        statusText(
+                        this.statusText(
                           `reset bump versions`,
                           `remove all bump versions from ${packages}`,
                         ),
@@ -727,29 +705,28 @@ export class Dashboard {
             this.debounceCallback('toggle debug', async () => {
               Dashboard.toggleDebug = !Dashboard.toggleDebug;
               this.setStatusBar('toggleDebug',
-                statusText(
+                this.statusText(
                   Dashboard.toggleDebug ? `toggle debug view` : `toggle status view`,
                   Dashboard.toggleDebug ? `debug view enabled` : `status view enabled`));
             });
           }.bind(this),
         },
-
-        /*save: {
+        "save dump": {
           keys: ['s'],
           callback: function () {
-            debounceCallback('create dump', async () => {
-              dashboard.setStatusBar(
+            this.debounceCallback('create dump', async () => {
+              this.setStatusBar(
                 'createDump',
-                statusText(
+                this.statusText(
                   'log dump',
                   `generate a log dump for all packages currently loaded`,
                 ),
               );
-              // Dialogs.saveDump(this.screen);
+              Dialogs.saveDump(this.screen);
               this.screen.render();
             });
           }.bind(this),
-        },*/
+        },
 
         "fix dupes": {
           keys: ['u'],
@@ -762,25 +739,13 @@ export class Dashboard {
                   return;
                 }
                 await Promise.all(ctx?.map(async (p: Package) => await p?.params?.fixDupes()));
-                this.setStatusBar(name, statusText(name, 'remove dupes for global and globalEnv param types'));
+                this.setStatusBar(name, this.statusText(name, 'remove dupes for global and globalEnv param blessed'));
               });
             } catch (e) {
               CenvLog.single.catchLog(e);
             }
           }.bind(this),
         },
-        /*
-        preBuild: {
-          keys: ['0'],
-          callback: async function () {
-            debounceCallback('toggle auto pre-build', async () => {
-              Deployment.options.skipBuild = !Deployment?.options.skipBuild;
-              const name = 'toggle auto pre-build';
-              this.setStatusBar(name, statusText(name, Deployment.options.skipBuild ? `auto pre-build disabled` : `auto pre-build enabled`));
-            });
-          }.bind(this),
-        },
-        */
         "strict versions": {
           keys: ['S-v'],
           callback: function () {
@@ -790,7 +755,7 @@ export class Dashboard {
                   !Deployment.options?.strictVersions;
                 this.setStatusBar(
                   'toggleView',
-                  statusText(
+                  this.statusText(
                     'strict versions mode',
                     Deployment.options.strictVersions ? 'enabled' : 'disabled',
                   ),
@@ -802,20 +767,15 @@ export class Dashboard {
         "clear logs": {
           keys: ['l'],
           callback: function () {
-            this.debounceCallback('clearVersions', async () => {
-              Dashboard.instance.statusBarInUse = true;
-              if (
-                this.dashboard.focusedBox === this.dashboard.cmdPanel.stdout
-              ) {
-                this.dashboard.cmdPanel.stdout.setContent('');
-                this.setStatusBar('clearStdout', statusText('clear', 'stdout panel'));
-              } else if (this.dashboard.focusedBox === this.dashboard.cmdPanel.stderr) {
-                this.dashboard.cmdPanel.stderr.setContent('');
-                this.setStatusBar('clearStderr', statusText('clear', 'stderr panel'));
-              } else {
-                Dashboard.instance.debugLog.setContent('');
-                this.setStatusBar('clearDebug', statusText('clear', 'debug log'));
+            this.debounceCallback('clear logs', async () => {
+              const ctx = this.getContext();
+              if (!ctx) {
+                return;
               }
+              ctx.map((p: Package) => {
+                delete p.cmds;
+              })
+              this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
             });
           }.bind(this),
         },
@@ -824,17 +784,15 @@ export class Dashboard {
           callback: function () {
             this.debounceCallback('clearVersions', async () => {
               Dashboard.instance.statusBarInUse = true;
-              if (
-                this.dashboard.focusedBox === this.dashboard.cmdPanel.stdout
-              ) {
+              if (this.focusedBox === this.dashboard.cmdPanel.stdout) {
                 this.dashboard.cmdPanel.stdout.setContent('');
-                this.setStatusBar('clearStdout', statusText('clear', 'stdout panel'));
-              } else if (this.dashboard.focusedBox === this.dashboard.cmdPanel.stderr) {
-                this.dashboard.cmdPanel.stderr.setContent('');
-                this.setStatusBar('clearStderr', statusText('clear', 'stderr panel'));
+                this.setStatusBar('clearStdout', this.statusText('clear', 'stdout panel'));
+              } else if (this.focusedBox === this.dashboard.cmdPanel.stderr) {
+                this.cmdPanel.stderr.setContent('');
+                this.setStatusBar('clearStderr', this.statusText('clear', 'stderr panel'));
               } else {
-                Dashboard.instance.debugLog.setContent('');
-                this.setStatusBar('clearDebug', statusText('clear', 'debug log'));
+                this.debugLog.setContent('');
+                this.setStatusBar('clearDebug', this.statusText('clear', 'debug log'));
               }
             });
           }.bind(this),
@@ -850,7 +808,7 @@ export class Dashboard {
             this.debounceCallback('modules', async () => {
               Dashboard.moduleToggle = !Dashboard.moduleToggle;
               this.statusPanel.updateVis();
-              this.setStatusBar('toggle panel', statusText(`toggle panel`, 'module info'));
+              this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'module info'));
             });
           }.bind(this),
         },
@@ -860,7 +818,7 @@ export class Dashboard {
             this.debounceCallback('toggle dependencies', async () => {
               Dashboard.dependencyToggle = !Dashboard.dependencyToggle;
               this.statusPanel.updateVis();
-              this.setStatusBar('toggle panel', statusText(`toggle panel`, 'dependencies'));
+              this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'dependencies'));
             });
           }.bind(this),
         },
@@ -870,7 +828,7 @@ export class Dashboard {
             this.debounceCallback('toggle params', async () => {
               Dashboard.paramsToggle = !Dashboard.paramsToggle;
               this.statusPanel.updateVis();
-              this.setStatusBar('toggle panel', statusText(`toggle panel`, 'params'));
+              this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'params'));
             });
           }.bind(this),
         },
@@ -914,6 +872,25 @@ export class Dashboard {
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+  }
+
+  statusText(titleText: string, descriptionText: string) {
+    return `${chalk.blueBright.bold(titleText)}: ${descriptionText}`;
+  }
+
+  printCmd(cmd: Cmd) {
+    let cmdText = `\n${cmd.cmd}:`;
+    if (cmd.stdout && cmd.stdout != '') {
+      cmdText += `\nstdout: ${cmd.stdout}`;
+    }
+    if (cmd.stderr && cmd.stderr != '') {
+      cmdText += `\nstderr: ${cmd.stderr}`;
+    }
+    if (cmd.code) {
+      cmdText += `\nexit code: ${cmd.code}`;
+    }
+    cmdText += '\n';
+    return cmdText;
   }
 
   async launchDeployment(mode: ProcessMode) {
@@ -964,7 +941,7 @@ export class Dashboard {
     return ctx.packages;
   }
 
-  debounceCallback(name, callback, onTimeout = undefined) {
+  debounceCallback(name: string, callback: any, onTimeout: any = undefined) {
     if (this.debounceFlags[name]) {
       return;
     }
@@ -1011,7 +988,7 @@ export class Dashboard {
     return nextMode;
   }
 
-  private debug(...text) {
+  private debug(...text: string[]) {
     if (!this.debugLog) {
       return;
     }
@@ -1138,19 +1115,23 @@ export class Dashboard {
       return items[index].content.split(' ')[0];
     }
   }
-
   nextMode() {
-    let foundMode = false;
-    for (const value of enumKeys(DashboardMode)) {
-      if (foundMode) {
-        return DashboardMode[value];
+    /*
+
+      let foundMode = false;
+      for (const value of enumKeys(DashboardMode) as keyof DashboardMode) {
+        if (foundMode) {
+          return DashboardMode[value as keyof typeof DashboardMode];
+        }
+        if (DashboardMode[value as keyof typeof DashboardMode] === this.mode) {
+          foundMode = true;
+        }
       }
-      if (DashboardMode[value] === this.mode) {
-        foundMode = true;
-      }
+
+     */
+      return DashboardMode.MIXED;
     }
-    return DashboardMode.MIXED;
-  }
+
 
   setMode(mode: DashboardMode) {
     this.mode = mode;
@@ -1170,7 +1151,7 @@ export class Dashboard {
     let titleRoot = 'cenv';
     let titleNoun;
     if (this.cmd) {
-      titleRoot = this.cmd === ProcessMode.DEPLOY ? 'deploy' : 'destroy';
+      titleRoot = this.cmd.valueOf() === ProcessMode.DEPLOY.valueOf() ? 'deploy' : 'destroy';
 
       const opt = Deployment?.options;
       if (opt?.suite) {
@@ -1182,8 +1163,7 @@ export class Dashboard {
       }
     }
 
-    const title = `${titleRoot}${titleNoun ? ' ' + titleNoun : ''}`;
-    return title;
+    return `${titleRoot}${titleNoun ? ' ' + titleNoun : ''}`;
   }
 
   focusPool() {
@@ -1215,13 +1195,10 @@ export class Dashboard {
   }
 
   static getFocusWidget() {
-    const focusWidget =
-      Dashboard.instance.focusPool()[Dashboard.instance.focusIndex];
-
-    return focusWidget;
+    return Dashboard.instance.focusPool()[Dashboard.instance.focusIndex];
   }
 
-  setFocusIndex(index) {
+  setFocusIndex(index: number) {
     if (this.focusIndex === index) {
       return;
     }
@@ -1268,9 +1245,6 @@ export class Dashboard {
     this.focusedBox = focusItems[index];
     if (this.focusedBox) {
       const box = this.focusedBox?.rows ? this.focusedBox.rows : this.focusedBox;
-      if (box.style?.selected) {
-
-      }
       if (this.focusedBox?.style?.label?.fg) {
         this.focusedBox.style.label.oldFg = this.focusedBox.style.label.fg;
         this.focusedBox.style.label.fg = [24, 242, 24]
@@ -1293,7 +1267,7 @@ export class Dashboard {
     return Package.cache[stackName ? stackName : Dashboard.stackName];
   }
 
-  storeLogBase(cmd, type, msg) {
+  storeLogBase(cmd: any, type: string, msg: string) {
     if (cmd[type]) {
       cmd[type] += msg;
     } else {
@@ -1303,7 +1277,7 @@ export class Dashboard {
       this.storeLogBase(cmd, 'stdtemp', msg);
     }
   }
-  storeLog(stackName, message: string, type) {
+  storeLog(stackName: string, message: string, type: string) {
     const pkg = this.getPkg(stackName);
     if (!pkg) {
       Dashboard.debug('stackName not found: ' + stackName + ' - ' + message, new Error().stack);
@@ -1390,7 +1364,7 @@ export class Dashboard {
     }
   }
 
-  setStatusBar(name, msg) {
+  setStatusBar(name: string, msg: string) {
     if (msg === '' || this.debounceFlags[name]) {
       delete this.debounceFlags[name];
       return;
@@ -1463,31 +1437,25 @@ export class Dashboard {
 
     const environmentOrder = Object.values(EnvironmentStatus);
     const deploymentOrder = Object.values(ProcessStatus);
-    const global = packages.filter(p => p.stackName === 'GLOBAL')[0];
+    const global = packages.filter((p: Package) => p.stackName === 'GLOBAL')[0];
     packages = packages
-      .filter(p => p.stackName !== 'GLOBAL')
-      .sort((a, b) => (a?.statusTime < b?.statusTime ? 1 : -1))
-      .sort(
-        (a, b) =>
-          environmentOrder.indexOf(a.environmentStatus) -
-          environmentOrder.indexOf(b.environmentStatus),
-      )
-      .sort(
-        (a, b) =>
-          deploymentOrder.indexOf(a.processStatus) -
-          deploymentOrder.indexOf(b.processStatus),
-      );
+      .filter((p: Package) => p.stackName !== 'GLOBAL')
+      .sort((a: Package, b: Package) => (a?.statusTime < b?.statusTime ? 1 : -1))
+      .sort((a: Package, b: Package) =>
+          environmentOrder.indexOf(a.environmentStatus) - environmentOrder.indexOf(b.environmentStatus))
+      .sort((a: Package, b: Package) =>
+          deploymentOrder.indexOf(a.processStatus) - deploymentOrder.indexOf(b.processStatus));
     packages.unshift(global)
     return packages;
   }
 
-  async getUpdateData(packages) {
+  async getUpdateData(packages: Package[]) {
     try {
       let complete = true;
       let hasNonGlobals = false;
       let selectedPos = -1;
       const tableCalcs = this.calcTableInfo();
-      const headers = [tableCalcs.columns];
+      const headers: any[] = [tableCalcs.columns];
       const data = [];
       const selectedColor = chalk.rgb(
         this.selectedPackageFg[0],
@@ -1508,7 +1476,7 @@ export class Dashboard {
               this.tableHeaders[this.columnPriority[j]];
           }
         }
-        const pkg = packages[i];
+        const pkg: Package = packages[i];
         if (
           pkg.stackName === Dashboard.stackName &&
           this.selectedRowIndex !== i
@@ -1538,23 +1506,23 @@ export class Dashboard {
         }
 
         const hover = i === this.hoverRowIndex;
-        let rowColor = envColor;
+        let rowColor: any = envColor;
         if (pkg.stackName === 'GLOBAL') {
           rowColor = this.getChalkColor(this.yellow, false, 0, isHoverRow) as ChalkFunction;
 
         } else if (selected && hover) {
           rowColor = selectedHoverColor;
-          this.selectedRowFg = this.getStatusColor(pkg.environmentStatus, isHoverRow, true);
+          this.selectedRowFg = this.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
         } else if (selected) {
           rowColor = selectedColor;
-          this.selectedRowFg = this.getStatusColor(pkg.environmentStatus, isHoverRow, true);
+          this.selectedRowFg = this.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
         }
 
         if (!isFunction(rowColor)) {
           rowColor = chalk.rgb(rowColor[0], rowColor[1], rowColor[2])
         }
         row.push(rowColor(pkg.stackName));
-        row.push(rowColor(pkg.isGlobal ? '-----' : pkg.version));
+        row.push(rowColor(pkg.isGlobal ? '-----' : pkg.rollupVersion));
         row.push(rowColor(pkg.type));
         row.push(rowColor(pkg.processStatus));
         row.push(rowColor(pkg.environmentStatus));
@@ -1577,7 +1545,7 @@ export class Dashboard {
   }
 
 
-  mod(digit, mod) {
+  mod(digit: number, mod: number) {
     return clamp(
       Math.abs(255 - digit) < Math.abs(0 - digit) ? digit - mod : digit + mod,
       0,
@@ -1585,7 +1553,7 @@ export class Dashboard {
     );
   }
 
-  getChalkColor(colorRgb, hover, sub, rgb) {
+  getChalkColor(colorRgb: number[], hover: boolean, sub: number, rgb: boolean) {
     const mod = hover ? 0 : sub;
     const r = this.mod(colorRgb[0], mod);
     const g = this.mod(colorRgb[1], mod);
@@ -1599,7 +1567,7 @@ export class Dashboard {
     return color.bold;
   }
 
-  getStatusColor(status, hover, rgb = false) {
+  getStatusColor(status: ProcessStatus | EnvironmentStatus, hover: boolean, rgb = false) {
     switch (status) {
       case ProcessStatus.BUILDING:
       case ProcessStatus.HASHING:
@@ -1625,7 +1593,6 @@ export class Dashboard {
         return this.getChalkColor(this.lightGray, hover, 35, rgb);
       case ProcessStatus.INITIALIZING:
       case ProcessStatus.READY:
-      case EnvironmentStatus.NONE:
         return this.getChalkColor(this.white, hover, 22, rgb);
       case EnvironmentStatus.UP_TO_DATE:
       case ProcessStatus.COMPLETED:
@@ -1654,13 +1621,15 @@ export class Dashboard {
       this.dependencies = '';
     }
   }
-
-  static tabSpaces(text) {
+/*
+  static tabSpaces(text:) {
     const regex = /[\t]/g;
     return text.match(regex)?.length;
   }
 
-  createBox(ctrl, title: string, lines: string[], bgColor, fgColor, topPadding = 1, sidePadding = 2) {
+ */
+
+  createBox(ctrl: any, title: string, lines: string[], bgColor: any, fgColor: any, topPadding = 1, sidePadding = 2) {
     const statWidth = ctrl.width - 3;
     const leftPadding = sidePadding + ctrl.padding.left;
     const tab = '----';
@@ -1672,7 +1641,7 @@ export class Dashboard {
       return `${' '.repeat(sidePadding)}${bgColor(`${text}${' '.repeat(clamp(statWidth - leftPadding - rightPadding - blessed.cleanTags(text).length, 0, 255))}`)}\n`
     }
 
-    function spaceLeft(line) {
+    function spaceLeft(line: string) {
       return statWidth - line.length - leftPadding - rightPadding - tab.length ;
     }
 
@@ -1714,10 +1683,20 @@ export class Dashboard {
     }
   }
 
+  statusMetric (num: number, type: string, longestNumberLength: number) {
+    return `\t${chalk.bold(num.toString().padStart(longestNumberLength))} ${type}\n`
+  }
+
+  packageStatus (packages: Package[], environmentStatus: EnvironmentStatus) {
+    const color = Dashboard.instance.getStatusColor(environmentStatus, true) as ChalkFunction;
+    const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
+    return `[${color(environmentStatus)}]: ${chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
+  }
+
   updateStatus() {
     this.updateDependenciesStatus();
 
-    const packages = Package.getPackages().filter(p => !p.isGlobal);
+    const packages = Package.getPackages().filter((p: Package) => !p.isGlobal);
     let noun = '';
     const opt = this.cmdOptions;
     const multiplePackagesLoaded = packages.length > 1;
@@ -1738,12 +1717,12 @@ export class Dashboard {
       this.status.setLabel(noun);
       this.splitter.setFront();
       this.statusBar.setFront();
-      const slices = {};
+      const slices: Record<string, any> = {};
 
-      const notSkipped = Package.getPackages().filter(p => !p.skipUI);
+      const notSkipped = Package.getPackages().filter((p: Package) => !p.skipUI);
       slices['notSkipped'] = notSkipped;
 
-      const skipped = Package.getPackages().filter(p => p.skipUI);
+      const skipped = Package.getPackages().filter((p: Package) => p.skipUI);
       slices['skipped'] = skipped;
 
       const cenvPackages = packages.filter((p: Package) => p.params?.hasCenvVars);
@@ -1761,27 +1740,20 @@ export class Dashboard {
         }) as string;
 
       const longestNumberLength = longestNumber.length.toString().length;
-      function statusMetric (num: number, type: string, extension = '') {
-        return `\t${chalk.bold(num.toString().padStart(longestNumberLength))} ${type}${extension ? `\n${extension}` : ''}\n`
-      }
 
-      status += statusMetric(notSkipped.length, 'packages');
+      status += this.statusMetric(notSkipped.length, 'packages', longestNumberLength);
       if (skipped.length) {
-        status += statusMetric(skipped.length, 'hidden packages (dependencies disabled)');
+        status += this.statusMetric(skipped.length, 'hidden packages (dependencies disabled)', longestNumberLength);
       }
-      status += statusMetric(cenvPackages.length, 'packages w/ cenv vars');
-      status += statusMetric(cenvDeployedPackages.length, 'packages w/ deployed vars');
-      status += statusMetric(cenvMaterializedPackages.length, 'packages w/ materialized vars\n\n');
+      status += this.statusMetric(cenvPackages.length, 'packages w/ cenv vars', longestNumberLength);
+      status += this.statusMetric(cenvDeployedPackages.length, 'packages w/ deployed vars', longestNumberLength );
+      status += this.statusMetric(cenvMaterializedPackages.length, 'packages w/ materialized vars\n\n', longestNumberLength);
 
-      function packageStatus (environmentStatus: EnvironmentStatus) {
-        const color = Dashboard.instance.getStatusColor(environmentStatus, true) as ChalkFunction;
-        const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
-        return `[${color(environmentStatus)}]: ${chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
-      }
-      status += packageStatus(EnvironmentStatus.UP_TO_DATE);
-      status += packageStatus(EnvironmentStatus.NEEDS_UPDATE);
-      status += packageStatus(EnvironmentStatus.NEEDS_FIX);
-      status += packageStatus(EnvironmentStatus.NOT_DEPLOYED);
+
+      status += this.packageStatus(packages, EnvironmentStatus.UP_TO_DATE);
+      status += this.packageStatus(packages, EnvironmentStatus.NEEDS_UPDATE);
+      status += this.packageStatus(packages, EnvironmentStatus.NEEDS_FIX);
+      status += this.packageStatus(packages, EnvironmentStatus.NOT_DEPLOYED);
 
       if (!validStatus && selectedPackage && !selectedPackage.isGlobal) {
         status += `${selectedPackage.packageName}: ${selectedPackage.processStatus === ProcessStatus.STATUS_CHK ? 'checking status' : 'current status [' + selectedPackage.processStatus + ']'}`;
@@ -1814,8 +1786,8 @@ export class Dashboard {
         status += `${selectedPackage.packageName}: ${selectedPackage.processStatus === ProcessStatus.STATUS_CHK ? 'checking status' : 'current status [' + selectedPackage.processStatus + ']'}`;
       }
     }
-    this.statusText = status;
-    this.status.setContent(this.statusText);
+    this.statusPanelText = status;
+    this.status.setContent(this.statusPanelText);
     this.splitter.setFront();
     this.statusBar.setFront();
   }
@@ -1823,7 +1795,7 @@ export class Dashboard {
   updatePackageVisuals() {
     if (this.packages?.rows?.items) {
       const global = Dashboard.stackName === 'GLOBAL';
-      this.packages.rows.items.map((item, index) => {
+      this.packages.rows.items.map((item: any, index: number) => {
         const hover = index === this.hoverRowIndex;
         if (item === this.packages.rows.items[this.selectedRowIndex]) {
           const selectedHover = item.selected && hover;
@@ -1876,7 +1848,7 @@ export class Dashboard {
         if (!this.packages.rows.initialized) {
           this.packages.rows.initialized = true;
         }
-        this.packages.rows.items.map((i, index) => {
+        this.packages.rows.items.map((i: any, index: number) => {
           if (!i.initalized) {
             i.initalized = true;
             i.on(
@@ -1904,7 +1876,7 @@ export class Dashboard {
     }
   }
 
-  render(tableCalcs) {
+  render(tableCalcs: {tableWidth: number, columns: number}) {
     if (this.hidden) {
       return;
     }
@@ -1967,7 +1939,7 @@ export class Dashboard {
     }
   }
 
-  resizeMode(tableCalcs = undefined, bottomOffset = 0) {
+  resizeMode(tableCalcs: {tableWidth: number, columns: number} = undefined, bottomOffset = 0) {
     const screenHeight = this.screen.height - bottomOffset;
     const top = 2;
     const panelWidth = this.screen.width - tableCalcs.tableWidth - 2;
@@ -1978,7 +1950,7 @@ export class Dashboard {
     this.splitter.height = this.screen.height - 2 - bottomOffset;
   }
 
-  resizeWidgets(tableCalcs = undefined) {
+  resizeWidgets(tableCalcs: {tableWidth: number, columns: number} = undefined) {
     if (!tableCalcs) {
       tableCalcs = this.calcTableInfo();
     }
@@ -2048,7 +2020,7 @@ export class Dashboard {
       columns = 1;
       let stopGrowing = false;
       const nextWidth = this.priorityColumnWidth.reduce(
-        function (a, b, i) {
+        function (a: number, b: number) {
           const nextValue = a + b + this.columnSpacing / 2;
           if (nextValue > this.splitter.left || stopGrowing) {
             stopGrowing = true;

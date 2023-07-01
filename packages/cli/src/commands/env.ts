@@ -5,7 +5,7 @@ import {
   BaseCommandOptions,
   Cenv,
   processEnvFiles
-} from '@stoked-cenv/cenv-lib'
+} from '@stoked-cenv/lib'
 import { BaseCommand } from './base'
 
 interface EnvCommandOptions extends BaseCommandOptions{

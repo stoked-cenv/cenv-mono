@@ -86,7 +86,7 @@ export async function cancelUpdateStack(StackName: string) {
 }
 
 
-export async function getExportValue(exportName, silent = false): Promise<string | false> {
+export async function getExportValue(exportName: string, silent = false): Promise<string | false> {
   let exports = await listExports();
   if (!exports) {
     return false;

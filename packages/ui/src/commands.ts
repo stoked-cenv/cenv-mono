@@ -1,5 +1,5 @@
 export class Commands {
-  static module = null;
+  static module: any = null;
   static list() {
     return [
       ['Cenv', 'cenv'],

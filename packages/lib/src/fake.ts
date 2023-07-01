@@ -1,7 +1,7 @@
 import { randomRange, sleep } from './utils';
 import { Package } from './package/package'
 export default class Fake {
-  static fakeSuccessTaskTimeouts = {};
+  static fakeSuccessTaskTimeouts: any = {};
   static randomTasks = [
     'cenv params -D',
     'cenv deploy -p',
@@ -33,7 +33,7 @@ export default class Fake {
     'dev-network\\\\ndependencies 6\\\\n  - dev-installation-ui\\\\n    - dev-network\\\\n  - dev-timestream\\\\n    - dev-network\\\\n  - dev-core-midd'
   ]
 
-  static fakeSuccessTasks = async (pkg: Package, seconds) => {
+  static fakeSuccessTasks = async (pkg: Package, seconds: number) => {
     this.fakeSuccessTaskTimeouts[pkg.stackName] = true;
     setTimeout(()=> { delete this.fakeSuccessTaskTimeouts[pkg.stackName]}, (seconds - 1) * 1000)
     while (this.fakeSuccessTaskTimeouts[pkg.stackName]) {
@@ -47,7 +47,7 @@ export default class Fake {
     }
   }
 
-  static success = async (pkg, maxTime = 5) => {
+  static success = async (pkg: Package, maxTime = 5) => {
     const seconds = randomRange(2, maxTime);
     this.fakeSuccessTasks(pkg, seconds);
     await sleep(seconds);

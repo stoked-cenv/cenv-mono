@@ -1,5 +1,5 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { errorInfo, Package, CenvLog, Deployment, DockerCommandOptions } from '@stoked-cenv/cenv-lib';
+import { errorInfo, Package, CenvLog, Deployment, DockerCommandOptions } from '@stoked-cenv/lib';
 
 import { BaseCommand } from './base'
 import path from 'path';

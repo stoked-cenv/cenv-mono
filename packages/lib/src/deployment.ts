@@ -65,7 +65,7 @@ interface DeploymentDependencies {
 export class Deployment {
   static toggleDependencies = false;
 
-  static removeDependency(pkg) {
+  static removeDependency(pkg: Package) {
     pkg.deployDependencies?.map(dep => {
       const {dependency, reference} = this.getDeployDependency(pkg, dep);
       if (this.dependencies[dependency.stackName]) {
@@ -77,12 +77,12 @@ export class Deployment {
     })
   }
 
-  static stopProcessing(pkg) {
+  static stopProcessing(pkg: Package) {
     this.processing = this.processing.filter((p: Package) => pkg != p);
     delete this.toProcess[pkg.stackName];
   }
 
-  static addDependency(pkg) {
+  static addDependency(pkg: Package) {
     if (!Deployment.toggleDependencies) {
       return;
     }
@@ -116,11 +116,11 @@ export class Deployment {
     }
   }
 
-  static asyncProcesses = [];
+  static asyncProcesses: any[] = [];
   static toProcess: { [key: string]: Package } = {};
   static dependencies: { [key: string]: DeploymentDependencies } = {};
   static processing: Package[] = [];
-  static completed = [];
+  static completed: any[] = [];
 
 
 
@@ -137,7 +137,7 @@ export class Deployment {
   }
 
   static async cmd(
-    stackName,
+    stackName: string,
     name: string,
     options: ICmdOptions = {
       envVars: {},
@@ -217,13 +217,6 @@ export class Deployment {
       getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
     });
 
-    pkg.timer.stop();
-
-    pkg.setDeployStatus(ProcessStatus.COMPLETED);
-    pkg.statusTime = Date.now();
-    await sleep(5);
-
-    CenvLog.single.alertLog([pkg.stackName, 'complete']);
     const complete = await this.packageComplete(pkg);
     if (complete) {
       Package.global.timer.stop();
@@ -263,6 +256,10 @@ export class Deployment {
   }
 
   static async packageComplete(packageInfo: Package) {
+
+    packageInfo.setDeployStatus(ProcessStatus.COMPLETED);
+    packageInfo.statusTime = Date.now();
+    packageInfo.timer.stop();
 
     if (this.options.bump) {
       await packageInfo.bumpComplete();
@@ -318,8 +315,8 @@ export class Deployment {
 
   }
 
-  static getProcessDependencies = (packageInfo) : Package[] => {
-    if (this.isDeploy() &&packageInfo?.meta?.service && packageInfo.meta.service.length > 0) {
+  static getProcessDependencies = (packageInfo: Package) : Package[] => {
+    if (this.isDeploy() && packageInfo?.meta?.service && packageInfo.meta.service.length > 0) {
       return packageInfo.meta.service;
     } else if (this.isDestroy() && packageInfo?.meta?.destroy && packageInfo.meta.destroy.length > 0) {
       return packageInfo.meta.destroy;
@@ -386,7 +383,7 @@ export class Deployment {
     );
   }
 
-  static logStatusOutput(title, ctrl) {
+  static logStatusOutput(title: string, ctrl: any) {
     const lines = [`to-process (${Object.keys(this.toProcess).length}): ${Object.keys(this.toProcess).map((p) => p).join(', ')}`];
     lines.push(`processing [${this.processing.length}]`);
     this.processing.map((p: Package) => {
@@ -405,7 +402,7 @@ export class Deployment {
     }
   }
 
-  static logStatus(title) {
+  static logStatus(title: string) {
     //const dashboardInspection = util.inspect(Cenv.dashboard.createBox);
     //cleanup('kill it son');
     //console.log(dashboardInspection);
@@ -467,8 +464,8 @@ export class Deployment {
     });
   }
 
-  static processItems = [];
-  static async processInit(items) {
+  static processItems: any[] = [];
+  static async processInit(items: Package[]) {
 
     Package.global.timer.start();
 
@@ -532,9 +529,9 @@ export class Deployment {
   }
 
   static async getPackages(): Promise<Package[]> {
-    const packApps = this.options?.applications?.filter((a) => a !== 'GLOBAL');
+    const packApps = this.options?.applications?.filter((a: string) => a !== 'GLOBAL');
     const packs = await Promise.all(
-      packApps.map(async (a) => {
+      packApps.map(async (a: string) => {
         if (!Package.cache[a]) {
           return Package.fromPackageName(a);
         }
@@ -544,7 +541,7 @@ export class Deployment {
     return packs;
   }
 
-  static deployDestroyOptions(options) {
+  static deployDestroyOptions(options: any) {
     if (
       !options?.parameters &&
       !options?.stack &&
@@ -601,7 +598,7 @@ export class Deployment {
     }
   }
 
-  static async getUninstallables(packages) {
+  static async getUninstallables(packages: Package[]) {
     const environment = await Environments.getEnvironment(process.env.ENV);
 
     if (
@@ -659,7 +656,7 @@ export class Deployment {
   }
 
   static options: any = { strictVersions: false };
-  public static async Deploy(packages: Package[] = [], options) {
+  public static async Deploy(packages: Package[] = [], options: any) {
     try {
       options.mode = ProcessMode.DEPLOY;
       const validInstall = await Cenv.verifyCenv(false);
@@ -675,7 +672,7 @@ export class Deployment {
     }
   }
 
-  static async Destroy(packages: Package[] = [], options) {
+  static async Destroy(packages: Package[] = [], options: any) {
     try {
       options.mode = ProcessMode.DESTROY;
       await this.startDeployment(packages, options);

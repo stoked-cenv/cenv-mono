@@ -7,7 +7,7 @@ import {
   CenvFiles,
   CleanCommandOptions,
   Package
-} from '@stoked-cenv/cenv-lib';
+} from '@stoked-cenv/lib';
 import { BaseCommand } from './base'
 
 @Command({
@@ -29,7 +29,7 @@ export default class CleanCommand extends BaseCommand {
     description: 'either cenv, cdk, or both',
     defaultValue: 'cenv'
   })
-  parseMode(val: string, val2): string {
+  parseMode(val: string): string {
     return val;
   }
 
@@ -39,7 +39,7 @@ export default class CleanCommand extends BaseCommand {
     description: 'clean specific environment only',
     defaultValue: undefined
   })
-  parseEnvironment(val: string, val2): string {
+  parseEnvironment(val: string): string {
     return val;
   }
 

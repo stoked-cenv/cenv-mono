@@ -24,7 +24,7 @@ function getClient() {
   });
   return _client;
 }
-export async function updateConfiguration(FunctionName, envVars) {
+export async function updateConfiguration(FunctionName: string, envVars: any) {
   const cmd = new UpdateFunctionConfigurationCommand({ FunctionName, Environment: { Variables: {...envVars}} });
   const res = await getClient().send(cmd);
   if (res) {

@@ -23,7 +23,7 @@ function stringOrStringArrayValid(value: string | string[]): boolean {
   return isString(value) ? !!value : value && value.length > 0;
 }
 
-export function inputArgsToEnvVars(inputArgs) {
+export function inputArgsToEnvVars(inputArgs: any) {
   let args = '';
   if (inputArgs) {
     for (const [key, value] of Object.entries(inputArgs)) {
@@ -33,7 +33,7 @@ export function inputArgsToEnvVars(inputArgs) {
   return args.trim();
 }
 
-export function isString(value) {
+export function isString(value: any) {
   return typeof value === 'string' || value instanceof String;
 }
 
@@ -41,7 +41,7 @@ export function stringToArray(value: string | string[]): string[] {
   return isString(value) ? [value as string] : (value as string[]);
 }
 
-const packagePaths = {};
+const packagePaths: any = {};
 export function packagePath(packageName: string): string {
   if (packageName === 'GLOBAL') {
     return getMonoRoot();
@@ -105,7 +105,7 @@ export function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O):
   return Object.keys(obj).filter(k => Number.isNaN(+k)) as K[];
 }
 
-function printIfExists(color = true, envVar) {
+function printIfExists(color = true, envVar: string) {
   if (process.env[envVar]) {
     let isClear = true;
     if (
@@ -139,7 +139,7 @@ export function printConfigurationExports(color = true) {
   printIfExists(color, 'CDK_DEFAULT_REGION');
 }
 
-export function printApp(cmd, envVars, cenvVars) {
+export function printApp(cmd: string, envVars: Record<string, string>, cenvVars: Record<string, string>) {
   let envVarDisplay;
   if (envVars && Object.keys(envVars).length) {
     envVarDisplay = inputArgsToEnvVars(envVars);
@@ -204,13 +204,7 @@ export interface ICmdOptions {
   silent?: boolean;
 }
 
-function setDescendantProp(obj, desc, value) {
-  const arr = desc.split(".");
-  while(arr.length && (obj = obj[arr.shift()]));
-  obj = value;
-}
-
-function spawnInfo(options, chunk, output, pkg) {
+function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
   if (options.returnOutput) {
       output += chunk;
   } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
@@ -262,12 +256,12 @@ export async function spawnCmd(
   }
 
   let hasErrors = false;
-  const errors = [];
+  let errors: any = [];
   try {
 
     function err(...text: string[]) {
       hasErrors = true;
-      errors.push(text);
+      errors = errors.concat(text)
       if (options.silent) {
         return;
       } else if (cmdLog) {
@@ -279,7 +273,7 @@ export async function spawnCmd(
       }
     }
 
-    function spawnErr(options, chunk, output, pkg, cmd) {
+    function spawnErr(options: any, chunk: string, output: string, pkg: Package) {
       if (options?.redirectStdErrToStdOut) {
         const actualErrors = new RegExp(/ERROR/, 'i').exec(chunk);
         if (!actualErrors) {
@@ -298,7 +292,7 @@ export async function spawnCmd(
 
       function handleErrors() {
         if (hasErrors) {
-          errors.forEach((err) => {
+          errors.forEach((err: string) => {
             packageInfo.err(err)
           })
         }
@@ -409,12 +403,12 @@ export async function spawnCmd(
           spawnInfo(options, chunk, output, packageInfo);
         });
         proc.stderr.on('data', function (chunk) {
-          spawnErr(options, chunk, output, packageInfo, cmd);
+          spawnErr(options, chunk, output, packageInfo);
         });
       }
       // proc.on('close', function (code) { });
-      proc.on('error', function (error) {
-        spawnErr(options, error, output, packageInfo, cmd);
+      proc.on('error', function (error: any) {
+        spawnErr(options, error, output, packageInfo);
       });
 
       proc.on('exit', async function (code) {
@@ -472,7 +466,7 @@ export function execCmd(
   envVars: object = {},
   rejectOnStdErr = false,
   silent = false,
-  packageInfo = undefined,
+  packageInfo: Package = undefined,
 ): Promise<string> {
 
   function log(...text: string[]) {
@@ -491,7 +485,7 @@ export function execCmd(
     }
   }
 
-  let envVarDisplay, envVarFinal;
+  let envVarDisplay: string, envVarFinal: string;
   if (Object.values(envVars).length) {
     envVarFinal = inputArgsToEnvVars(envVars);
     envVarDisplay = envVarFinal;
@@ -561,12 +555,7 @@ export function execCmd(
   });
 }
 
-export function fromDir(
-  startPath,
-  filter,
-  foundMsg = '-- found: ',
-  recursive = false,
-) {
+export function fromDir(startPath: string, filter: string | RegExp, foundMsg = '-- found: ', recursive = false) {
   if (!fs.existsSync(startPath)) {
     console.log('no dir ', startPath);
     return;
@@ -594,7 +583,7 @@ export function unimplemented() {
 }
 
 export function search_sync(
-  dir,
+  dir: string,
   first = false,
   searchDown = true,
   searchFile: string | RegExp = 'package.json',
@@ -682,7 +671,7 @@ export function search_sync(
   return results;
 }
 
-export function exitWithoutTags(tags) {
+export function exitWithoutTags(tags: any) {
   if (tags.length > 0) {
     const pkgPath = search_sync('./', true);
     const pkg = require(pkgPath[0].toString());
@@ -711,7 +700,7 @@ export function getMonoRoot() {
   return rootPath;
 }
 
-function elapsedBase(start, format = 'seconds', note, silent = false) {
+function elapsedBase(start: [number, number], format = 'seconds', note: string, silent = false) {
   let e: any = process.hrtime(start);
   e = e[0] * 1000 + e[1] / 1000000;
   switch (format) {
@@ -760,7 +749,7 @@ export class Timer {
     }
   }
 
-  constructor(note, format, start = false, silent = true) {
+  constructor(note: string, format: string, start = false, silent = true) {
     this.format = format;
     this.note = note;
     this.silent = silent;
@@ -770,7 +759,7 @@ export class Timer {
   }
 
   state() {
-    const res = {
+    const res: any = {
       elapsed: undefined,
       format: this.format,
       note: this.note,
@@ -833,8 +822,8 @@ export class TimerModules {
 export const sleep = (seconds: number) =>
   new Promise((r) => setTimeout(r, seconds * 1000));
 
-export function simplify(yamlData, printPkg?: string) {
-  const result = {};
+export function simplify(yamlData: any, printPkg?: string) {
+  const result: any = {};
   if (yamlData) {
     for (const [key, value] of Object.entries(yamlData)) {
       const val: any = value;
@@ -847,7 +836,7 @@ export function simplify(yamlData, printPkg?: string) {
   return result;
 }
 
-export function expandTemplateVars(baseVars) {
+export function expandTemplateVars(baseVars: any) {
   // clear the protection
   Object.keys(baseVars).map((k) => {
     baseVars[k] = baseVars[k].replace(/^<\](.*?)\[>$/, '$1');
@@ -875,7 +864,7 @@ export function expandTemplateVars(baseVars) {
       });
     }
   });
-  function processTree(tree) {
+  function processTree(tree: any) {
     const dependencies = new Set<string>();
     Object.keys(tree).map((key) => {
       for (const dep of tree[key].keys()) {
@@ -914,7 +903,7 @@ export function expandTemplateVars(baseVars) {
   return baseVars;
 }
 
-export async function deleteFiles(search, options) {
+export async function deleteFiles(search: string | RegExp, options: any) {
   console.log(search, options);
   const monoRoot = getMonoRoot();
   const results = search_sync(
@@ -931,13 +920,13 @@ export async function deleteFiles(search, options) {
   }
 }
 
-export function randomRange(min, max) {
+export function randomRange(min: number, max: number) {
   min = Math.ceil(min);
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min) + min);
 }
 
-export function printFlag(options, flag) {
+export function printFlag(options: Record<string, any>, flag: string) {
   return options[flag] ? ` --${flag}` : ''
 }
 
@@ -955,13 +944,14 @@ export async function showPkgCmdsResult(cmds: PackageCmd[]) {
   }
 }
 
-export function clamp(number, min, max) {
+export function clamp(number: number, min: number, max: number) {
   return Math.min(Math.max(number, min), max);
 }
 
 export async function killStackProcesses(stackName: string, stackProcs: StackProc[]) {
   for(const stackProc of stackProcs) {
-    console.log(info(`[${stackName}] kill child process: ${infoBold(stackProc.cmd)}`));
+
+    CenvLog.err(info(`kill child process: ${infoBold(stackProc.cmd)}`));
     stackProc.proc.kill();
     if (stackProc.cmd.startsWith('cdk')) {
       await cancelUpdateStack(stackName);
@@ -986,7 +976,7 @@ export function destroyUI() {
   }
 }
 
-export function cleanup(eventType) {
+export function cleanup(eventType: string) {
   destroyUI();
   console.log('cleanup', new Error().stack);
 
@@ -1007,7 +997,7 @@ export function cleanup(eventType) {
 // If you don't pass inputHash, then one will be created automatically
 //   and the digest will be returned to you in a Buffer object
 // -----------------------------------------------------
-function getPackageFileInfo(pkg, fullPath) {
+function getPackageFileInfo(pkg: Package, fullPath: string) {
   const pkgJson = JSON.parse(JSON.stringify(require(fullPath)));
   delete pkgJson.versionHash;
   delete pkgJson.buildHash;
@@ -1017,7 +1007,7 @@ function getPackageFileInfo(pkg, fullPath) {
   return `${JSON.stringify(pkgJson)}`;
 }
 
-export async function computeMetaHash(pkg, input, inputHash = null) {
+export async function computeMetaHash(pkg: Package, input: string, inputHash: any = null) {
   const hash = inputHash ? inputHash : createHash('sha256');
   let fileInfo;
   if (fs.lstatSync(input).isDirectory()) {
@@ -1063,11 +1053,11 @@ export async function computeMetaHash(pkg, input, inputHash = null) {
   }
 }
 
-export function deepClone(obj, hash = new WeakMap()) {
+export function deepClone(obj: any, hash = new WeakMap()): any {
   // Do not try to clone primitives or functions
   if (Object(obj) !== obj || obj instanceof Function) return obj;
   if (hash.has(obj)) return hash.get(obj); // Cyclic reference
-  let result;
+  let result: any;
   try {
     // Try to run constructor (without arguments, as we don't know them)
     result = new obj.constructor();
@@ -1091,7 +1081,7 @@ export function deepClone(obj, hash = new WeakMap()) {
   );
 }
 
-export function readFiles(dirname, onFileContent) {
+export function readFiles(dirname: string, onFileContent: (dirname: string, filename: string) => void) {
   try {
     const filenames = fs.readdirSync(dirname)
 
@@ -1169,7 +1159,7 @@ export function isOsSupported() {
 
 
 // suite param must be first and must be included inside the suites.json file
-function parseSuiteParam(params, options): { suite?: Suite, nonSuiteParams: string[] } {
+function parseSuiteParam(params: any, options: any): { suite?: Suite, nonSuiteParams: string[] } {
   if (params?.length) {
     if (Suite.isSuite(params[0])) {
       options.suite = params.shift();
@@ -1260,14 +1250,14 @@ export async function processEnvFile(envFile: string, envName: string) {
 }
 
 async function execEnvironment(environment: string, fileList: string[] = [], func: (application: string, environment: string) => Promise<void>) {
-  let processList = [];
+  let processList: any = [];
   if (fileList?.length > 0) {
     processList = await Promise.all(fileList.map(async (envFile) => {
       return await processEnvFile(envFile, environment);
     }));
   }
   const servicePaths = new Set<string>();
-  processList.map((envFile) => {
+  processList.map((envFile: any) => {
     if (envFile.valid)
       servicePaths.add(envFile.servicePath)
   });
@@ -1303,7 +1293,7 @@ async function execInit(application: string, environment: string) {
   //await Cenv.initVars({defaults: true, environment, application, push: true, force: true});
 }
 
-export async function processEnvFiles(environment, added, changed, deleted) {
+export async function processEnvFiles(environment: string, added: string[], changed: string[], deleted: string[]) {
   if (changed) {
     await execEnvironment(environment, changed, execInit);
   }
@@ -1320,9 +1310,7 @@ export async function processEnvFiles(environment, added, changed, deleted) {
   }
 }
 
-
-
-export async function parseCmdParams(params, options, cmd?: ProcessMode):
+export async function parseCmdParams(params: string[], options: any, cmd?: ProcessMode):
   Promise<{ parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment }> {
 
   // suite based command as parameter
@@ -1376,7 +1364,7 @@ export async function parseCmdParams(params, options, cmd?: ProcessMode):
 }
 
 
-export async function parseParamsExec(params, options, asyncExecFunc: (ctx: any, params: any, options: any) => Promise<PackageCmd>): Promise<PackageCmd[]> {
+export async function parseParamsExec(params: string[], options: any, asyncExecFunc: (ctx: any, params: any, options: any) => Promise<PackageCmd>): Promise<PackageCmd[]> {
   try {
 
     const { packages, parsedParams, validatedOptions } = await parseCmdParams(params, options);
@@ -1401,7 +1389,7 @@ export async function parseParamsExec(params, options, asyncExecFunc: (ctx: any,
   }
 }
 
-export function pbcopy(data) {
+export function pbcopy(data: any) {
   const proc = child_process.spawn('pbcopy');
   proc.stdin.write(data);
   proc.stdin.end();
