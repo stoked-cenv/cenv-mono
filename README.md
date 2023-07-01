@@ -1,9 +1,13 @@
 <p align="center">
-<a href="http://poweredbyelevation.com/" target="blank">
-![Elevation Logo](./elevation.png#gh-dark-mode-only)
-![Elevation Logo](./elevation.white.png#gh-light-mode-only)
+<a href="https://github.com/stoked-cenv/cenv-mono/" target="blank">
+
+![sc-logo](./sc-logo.png#gh-dark-mode-only)
+![sc-logo](./sc-logo.white.png#gh-light-mode-only)
+
 </a>
 </p>
+
+
 
 ## cenv
 
@@ -11,7 +15,8 @@
     <p align="center">
 <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
 <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circl![sc-logo white](https://github.com/stoked-cenv/cenv-mono/assets/91224556/1e136c67-1d76-4402-8e6c-3723209cd459)
+eci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
 <a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
 </p>
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
