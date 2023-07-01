@@ -1,7 +1,8 @@
 <p align="center">
 <a href="http://poweredbyelevation.com/" target="blank">
-![Elevation Logo](./elevation.png#gh-dark-mode-only)
-![Elevation Logo](./elevation.white.png#gh-light-mode-only)
+![Elevation Logo](https://github.com/stoked-cenv/cenv-mono/blob/main/elevation.png?raw=true#gh-dark-mode-only)
+
+![Elevation Logo](https://github.com/stoked-cenv/cenv-mono/blob/main/elevation.white.png?raw=true#gh-light-mode-only)
 </a>
 </p>
 
