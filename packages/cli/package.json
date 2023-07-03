@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.4",
+  "version": "2.0.0-a.5",
   "description": "",
   "author": "Brian Stoker",
   "license": "MIT",
@@ -8,13 +8,13 @@
   "bin": {
     "cenv": "dist/main.js"
   },
-
   "scripts": {
     "prebuild": "rimraf dist tsconfig.tsbuildinfo",
     "lint": "eslint src --ext .ts",
     "lint:fix": "npm run lint -- --fix",
     "build": "npm run unlink && tsc && npm link",
     "push": "npm publish --access public",
+    "version": "npm version ",
     "unlink": "npm unlink @stoked-cenv/cli -g",
     "package": "tsc && webpack --config webpack.config.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

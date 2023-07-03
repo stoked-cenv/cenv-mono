@@ -16,7 +16,7 @@ import { inputArgsToEnvVars, isLocalStackRunning, search_sync } from "./utils";
 import { getKey } from './aws/kms';
 import { listHostedZones } from './aws/route53';
 import { getExportValue } from './aws/cloudformation';
-import { CenvFiles, EnvConfig } from "./file";
+import { CenvFiles } from "./file";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 
 export async function readAsync(prompt: string, defaultValue: string): Promise<string> {
@@ -122,7 +122,7 @@ export interface ProfileData   {
   askUser: boolean
 }
 
-export async function getProfiles(allProfileFiles = false, profile?: string , environment?: string) {
+export async function getProfiles(exactMatch = false, profile?: string , environment?: string) {
   const filename = !environment && !profile ? 'default' : `${profile}↔${environment}`;
   const reservedFiles = ['localstack-api-key', 'default-root-domain']
   //CenvLog.single.catchLog(`filename: ${filename} profile: ${profile} environment: ${environment}`)
@@ -137,15 +137,17 @@ export async function getProfiles(allProfileFiles = false, profile?: string , en
 
     const fileBase = path.basename(file);
     if (fileBase.indexOf('↔') !== -1) {
-      CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
+      if (exactMatch) {
+        CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
+      }
       continue;
     }
 
-    if (reservedFiles.includes(fileBase)) {
+    if (exactMatch && reservedFiles.includes(fileBase)) {
       continue;
     }
 
-    if (allProfileFiles) {
+    if (exactMatch) {
       const profConfig: ProfileData = await loadCenvProfile(profile);
       matchingProfileFiles.push(profConfig);
       continue;
@@ -161,10 +163,14 @@ export async function getProfiles(allProfileFiles = false, profile?: string , en
 
 export async function getMatchingProfileConfig(profile?: string, environment?: string): Promise<ProfileData> {
 
-  const matchingProfileFiles: ProfileData[] = await getProfiles(false, profile, environment);
+  if (!profile && !environment) {
+    profile = 'default';
+  }
+  const matchingProfileFiles: ProfileData[] = await getProfiles(true, profile, environment);
   if (matchingProfileFiles.length === 1) {
     return matchingProfileFiles[0];
   } else if (matchingProfileFiles.length > 1) {
+    printProfileQuery(profile, environment);
     CenvLog.single.alertLog(`Multiple profiles match your query: ${printProfileQuery(profile, environment)}.\n\nPlease specify both the profile and the environment options. The following are the matching profiles:\n\n`);
     matchingProfileFiles.forEach((profileData) => {
       CenvLog.single.stdLog(printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV))

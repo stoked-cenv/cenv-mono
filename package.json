@@ -20,6 +20,7 @@
     "test:integration": "lerna run test:integration",
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
+    "setVersion": "version.sh",
     "tsc-version": "tsc -v"
   },
   "husky": {

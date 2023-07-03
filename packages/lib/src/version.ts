@@ -181,7 +181,7 @@ export class Version {
       await this.UpgradeIncrement('1.0.0', this.Upgrade_1_0_0);
 
       // migrate the .cenv config file names from [profile] to [profile]-[env]
-      //await this.UpgradeIncrement('1.9.0', this.Upgrade_1_9_0);
+      await this.UpgradeIncrement('1.9.0', this.Upgrade_1_9_0);
     } catch (e){
       CenvLog.single.catchLog(new Error(`FAILED: upgrading from ${this.installedVersion.toString()} to ${this.currentVersion.toString()}\n\n
       error: ${e}`))
@@ -222,6 +222,7 @@ export class Version {
       excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
       startsWith: true,
     });
+
     const newDirs: any = {};
     for (let i = 0; i < search.length; i++) {
       const file = search[i];
@@ -304,7 +305,6 @@ export class Version {
   }
 
   static async Upgrade_1_9_0 () {
-
     const profileFileData = await getProfiles( true);
     profileFileData.forEach((profileData: ProfileData ) => {
       fs.renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig.AWS_PROFILE}↔${profileData.envConfig.ENV}`));
