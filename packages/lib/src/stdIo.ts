@@ -122,10 +122,10 @@ export interface ProfileData   {
   askUser: boolean
 }
 
-export async function getProfiles(allProfileFiles = false, profile?: string, environment?: string) {
+export async function getProfiles(allProfileFiles = false, profile?: string , environment?: string) {
   const filename = !environment && !profile ? 'default' : `${profile}↔${environment}`;
-  const reservedFiles = ['default', 'localstack-api-key', 'default-root-domain']
-
+  const reservedFiles = ['localstack-api-key', 'default-root-domain']
+  //CenvLog.single.catchLog(`filename: ${filename} profile: ${profile} environment: ${environment}`)
   const list = fs.readdirSync(CenvFiles.ProfilePath);
   const matchingProfileFiles: ProfileData[] = [];
   for (let i = 0; i < list.length; i++) {
@@ -231,9 +231,11 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   }
 
   let profileData: ProfileData = undefined;
-  if (options?.profile !== 'default' && (options?.profile || options?.env)) {
-    profileData = await getMatchingProfileConfig(options?.profile, options?.env);
+  if (options?.profile || options?.env) {
+    options.profile = 'default';
   }
+  profileData = await getMatchingProfileConfig(options?.profile, options?.env);
+
   let args: any = {};
   let envConfig = profileData.envConfig;
   const { profilePath, askUser } = profileData;

@@ -181,7 +181,7 @@ export class Version {
       await this.UpgradeIncrement('1.0.0', this.Upgrade_1_0_0);
 
       // migrate the .cenv config file names from [profile] to [profile]-[env]
-      await this.UpgradeIncrement('1.9.0', this.Upgrade_1_9_0);
+      //await this.UpgradeIncrement('1.9.0', this.Upgrade_1_9_0);
     } catch (e){
       CenvLog.single.catchLog(new Error(`FAILED: upgrading from ${this.installedVersion.toString()} to ${this.currentVersion.toString()}\n\n
       error: ${e}`))
