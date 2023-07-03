@@ -35,7 +35,7 @@ export default class AddCommand extends BaseCommand {
 
   @Option({
     name: 'app',
-    flags: '-a, --app',
+    flags: '-A, --app-type',
     description: 'Adds an app parameter. App parameters are the same across all environments and are not used in other applications.',
   })
   parseConfig(val: boolean): boolean {
@@ -44,7 +44,7 @@ export default class AddCommand extends BaseCommand {
 
   @Option({
     name: 'environment',
-    flags: '-e, --environment',
+    flags: '-E, --environment-type',
     description: 'Adds an environment parameter. Environment parameters are unique to each environment and are not used in other applications.',
   })
   parseEnvironment(val: boolean): boolean {
@@ -53,7 +53,7 @@ export default class AddCommand extends BaseCommand {
 
   @Option({
     name: 'global',
-    flags: '-g, --global',
+    flags: '-G, --global-type',
     description: 'Adds a global parameter. Global parameters are available to all applications in all environments.',
   })
   parseGlobal(val: boolean): boolean {
@@ -62,7 +62,7 @@ export default class AddCommand extends BaseCommand {
 
   @Option({
     name: 'globalEnv',
-    flags: '-ge, --global-env',
+    flags: '-GE, --global-env-type',
     description: 'Adds a global environment parameter. Global environment parameters are available to all applications in a single environment.',
   })
   parseGlobalEnv(val: boolean): boolean {

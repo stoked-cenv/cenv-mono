@@ -1,5 +1,5 @@
 import {configDefaults,} from "./configDefaults";
-import {join, relative} from "path";
+import path, {join, relative} from "path";
 const { appExt } = configDefaults;
 import yaml from 'js-yaml';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
@@ -641,4 +641,5 @@ export class CenvFiles {
   }
 
   public static GlobalPath: string = undefined;
+  public static ProfilePath: string = path.join(process.env.HOME, './.cenv');
 }

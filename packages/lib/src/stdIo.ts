@@ -9,14 +9,14 @@ import {
   infoAlertBold,
   CenvLog
 } from './log';
-import { join } from 'path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import path, { join } from 'path';
+import fs, { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { getAccountId } from './aws/sts';
-import { inputArgsToEnvVars, isLocalStackRunning } from './utils';
+import { inputArgsToEnvVars, isLocalStackRunning, search_sync } from "./utils";
 import { getKey } from './aws/kms';
 import { listHostedZones } from './aws/route53';
 import { getExportValue } from './aws/cloudformation';
-import {EnvConfig} from "./file";
+import { CenvFiles, EnvConfig } from "./file";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 
 export async function readAsync(prompt: string, defaultValue: string): Promise<string> {
@@ -94,7 +94,7 @@ export interface ConfigureCommandOptions extends BaseCommandOptions {
 }
 
 const defaultAwsRegion = 'us-east-1';
-let defaultRootDomain = `${hostname}.elevationcurb.com`;
+let defaultRootDomain = `${hostname}.stokedconsulting.com`;
 
 async function getAccountInfo() {
   const callerIdentity: any = process.env.ENV === 'local' ? { Account: '000000000000', User: '' } : await getAccountId();
@@ -110,6 +110,101 @@ async function getAccountInfo() {
   process.env['AWS_ACCOUNT_USER_ARN'] = callerIdentity.UserArn;
   args['AWS_ACCOUNT_USER_ARN'] = callerIdentity.UserArn;
   return args;
+}
+
+export function printProfileQuery(profile: string, environment: string) {
+  return `${profile ? `profile: ${infoAlertBold(profile)} ` : ''}${environment ? `environment: ${infoAlertBold(environment)} ` : ''}`;
+}
+
+export interface ProfileData   {
+  envConfig: any,
+  profilePath: string,
+  askUser: boolean
+}
+
+export async function getProfiles(allProfileFiles = false, profile?: string, environment?: string) {
+  const filename = !environment && !profile ? 'default' : `${profile}↔${environment}`;
+  const reservedFiles = ['default', 'localstack-api-key', 'default-root-domain']
+
+  const list = fs.readdirSync(CenvFiles.ProfilePath);
+  const matchingProfileFiles: ProfileData[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const file = list[i];
+    const stat = fs.statSync(path.join(CenvFiles.ProfilePath, file));
+    if (stat && stat.isDirectory()) {
+      continue;
+    }
+
+    const fileBase = path.basename(file);
+    if (fileBase.indexOf('↔') !== -1) {
+      CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
+      continue;
+    }
+
+    if (reservedFiles.includes(fileBase)) {
+      continue;
+    }
+
+    if (allProfileFiles) {
+      const profConfig: ProfileData = await loadCenvProfile(profile);
+      matchingProfileFiles.push(profConfig);
+      continue;
+    } else if (filename.indexOf(filename) === -1) {
+      continue;
+    }
+
+    const profConfig: ProfileData = await loadCenvProfile(profile);
+    matchingProfileFiles.push(profConfig);
+  }
+  return matchingProfileFiles;
+}
+
+export async function getMatchingProfileConfig(profile?: string, environment?: string): Promise<ProfileData> {
+
+  const matchingProfileFiles: ProfileData[] = await getProfiles(false, profile, environment);
+  if (matchingProfileFiles.length === 1) {
+    return matchingProfileFiles[0];
+  } else if (matchingProfileFiles.length > 1) {
+    CenvLog.single.alertLog(`Multiple profiles match your query: ${printProfileQuery(profile, environment)}.\n\nPlease specify both the profile and the environment options. The following are the matching profiles:\n\n`);
+    matchingProfileFiles.forEach((profileData) => {
+      CenvLog.single.stdLog(printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV))
+    });
+    process.exit(0);
+  } else {
+    CenvLog.single.alertLog(`No profiles matched the query: ${printProfileQuery(profile, environment)}`);
+    process.exit(0);
+  }
+}
+
+export async function loadCenvProfile(filename: string, options?: Record<string, any>,) {
+  let envConfig;
+  let profilePath;
+
+  if (filename) {
+    profilePath = join(process.env.HOME, `.cenv/${filename}`);
+  } else {
+    profilePath = join(process.env.HOME, `.cenv/default`)
+  }
+  let alwaysAsk: boolean = undefined;
+  if (existsSync(profilePath)) {
+    envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
+    if (!envConfig.CDK_DEFAULT_ACCOUNT) {
+      process.env.AWS_PROFILE = envConfig.AWS_PROFILE
+      const accountInfo = await getAccountInfo();
+      if (!accountInfo) {
+        return;
+      }
+      envConfig = {...envConfig, ...accountInfo };
+      writeFileSync(profilePath, JSON.stringify(envConfig));
+    }
+  } else if (options?.show) {
+    CenvLog.single.alertLog(`no configuration currently setup to show run '${infoAlertBold('cenv configure')}'`);
+    process.exit();
+  } else {
+    alwaysAsk = true;
+  }
+
+  return {envConfig, profilePath, askUser: alwaysAsk };
 }
 
 export async function configure(options: any, alwaysAsk = false, verifyLocalRunning = false) {
@@ -135,32 +230,13 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
     }
   }
 
-  let args: any = { };
-  let envConfig;
-  let profilePath;
-
-  if (options?.profile) {
-    profilePath = join(process.env.HOME, `.cenv/${options?.profile}`);
-  } else {
-    profilePath = join(process.env.HOME, `.cenv/default`)
+  let profileData: ProfileData = undefined;
+  if (options?.profile !== 'default' && (options?.profile || options?.env)) {
+    profileData = await getMatchingProfileConfig(options?.profile, options?.env);
   }
-  if (existsSync(profilePath)) {
-    envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
-    if (!envConfig.CDK_DEFAULT_ACCOUNT) {
-      process.env.AWS_PROFILE = envConfig.AWS_PROFILE
-      const accountInfo = await getAccountInfo();
-      if (!accountInfo) {
-        return;
-      }
-      envConfig = {...envConfig, ...accountInfo };
-      writeFileSync(profilePath, JSON.stringify(envConfig));
-    }
-  } else if (options?.show) {
-    CenvLog.single.alertLog(`no configuration currently setup to show run '${infoAlertBold('cenv configure')}'`);
-    process.exit();
-  } else {
-    alwaysAsk = true;
-  }
+  let args: any = {};
+  let envConfig = profileData.envConfig;
+  const { profilePath, askUser } = profileData;
 
   if (existsSync(defaultRootDomainPath)) {
     defaultRootDomain = readFileSync(defaultRootDomainPath, 'utf8');
@@ -176,7 +252,7 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
     args = envConfig || localDefaults
   }
   let kmsKey = null
-  if (!envConfig || (alwaysAsk && !options?.show)) {
+  if (!envConfig || (askUser && !options?.show)) {
     if (options?.profile !== 'local') {
       args = envConfig || {
         AWS_PROFILE: 'architecture',

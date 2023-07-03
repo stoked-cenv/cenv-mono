@@ -30,11 +30,14 @@ export abstract class BaseCommand extends CommandRunner {
       pkg.createCmd('clean this up');
     }
     Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
+    await Cenv.cmdInit(options);
+
     if (!process.env.CENV_VERSION) {
-      await Version.getVersion();
+      await Version.getVersion('@stoked-cenv/cli');
+      await Version.getVersion('@stoked-cenv/lib');
+      await Version.getVersion('@stoked-cenv/ui');
     }
 
-    await Cenv.cmdInit(options);
 
     this.args = await configure(options as ConfigureCommandOptions);
     if (!this.allowUI) {
@@ -60,13 +63,6 @@ export abstract class BaseCommand extends CommandRunner {
   parseLogLevel(val: string): string {
     return val;
   }
-  @Option({
-    flags: '--profile, <profile>',
-    description: `Environment profile to use on init.`,
-    defaultValue: 'default',
-  })
-  parseProfile(val: string): string {
-    return val;
-  }
+
   protected abstract runCommand(passedParam: string[], options?: BaseCommandOptions, packages?: Package[]): Promise<void>;
 }

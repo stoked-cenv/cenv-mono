@@ -1,12 +1,13 @@
 import { CommandRunner, Option, RootCommand } from 'nest-commander';
-import { packagePath } from '@stoked-cenv/lib'
+import { Cenv, CenvLog, Package, packagePath } from "@stoked-cenv/lib";
 
 import path from "path";
+import { BaseCommand } from "./base";
 
 @RootCommand({
   name: 'cenv',
 })
-export default class CenvCommand extends CommandRunner {
+export default class CenvCommand extends BaseCommand {
 
   constructor() {
     super();
@@ -21,10 +22,9 @@ export default class CenvCommand extends CommandRunner {
     return val;
   }
 
-  async run(passedParams: string[], options?: any) {
+  async runCommand(params: string[], options?: Record<string, any>, packages?: Package[]): Promise<void> {
     if (options.version) {
-      const rootPath = packagePath('@stoked-cenv/cli');
-      console.log('v' + require(path.resolve(rootPath, 'package.json')).version);
+      console.log(process.env.CENV_VERSION);
     } else {
       this.command.help();
     }

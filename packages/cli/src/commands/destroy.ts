@@ -45,14 +45,6 @@ export default class DestroyCommand extends BaseCommand {
   }
 
   @Option({
-    flags: '-e, --environment',
-    description: `Destroy everything deployed for the current environment`,
-  })
-  parseEnvironment(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
     flags: '-p, --parameters',
     description: `Destroy parameters`,
   })

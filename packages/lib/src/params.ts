@@ -69,6 +69,7 @@ export interface LambdaProcessResponse {
 
 export interface BaseCommandOptions {
   profile?: string;
+  env?: string;
   cli?: boolean;
   logLevel?: string;
   localPackageAccepted?: boolean;

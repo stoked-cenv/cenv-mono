@@ -1,10 +1,11 @@
 import path, { join } from 'path';
 import {CenvLog, infoAlertBold} from './log';
 import { Package } from './package/package';
-import semver, {SemVer} from "semver";
-import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
-import {configure} from "./stdIo";
-import {getMonoRoot, search_sync} from "./utils";
+import semver, {SemVer, RangeOptions } from "semver";
+import fs, {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
+import { getProfiles, ProfileData,  } from "./stdIo";
+import { getMonoRoot, search_sync } from "./utils";
+import { CenvFiles } from "./file";
 
 export enum BumpMode {
   DISABLED = 'DISABLED',
@@ -17,11 +18,10 @@ export enum BumpMode {
 }
 
 export interface IVersionFile {
-  version: semver.SemVer;
-  previousVersion?: semver.SemVer;
-  initialVersion: semver.SemVer;
+  version: semver.SemVer | string;
   upgradedTs?: number;
   lastTs: number;
+  upgrades?: {ts: number, v: string }[];
 }
 
 export enum BumpType {
@@ -40,7 +40,12 @@ export class Version {
   private static modeKey = 0;
   private static typeKey = 0;
 
+  static lastVersion: SemVer;
   static currentVersion: SemVer;
+  static installedVersion: SemVer;
+  static nextIncrementVersion: SemVer;
+  static versionFileData: IVersionFile;
+  static opt: RangeOptions = { includePrerelease: true };
 
   static setBumpType(bumpType: BumpType) {
     process.env[bumpTypeID] = bumpType;
@@ -122,122 +127,188 @@ export class Version {
     }
   }
 
-  static async getVersion() {
-    const currentVersion = require(path.resolve(__dirname, '../package.json',)).version;
-    this.currentVersion = semver.parse(currentVersion);
-    const versionFile = path.resolve(__dirname, '../.version.json');
-    let versionFileData: IVersionFile = {
-      version: semver.parse('0.1.0'),
-      initialVersion: semver.parse('0.1.0'),
-      lastTs: Date.now(),
-    };
-    if (existsSync(versionFile)) {
-      versionFileData = require(versionFile);
-    }
-
-    if (
-      !versionFileData.upgradedTs ||
-      semver.gt(this.currentVersion, versionFileData.version)
-    ) {
-      await this.Upgrade(currentVersion, versionFileData.version);
-      versionFileData.version = currentVersion.toString();
-      versionFileData.upgradedTs = Date.now();
-    }
-    process.env.CENV_VERSION = currentVersion;
-    writeFileSync(versionFile, JSON.stringify(versionFileData, null, 2));
-    return versionFileData;
+  static getLibraryId(packageName: string) {
+    return packageName.replace('@stoked-cenv/', '');
   }
 
-  static async Upgrade(currentVersion: semver.SemVer, previousVersion: semver.SemVer, profile = 'default') {
-    await configure({ profile });
-    CenvLog.single.infoLog(
-      `upgrading from ${previousVersion.toString()} to ${currentVersion.toString()}`, 'GLOBAL'
-    );
-    if (semver.lt(previousVersion.toString(), '1.0.0')) {
-      const monoRoot = getMonoRoot();
-      const search = search_sync(path.resolve(monoRoot), false, true, '.cenv', {
-        excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
-        startsWith: true,
-      });
-      const newDirs: any = {};
-      for (let i = 0; i < search.length; i++) {
-        const file = search[i];
-        const fileParts = path.parse(file);
-        const parentDir = fileParts.dir.split('/').pop();
-        if (parentDir === 'tempCenvDir') {
-          if (!newDirs[fileParts.dir]) {
-            newDirs[fileParts.dir] = 0;
-          }
-          newDirs[fileParts.dir]++;
-          continue;
-        }
-        const newDir = fileParts.dir + '/tempCenvDir';
-        if (!existsSync(newDir)) {
-          mkdirSync(newDir);
-        }
-        const newFile = newDir + '/' + fileParts.base;
-        if (!newDirs[newDir]) {
-          newDirs[newDir] = 0;
-        }
-        newDirs[newDir]++;
-        renameSync(file, newFile);
-      }
-      for (let i = 0; i < Object.keys(newDirs).length; i++) {
-        const dir = Object.keys(newDirs)[i];
-        const root = path.parse(dir);
-        const newPath = root.dir + '/.cenv';
-        if (existsSync(newPath)) {
-          const cenvSearch = search_sync(dir, false, true, '.cenv', {
-            excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
-            startsWith: true,
-          });
-          if (Array.isArray(cenvSearch)) {
-            cenvSearch.forEach((f) => {
-              const fileParts = path.parse(f);
-              renameSync(f, newPath + '/' + fileParts.base);
-            });
-          }
-          rmdirSync(dir);
-        } else {
-          renameSync(dir, newPath);
-        }
-      }
-      const searchF = '.cenv.' + process.env.ENV;
-      const cenvEnvSearch = search_sync(
-        path.resolve(monoRoot),
-        false,
-        true,
-        searchF,
-        { excludedDirs: ['node_modules', 'cdk.out'], startsWith: true },
-      );
-      for (let i = 0; i < cenvEnvSearch.length; i++) {
-        const file = cenvEnvSearch[i];
-        const newFile = file.replace(
-          process.env.ENV,
-          process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
-        );
-        if (
-          file.indexOf(
-            '.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
-          ) > -1
-        ) {
-          CenvLog.single.alertLog(`the file ${file} has already been upgraded`);
-          continue;
-        }
-        if (existsSync(newFile)) {
-          if (process.env.KILL_IT_WITH_FIRE) {
-            rmSync(file);
-          } else {
-            CenvLog.single.alertLog(
-              `attempting to upgrade file ${infoAlertBold(
-                file,
-              )} but the file ${infoAlertBold(newFile)} already exists`,
-            );
-          }
-          continue;
-        }
-        renameSync(file, newFile);
+  static setEnvVars(libraryId: string) {
+    const versionString = `${libraryId}: ${this.currentVersion}`;
+    if (process.env.CENV_VERSION) {
+      process.env.CENV_VERSION += ' ' + versionString + '\n';
+    } else {
+      process.env.CENV_VERSION = versionString;
+    }
+    process.env['CENV_VERSION_' + libraryId.toUpperCase()] = versionString;
+  }
+
+  static async getVersion(packageName: string) {
+    let pkgPath = path.join(__dirname, '../');
+    const libraryId = this.getLibraryId(packageName);
+    const isLib = libraryId === 'lib';
+    if (!isLib) {
+
+      pkgPath = path.join(pkgPath, '../', libraryId);
+    }
+    this.currentVersion = require(path.join(pkgPath, './package.json')).version;
+    this.currentVersion =  semver.parse(this.currentVersion, this.opt);
+    const versionFile = path.join(pkgPath, './.version.json');
+    this.versionFileData = {
+      version: '0.1.0',
+      lastTs: Date.now(),
+    };
+
+    if (existsSync(versionFile)) {
+      this.versionFileData = require(versionFile);
+    }
+    this.installedVersion = semver.parse(this.versionFileData.version, this.opt) as SemVer;
+    this.lastVersion = this.versionFileData.version as SemVer;
+    if (libraryId !== 'lib' || semver.eq(this.currentVersion, this.lastVersion, this.opt)) {
+      this.setEnvVars(libraryId);
+      return;
+    }
+    await this.Upgrade();
+
+    this.incrementVersionFile(this.currentVersion);
+
+    this.setEnvVars(libraryId);
+    writeFileSync(versionFile, JSON.stringify(this.versionFileData, null, 2));
+    return this.versionFileData;
+  }
+
+  static async Upgrade(profile = 'default') {
+    try {
+      // upgrade .cenv files.. and store them in .cenv folders for each project to clear up the clutter
+      await this.UpgradeIncrement('1.0.0', this.Upgrade_1_0_0);
+
+      // migrate the .cenv config file names from [profile] to [profile]-[env]
+      await this.UpgradeIncrement('1.9.0', this.Upgrade_1_9_0);
+    } catch (e){
+      CenvLog.single.catchLog(new Error(`FAILED: upgrading from ${this.installedVersion.toString()} to ${this.currentVersion.toString()}\n\n
+      error: ${e}`))
+    }
+  }
+
+  static incrementVersionFile(currentVersion: SemVer) {
+
+    this.versionFileData.version = currentVersion.toString();
+    this.versionFileData.upgradedTs = Date.now();
+
+    if (!this.versionFileData.upgrades) {
+      this.versionFileData.upgrades = [];
+    }
+    this.versionFileData.upgrades.push({ ts: this.versionFileData.upgradedTs, v: this.versionFileData.version });
+  }
+
+  static async UpgradeIncrement(incrementVersion: string, upgradeIncrementFunc: () => Promise<void>) {
+    this.nextIncrementVersion = semver.parse(incrementVersion, this.opt);
+
+    if (semver.lt(this.installedVersion, this.nextIncrementVersion, this.opt)) {
+      CenvLog.single.infoLog(`incremental upgrade from ${this.installedVersion.toString()} to ${this.nextIncrementVersion.toString()}`, 'GLOBAL');
+      try {
+        await upgradeIncrementFunc();
+        this.installedVersion = this.nextIncrementVersion;
+        this.incrementVersionFile(this.installedVersion);
+      } catch (e) {
+        CenvLog.single.catchLog(new Error(`FAILED: upgrading from ${this.installedVersion.toString()} to ${this.nextIncrementVersion.toString()}\n\n
+        The error occurred during an incremental upgrade. The system is currently in an undefined state.\n\nPlease call your congressman and / or your priest.\n\n
+        error: ${e}`))
       }
     }
+  }
+
+  static async Upgrade_1_0_0 () {
+    const monoRoot = getMonoRoot();
+    const search = search_sync(path.resolve(monoRoot), false, true, '.cenv', {
+      excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
+      startsWith: true,
+    });
+    const newDirs: any = {};
+    for (let i = 0; i < search.length; i++) {
+      const file = search[i];
+      const fileParts = path.parse(file);
+      const parentDir = fileParts.dir.split('/').pop();
+      if (parentDir === 'tempCenvDir') {
+        if (!newDirs[fileParts.dir]) {
+          newDirs[fileParts.dir] = 0;
+        }
+        newDirs[fileParts.dir]++;
+        continue;
+      }
+      const newDir = fileParts.dir + '/tempCenvDir';
+      if (!existsSync(newDir)) {
+        mkdirSync(newDir);
+      }
+      const newFile = newDir + '/' + fileParts.base;
+      if (!newDirs[newDir]) {
+        newDirs[newDir] = 0;
+      }
+      newDirs[newDir]++;
+      renameSync(file, newFile);
+    }
+    for (let i = 0; i < Object.keys(newDirs).length; i++) {
+      const dir = Object.keys(newDirs)[i];
+      const root = path.parse(dir);
+      const newPath = root.dir + '/.cenv';
+      if (existsSync(newPath)) {
+        const cenvSearch = search_sync(dir, false, true, '.cenv', {
+          excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
+          startsWith: true,
+        });
+        if (Array.isArray(cenvSearch)) {
+          cenvSearch.forEach((f) => {
+            const fileParts = path.parse(f);
+            renameSync(f, newPath + '/' + fileParts.base);
+          });
+        }
+        rmdirSync(dir);
+      } else {
+        renameSync(dir, newPath);
+      }
+    }
+    const searchF = '.cenv.' + process.env.ENV;
+    const cenvEnvSearch = search_sync(
+      path.resolve(monoRoot),
+      false,
+      true,
+      searchF,
+      { excludedDirs: ['node_modules', 'cdk.out'], startsWith: true },
+    );
+    for (let i = 0; i < cenvEnvSearch.length; i++) {
+      const file = cenvEnvSearch[i];
+      const newFile = file.replace(
+        process.env.ENV,
+        process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
+      );
+      if (
+        file.indexOf(
+          '.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
+        ) > -1
+      ) {
+        CenvLog.single.alertLog(`the file ${file} has already been upgraded`);
+        continue;
+      }
+      if (existsSync(newFile)) {
+        if (process.env.KILL_IT_WITH_FIRE) {
+          rmSync(file);
+        } else {
+          CenvLog.single.alertLog(
+            `attempting to upgrade file ${infoAlertBold(
+              file,
+            )} but the file ${infoAlertBold(newFile)} already exists`,
+          );
+        }
+        continue;
+      }
+      renameSync(file, newFile);
+    }
+  }
+
+  static async Upgrade_1_9_0 () {
+
+    const profileFileData = await getProfiles( true);
+    profileFileData.forEach((profileData: ProfileData ) => {
+      fs.renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig.AWS_PROFILE}↔${profileData.envConfig.ENV}`));
+    });
+
   }
 }

@@ -8,10 +8,29 @@
       }
     }
   },
+  "implicitDependencies": {
+    "package.json": {
+      "dependencies": "*",
+      "devDependencies": "*"
+    },
+    "tsconfig.base.json": "*",
+    "nx.json": "*"
+  },
+  "workspaceLayout": {
+    "appsDir": "tsCodeInput",
+    "libsDir": "libs"
+  },
+  "namedInputs": {
+    "libs": ["{projectRoot}/node_modules/**/*"],
+    "tsCodeInput": ["{projectRoot}/src/**/*.ts"]
+  },
   "targetDefaults": {
     "build": {
       "dependsOn": [
         "^build"
+      ],
+      "inputs": [
+        "default", "^default"
       ],
       "outputs": [
         "{projectRoot}/dist"

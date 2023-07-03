@@ -469,7 +469,8 @@ export class Cenv {
         Package.defaultSuite = cenvConfig.defaultSuite;
         Package.scopeName = cenvConfig.scopeName;
         Package.suites = cenvConfig.suites;
-        const packageGlobalPath = packagePath(globalPackage);
+        const packageGlobalPath = packagePath(globalPackage)
+        ;
         if (packageGlobalPath) {
           CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
         }

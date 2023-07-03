@@ -1,7 +1,5 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import {
-
-} from '@stoked-cenv/lib';
+import { Command, Option } from 'nest-commander';
+import { getMatchingProfileConfig, printProfileQuery } from "@stoked-cenv/lib";
 import { CenvLog, infoBold, configure as cenvConfigure, ConfigureCommandOptions } from '@stoked-cenv/lib';
 import { BaseCommand } from './base'
 
@@ -31,14 +29,6 @@ export default class ConfigureCommand extends BaseCommand {
   }
 
   @Option({
-    flags: '--profile <string>',
-    description: 'Cenv configuration profile',
-  })
-  parseEnvironment(val: string): string {
-    return val;
-  }
-
-  @Option({
     flags: '-l, --localstack-api-key <string>',
     description: 'Set a local stack api key',
   })
@@ -54,43 +44,55 @@ export default class ConfigureCommand extends BaseCommand {
     return val;
   }
 
-  set(params: string[], options: ConfigureCommandOptions, isFirstPass: boolean) {
-    if (params.length === 2) {
+  @Option({
+    flags: '--profile, <profile>',
+    description: `Query a profile by aws profile`,
+    defaultValue: 'default',
+  })
+  parseProfile(val: string): string {
+    return val;
+  }
+
+  @Option({
+    name: 'env',
+    flags: '-env, --env <env>',
+    description: 'Query a profile by environment',
+  })
+  parseEnv(val: string): string {
+    return val;
+  }
+
+  async set(params: string[], options?: ConfigureCommandOptions) {
+    if (params.length === 1) {
       if (params[0] !== 'set') {
         process.exit(6);
       }
 
       const configPath = join(process.env.HOME, `.cenv`);
-      if (!existsSync(configPath) && (params[1] !== 'local' && isFirstPass)) {
+      if (!existsSync(configPath)) {
         CenvLog.single.errorLog('.cenv has not been configured yet')
         process.exit(6);
-      }
-      if (isFirstPass && params[1] !== 'local' || !isFirstPass) {
-        const profilePath = join(configPath, params[1]);
-        if (!existsSync(profilePath)) {
-          CenvLog.single.errorLog(`the profile ${infoBold(params[1])} that you are attempted to set as default doesn't exist`);
-          process.exit(6);
-        }
-        CenvLog.single.infoLog(`default profile set to ${infoBold(params[1])}`);
-        const defaultPath = join(configPath, 'default');
-        copyFileSync(profilePath, defaultPath)
-        options.show = true;
       } else {
-        options.profile = 'local'
+
+        const profileData = await getMatchingProfileConfig(options?.profile, options?.env)
+        CenvLog.single.infoLog(`default profile set to ${printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV)}`);
+        const defaultPath = join(configPath, 'default');
+        copyFileSync(profileData.profilePath, defaultPath)
+        options.show = true;
       }
     }
     return options;
   }
+
   async runCommand(
     passedParam: string[],
     options?: ConfigureCommandOptions,
   ): Promise<void> {
     try {
-
-      options = this.set(passedParam, options, true);
+      options = await this.set(passedParam, options);
       await cenvConfigure(options, true);
-      if (passedParam.length === 2 && passedParam[1] === 'local') {
-        this.set(passedParam, options, false);
+      if (passedParam.length === 1) {
+        await  this.set(passedParam, options);
         options.show = true;
         await cenvConfigure(options, false);
       }
