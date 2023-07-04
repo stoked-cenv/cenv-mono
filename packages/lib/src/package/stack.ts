@@ -35,7 +35,7 @@ export class StackModule extends PackageModule {
 
   async destroy() {
     const actualCommand = StackModule.commands[ProcessMode.DESTROY];
-    await this.pkg.pkgCmd(actualCommand, {packageModulegit : this});
+    await this.pkg.pkgCmd(actualCommand, {packageModule: this});
     // await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
 
     //const cleanCmd = `cenv clean ${this.pkg.packageName} --mode cdk`;
