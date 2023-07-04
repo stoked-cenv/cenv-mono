@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.7",
+  "version": "2.0.0-a.8",
   "description": "",
   "author": "Brian Stoker",
   "license": "MIT",
@@ -34,8 +34,8 @@
     "@nestjs/common": "^9.1.6",
     "@nestjs/core": "^9.1.6",
     "@nestjs/platform-express": "^9.0.0",
-    "@stoked-cenv/lib": "^2.0.0-a.7",
-    "@stoked-cenv/ui": "^2.0.0-a.7",
+    "@stoked-cenv/lib": "^2.0.0-a.8",
+    "@stoked-cenv/ui": "^2.0.0-a.8",
     "@types/inquirer": "^8.1.3",
     "chalk": "^4.1.0",
     "eslint": "^8.36.0",
