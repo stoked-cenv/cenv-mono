@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "0.0.1",
+  "version": "2.0.0-a.6",
   "private": true,
   "scripts": {
     "bootstrap": "lerna bootstrap",
