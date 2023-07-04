@@ -641,5 +641,5 @@ export class CenvFiles {
   }
 
   public static GlobalPath: string = undefined;
-  public static ProfilePath: string = path.join(process.env.HOME, './.cenv');
+  public static ProfilePath: string = join(process.env.HOME, './.cenv');
 }

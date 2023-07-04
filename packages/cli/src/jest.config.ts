@@ -1,8 +1,8 @@
 import type {Config} from '@jest/types';
 
 const baseConfig: Config.InitialOptions = {
-  roots: ['dist'],
-  rootDir: '../',
+  roots: ['./'],
+  rootDir: './',
   preset: 'ts-jest',
   reporters: ['default'],
   clearMocks: true,
@@ -15,7 +15,7 @@ const baseConfig: Config.InitialOptions = {
       lines: 100,
     },
   },
-  setupFilesAfterEnv: ['./src/test/customConsole.ts']
+  setupFilesAfterEnv: ['./test/customConsole.ts']
 };
 
 export default baseConfig;

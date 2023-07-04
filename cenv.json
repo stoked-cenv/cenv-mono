@@ -7,7 +7,6 @@
       "packages": [
         "@stoked-cenv/ui",
         "@stoked-cenv/lib",
-        "@stoked-cenv/params",
         "@stoked-cenv/cli"
       ]
     }

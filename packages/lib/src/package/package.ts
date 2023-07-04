@@ -1,5 +1,5 @@
 import {computeMetaHash, execCmd, getMonoRoot, packagePath, printFlag, spawnCmd, Timer} from '../utils';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import path, {join} from 'path';
 import { PackageStatus } from './module'
 import { CenvLog, colors, LogLevel, Mouth } from '../log';
@@ -15,6 +15,7 @@ import { AppVarsFile, EnvVarsFile } from '../file';
 import { LibModule } from './lib';
 import { ExecutableModule } from './executable';
 import {Deployment} from "../deployment";
+import * as util from "util";
 
 export interface BuildCommandOptions extends BaseCommandOptions {
   install?: boolean,
@@ -358,6 +359,7 @@ export class Package implements IPackage {
   static callbacks: any = {};
   static suites: any = {};
   static defaultSuite: string;
+  public static buildLog: any;
 
   constructor(packageName: string, noCache = false) {
     this.load(packageName, noCache);
@@ -736,6 +738,25 @@ export class Package implements IPackage {
     );
   }
 
+  static loadBuildLog() {
+    const buildLogFile = path.join(getMonoRoot(), './cenv.build.log');
+    if (existsSync(buildLogFile)) {
+      this.buildLog = JSON.parse(readFileSync(buildLogFile, 'utf-8'));
+    } else {
+      this.buildLog = {
+        builds: []
+      }
+    }
+  }
+
+  writeBuildLog() {
+    Package.loadBuildLog();
+    Package.buildLog.builds.push({
+      package: this.packageName,
+      ts: new Date()
+    })
+  }
+
   async build(force = false, install = false) {
     try {
       if (this.skipDeployBuild && !force) {
@@ -752,7 +773,7 @@ export class Package implements IPackage {
           this.getPackageModules().map(async (packageModule: PackageModule) => {
             try {
               await this.pkgCmd(
-                  `yarn nx run ${packageModule.name}:build${force ? ' --skip-nx-cache' : ''}`,
+                  `nx run ${packageModule.name}:build${force ? ' --skip-nx-cache' : ''}`,
                   {packageModule, returnOutput: true},
               );
             } catch (e) {
@@ -767,6 +788,7 @@ export class Package implements IPackage {
         this.processStatus = ProcessStatus.HASHING;
         await this.hash();
       }
+      this.writeBuildLog()
       return true;
     } catch (e) {
       CenvLog.single.catchLog(e);
@@ -812,9 +834,14 @@ export class Package implements IPackage {
   }
 
   getConsoleUrl() {
+    if (this.isGlobal) {
+      return `https://${process.env.AWS_REGION}.console.aws.amazon.com/console/home?nc2=h_ct&region=${process.env.AWS_REGION}&src=header-signin#`;
+    }
     const type = this.type;
     if (type === 'services') {
       return `https://${process.env.AWS_REGION}.console.aws.amazon.com/ecs/v2/clusters/${this.stackName}-cluster/services?region=${process.env.AWS_REGION}`;
+    } else if (this.meta.url) {
+      return this.meta.url;
     }
     return `https://${this.stackName}.dev.bstoker.elevationcurb.com`;
   }
@@ -991,7 +1018,10 @@ export class Package implements IPackage {
     if (options.parallel) {
       parallel = '--maxParallel=' + options.parallel;
     }
-    await Package.global.pkgCmd(`yarn nx affected:build --all --output-style=static${options.force ? ' --skip-nx-cache' : ''} ${parallel}`);
+    await Package.global.pkgCmd(`nx affected:build --all --output-style=static${options.force ? ' --skip-nx-cache' : ''} ${parallel}`);
+
+    const projects = await execCmd(getMonoRoot(), 'nx show projects --all')
+    CenvLog.single.catchLog(new Error(projects));
   }
 
   async bump(type: string) {
@@ -1211,10 +1241,9 @@ export class Package implements IPackage {
   }
 
   static async checkStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
-    this.getPackages().map(async (p: Package) => {
+    return this.getPackages().map(async (p: Package) => {
       await p?.checkStatus(targetMode, endStatus)
     });
-    Package.statusCompleted = true;
   }
 
   setDeployStatus(status: ProcessStatus) {
@@ -1509,6 +1538,9 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
       return res;
     } catch (e) {
       this.err(e || e.stack);
+      if (options.failOnError) {
+        throw e;
+      }
       return e;
     }
   }
@@ -1563,6 +1595,7 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
       pkgCmd?: PackageCmd;
     } = { envVars: {}, cenvVars: {} },
   ): Promise<any> {
+    CenvLog.single.catchLog(new Error(util.inspect(pkg.pkgCmd)));
     const pkgCmd = await pkg?.pkgCmd(cmd, options);
     return pkgCmd;
   }

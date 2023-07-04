@@ -430,7 +430,7 @@ export default class CmdPanel extends CenvPanel {
     this.cmdList.top = top;
     this.stdout.top = !this.getPkg()?.isGlobal ? top + this.cmdList.height : top;
     const cmds = this.getPkgCmds();
-    const multiplier = this.selectedCmdIndex > -1 && cmds[this.selectedCmdIndex]?.stderr?.length ? 0.5 : 1;
+    const multiplier = this.selectedCmdIndex > -1 && cmds && cmds[this.selectedCmdIndex]?.stderr?.length ? 0.5 : 1;
     this.stdout.height = Math.floor(((height - 1) - (top + (!this.getPkg()?.isGlobal ? this.cmdList.height : 0))) * multiplier);
     this.cmdList.left = left;
     this.stderr.left = left;

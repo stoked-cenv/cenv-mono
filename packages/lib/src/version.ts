@@ -136,7 +136,7 @@ export class Version {
     if (process.env.CENV_VERSION) {
       process.env.CENV_VERSION += ' ' + versionString + '\n';
     } else {
-      process.env.CENV_VERSION = versionString;
+      process.env.CENV_VERSION = versionString + '\n';
     }
     process.env['CENV_VERSION_' + libraryId.toUpperCase()] = versionString;
   }
@@ -285,7 +285,7 @@ export class Version {
           '.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
         ) > -1
       ) {
-        CenvLog.single.alertLog(`the file ${file} has already been upgraded`);
+        CenvLog.single.infoLog(`the file ${file} has already been upgraded`);
         continue;
       }
       if (existsSync(newFile)) {

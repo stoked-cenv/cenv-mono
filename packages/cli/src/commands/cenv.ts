@@ -26,7 +26,7 @@ export default class CenvCommand extends BaseCommand {
     if (options.version) {
       console.log(process.env.CENV_VERSION);
     } else {
-      this.command.help();
+      //this.command.help();
     }
   }
 }

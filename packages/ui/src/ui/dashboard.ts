@@ -23,6 +23,7 @@ import StatusPanel from './statusPanel';
 import chalk, {ChalkFunction} from 'chalk';
 import { isFunction } from "lodash";
 import {HelpUI} from "./help";
+import Groups from "./group";
 
 interface PkgInfo {
   stackName: string,
@@ -30,8 +31,8 @@ interface PkgInfo {
   environmentStatus: EnvironmentStatus;
   timer: string;
   type: string;
-  statusTime: number;
   version: string;
+  statusTime?: number;
 }
 
 export enum DashboardMode {
@@ -116,6 +117,7 @@ export class Dashboard {
   static moduleToggle = true;
   static dependencyToggle = true;
   static paramsToggle = false;
+  static horizontalSplitterUserCtrl = false;
 
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
@@ -159,8 +161,6 @@ export class Dashboard {
         height: 1,
         hideBorder: true,
       });
-
-
 
       const pkgButtons = {
         deploy: {
@@ -226,7 +226,7 @@ export class Dashboard {
           }.bind(this),
         },
         cancel: {
-          keys: ['S-c'],
+          keys: ['c'],
           callback: function () {
             const ctx = this.getContext(PkgContextType.PROCESSING, false);
             if (!ctx) {
@@ -326,15 +326,7 @@ export class Dashboard {
           delete this.hoverRowIndex;
           el.render();
 
-          if (!this.statusBarInUse) {
-            if (Dashboard.stackName && Dashboard.stackName !== '') {
-              this.statusBar.setLabel(
-                Package.fromStackName(Dashboard.stackName).getConsoleUrl(),
-              );
-            } else {
-              this.statusBar.setLabel('');
-            }
-          }
+
         }.bind(this),
       );
 
@@ -492,8 +484,6 @@ export class Dashboard {
         }
       }.bind(this))
 
-
-
       this.screen.key(
         ['ç'],
         function () {
@@ -546,14 +536,10 @@ export class Dashboard {
         }.bind(this),
       );
 
-      /*
-      this.screen.key(
-        ['f'],
-        async function (ch: any, key: any) {
+      this.screen.key(['+'], async function () {
           Groups.toggleFullscreen();
         }.bind(this),
       );
-     */
 
       this.splitter = blessed.box({
         parent: this.screen,
@@ -570,14 +556,7 @@ export class Dashboard {
       });
 
       this.screen.on('resize', function () {
-          this.blessedDeps.splitterOverride = null;
-          const newDefaultMax = this.maxColumnWidth;
-          if (this.splitter.left > newDefaultMax) {
-            this.splitter.left = newDefaultMax;
-          }
-          const tableCalcs = this.calcTableInfo();
-
-          this.resizeWidgets(tableCalcs);
+        this.updateVis();
         }.bind(this),
       );
 
@@ -705,7 +684,7 @@ export class Dashboard {
         help: {
           keys: ['h'],
           callback: function () {
-            this.dashboard.hide();
+            Dashboard.instance.hide();
             new HelpUI();
           }.bind(this),
         },
@@ -794,10 +773,10 @@ export class Dashboard {
           callback: function () {
             this.debounceCallback('clearVersions', async () => {
               Dashboard.instance.statusBarInUse = true;
-              if (this.focusedBox === this.dashboard.cmdPanel.stdout) {
-                this.dashboard.cmdPanel.stdout.setContent('');
+              if (this.focusedBox === this.cmdPanel.stdout) {
+                this.cmdPanel.stdout.setContent('');
                 this.setStatusBar('clearStdout', this.statusText('clear', 'stdout panel'));
-              } else if (this.focusedBox === this.dashboard.cmdPanel.stderr) {
+              } else if (this.focusedBox === this.cmdPanel.stderr) {
                 this.cmdPanel.stderr.setContent('');
                 this.setStatusBar('clearStderr', this.statusText('clear', 'stderr panel'));
               } else {
@@ -817,6 +796,9 @@ export class Dashboard {
           callback: async function () {
             this.debounceCallback('modules', async () => {
               Dashboard.moduleToggle = !Dashboard.moduleToggle;
+              if (this.screen.height < this.maxProcessOptionsHeight) {
+                this.autoHidePanelHeight = false;
+              }
               this.statusPanel.updateVis();
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'module info'));
             });
@@ -827,6 +809,9 @@ export class Dashboard {
           callback: async function () {
             this.debounceCallback('toggle dependencies', async () => {
               Dashboard.dependencyToggle = !Dashboard.dependencyToggle;
+              if (this.screen.height < this.maxProcessOptionsHeight) {
+                this.autoHidePanelHeight = false;
+              }
               this.statusPanel.updateVis();
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'dependencies'));
             });
@@ -837,7 +822,11 @@ export class Dashboard {
           callback: async function () {
             this.debounceCallback('toggle params', async () => {
               Dashboard.paramsToggle = !Dashboard.paramsToggle;
-              this.statusPanel.updateVis();
+              if (this.screen.height < this.maxProcessOptionsHeight) {
+                this.autoHidePanelHeight = false;
+              }
+              this.resizeWidgets(this.calcTableInfo());
+              await this.statusPanel.updatePackage();
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'params'));
             });
           }.bind(this),
@@ -916,7 +905,7 @@ export class Dashboard {
       if (!packages) {
         return;
       }
-      packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+      //packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
       const deploymentOptions = {};
       if (mode === ProcessMode.DESTROY) {
@@ -1068,18 +1057,6 @@ export class Dashboard {
     Dashboard.instance?.log(stackName, ...text);
   }
 
-  get tableHeaders() {
-    return [' name', ' ver.', ' type', ' process', ' environment', ' time'];
-  }
-
-  get columnPriority() {
-    return [0, 5, 4, 2, 1, 3];
-  }
-
-  get defaultColumnWidth() {
-    return [30, 12, 10, 13, 13, 10];
-  }
-
   logErr(stackName: string, ...text: string[]) {
     stackName = blessed.cleanTags(stackName);
     //const finalMsg = text.map((t) => (t.endsWith('\n') ? t : t + '\n'))
@@ -1178,27 +1155,30 @@ export class Dashboard {
 
   focusPool() {
     let ctrls = [this.packages];
+    const statusPool = this.statusPanel.focusPool
+    const cmdPool = this.cmdPanel.focusPool
+
     if ([DashboardMode.MIXED, DashboardMode.WIDE_STATUS_FIRST].indexOf(this.mode) > -1) {
       if (this.statusPanel?.focusPool) {
-        ctrls = ctrls.concat(this.statusPanel.focusPool);
+        ctrls = ctrls.concat(statusPool);
       }
       if (this.cmdPanel?.focusPool) {
-        ctrls = ctrls.concat(this.cmdPanel.focusPool);
+        ctrls = ctrls.concat(cmdPool);
       }
     } else if (this.mode === DashboardMode.WIDE_CMD_FIRST) {
       if (this.cmdPanel?.focusPool) {
-        ctrls = ctrls.concat(this.cmdPanel.focusPool);
+        ctrls = ctrls.concat(cmdPool);
       }
       if (this.statusPanel?.focusPool) {
-        ctrls = ctrls.concat(this.statusPanel.focusPool);
+        ctrls = ctrls.concat(statusPool);
       }
     } else if (this.mode === DashboardMode.CMD) {
       if (this.cmdPanel?.focusPool) {
-        ctrls = ctrls.concat(this.cmdPanel.focusPool);
+        ctrls = ctrls.concat(cmdPool);
       }
     } else if (this.mode === DashboardMode.STATUS) {
       if (this.statusPanel?.focusPool) {
-        ctrls = ctrls.concat(this.statusPanel.focusPool);
+        ctrls = ctrls.concat(statusPool);
       }
     }
     return ctrls;
@@ -1233,7 +1213,7 @@ export class Dashboard {
         this.focusedBox.style.label.fg = this.focusedBox.style.label.oldFg;
       }
       if (this.focusedBox.type === 'params') {
-        this.focusedBox.rows.selected = -1;
+          this.focusedBox.rows.selected = -1;
         this.statusPanel.selectedParamKey = undefined;
         const textIndex = this.focusPool().indexOf(Dashboard.instance.statusPanel.paramTextbox)
 
@@ -1419,30 +1399,28 @@ export class Dashboard {
       processStatus = ProcessStatus.STATUS_CHK;
     }
 
-
     let packages: PkgInfo[] = Object.values(Package.cache)
       .filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
       .map((p: Package) => {
         if (p.isGlobal) {
           return {
             stackName: p.stackName,
-            processStatus: processStatus,
-            environmentStatus: envStatus,
-            timer: p.timer.elapsed,
+            version: '-----',
             type: '-----',
-            statusTime: p.statusTime,
-            version: '-----'
+            environmentStatus: envStatus,
+            processStatus: processStatus,
+            timer: p.timer.elapsed,
           }
         }
 
         return {
           stackName: p.stackName,
-          processStatus: p.processStatus,
-          environmentStatus: p.environmentStatus,
-          timer: p.timer.elapsed,
-          type: p.type,
-          statusTime: p.statusTime,
           version: `${p.meta.version}`,
+          type: p.type,
+          environmentStatus: p.environmentStatus,
+          processStatus: p.processStatus,
+          timer: p.timer.elapsed,
+          statusTime: p.statusTime,
         };
       });
 
@@ -1536,8 +1514,8 @@ export class Dashboard {
         row.push(rowColor(pkg.stackName));
         row.push(rowColor(global ? '-----' : pkg.version));
         row.push(rowColor(pkg.type));
-        row.push(rowColor(pkg.processStatus));
         row.push(rowColor(pkg.environmentStatus));
+        row.push(rowColor(pkg.processStatus));
         row.push(rowColor(pkg.timer));
 
         const finalRow = [tableCalcs.columns];
@@ -1556,6 +1534,17 @@ export class Dashboard {
     }
   }
 
+  get tableHeaders() {
+    return [' name', ' ver.', ' type', ' environment', ' process', ' time'];
+  }
+
+  get columnPriority() {
+    return [0, 5, 4, 1, 2, 3];
+  }
+
+  get defaultColumnWidth() {
+    return [30, 12, 10, 13, 13, 10];
+  }
 
   mod(digit: number, mod: number) {
     return clamp(
@@ -1881,11 +1870,37 @@ export class Dashboard {
         });
       }
 
+      if (this.selectedPackage === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight) {
+        this.statusOptions.hide();
+      } else {
+        this.statusOptions.show();
+      }
+
+      if (!this.statusBarInUse) {
+        if (Dashboard.stackName && Dashboard.stackName !== '') {
+          this.statusBar.setLabel(
+            Package.fromStackName(Dashboard.stackName).getConsoleUrl(),
+          );
+        } else {
+          this.statusBar.setLabel('');
+        }
+      }
 
       this.render(tableCalcs);
     } catch (e) {
       CenvLog.single.catchLog(e as Error);
     }
+  }
+
+  updateVis() {
+    this.blessedDeps.splitterOverride = null;
+    const newDefaultMax = this.maxColumnWidth;
+    if (this.splitter.left > newDefaultMax) {
+      this.splitter.left = newDefaultMax;
+    }
+    const tableCalcs = this.calcTableInfo();
+
+    this.resizeWidgets(this.calcTableInfo());
   }
 
   render(tableCalcs: {tableWidth: number, columns: number}) {
@@ -1934,20 +1949,19 @@ export class Dashboard {
         this.cmdPanel.updateVis();
       }
 
+      if (!this.statusOptions?.bar?.hidden && this.screen._borderStops) {
+        this.statusOptions?.setFront()
+        this.statusOptions?.render();
+      }
       this.splitter.setFront();
       this.statusBar.setFront();
       this.splitter.render();
 
-      if (this.selectedPackage !== 'GLOBAL') {
-        this.statusOptions.show();
-      } else {
-        this.statusOptions.hide();
-      }
-
       this.statusBar.show();
+
+      this.redraw();
       this.menu.setFront();
       this.menu.render();
-      this.redraw();
     }
   }
 
@@ -1956,12 +1970,15 @@ export class Dashboard {
     const top = 2;
     const panelWidth = this.screen.width - tableCalcs.tableWidth - 2;
 
-    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions.bar.top + (this.statusOptions.active ? 3 : 0), screenHeight);
+    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions.bar.top + ( this.statusOptions.active ? 3 : 0), screenHeight);
     this.cmdPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusPanel.bottom, screenHeight);
 
     this.splitter.height = this.screen.height - 2 - bottomOffset;
   }
 
+  maxProcessOptionsHeight = 34;
+  autoHidePanelHeight = true;
+  minimizeStatusPanel = false;
   resizeWidgets(tableCalcs: {tableWidth: number, columns: number} = undefined) {
     if (!tableCalcs) {
       tableCalcs = this.calcTableInfo();
@@ -1969,12 +1986,33 @@ export class Dashboard {
     this.packages.width = tableCalcs.tableWidth;
     this.packages.top = 0;
     this.packages.height = Package.getPackages().length + 5;
-    this.processOptions.bar.width = tableCalcs.tableWidth;
-    this.processOptions.bar.top = this.packages.height;
-    this.processOptions.show();
+
+    let hideProcessOptions = false;
+
+    if (this.screen.height < this.maxProcessOptionsHeight) {
+      this.minimizeStatusPanel = true;
+      hideProcessOptions = true;
+      this.packages.height -= this.maxProcessOptionsHeight - this.screen.height;
+      if (this.autoHidePanelHeight) {
+        Dashboard.dependencyToggle = false;
+        Dashboard.moduleToggle = false;
+        Dashboard.paramsToggle = false;
+      }
+      this.statusOptions.hide();
+    } else {
+      this.minimizeStatusPanel = false;
+      this.statusOptions.show();
+    }
+
+    if (!hideProcessOptions) {
+      this.processOptions.bar.width = tableCalcs.tableWidth;
+      this.processOptions.bar.top = this.packages.height;
+      this.processOptions.show();
+    } else {
+      this.processOptions.hide();
+    }
 
     const screenHeight = this.screen.height - 1;
-
     this.status.left = 0;
     this.debugLog.left = this.packages.width + 1;
     this.debugLog.width = this.screen.width - this.packages.width;
@@ -1986,7 +2024,7 @@ export class Dashboard {
     const bottomOffset = this.menu.active ? 3 : 0;
     this.resizeMode(tableCalcs, bottomOffset);
 
-    this.status.top = this.packages.height + 3;
+    this.status.top = this.packages.height + (hideProcessOptions ? 0 : 3);
     this.status.height = screenHeight - this.status.top - bottomOffset;
     this.status.width = this.packages.width;
 
@@ -1997,7 +2035,6 @@ export class Dashboard {
     this.packageBox.show();
     this.statusBar.width = this.screen.width;
     this.statusBar.position.top = this.screen.height - 1 - bottomOffset;
-
 
     if (this.statusOptions) {
       this.statusOptions.bar.width = this.screen.width - tableCalcs.tableWidth - 2;
@@ -2011,9 +2048,12 @@ export class Dashboard {
     this.screen.clearRegion(0, this.screen.width, 0, screenHeight);
   }
 
-  initialWidth = -1;
   calcTableInfo() {
     let tableWidth = this.maxColumnWidth;
+    let autoScreenSize = Math.floor(this.screen.width / 2);
+    if (autoScreenSize > tableWidth) {
+      autoScreenSize = tableWidth;
+    }
     if (this.splitter.left > tableWidth) {
       this.splitter.left = tableWidth;
     }
@@ -2046,10 +2086,11 @@ export class Dashboard {
         tableWidth = nextWidth;
       }
     }
-    if (this.initialWidth === -1) {
-      tableWidth = this.maxColumnWidth;
-      this.initialWidth = this.maxColumnWidth;
+
+    if (!Dashboard.horizontalSplitterUserCtrl) {
+      tableWidth = autoScreenSize
     }
+
     this.tableWidth = tableWidth;
 
     return { tableWidth, columns };

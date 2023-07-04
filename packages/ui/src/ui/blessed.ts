@@ -82,9 +82,7 @@ blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean)
 
   this.enableMouse();
 
-  this.on(
-    'mousedown',
-    (this._dragMD = function (data: any) {
+  this.on('mousedown', (this._dragMD = function (data: any) {
       if (self.screen._dragging) return;
       if (!verify(data)) return;
       self.screen._dragging = self;
@@ -97,9 +95,7 @@ blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean)
     }),
   );
 
-  this.onScreenEvent(
-    'mouse',
-    (this._dragM = function (data: any) {
+  this.onScreenEvent('mouse', (this._dragM = function (data: any) {
       if (self.screen._dragging !== self){
         return;
       }
@@ -119,6 +115,7 @@ blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean)
       if (colorTimeout) {
         clearTimeout(colorTimeout);
       }
+      Dashboard.horizontalSplitterUserCtrl = true;
       colorTimeout = setTimeout(() => {
         blessedDeps.dashboard.splitter.style.bg = blessedDeps.dashboard.splitter.style.oldBg;
         blessedDeps.dashboard.splitter.style.transparent = false;

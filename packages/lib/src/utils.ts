@@ -205,6 +205,9 @@ export interface ICmdOptions {
 }
 
 function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
+  // match cdk status output
+  // stackName | cloudformation sequence number | time | cf status | aws object | aws type (stack id) cf event
+  // (.*?) \|.*([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} (?>AM)|(?>PM)) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:]*) *\| ([a-z_A-Z_\:\/-]*) \((.*)\)]? ?(.*)?$
   if (options.returnOutput) {
       output += chunk;
   } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
@@ -212,6 +215,10 @@ function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
   } else {
     CenvLog.single.infoLog('s: ' + chunk, pkg?.stackName);
   }
+}
+
+export async function spawn(cmd: string) {
+  await spawnCmd('./', cmd);
 }
 
 export async function spawnCmd(
@@ -745,7 +752,7 @@ export class Timer {
     } else if (this.finalElapsed) {
       return `${this.finalElapsed}${this.format[0]}`;
     } else {
-      return 'N/A'
+      return ''
     }
   }
 
@@ -931,6 +938,9 @@ export function printFlag(options: Record<string, any>, flag: string) {
 }
 
 export async function showPkgCmdsResult(cmds: PackageCmd[]) {
+  if (!cmds) {
+    return;
+  }
   const failures = cmds.filter((c) => c?.code !== 0);
   const success = cmds.filter((c) => c?.code === 0);
   success.map((f) => {

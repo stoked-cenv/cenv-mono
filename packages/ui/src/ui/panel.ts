@@ -31,7 +31,9 @@ export abstract class CenvPanel {
 
   focusText: string;
   get focusPool(): any[] {
-    return this.focusPoolWidgets.filter(w => !w.hidden);
+    return this.focusPoolWidgets.filter(w => {
+      return (w.type === 'params' && Dashboard.instance.statusPanel.showParams) || (w.type !== 'params' && !w.hidden);
+    });
   }
 
   addGridWidget(widget: any, widgetOptions: Record<string, any>, gridOptions: number[], focusable = false, grid?: undefined) {

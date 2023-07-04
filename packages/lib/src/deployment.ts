@@ -5,7 +5,7 @@ import { Environments } from './environment'
 import { Cenv } from './cenv'
 import {BaseCommandOptions, CenvParams} from "./params";
 import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from "./package/package";
-import {cleanup, ICmdOptions, printFlag, sleep } from "./utils";
+import { cleanup, execCmd, ICmdOptions, printFlag, sleep } from "./utils";
 import Fake from "./fake";
 import {PackageModule, ProcessMode} from "./package/module";
 import {CenvLog, colors, LogLevel} from "./log";
@@ -154,34 +154,32 @@ export class Deployment {
     try {
 
       if (await this.handleFake(pkg)) {
-        return;
+        return true;
       }
 
       if (this.isDeploy()) {
         if (pkg.meta.deployStack) {
           return await pkg.pkgCmd(pkg.meta?.deployStack);
         } else {
-          const deployRes = await pkg.deploy(this.options);
+          await pkg.deploy(this.options);
           await pkg.checkStatus(ProcessMode.DEPLOY.toString(), pkg.processStatus);
-          Cenv.dashboard.debug(pkg.packageName, 'deploy complete - exit code:', deployRes)
-          return deployRes;
         }
       } else {
         if (pkg.meta.destroyStack) {
           const res = await pkg.pkgCmd(pkg.meta.destroyStack);
           await pkg.checkStatus(ProcessMode.DESTROY.toString(), pkg.processStatus);
-          return res;
+          return false
         }
-        const destroyRes = await pkg.destroy(this.options);
+        await pkg.destroy(this.options);
         await pkg.checkStatus(ProcessMode.DESTROY.toString(), pkg.processStatus);
-        return destroyRes;
       }
+      return true;
     } catch (e) {
       Deployment.cancelDependencies(pkg);
       this.setDeployStatus(pkg, ProcessStatus.FAILED);
       pkg.err('deployment failed', '223', e);
       pkg.err(e.stack);
-      return 223;
+      return false;
     }
   }
 
@@ -213,12 +211,12 @@ export class Deployment {
       process.env.BOOTSTRAP_COMPLETE = 'true';
     }
 
-    await this.cmd(pkg.stackName, message, {
+    const processRes = await this.cmd(pkg.stackName, message, {
       envVars,
       getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
     });
 
-    const complete = await this.packageComplete(pkg);
+    const complete = await this.packageComplete(pkg, processRes ? ProcessStatus.COMPLETED : ProcessStatus.FAILED);
     if (complete) {
       Package.global.timer.stop();
     }
@@ -256,9 +254,9 @@ export class Deployment {
     return false
   }
 
-  static async packageComplete(packageInfo: Package) {
+  static async packageComplete(packageInfo: Package, processStatus?: ProcessStatus) {
 
-    packageInfo.setDeployStatus(ProcessStatus.COMPLETED);
+    packageInfo.setDeployStatus(processStatus !== undefined ? processStatus : ProcessStatus.COMPLETED);
     packageInfo.statusTime = Date.now();
     packageInfo.timer.stop();
 
@@ -468,6 +466,19 @@ export class Deployment {
   static processItems: any[] = [];
   static async processInit(items: Package[]) {
 
+
+    // if deploying check to see if there are any docker packages if so verify docker is running
+    if (items.filter((p: Package) => p.docker).length) {
+      const dockerStatus = await execCmd('./','docker version -f json', 'check docker', {}, false,true);
+      const dockerStatusParsed = JSON.parse(dockerStatus);
+
+      if (dockerStatusParsed.Server === null) {
+        CenvLog.single.errorLog(JSON.stringify(dockerStatusParsed, null, 2), 'docker daemon not active');
+        return;
+      } else {
+        CenvLog.single.infoLog('verified that docker is running');
+      }
+    }
     Package.global.timer.start();
 
     if (this.isDeploy()) {
@@ -478,6 +489,7 @@ export class Deployment {
         await Version.Bump(Package.getPackages(), this.options.bump);
       }
     }
+
 
     if (process.env.FAKE_SUCCESS) {
       Package.getPackages().map(p => p.environmentStatus = this.isDeploy() ? EnvironmentStatus.NOT_DEPLOYED : EnvironmentStatus.UP_TO_DATE);

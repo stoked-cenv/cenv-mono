@@ -1,9 +1,10 @@
 import blessed from 'blessed';
 import {
+  Cenv,
   CenvLog, Deployment,
   getMonoRoot,
-  Package, PkgContextType, ProcessMode, ProcessStatus,
-} from '@stoked-cenv/lib';
+  Package, PackageModule, PkgContextType, ProcessMode, ProcessStatus
+} from "@stoked-cenv/lib";
 import contrib from 'blessed-contrib';
 import { CenvPanel } from './panel';
 import Groups from './group';
@@ -316,7 +317,6 @@ export default class StatusPanel extends CenvPanel {
       }
 
     } catch (e) {
-      this.dashboard.debug('hi hi', e?.stack || e)
       CenvLog.single.catchLog(e);
     }
   }
@@ -390,7 +390,23 @@ export default class StatusPanel extends CenvPanel {
     paramCtrl.type = 'params';
     paramCtrl.name = type;
     paramCtrl.rows.top = 0;
+    paramCtrl.active = paramCtrl.hidden
 
+    paramCtrl.hide = function() {
+      if (this.hidden) return;
+      this.clearPos();
+      this.hidden = true;
+      this.emit('hide');
+      if (this.screen.focused === this) {
+        this.screen.rewindFocus();
+      }
+    }.bind(paramCtrl);
+
+    paramCtrl.show = function() {
+      if (!this.hidden) return;
+      this.hidden = false;
+      this.emit('show');
+    }.bind(paramCtrl);
 
     paramCtrl.on('blur', function() {
       const pkg = this.getPkg();
@@ -430,7 +446,7 @@ export default class StatusPanel extends CenvPanel {
     pkg.activeModuleIndex = selectedIndex;
 
     const selectedType = blessed.cleanTags(selectedItem.content);
-    const module = pkg.modules.find((m) => m.type === selectedType);
+    const module = pkg.modules.find((m: PackageModule) => m.type === selectedType);
     if (module) {
       this.moduleInfo?.setItems(module.moduleInfo);
     }
@@ -460,36 +476,30 @@ export default class StatusPanel extends CenvPanel {
   }
 
   updateParameters(paramCtrl: any, pkg: Package, height = -1) {
-    const enabled = this.paramTypeVisible(paramCtrl.name);
-    if (enabled) {
-      const vars = pkg.params?.localVarsTyped[paramCtrl.name as keyof object];
-      const hasStatus = pkg.hasCheckedStatus();
-      const data = [];
-      if (vars) {
-        for (const [k] of Object.entries(vars) as [string, string][]) {
-          let color;
-          let name = k.substring(0, this.parameterColumnWidth - 1);
-          if (hasStatus) {
-            if (pkg.params.needsDeploy) {
-              color = chalk.red;
-            } else if (pkg.params.needsMaterialization) {
-              color = chalk.hex('#FFA500');
-            }
-            if (color) {
-              name = color(name);
-            }
+    const vars = pkg.params?.localVarsTyped[paramCtrl.name as keyof object];
+    const hasStatus = pkg.hasCheckedStatus();
+    const data = [];
+    if (vars) {
+      for (const [k] of Object.entries(vars) as [string, string][]) {
+        let color;
+        let name = k.substring(0, this.parameterColumnWidth - 1);
+        if (hasStatus) {
+          if (pkg.params.needsDeploy) {
+            color = chalk.red;
+          } else if (pkg.params.needsMaterialization) {
+            color = chalk.hex('#FFA500');
           }
-          data.push([name]);
+          if (color) {
+            name = color(name);
+          }
         }
+        data.push([name]);
       }
-      paramCtrl.setData({headers: [], data});
-      paramCtrl.rows.selected = -1;
-      paramCtrl.show();
-    } else {
-      const headers = [];
-      //this[type].setData({ headers, data: [] });
-      paramCtrl.hide();
     }
+    paramCtrl.setData({headers: [], data});
+    paramCtrl.rows.selected = -1;
+    paramCtrl.show();
+
     if (height > 0) {
       paramCtrl.height = height;
     } else if (height === 0) {
@@ -505,7 +515,7 @@ export default class StatusPanel extends CenvPanel {
       return;
     }
 
-    this.modules.setItems(pkg.modules.map((m) => m.type.toString()));
+    this.modules.setItems(pkg.modules.map((m: PackageModule) => m.type.toString()));
     this.paramForm.hide()
     this.paramTextbox.hide();
     this.paramLabel.hide();
@@ -581,9 +591,7 @@ export default class StatusPanel extends CenvPanel {
           this.app.setFront();
         }
 
-        if (this.paramTypeVisible('environment')) {
-          widthMultiplier++
-        }
+        widthMultiplier++
 
         if (paramWidthValid) {
           this.environment.left = leftWidth;
@@ -593,9 +601,7 @@ export default class StatusPanel extends CenvPanel {
           leftWidth = this.environment.left + this.environment.width;
         }
 
-        if (this.paramTypeVisible('global')) {
-          widthMultiplier++
-        }
+        widthMultiplier++
 
         if (paramWidthValid) {
           this.global.left = leftWidth;
@@ -605,9 +611,7 @@ export default class StatusPanel extends CenvPanel {
           leftWidth = this.global.left + this.global.width;
         }
 
-        if (this.paramTypeVisible('globalEnv')) {
-          widthMultiplier++;
-        }
+        widthMultiplier++;
 
         if (paramWidthValid) {
           this.globalEnv.top = top2;
@@ -625,7 +629,7 @@ export default class StatusPanel extends CenvPanel {
         this.environment.options.columnWidth = [this.parameterWidth]
         this.globalEnv.options.columnWidth = [this.parameterWidth]
 
-        top += parameterHeight  + (this.paramForm.hidden ? 0 : 3);
+        top += parameterHeight  + (!this.paramForm.hidden ? 3 : 0);
 
 
       } else {
@@ -642,6 +646,9 @@ export default class StatusPanel extends CenvPanel {
         Groups.fullScreenFocus.height = height - (StatusPanel.modulesHeight + 1);
       }
 
+      if (Cenv.dashboard.statusOptions.active) {
+        this.dashboard.statusOptions.setFront()
+      }
       this.bottom = top;
     }
 

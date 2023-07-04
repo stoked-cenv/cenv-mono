@@ -3,11 +3,8 @@ import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
 import { describeStacks } from '../aws/cloudformation';
 import semver, { SemVer } from 'semver';
 import { colors } from '../log';
-import {join} from "path";
-import {CenvFiles} from "../file";
 import {spawnCmd} from "../utils";
 import {Package} from "./package";
-import {getVpcId} from "../aws/ec2";
 
 export enum DeployType {
   ECS = 'ECS',
@@ -38,7 +35,8 @@ export class StackModule extends PackageModule {
 
   async destroy() {
     const actualCommand = StackModule.commands[ProcessMode.DESTROY];
-    await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
+    await this.pkg.pkgCmd(actualCommand, {packageModulegit : this});
+    // await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
 
     //const cleanCmd = `cenv clean ${this.pkg.packageName} --mode cdk`;
     //await spawnCmd(this.path, cleanCmd, cleanCmd,{}, this.pkg);

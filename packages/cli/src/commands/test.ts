@@ -1,7 +1,16 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, showPkgCmdsResult, BaseCommandOptions, parseParamsExec, Package } from '@stoked-cenv/lib';
-import { Test } from '@stoked-cenv/ui';
+import { Command, Option } from 'nest-commander';
+import {
+  CenvLog,
+  BaseCommandOptions,
+  Package,
+  getMonoRoot,
+  Suite,
+  EnvironmentStatus,
+  execCmd,
+  spawn
+} from "@stoked-cenv/lib";
 import { BaseCommand } from './base'
+import path from "path";
 
 
 @Command({
@@ -19,8 +28,41 @@ export default class TestCommand extends BaseCommand {
 
   async runCommand(params: string[], options?: BaseCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      const pkgCmds = await parseParamsExec(params, options, Test.exec);
-      await showPkgCmdsResult(pkgCmds);
+
+      /*
+      packages.map((p: Package) => {
+        //console.log('package: ', p.packagePath)
+      });
+      await Test.exec(packages, params.join(' '))
+       */
+
+      const cenvConfig = require(path.join(getMonoRoot(), './cenv.json'));
+      const defaultSuite = cenvConfig.defaultSuite;
+
+      const suite = new Suite(defaultSuite);
+      await Promise.all(await Package.checkStatus());
+      suite.packages.forEach((p: Package) => {
+        if (p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED) {
+          throw new Error(`verify packages not deployed: ${p.packageName}: ${p.environmentStatus}`);
+        }
+      });
+
+      await spawn(`cenv deploy ${defaultSuite} -ll minimal`);
+      await Promise.all(await Package.checkStatus());
+      suite.packages.forEach((p: Package) => {
+        if (p.environmentStatus !== EnvironmentStatus.UP_TO_DATE) {
+          throw new Error(`verify packages up to date: ${p.packageName}: ${p.environmentStatus}`);
+        }
+      });
+
+      await spawn(`cenv destroy ${defaultSuite} -ll minimal`);
+      await Promise.all(await Package.checkStatus());
+      suite.packages.forEach((p: Package) => {
+        if (p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED) {
+          throw new Error(`verify packages not deployed: ${p.packageName}: ${p.environmentStatus}`);
+        }
+      });
+
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

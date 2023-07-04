@@ -137,7 +137,7 @@ export async function getProfiles(exactMatch = false, profile?: string , environ
 
     const fileBase = path.basename(file);
     if (fileBase.indexOf('↔') !== -1) {
-      if (exactMatch) {
+      if (!exactMatch) {
         CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
       }
       continue;
@@ -166,7 +166,7 @@ export async function getMatchingProfileConfig(profile?: string, environment?: s
   if (!profile && !environment) {
     profile = 'default';
   }
-  const matchingProfileFiles: ProfileData[] = await getProfiles(true, profile, environment);
+  const matchingProfileFiles: ProfileData[] = await getProfiles(profile === 'default', profile, environment);
   if (matchingProfileFiles.length === 1) {
     return matchingProfileFiles[0];
   } else if (matchingProfileFiles.length > 1) {

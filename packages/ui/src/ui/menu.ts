@@ -88,13 +88,13 @@ export default class MenuBar {
 
   setFront() {
     this.box.setFront();
-    this.bar.setFront();
+    this.bar?.setFront();
   }
 
   render() {
-    this.box.render();
-    this.bar.render();
-    this.screen.render();
+    this.box?.render();
+    this.bar?.render();
+    this.screen?.render();
   }
 
   set(position: any) {

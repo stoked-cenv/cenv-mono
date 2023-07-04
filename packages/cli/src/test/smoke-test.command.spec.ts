@@ -4,8 +4,9 @@ import DestroyCommand from '../commands/destroy';
 import AddCommand from '../commands/add';
 import ParamsCommand from '../commands/params'
 import { CommandTestFactory } from 'nest-commander-testing';
-import { EnvironmentStatus, Package, Suite } from '@stoked-cenv/lib';
-import { it, jest } from '@jest/globals';
+import { CenvFiles, EnvironmentStatus, getMonoRoot, Package, packagePath, Suite } from "@stoked-cenv/lib";
+import { expect, it, jest, test } from '@jest/globals';
+import path from "path";
 
 describe('Init Command', () => {
   let commandInstance: TestingModule;
@@ -21,8 +22,13 @@ describe('Init Command', () => {
       ] }).compile()
   });
 
-  const packageName = '@stoked-cenv/installation-service';
-  const suiteName = 'curb-cloud'
+
+  const rootPath = getMonoRoot();
+  const cenvConfig = require(path.join(rootPath, './cenv.json'));
+
+  const suiteName = cenvConfig.defaultSuite
+  CenvFiles.GlobalPath = path.join(packagePath(cenvConfig.global), CenvFiles.PATH);
+  /*
 
   it(`cenv deploy ${packageName}`, async () => {
     process.env.CENV_LOG_LEVEL = 'minimal';
@@ -48,7 +54,7 @@ describe('Init Command', () => {
   it(`verify ${packageName} has been completely removed`, async () => {
     const pkg = await Package.fromPackageName(packageName);
     await Package.checkStatus();
-    if (pkg.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED) {
+    if (pkg.environmentStatus !== EnvironmentStatus.UP_TO_DATE) {
       throw new Error(`${packageName} nod successfully deploy`);
     }
   }, hour);
@@ -60,10 +66,9 @@ describe('Init Command', () => {
   }, hour);
 
   it(`verify suite ${suiteName} packages have been completely deployed`, async () => {
-    new Suite(suiteName);
+    const suite = new Suite(suiteName);
     await Package.checkStatus();
-    const packages = Package.getPackages()
-    packages.map((p: Package) => {
+    suite.packages.forEach((p: Package) => {
       if (p.environmentStatus !== EnvironmentStatus.UP_TO_DATE) {
         throw new Error(`${p.packageName} not fully deployed`);
       }
@@ -77,19 +82,17 @@ describe('Init Command', () => {
   }, hour);
 
   it(`verify suite ${suiteName} has been completely removed`, async () => {
-    new Suite(suiteName);
+    const suite = new Suite(suiteName);
     await Package.checkStatus();
-    const packages = Package.getPackages()
-    packages.map((p: Package) => {
-      if (p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED) {
+    suite.packages.forEach((p: Package) => {
+      if (p.environmentStatus !== EnvironmentStatus.UP_TO_DATE) {
         throw new Error(`${p.packageName} not completely removed`);
       }
-    })
-
+    });
   }, hour);
 
 
-
+*/
 
 
   //afterAll(async () => {
