@@ -1,13 +1,12 @@
 {
   "name": "@stoked-cenv/params",
-  "version": "2.0.0-a.8",
+  "version": "2.0.0-a.13",
   "private": true,
   "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
   "main": "index.js",
   "scripts": {
-    "prebuild": "yarn install; rimraf build",
-    "build": "./build.sh; rimraf build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "preinstall": "rimraf build materializationLambda.zip yarn.lock",
+    "build": "./build.sh"
   },
   "keywords": [
     "AWS",
@@ -20,11 +19,15 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "dependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.8",
+    "@stoked-cenv/lib": "2.0.0-a.13",
     "js-yaml": "^4.1.0",
-    "rimraf": "^4.4.1"
+    "rimraf": "^4.4.1",
+    "async-mutex": "^0.4.0"
   },
-
+  "workspaces": {
+    "packages": [],
+    "nohoist": ["**"]
+  },
   "skipDeployBuild": true,
   "verifyStack": "cenv i --verify",
   "deployStack": "cenv i -cenv",

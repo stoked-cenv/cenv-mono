@@ -54,6 +54,7 @@ export async function ioAppEnv(config: any, application: any, environment: any, 
     return;
   }
   application = await ioReadVar('application name', application.value, application.defaultValue, defaults);
+  console.log('application', application)
   environment = await ioReadVar('environment name', environment.value, environment.defaultValue, defaults);
 
   return { application, environment };
@@ -122,8 +123,8 @@ export interface ProfileData   {
   askUser: boolean
 }
 
-export async function getProfiles(exactMatch = false, profile?: string , environment?: string) {
-  const filename = !environment && !profile ? 'default' : `${profile}↔${environment}`;
+export async function getProfiles(paramMatchesOnly = false, profile = '' , environment = '') {
+  const filename = profile === 'default' ? 'default' : `${profile}↔${environment}`;
   const reservedFiles = ['localstack-api-key', 'default-root-domain']
   //CenvLog.single.catchLog(`filename: ${filename} profile: ${profile} environment: ${environment}`)
   const list = fs.readdirSync(CenvFiles.ProfilePath);
@@ -136,37 +137,31 @@ export async function getProfiles(exactMatch = false, profile?: string , environ
     }
 
     const fileBase = path.basename(file);
-    if (fileBase.indexOf('↔') !== -1) {
-      if (!exactMatch) {
-        CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
-      }
+    if (!paramMatchesOnly && fileBase.indexOf('↔') !== -1) {
+      CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
       continue;
     }
 
-    if (exactMatch && reservedFiles.includes(fileBase)) {
+    if (reservedFiles.includes(fileBase)) {
       continue;
     }
 
-    if (exactMatch) {
-      const profConfig: ProfileData = await loadCenvProfile(profile);
+    if (!paramMatchesOnly) {
+      const profConfig: ProfileData = await loadCenvProfile(fileBase);
       matchingProfileFiles.push(profConfig);
       continue;
-    } else if (filename.indexOf(filename) === -1) {
+    } else if (fileBase.indexOf(filename) === -1) {
       continue;
     }
 
-    const profConfig: ProfileData = await loadCenvProfile(profile);
+    const profConfig: ProfileData = await loadCenvProfile(fileBase);
     matchingProfileFiles.push(profConfig);
   }
   return matchingProfileFiles;
 }
 
-export async function getMatchingProfileConfig(profile?: string, environment?: string): Promise<ProfileData> {
-
-  if (!profile && !environment) {
-    profile = 'default';
-  }
-  const matchingProfileFiles: ProfileData[] = await getProfiles(profile === 'default', profile, environment);
+export async function getMatchingProfileConfig(exactMatch: boolean, profile?: string, environment?: string): Promise<ProfileData> {
+  const matchingProfileFiles: ProfileData[] = await getProfiles(exactMatch, profile, environment);
   if (matchingProfileFiles.length === 1) {
     return matchingProfileFiles[0];
   } else if (matchingProfileFiles.length > 1) {
@@ -237,10 +232,7 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   }
 
   let profileData: ProfileData = undefined;
-  if (options?.profile || options?.env) {
-    options.profile = 'default';
-  }
-  profileData = await getMatchingProfileConfig(options?.profile, options?.env);
+  profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
 
   let args: any = {};
   let envConfig = profileData.envConfig;

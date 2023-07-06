@@ -71,7 +71,10 @@ export class DockerModule extends PackageModule {
 
   async getDigest() {
     const repoDigest = await execCmd('./', `echo $(docker inspect ${this.dockerName}) | jq -r '.[].RepoDigests[]'`);
-    return repoDigest.split('@')[1].trim();
+    if (repoDigest.indexOf('No such object') !== -1) {
+      return false;
+    }
+    return repoDigest.split('@')[1]?.trim();
   }
 
   async push(url: string) {
@@ -80,14 +83,17 @@ export class DockerModule extends PackageModule {
       postCommandFunc: async () => {
 
         // get the digest from the pushed container
-        this.digest = await this.getDigest();
+        const digestRes = await this.getDigest();
+        if (!digestRes) {
+          throw new Error('docker build failed: no digest found');
+        }
 
         // verify that the digest exists in the docker repo
         await this.verifyDigest();
       }
     }
 
-    await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, {}, commandEvents);
+    await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, { commandEvents });
   }
 
   async build(args: any, cmdOptions: any = { build: true, push: true, dependencies: false}): Promise<number> {
@@ -117,7 +123,7 @@ export class DockerModule extends PackageModule {
 
     if (build) {
       const force = cmdOptions.force ? ' --no-cache' : '';
-      const buildCmd = `docker build -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .${force}`;
+      const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .`;
       const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars, packageModule: this };
       await this.pkg.pkgCmd(buildCmd, buildOptions)
     }

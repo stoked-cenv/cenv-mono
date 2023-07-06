@@ -1,10 +1,11 @@
 tsc
 mkdir -p build
 cp dist/index.js build
-cp package.json build
+cp params-build.json build/package.json
 cd build
-npm i
+yarn install
 rm -rf materializationLambda.zip
-zip -r materializationLambda.zip  index.js package.json node_modules > zip.log
+zip -r materializationLambda.zip  index.js package.json node_modules #> zip.log
 mv ./materializationLambda.zip ../
 cd ..
+cd

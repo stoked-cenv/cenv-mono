@@ -9,8 +9,8 @@ import {
   Deployment,
   DestroyCommandOptions,
   Cenv,
-  ParamsModule
-} from '@stoked-cenv/lib';
+  ParamsModule, deleteCenvData, destroyRemainingConfigs, DockerModule, Suite
+} from "@stoked-cenv/lib";
 import { BaseCommand } from './base';
 
 @Command({
@@ -37,20 +37,21 @@ export default class DestroyCommand extends BaseCommand {
   }
 
   @Option({
-    flags: '-s, --suite, <suite>',
-    description: `Install a named suite of packages.`,
-  })
-  parseSuite(val: string): string {
-    return val;
-  }
-
-  @Option({
     flags: '-p, --parameters',
     description: `Destroy parameters`,
   })
   parseParameters(val: boolean): boolean {
     return val;
   }
+
+  @Option({
+    flags: '-pa, --parameters-all',
+    description: `Destroy all parameters and configs`,
+  })
+  parseParametersAll(val: boolean): boolean {
+    return val;
+  }
+
   @Option({
     flags: '-s, --stack',
     description: `Destroy stack`,
@@ -74,6 +75,21 @@ export default class DestroyCommand extends BaseCommand {
     return val;
   }
 
+  @Option({
+    flags: '-gp, --global-parameters',
+    description: `Destroy all global parameters`,
+  })
+  parseGlobalParameters(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+    flags: '-ngp, --non-global-parameters',
+    description: `Destroy all non global parameters`,
+  })
+  parseNonGlobalParameters(val: boolean): boolean {
+    return val;
+  }
 
   /* SHARED */
   @Option({
@@ -84,16 +100,6 @@ export default class DestroyCommand extends BaseCommand {
   parseProfile(val: string): string {
     return val;
   }
-
-  /*
-  @Option({
-    flags: '-b, --bootstrap',
-    description: `Bootstrap cdk under the hood before we run an install.`,
-  })
-  parseBootstrap(val: boolean): boolean {
-    return val;
-  }
-   */
 
   @Option({
     flags: '-d, --dependencies',
@@ -142,6 +148,28 @@ export default class DestroyCommand extends BaseCommand {
   parsePA(val: boolean): boolean {
     return val;
   }
+  @Option({
+    flags: '-ap, --all-parameters',
+    description: `Destroy all global and non global parameters from parameter store as well as all configs from app config.`,
+  })
+  parseAp(val: boolean): boolean {
+    return val;
+  }
+  @Option({
+    flags: '-ad, --all-docker',
+    description: `Destroy all docker images from every ecr repo as well as the ecr repos themselves`,
+  })
+  parseAd(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+    flags: '--all',
+    description: `Destroy everything`,
+  })
+  parseAll(val: boolean): boolean {
+    return val;
+  }
 
   @Option({
     flags: '-D, --docker',
@@ -151,27 +179,6 @@ export default class DestroyCommand extends BaseCommand {
     return val;
   }
 
-  /*
-  async destroyAppData(options) {
-    const config = CenvFiles.GetConfig();
-    if (!config) {
-      CenvLog.single.errorLog(`no ${EnvConfigFile.NAME} found in ${process.cwd()}: failed attempt to remove parameter data`)
-      process.exit(1);
-    }
-
-    const cenvPackage = Package.getPackageName();
-
-    if (options?.parameters) {
-      if (!!options?.global) {
-        await ParamsModule.destroyGlobal();
-      }
-      await Deployment.destroyConfig(options?.global ? undefined : cenvPackage);
-    }
-
-  }
-
- */
-
   async runCommand(
     params: string[],
     options?: DestroyCommandOptions,
@@ -179,29 +186,42 @@ export default class DestroyCommand extends BaseCommand {
   ): Promise<void> {
     try {
 
-      /*if (!options?.suite && !options?.environment && (options?.parameters || options?.stack || options?.docker || options?.cenv)) {
-        options.cli = true;
-        options.userInterface = false;
+      const localOnly = packages.length === 1 && packages[0].local
+      if (options?.globalParameters) {
+        await ParamsModule.destroyGlobal();
+        packages = localOnly ? [] : packages;
+        options.stack = options.docker = options.parameters = false;
+      }
+      if (options?.nonGlobalParameters) {
+        await ParamsModule.destroyGlobal();
+        packages = localOnly ? [] : packages;
+        options.stack = options.docker = options.parameters = false;
+      }
 
-        if (options?.cenv) {
-          await Cenv.destroyCenv();
-          if (!options.parameters && !options.stack && !options.docker) {
-            return;
-          }
+      if (options?.allParameters || options?.all) {
+        await ParamsModule.destroyAllConfigs();
+        await ParamsModule.destroyAllParams();
+        packages = localOnly ? [] : packages;
+        options.stack = options.docker = options.parameters = false;
+      }
+
+      if (options?.allDocker || options?.all) {
+        await DockerModule.destroyAll();
+        packages = localOnly ? [] : packages;
+        options.stack = options.docker = options.parameters = false;
+      }
+
+      if (options?.cenv || options?.all) {
+        await Cenv.destroyCenv();
+        packages = localOnly ? [] : packages;
+        options.stack = options.docker = options.parameters = false;
+      }
+
+      if ((!options?.allParameters  && !options?.allDocker) && options?.suite || options?.environment || packages?.length > 0 || options?.all) {
+        if (options.all) {
+          const suite = new Suite(Package.defaultSuite);
+          packages = suite.packages;
         }
-        if (packages?.length) {
-          for (let i = 0; i < packages.length; i++) {
-            const pkg = packages[i]
-            if (pkg.chDir()) {
-              await pkg.destroy(options);
-            }
-          }
-          return;
-        }
-      }*/
-
-
-      if (options?.suite || options?.environment || packages?.length > 0) {
         options = Deployment.deployDestroyOptions(options);
         await Deployment.Destroy(packages, options);
       }

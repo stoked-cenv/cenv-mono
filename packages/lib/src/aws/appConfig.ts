@@ -672,8 +672,8 @@ export async function deleteCenvData(applicationName: string, parameters: any, a
     await deleteParametersByPath(`/service/${stripPath(applicationName)}`, '    -', applicationName);
   }
   if (globalParameters) {
-    await deleteParametersByPath(`/globalenv`, '    -', 'root');
-    await deleteParametersByPath(`/global`, '    -', 'root');
+    await deleteParametersByPath(`/globalenv/${process.env.ENV}`, '    -', 'GLOBAL');
+    await deleteParametersByPath(`/global/${process.env.ENV}`, '    -', 'GLOBAL');
   }
 }
 

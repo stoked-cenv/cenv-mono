@@ -7,7 +7,7 @@ import fs, {existsSync, readFileSync, rmSync} from 'fs';
 import * as os from 'os';
 import {hostname} from 'os';
 import {CenvParams, DashboardCreateOptions} from './params';
-import {Package, PackageCmd, ProcessStatus} from './package/package';
+import {Package, PackageCmd, ProcessStatus, CommandEvents} from './package/package';
 import chalk from 'chalk';
 import * as fsp from 'fs/promises';
 import {createHash} from 'crypto';
@@ -202,6 +202,7 @@ export interface ICmdOptions {
   pipedOutput?: boolean;
   pkgCmd?: PackageCmd;
   silent?: boolean;
+  commandEvents?: CommandEvents;
 }
 
 function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
@@ -213,7 +214,7 @@ function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
   } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
     CenvLog.single.tempLog('t: ' + chunk, pkg?.stackName);
   } else {
-    CenvLog.single.infoLog('s: ' + chunk, pkg?.stackName);
+    CenvLog.single.infoLog(chunk, pkg?.stackName);
   }
 }
 
@@ -237,7 +238,8 @@ export async function spawnCmd(
     failOnError: true,
     returnOutput: false,
     redirectStdErrToStdOut: false,
-    pipedOutput: false
+    pipedOutput: false,
+    commandEvents: undefined
   },
   packageInfo: Package = undefined,
 ): Promise<any> {
@@ -303,6 +305,10 @@ export async function spawnCmd(
             packageInfo.err(err)
           })
         }
+      }
+
+      if (options.commandEvents?.preCommandFunc) {
+        await options.commandEvents.preCommandFunc();
       }
 
       if (relativeDir !== '') {
@@ -421,6 +427,10 @@ export async function spawnCmd(
       proc.on('exit', async function (code) {
         if (code === undefined || code === null) {
           code = 1;
+        }
+
+        if (options.commandEvents?.postCommandFunc) {
+          await options.commandEvents.postCommandFunc();
         }
 
         if (options.returnOutput) {
@@ -699,7 +709,7 @@ export function getMonoRoot() {
   if (packagePaths['root']) {
     return packagePaths['root'];
   }
-  const searchResults = search_sync('./', true, false, 'lerna.json');
+  const searchResults = search_sync('./', true, false, 'cenv.json');
   const root = searchResults[0].split('/');
   root.pop();
   const rootPath = path.resolve(root.join('/'));
@@ -1356,7 +1366,7 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
     }
   }
 
-  if (!packages.length) {
+  if (!pkgs.length) {
     if (Package.defaultSuite) {
       options.suite = Package.defaultSuite;
       const suite = new Suite(options.suite);

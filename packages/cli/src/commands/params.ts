@@ -28,6 +28,8 @@ import path from 'path';
   description: 'Init, deploy, and display package parameters',
 })
 export default class ParamsCommand extends BaseCommand {
+  localPackageAccepted = true;
+
   @Option({
     flags: '-ll, --log-level, <logLevel>',
     description: `Logging mode`,
@@ -119,15 +121,6 @@ export default class ParamsCommand extends BaseCommand {
   }
 
   @Option({
-    name: 'all applications',
-    flags: '-aa, --all-applications',
-    description: 'Get the variables from all applications.',
-  })
-  parseAllApplications(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
     name: 'output',
     flags: '-o, --output [output]',
     description: 'Print all the variable meta data including path, value, and type.',
@@ -142,16 +135,6 @@ export default class ParamsCommand extends BaseCommand {
     description: 'Test mode for params.',
   })
   parseTest(val: boolean): boolean {
-    return val;
-  }
-
-  tags: string[] = [];
-  @Option({
-    flags: '--tag <string> [args...]',
-    description: `Only run in projects with the given tag`,
-  })
-  parseTag(val: string): string {
-    this.tags.push(val);
     return val;
   }
 
@@ -206,7 +189,7 @@ export default class ParamsCommand extends BaseCommand {
           for (const p of packages) {
             if (p.chDir()) {
               if (param === ParamCommands.init) {
-                await Cenv.initParams(options, this.tags);
+                await Cenv.initParams(options, []);
               } else if (param === ParamCommands.fix) {
 
                 await p.checkStatus();

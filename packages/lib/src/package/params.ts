@@ -107,12 +107,12 @@ export class ParamsModule extends PackageModule {
   }
 
   static async destroyGlobal() {
-      await deleteParametersByPath('/global', ' -');
-      await deleteParametersByPath('/globalenv', ' -');
+      await deleteParametersByPath('/global', ' -', 'destroy global');
+      await deleteParametersByPath('/globalenv', ' -', 'destroy globalEnv');
   }
 
   static async destroyNonGlobal() {
-    await deleteParametersByPath('/service', ' -');
+    await deleteParametersByPath('/service', ' -', 'destroy service params');
   }
 
   static async destroyAllParams() {
@@ -129,7 +129,7 @@ export class ParamsModule extends PackageModule {
       await deleteParametersByPath(`/service/${stripPath(this.pkg.packageName)}`, '    -', this.pkg.packageName);
     }
     if (appConfig) {
-      await destroyAppConfig(this.pkg.packageName, true);
+      await destroyAppConfig(this.pkg.packageName, false);
     }
   }
 
@@ -165,7 +165,8 @@ export class ParamsModule extends PackageModule {
       }
     }
 
-    await this.pkg.pkgCmd(`cenv params ${this.pkg.packageName} init`, options, commandEvents);
+    options.commandEvents = commandEvents;
+    await this.pkg.pkgCmd(`cenv params ${this.pkg.packageName} init`, options);
 
     // consider it a success if we have at least one parameter
     if (!options.cenvVars || !Object.keys(options.cenvVars).length) {
@@ -326,37 +327,32 @@ export class ParamsModule extends PackageModule {
     try {
       for (const key of Object.keys(this.localVarsTyped.globalEnv) as string[]) {
         if (this.localVarsTyped.app[key]) {
-          this.pkg.err(`removing parameter ${key} that exists in app and keeping the version in globalEnv`);
-          CenvLog.single.errorLog(`removing parameter ${key} that exists in app and keeping the version in globalEnv`)
-          await CenvParams.removeParameters([key], {}, ['app']);
+          this.pkg.alert(`${key} from app and keeping the version in globalEnv`, 'remove parameter');
+          await CenvParams.removeParameters([key], {}, ['app'], false);
         }
         if (this.localVarsTyped.environment[key]) {
-          this.pkg.err(`removing parameter ${key} that exists in environment and keeping the version in globalEnv`);
-          CenvLog.single.errorLog(`removing parameter ${key} that exists in environment and keeping the version in globalEnv`)
-          await CenvParams.removeParameters([key], {}, ['environment']);
+          this.pkg.alert(`${key} from environment and keeping the version in globalEnv`, 'remove parameter');
+          await CenvParams.removeParameters([key], {}, ['environment'], false);
         }
       }
       for (const key of Object.keys(this.localVarsTyped.global) as string[]) {
         if (this.localVarsTyped.app[key]) {
-          this.pkg.err(`removing parameter ${key} that exists in app and keeping the version in global`);
-          CenvLog.single.errorLog(`removing parameter ${key} that exists in app and keeping the version in global`);
-          await CenvParams.removeParameters([key], {}, ['app'])
+          this.pkg.alert(`${key} from app and keep the version in global`, 'remove parameter');
+          await CenvParams.removeParameters([key], {}, ['app'], false)
         }
         if (this.localVarsTyped.environment[key]) {
-          this.pkg.err(`removing parameter ${key} that exists in environment and keeping the version in global`);
-          CenvLog.single.errorLog(`removing parameter ${key} that exists in environment and keeping the version in global`);
-          await CenvParams.removeParameters([key], {}, ['environment']);
+          this.pkg.alert(`${key} from environment and keep the version in global`, 'remove parameter');
+          await CenvParams.removeParameters([key], {}, ['environment'], false);
         }
         if (this.localVarsTyped.globalEnv[key]) {
-          this.pkg.err(`removing parameter ${key} that exists in globalEnv and keeping the version in global`);
-          CenvLog.single.errorLog(`removing parameter ${key} that exists in globalEnv and keeping the version in global`);
-          await CenvParams.removeParameters([key], {}, ['globalEnv']);
+          this.pkg.alert(`${key} from globalEnv and keeping the version in global`, 'remove parameter');
+          await CenvParams.removeParameters([key], {}, ['globalEnv'], false);
         }
       }
       await CenvParams.pull(false, false, true, false, true, true, undefined, false);
       await this.pkg.checkStatus();
     } catch(e) {
-      CenvLog.single.catchLog(e);
+      CenvLog.single.errorLog('fix dupes' + e, this.pkg.stackName);
     }
   }
 
@@ -489,15 +485,20 @@ export class ParamsModule extends PackageModule {
   }
 
   printCheckStatusComplete(): void {
+    let status = `loaded local params file: ${EnvConfigFile.PATH}\n`
+    let end = '';
     if (this.localVars) {
-      this.info(`[${Object.keys(this.localVars).length}]`, 'local params count')
+      status += `local params count [${Object.keys(this.localVars).length}]`;
+      end = '\n'
     }
     if (this.pushedVars) {
-      this.info(`[${Object.keys(this.pushedVars).length}]`, 'pushed params count');
+      status += end + `pushed params count [${Object.keys(this.pushedVars).length}]`;
+      end = '\n'
     }
     if (this.materializedVars) {
-      this.info(`[${Object.keys(this.materializedVars).length}]`, 'materialized params count');
+      status += end + `materialized params count [${Object.keys(this.materializedVars).length}]`
     }
+    this.info(status);
     this.checked = true;
     this.getDetails();
   }

@@ -18,6 +18,7 @@ import { AppConfigClient } from '@aws-sdk/client-appconfig';
 import { existsSync } from 'fs';
 import { decrypt } from './kms';
 import {simplify, sleep} from '../utils'
+import { Package } from "../package/package";
 
 const ssmLimiter = new RateLimiter({ tokensPerInterval: 5, interval: "second" });
 let _client: SSMClient = null;
@@ -195,17 +196,16 @@ export async function deleteParameters(Names: string[]) {
   }
 }
 
-export async function deleteParametersByPath(path: string, outputPrefix = '', packageName: string = undefined) {
+export async function deleteParametersByPath(path: string, outputPrefix = '', packageName = 'GLOBAL') {
   let total = 0;
   const parametersToDelete = await getParametersByPath(path, false);
   total += Object.keys(parametersToDelete).length;
 
   await deleteParameters(Object.keys(parametersToDelete));
-
   if (outputPrefix !== '') {
     outputPrefix += ' ';
   }
-  CenvLog.info(`${outputPrefix}deleted ${infoBold(total)} parameters under ${infoBold(path)}`, packageName);
+  Package.cache['GLOBAL'].info(`${outputPrefix}deleted ${infoBold(total)} parameters under ${infoBold(path)}`, packageName);
   return;
 }
 

@@ -38,6 +38,9 @@ export abstract class BaseCommand extends CommandRunner {
       await Version.getVersion('@stoked-cenv/ui');
     }
 
+    if (!options?.profile && !options?.env) {
+      options.profile = 'default';
+    }
 
     this.args = await configure(options as ConfigureCommandOptions);
     if (!this.allowUI) {

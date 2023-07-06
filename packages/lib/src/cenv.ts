@@ -35,11 +35,12 @@ import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
 import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import {execCmd, exitWithoutTags, getMonoRoot, packagePath, search_sync} from "./utils";
+import { execCmd, exitWithoutTags, getMonoRoot, packagePath, search_sync, sleep } from "./utils";
 import {ioAppEnv, ioYesOrNo} from "./stdIo";
 import {deleteHostedZone} from "./aws/route53";
 import {existsSync} from "fs";
 import child_process from "child_process";
+import { ParamsModule } from "./package/params";
 
 interface FlagValidation {
   application: string;
@@ -459,18 +460,18 @@ export class Cenv {
       }
 
       const monoRoot = getMonoRoot();
-      if (path.resolve(process.cwd()) === path.resolve(monoRoot)) {
-        options.root = true;
-      }
       const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
+      const monoRootPackageName = require(path.resolve(monoRoot, 'package.json')).name;
       if (existsSync(cenvConfigPath)) {
         const cenvConfig = require(cenvConfigPath);
-        const globalPackage = cenvConfig.global
+        const globalPackage = `${cenvConfig.scopeName}/${cenvConfig.global}`;
         Package.defaultSuite = cenvConfig.defaultSuite;
         Package.scopeName = cenvConfig.scopeName;
         Package.suites = cenvConfig.suites;
-        const packageGlobalPath = packagePath(globalPackage)
-        ;
+        const packageGlobalPath = packagePath(globalPackage);
+        if (!existsSync(packageGlobalPath) && monoRootPackageName !== 'stoked-cenv') {
+          CenvLog.single.catchLog(`globals could not be loaded from the ${globalPackage} package defined in cenv.json definition (using scope and globals property)`);
+        }
         if (packageGlobalPath) {
           CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
         }
@@ -535,7 +536,7 @@ export class Cenv {
               ),
           );
         } else {
-          CenvLog.info('cenv installation has been verified');
+          CenvLog.info('cenv www has been verified');
         }
       }
       //const res = verified ? 0 : 1;
@@ -608,6 +609,8 @@ export class Cenv {
         }
       }
 
+
+
       if (process.env.KMS_KEY) {
         const KmsPolicyExists = await getPolicy(KmsPolicyArn);
         if (!KmsPolicyExists) {
@@ -674,10 +677,8 @@ export class Cenv {
         return;
       }
 
-      // should be able to skip this because i reordered the building of the lambdas to fill in this time slot
-      //infoLog(`sleep for 10 seconds because if we try to use the role we just created too soon it will fail ${infoBold('🙄')}`);
-      //await sleep(2);
-
+      CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${infoBold('🙄')}`);
+      await sleep(8);
       const materializationExists = await getFunction('cenv-params');
 
       const pkgPath = path.join(__dirname, '../../lib/params');

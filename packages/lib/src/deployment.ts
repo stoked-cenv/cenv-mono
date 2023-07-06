@@ -8,7 +8,7 @@ import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from ".
 import { cleanup, execCmd, ICmdOptions, printFlag, sleep } from "./utils";
 import Fake from "./fake";
 import {PackageModule, ProcessMode} from "./package/module";
-import {CenvLog, colors, LogLevel} from "./log";
+import { CenvLog, colors, info, LogLevel } from "./log";
 import {Version} from "./version";
 import {listStacks} from "./aws/cloudformation";
 import {deleteRepository, describeRepositories} from "./aws/ecr";
@@ -27,11 +27,12 @@ export interface CdkCommandOptions extends BaseCommandOptions {
   userInterface?: boolean;
   failOnError?: boolean;
   suite?: string;
-  cenv?: boolean;
+
   test?: boolean;
   stack?: boolean;
   parameters?: boolean;
   docker?: boolean;
+  cenv?: boolean;
 }
 
 export interface DockerCommandOptions extends BaseCommandOptions{
@@ -53,8 +54,12 @@ export interface DeployCommandOptions extends CdkCommandOptions {
 }
 
 export interface DestroyCommandOptions extends CdkCommandOptions {
-  global?: boolean;
+  globalParameters?: boolean;
+  nonGlobalParameters?: boolean;
   environment?: boolean;
+  allParameters?: boolean;
+  allDocker?: boolean;
+  all?: boolean;
 }
 
 
@@ -190,6 +195,7 @@ export class Deployment {
     envVars: any = {},
   ) {
     const pkg = Package.cache[stackName];
+
     pkg.timer.start();
 
     if (pkg.processStatus === ProcessStatus.HAS_PREREQS && pkg?.cmds?.length > 0) {
@@ -245,6 +251,10 @@ export class Deployment {
         break;
     }
 
+    return false
+  }
+
+  static processDone(pkg: Package) {
     switch(pkg.processStatus) {
       case ProcessStatus.COMPLETED:
       case ProcessStatus.FAILED:
@@ -348,8 +358,9 @@ export class Deployment {
   static maxProcessing: number = process.env.CENV_MAX_PROCESSING ? parseInt(process.env.CENV_MAX_PROCESSING) : undefined;
 
   static async start() {
-
-    const packagesToProcess = Object.values(this.toProcess).filter(p => !this.processing.find(processingPkg => processingPkg.packageName === p.packageName));
+    const toProcessVals =  Object.values(this.toProcess);
+    const toProcessKeys =  Object.keys(this.toProcess);
+    const packagesToProcess = toProcessVals.filter(p => !this.processing.find(processingPkg => processingPkg.packageName === p.packageName));
     const serviceProcesses = packagesToProcess.filter((app: IPackage) => !this.dependencies[app.stackName]?.dependencies?.length);
     const availableToProcess = this.maxProcessing ? this.maxProcessing - this.processing.length : serviceProcesses.length;
     const availableProcesses = serviceProcesses.slice(0, availableToProcess);
@@ -360,7 +371,6 @@ export class Deployment {
         await this.packageStart(app.stackName, `${this.mode()} ${app.stackName}`);
       }),
     );
-
     packagesToProcess
       .filter((app: Package) => this.dependencies[app.stackName])
       .map((dockerApp: Package) => {
@@ -427,7 +437,7 @@ export class Deployment {
     const packages = Package.getPackages();
     packages.map((p: Package) => {
 
-      const done = Deployment.packageDone(p);
+      const done = Deployment.processDone(p);
       if (done) {
         p.setDeployStatus(ProcessStatus.COMPLETED);
       }
@@ -452,9 +462,9 @@ export class Deployment {
 
     Object.values(this.dependencies).map((depNode: DeploymentDependencies) => {
       if (depNode.package.deployDependencies) {
-        const dependenciesToProcess = depNode.package.deployDependencies.filter((dep: Package) => !this.packageDone(dep));
+        const dependenciesToProcess = depNode.package.deployDependencies.filter((dep: Package) => !this.processDone(dep));
         const hasDependenciesToProcess = !!dependenciesToProcess?.length;
-        if (this.packageDone(depNode.package) || !hasDependenciesToProcess) {
+        if (this.processDone(depNode.package) || !hasDependenciesToProcess) {
           delete this.dependencies[depNode.package.stackName];
         } else if  (Deployment.toggleDependencies && hasDependenciesToProcess) {
           this.setDeployStatus(depNode.package, ProcessStatus.HAS_PREREQS);
@@ -466,17 +476,18 @@ export class Deployment {
   static processItems: any[] = [];
   static async processInit(items: Package[]) {
 
+    if (this.options.docker) {
+      // if deploying check to see if there are any docker packages if so verify docker is running
+      if (items.filter((p: Package) => p.docker).length) {
+        const dockerStatus = await execCmd('./', 'docker version -f json', 'check docker', {}, false, true);
+        const dockerStatusParsed = JSON.parse(dockerStatus);
 
-    // if deploying check to see if there are any docker packages if so verify docker is running
-    if (items.filter((p: Package) => p.docker).length) {
-      const dockerStatus = await execCmd('./','docker version -f json', 'check docker', {}, false,true);
-      const dockerStatusParsed = JSON.parse(dockerStatus);
-
-      if (dockerStatusParsed.Server === null) {
-        CenvLog.single.errorLog(JSON.stringify(dockerStatusParsed, null, 2), 'docker daemon not active');
-        return;
-      } else {
-        CenvLog.single.infoLog('verified that docker is running');
+        if (dockerStatusParsed.Server === null) {
+          CenvLog.single.errorLog('docker daemon not active:\n' + info(JSON.stringify(dockerStatusParsed, null, 2)));
+          return;
+        } else {
+          CenvLog.single.infoLog('verified that docker is running');
+        }
       }
     }
     Package.global.timer.start();
@@ -604,7 +615,6 @@ export class Deployment {
     options = Deployment.deployDestroyOptions(options);
 
     this.options = { ...this.options, ...options };
-
     if (Object.keys(Package.cache).length === 0) {
       CenvLog.single.alertLog('no packages loaded');
       process.exit();
@@ -676,7 +686,6 @@ export class Deployment {
       if (!validInstall) {
         await Cenv.deployCenv(true);
       }
-
       //const cmd = PackageCmd.createCmd('deploy logs')
       await this.startDeployment(packages, options);
       await this.processInit(packages);
@@ -690,7 +699,6 @@ export class Deployment {
       options.mode = ProcessMode.DESTROY;
       await this.startDeployment(packages, options);
       const uninstallables = await this.getUninstallables(packages);
-
       if (packages?.length) {
         await this.processInit(uninstallables?.length ? uninstallables : packages);
       }

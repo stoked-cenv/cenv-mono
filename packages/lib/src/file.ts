@@ -328,6 +328,10 @@ export interface CleanCommandOptions extends BaseCommandOptions {
   globals?: boolean;
   environment?: string;
 }
+if (!process.env.HOME) {
+  process.env.HOME = './';
+}
+
 
 export class CenvFiles {
   private static path = './.cenv/'

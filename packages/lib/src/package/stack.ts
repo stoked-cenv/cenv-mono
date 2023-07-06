@@ -50,7 +50,7 @@ export class StackModule extends PackageModule {
     if (this.pkg.meta?.preDeployScripts) {
       for (let i = 0; i < this.pkg.meta.preDeployScripts.length; i++) {
         const script = this.pkg.meta.preDeployScripts[i];
-        await this.pkg.pkgCmd(script, options)
+        await this.pkg.pkgCmd(script, { ...options, redirectStdErrToStdOut: true })
       }
     }
 
@@ -81,11 +81,12 @@ export class StackModule extends PackageModule {
             key = key.replace('CDK_DEFAULT_ACCOUNT', process.env.CDK_DEFAULT_ACCOUNT);
             key = key.replace('CDK_DEFAULT_REGION', process.env.CDK_DEFAULT_REGION);
             await this.pkg.pkgCmd(`cdk context --reset ${key}`, {
-              ...deployOptions,
-              packageModule: this.pkg.stack,
-              redirectStdErrToStdOut: true,
+                ...deployOptions,
+                packageModule: this.pkg.stack,
+                redirectStdErrToStdOut: true,
+                commandEvents
             },
-            commandEvents);
+            );
         }));
       }
 

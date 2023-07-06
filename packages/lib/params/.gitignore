@@ -1,4 +1,7 @@
-materializationLambda.zip
-materializationLambda
-dist
+*.zip
+zip.log
 yarn.lock
+*.js
+materialization*
+dist
+build

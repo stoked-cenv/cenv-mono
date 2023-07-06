@@ -436,9 +436,9 @@ export default class CmdPanel extends CenvPanel {
     this.stderr.left = left;
     this.stdout.left = left;
     this.cmdList.width = width;
-    this.stderr.top = this.stdout.top + this.stdout.height;
+    this.stderr.top = this.stdout.hidden ?  this.cmdList.top + this.cmdList.height : this.stdout.top + this.stdout.height;
     this.stderr.width = width;
-    this.stderr.height = height - (this.stdout.top + this.stdout.height) - 1;
+    this.stderr.height = height - (this.stdout.hidden ? 0 : this.stdout.top + this.stdout.height) - 1;
     this.stdout.width = width;
   }
 

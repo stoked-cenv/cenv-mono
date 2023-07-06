@@ -12,6 +12,7 @@ import { join } from 'path';
   aliases: ['config', 'conf']
 })
 export default class ConfigureCommand extends BaseCommand {
+
   @Option({
     flags: '-ll, --log-level, <logLevel>',
     description: `Logging mode`,
@@ -47,7 +48,6 @@ export default class ConfigureCommand extends BaseCommand {
   @Option({
     flags: '--profile, <profile>',
     description: `Query a profile by aws profile`,
-    defaultValue: 'default',
   })
   parseProfile(val: string): string {
     return val;
@@ -74,7 +74,7 @@ export default class ConfigureCommand extends BaseCommand {
         process.exit(6);
       } else {
 
-        const profileData = await getMatchingProfileConfig(options?.profile, options?.env)
+        const profileData = await getMatchingProfileConfig(true, options?.profile, options?.env)
         CenvLog.single.infoLog(`default profile set to ${printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV)}`);
         const defaultPath = join(configPath, 'default');
         copyFileSync(profileData.profilePath, defaultPath)

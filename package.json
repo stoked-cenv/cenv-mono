@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.8",
+  "version": "2.0.0-a.13",
   "private": true,
   "scripts": {
     "bootstrap": "lerna bootstrap",
@@ -46,10 +46,8 @@
   },
   "workspaces": {
     "packages": [
-      "packages/*"
-    ],
-    "nohoist": [
-      "packages/lib/params"
+      "packages/*",
+      "packages/params/*"
     ]
   },
   "license": "UNLICENSED",

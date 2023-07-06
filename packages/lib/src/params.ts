@@ -91,8 +91,8 @@ export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => 
 
 export class CenvParams {
 
-  static async removeParameters(params: any, options: any, types: string[]) {
-    const { cenvPackage, paramData, rootPaths, inCenvRoot } = await this.buildDataRemoveLinks(params, options, types);
+  static async removeParameters(params: any, options: any, types: string[], exitOnFail = true) {
+    const { cenvPackage, paramData, rootPaths, inCenvRoot } = await this.buildDataRemoveLinks(params, options, types, exitOnFail);
     await CenvParams.removeParameter(params, options, paramData, rootPaths, inCenvRoot, cenvPackage);
   }
 
@@ -124,7 +124,7 @@ export class CenvParams {
     }
   }
 
-  static async buildDataRemoveLinks(params: any, options: any, types: string[]) {
+  static async buildDataRemoveLinks(params: any, options: any, types: string[], exitOnFail = true) {
     try {
       await sleep(3);
 
@@ -197,12 +197,16 @@ export class CenvParams {
         if (found) {
           break;
         } else {
-          if (inCenvRoot) {
-            CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
-            process.exit(1);
+          if (exitOnFail) {
+            if (inCenvRoot) {
+              CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
+              process.exit(1);
+            } else {
+              CenvLog.single.errorLog(`${param} does not exist in the current env: ${process.env.ENV}`);
+              process.exit(2);
+            }
           } else {
-            CenvLog.single.errorLog(`${param} does not exist in the current env: ${process.env.ENV}`);
-            process.exit(2);
+            CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
           }
         }
       }
@@ -561,15 +565,25 @@ export class CenvParams {
         EnvironmentName,
         DeploymentStrategyId
       };
+      if (process.env.VERBOSE_LOGS) {
+        console.log('appConfig', appConfig)
+      }
       // materialize the new app vars from the parameter store using the app config as input
       let materializedVars = await getParams(appConfig, 'all', 'simple', true, false, true);
 
       // expand template variables
       const before = JSON.parse(JSON.stringify(materializedVars));
+      if (process.env.VERBOSE_LOGS) {
+        console.log('before rendering templates', JSON.stringify(before, null, 2));
+      }
       //let output = JSON.stringify(materializedVars, null, 2)
       materializedVars = expandTemplateVars(materializedVars);
 
       const after = materializedVars;
+
+      if (process.env.VERBOSE_LOGS) {
+        console.log('after rendering templates', JSON.stringify(after, null, 2));
+      }
 
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);

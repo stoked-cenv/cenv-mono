@@ -304,7 +304,7 @@ export interface IPackage {
 
 }
 
-interface CommandEvents {
+export interface CommandEvents {
   preCommandFunc?: () => Promise<void>,
   postCommandFunc?: () => Promise<void>
 }
@@ -360,13 +360,14 @@ export class Package implements IPackage {
   static suites: any = {};
   static defaultSuite: string;
   public static buildLog: any;
+  public static buildLogPath: string;
 
   constructor(packageName: string, noCache = false) {
     this.load(packageName, noCache);
   }
 
   get type(): string {
-    return this.fullType.split('-')[0];
+    return this.fullType?.split('-')[0];
   }
 
   static get global(): Package {
@@ -418,12 +419,12 @@ export class Package implements IPackage {
           console.log('monoRoot pkgPath', pkgPath)
           if (!existsSync(pkgPath)) {
             CenvLog.single.catchLog(
-                new Error(`[${packageName}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`),
+                new Error(`[${packageName}] failed: attempting to get meta data from an undefined packagePath`),
             );
           }
         }
       }
-      const pkgPathMeta = this.getPackageMeta(pkgPath);
+      const pkgPathMeta = Package.getPackageMeta(pkgPath);
       if (!pkgPath) {
         CenvLog.single.catchLog(`could not load: ${packageName}`);
       }
@@ -449,7 +450,7 @@ export class Package implements IPackage {
       }
 
       if (deployPackage) {
-        const meta = this.getPackageMeta(pkgPath);
+        const meta = Package.getPackageMeta(pkgPath);
         metas['stack'] = meta;
         deployType = new StackModule({
           pkg: this,
@@ -460,7 +461,7 @@ export class Package implements IPackage {
       }
 
       if (dockerPackage) {
-        const meta = this.getPackageMeta(pkgPath);
+        const meta = Package.getPackageMeta(pkgPath);
         metas['docker'] = meta;
         dockerType = new DockerModule({
           pkg: this,
@@ -479,7 +480,7 @@ export class Package implements IPackage {
               existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
               existsSync(path.join(pkgPath, EnvVarsFile.NAME));
           if (paramsExist) {
-            const meta = this.getPackageMeta(paramsPath);
+            const meta = Package.getPackageMeta(paramsPath);
             if (!metas['params']) {
               metas['params'] = meta;
             }
@@ -495,7 +496,7 @@ export class Package implements IPackage {
             const dockerPath = path.join(paramsPath, './Dockerfile');
             dockerPackage = existsSync(dockerPath);
             if (dockerPackage) {
-              metas['docker'] = this.getPackageMeta(paramsPath);
+              metas['docker'] = Package.getPackageMeta(paramsPath);
               dockerName = dockerName ? dockerName : Package.packageNameToDockerName(packageName);
               dockerType = new DockerModule({
                 pkg: this,
@@ -507,20 +508,7 @@ export class Package implements IPackage {
           }
         }
       } else if ((dockerPackage || paramsPackage) && !deployPackage) {
-        const deployPath = path.join(pkgPath, 'deploy');
-        const cdkPath = path.join(deployPath, './cdk.json');
-        deployPackage = existsSync(deployPath) && existsSync(cdkPath);
-
-        if (deployPackage) {
-          const meta = this.getPackageMeta(deployPath);
-          metas['stack'] = meta;
-          deployType = new StackModule({
-            pkg: this,
-            name: packageName + '-deploy',
-            path: deployPath,
-            ...meta,
-          });
-        }
+        deployType = this.addStackModule(packageName, pkgPath)
       }
 
       if (paramsPackage) {
@@ -546,7 +534,7 @@ export class Package implements IPackage {
         } else if (pkgPathMeta) {
           meta = pkgPathMeta;
           if (pkgPathMeta.executables) {
-            metas['exec'] = meta;
+            metas['exec'] = pkgPathMeta;
             execType = new ExecutableModule({
               pkg: this,
               name: packageName,
@@ -554,7 +542,7 @@ export class Package implements IPackage {
               ...pkgPathMeta
             })
           } else if (pkgPathMeta.deployStack) {
-            metas['stack'] = meta;
+            metas['stack'] = pkgPathMeta;
             deployType = new StackModule({
               pkg: this,
               name: packageName,
@@ -562,13 +550,15 @@ export class Package implements IPackage {
               ...pkgPathMeta,
             });
           } else {
-            metas['lib'] = meta;
+            metas['lib'] = pkgPathMeta;
             libType = new LibModule({
               pkg: this,
               name: packageName,
               path: pkgPath,
               ...pkgPathMeta,
             });
+
+            deployType = this.addStackModule(packageName, pkgPath)
           }
         }
 
@@ -641,6 +631,23 @@ export class Package implements IPackage {
     }
   }
 
+  addStackModule(packageName: string, pkgPath: string) {
+    const deployPath = path.join(pkgPath, 'deploy');
+    const cdkPath = path.join(deployPath, './cdk.json');
+    const hasDeploy = existsSync(deployPath) && existsSync(cdkPath);
+
+    if (hasDeploy) {
+      const meta = Package.getPackageMeta(deployPath);
+      return new StackModule({
+        pkg: this,
+        name: packageName + '-deploy',
+        path: deployPath,
+        ...meta
+      });
+    }
+    return undefined;
+  }
+
   isParamDeploy(options?: any) {
     return this.params?.hasCenvVars && options?.parameters && (!options?.strictVersions || !this.params.upToDate())
   }
@@ -675,6 +682,10 @@ export class Package implements IPackage {
         CENV_DEFAULTS: 'true'
       },
     };
+
+    if (this.lib) {
+      await this.lib.deploy();
+    }
 
     if (this.isParamDeploy(deployOptions)) {
       await this.params.deploy(options);
@@ -739,9 +750,9 @@ export class Package implements IPackage {
   }
 
   static loadBuildLog() {
-    const buildLogFile = path.join(getMonoRoot(), './cenv.build.log');
-    if (existsSync(buildLogFile)) {
-      this.buildLog = JSON.parse(readFileSync(buildLogFile, 'utf-8'));
+    this.buildLogPath = path.join(getMonoRoot(), './cenv.build.log');
+    if (existsSync(this.buildLogPath)) {
+      this.buildLog = JSON.parse(readFileSync(this.buildLogPath, 'utf-8'));
     } else {
       this.buildLog = {
         builds: []
@@ -755,6 +766,7 @@ export class Package implements IPackage {
       package: this.packageName,
       ts: new Date()
     })
+    writeFileSync(Package.buildLogPath, JSON.stringify(Package.buildLog, null, 2));
   }
 
   async build(force = false, install = false) {
@@ -789,6 +801,7 @@ export class Package implements IPackage {
         await this.hash();
       }
       this.writeBuildLog()
+      this.processStatus = ProcessStatus.COMPLETED;
       return true;
     } catch (e) {
       CenvLog.single.catchLog(e);
@@ -1352,11 +1365,11 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
     }
   }
 
-  getPackageMeta(packagePath: string): IPackageMeta {
+  static getPackageMeta(packagePath: string): IPackageMeta {
     if (!packagePath) {
       CenvLog.single.catchLog(
         new Error(
-          `[${this.packageName}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`,
+          `[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`,
         ),
       );
     }
@@ -1493,21 +1506,18 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
       packageModule?: PackageModule;
       returnOutput?: boolean;
       silent?: boolean;
+      commandEvents?: CommandEvents
     } = {
       envVars: {},
       cenvVars: {},
       redirectStdErrToStdOut: false,
       returnOutput: false
-    },
-    commandEvents?: CommandEvents
-
+    }
   ) {
     try {
       const pkgCmd = !options.silent ? this.createCmd(cmd) : undefined;
       options.pkgCmd = pkgCmd;
-      if (commandEvents?.preCommandFunc) {
-        await commandEvents.preCommandFunc();
-      }
+
 
       const pkgPath = options?.packageModule ? options.packageModule.path : packagePath(this.packageName);
 
@@ -1530,9 +1540,6 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
         this,
       );
 
-      if (commandEvents?.postCommandFunc) {
-        await commandEvents.postCommandFunc();
-      }
 
       pkgCmd.result(res);
       return res;

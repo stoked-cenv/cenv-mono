@@ -188,7 +188,7 @@ export class Dashboard {
               const packages =
                 pkgs.length > 1
                   ? `${pkgs.length} packages`
-                  : `${pkgs[0].packageName.toUpperCase()}`;
+                  : `${pkgs[0].packageName}`;
               this.setStatusBar(
                 'launchDestroy',
                 this.statusText(`destroy`, packages),
@@ -727,7 +727,10 @@ export class Dashboard {
                 if (!ctx) {
                   return;
                 }
-                await Promise.all(ctx?.map(async (p: Package) => await p?.params?.fixDupes()));
+                for (let i = 0; i < ctx.length; i++) {
+                  await ctx[i].params?.fixDupes();
+                }
+                //await Promise.all(ctx?.map(async (p: Package) => await p?.params?.fixDupes()));
                 this.setStatusBar(name, this.statusText(name, 'remove dupes for global and globalEnv param blessed'));
               });
             } catch (e) {
@@ -805,7 +808,7 @@ export class Dashboard {
           }.bind(this),
         },
         dependencies: {
-          keys: ['S-d'],
+          keys: ['e'],
           callback: async function () {
             this.debounceCallback('toggle dependencies', async () => {
               Dashboard.dependencyToggle = !Dashboard.dependencyToggle;
@@ -905,7 +908,7 @@ export class Dashboard {
       if (!packages) {
         return;
       }
-      //packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+      packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
       const deploymentOptions = {};
       if (mode === ProcessMode.DESTROY) {
@@ -1366,7 +1369,7 @@ export class Dashboard {
     setTimeout(() => {
       Dashboard.instance.statusBarInUse = false;
       delete this.debounceFlags[name];
-    }, 250);
+    }, 2000);
 
     if (this.clearLabelTimeout) {
       clearTimeout(this.clearLabelTimeout);
@@ -1983,6 +1986,7 @@ export class Dashboard {
     if (!tableCalcs) {
       tableCalcs = this.calcTableInfo();
     }
+    this.maxProcessOptionsHeight = Object.keys(Package.cache).length + 14;
     this.packages.width = tableCalcs.tableWidth;
     this.packages.top = 0;
     this.packages.height = Package.getPackages().length + 5;

@@ -305,7 +305,7 @@ export class Version {
   }
 
   static async Upgrade_1_9_0 () {
-    const profileFileData = await getProfiles( true);
+    const profileFileData = await getProfiles( false);
     profileFileData.forEach((profileData: ProfileData ) => {
       fs.renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig.AWS_PROFILE}↔${profileData.envConfig.ENV}`));
     });

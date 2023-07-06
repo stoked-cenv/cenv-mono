@@ -11,6 +11,7 @@ import Groups from './group';
 import chalk from 'chalk';
 import { Dashboard } from './dashboard';
 import Menu from "./menu";
+import { show } from "nx/src/command-line/show";
 
 enum ParamType {
   app,
@@ -57,8 +58,6 @@ export default class StatusPanel extends CenvPanel {
     try {
 
       this.bottom = 0
-
-
 
       const modulesOptions= {
         keys: true,
@@ -356,6 +355,7 @@ export default class StatusPanel extends CenvPanel {
         border: {fg: 'gray'},
         label: {fg: 'gray',}
       },
+      label: type
     };
   }
 
@@ -476,6 +476,9 @@ export default class StatusPanel extends CenvPanel {
   }
 
   updateParameters(paramCtrl: any, pkg: Package, height = -1) {
+    if (!pkg.params?.localVarsTyped) {
+      return;
+    }
     const vars = pkg.params?.localVarsTyped[paramCtrl.name as keyof object];
     const hasStatus = pkg.hasCheckedStatus();
     const data = [];
@@ -629,7 +632,7 @@ export default class StatusPanel extends CenvPanel {
         this.environment.options.columnWidth = [this.parameterWidth]
         this.globalEnv.options.columnWidth = [this.parameterWidth]
 
-        top += parameterHeight  + (!this.paramForm.hidden ? 3 : 0);
+        top += parameterHeight  + (this.selectedParamKey && !this.paramTextbox.hidden ? 3 : 0);
 
 
       } else {
@@ -662,7 +665,7 @@ export default class StatusPanel extends CenvPanel {
   }
 
   updateParamUI() {
-    if (this.selectedParamKey) {
+    //if (this.selectedParamKey) {
       const widthRemainder = this.panelWidth - (this.parameterWidth * 4);
       this.app.width = this.parameterWidth + (widthRemainder === 3 ? 1 : 0);
       this.environment.width = this.parameterWidth + (widthRemainder === 2 ? 1 : 0);
@@ -673,12 +676,11 @@ export default class StatusPanel extends CenvPanel {
       this.paramForm.height = 3;
       this.paramForm.width = this.dependencies.width;
       this.paramForm.hidden = false;
-      this.paramTextbox.left = this.selectedParamKey.length + 2;
+      this.paramTextbox.left = this.selectedParamKey?.length + 2;
       this.paramTextbox.top = 0;
       this.paramTextbox.style.border.fg = 'gray'
       this.paramTextbox.height = 3
-      this.paramTextbox.width = this.panelWidth - this.paramTextbox.left// - 11;
-      this.paramTextbox.setFront();
+      this.paramTextbox.width = this.panelWidth - this.paramTextbox.left - 11;
 
       this.paramLabel.top = 1;
       if (this.saveEnabled) {
@@ -686,7 +688,7 @@ export default class StatusPanel extends CenvPanel {
         this.paramSave.top = 0;
         this.paramSave.hidden = false;
       }
-    }
+    //}
   }
 
   render() {
@@ -731,6 +733,9 @@ export default class StatusPanel extends CenvPanel {
         this.global?.hide();
         this.globalEnv?.hide();
         this.environment?.hide();
+        this.paramForm.hide();
+        this.paramTextbox.hide();
+        this.paramLabel.hide();
         Groups.detailWidgets?.map((w: any) => w.hide());
         Groups.fullScreenFocus?.hide();
         return;

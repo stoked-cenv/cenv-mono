@@ -21,7 +21,7 @@ describe('package - deploy/view/verify/destroy/verify', () => {
   });
 
 
-  const packageName = '@stoked-cenv/installation-service';
+  const packageName = '@stoked-cenv/www-service';
 
   it(`cenv deploy ${packageName}`, async () => {
     process.env.CENV_LOG_LEVEL = 'minimal';

@@ -58,15 +58,20 @@ export class LibModule extends PackageModule {
     this.verbose(`build status: [${this.buildStatus}] build timestamp: [${this.timestamp?.toLocaleString()}]`);
   }
 
-  printCheckStatusComplete(): void {
-    this.info(this.buildStatus, 'at', this.timestamp?.toLocaleString(), 'build')
-    this.checked = true;
+  async deploy() {
+    this.buildStatus = await this.pkg.build(false, false) ? LibStatus.SUCCESS : LibStatus.FAILED;
     this.getDetails();
+  }
+
+  printCheckStatusComplete(): void {
+
+    this.checked = true;
+
   }
 
   async checkStatus() {
     this.printCheckStatusStart();
-    this.buildStatus = await this.pkg.build(false, false) ? LibStatus.SUCCESS : LibStatus.FAILED;
+    // no op
     this.timestamp = new Date();
     this.printCheckStatusComplete();
   }
