@@ -1,9 +1,17 @@
 
 ## cenv
 
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/cenv-deploy.png" >
+  <img width="800" alt="STOKED" src="./assets/cenv-deploy.png">
+</picture>
+</p>
   <p align="center">A well considered cli and <a href="http://nodejs.org" target="_blank">Node.js</a> library for helping manage application, infrastructure, and configuration management.</p>
   <p align="center">
-    <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/badge/node-18.16.1-blue" alt="Node Version" /></a>
+    <a href="https://nodejs.org/en/download/" target="_blank"><img src="https://img.shields.io/badge/node-18.16.1-gree" alt="Node Version" /></a>&nbsp
+    <a href="https://www.typescriptlang.org/" target="_blank"><img src="https://img.shields.io/badge/typescript-4.9.5-blue" alt="Node Version" /></a>&nbsp
+    <a href="https://aws.amazon.com/cdk/" target="_blank"><img src="https://img.shields.io/badge/cdk-2.85.0-orange" alt="Node Version" /></a>
   </p>
   <!--[![Backers on Open Collective](https://opencollective.com/stoked-cenv/backers/badge.svg)](https://opencollective.com/stoked-cenv#backer)
   [![Sponsors on Open Collective](https://opencollective.com/stoked-cenv/sponsors/badge.svg)](https://opencollective.com/stoked-cenv#sponsor)-->
@@ -14,12 +22,6 @@ Cenv inspects your packages and looks for specific conventions to identify `cenv
 
 The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage application parameter configuration. The DOCKER module provides a mechanism to create an AWS ECR repository for the package containers and build and push the packages containers to the repo. Finally, the STACK module uses AWS Cdk to deploy cloudformation stacks representing the infrastructure and applications contained in the packages.
 
-<p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/cenv-deploy.png" >
-  <img width="800" alt="STOKED" src="./assets/cenv-deploy.png">
-</picture>
-</p>
 
 ## Pre-requisite
 
@@ -98,12 +100,6 @@ The ui package contains the ui code for the cli built on https://github.com/chjj
 
 ### support
 
-Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b@stokedconsulting.com).
-
-### license
-
-[MIT Licensed](https://opensource.org/license/mit/)
-
 <p align="center">
 <a href="http://stokedconsulting.com/" target="blank">
 <picture>
@@ -112,3 +108,10 @@ Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b
 </picture>
 </a>
 </p>
+
+
+Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b@stokedconsulting.com).
+
+### license
+
+[MIT Licensed](https://opensource.org/license/mit/)
