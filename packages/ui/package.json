@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/ui",
-  "version": "2.0.0-a.13",
+  "version": "2.0.0-a.15",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
   "main": "dist/index.js",
   "scripts": {
@@ -18,7 +18,7 @@
     "@aws-sdk/client-cloudformation": "^3.208.0",
     "@aws-sdk/client-ecr": "^3.186.0",
     "@aws-sdk/util-utf8-node": "^3.186.0",
-    "@stoked-cenv/lib": "^2.0.0-a.13",
+    "@stoked-cenv/lib": "^2.0.0-a.15",
     "async-mutex": "^0.4.0",
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",

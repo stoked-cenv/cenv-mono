@@ -1,11 +1,3 @@
-<p align="center">
-<a href="http://stokedconsulting.com/" target="blank">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/sc-logo.white.png">
-  <img width="200px" alt="STOKED" src="./assets/sc-logo.png">
-</picture>
-</a>
-</p>
 
 ## cenv
 
@@ -18,7 +10,7 @@
 
 ###  overview
 
-Cenv inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 3 different types of cenv modules, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
+Cenv inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 5 different types of cenv modules, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
 
 The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage application parameter configuration. The DOCKER module provides a mechanism to create an AWS ECR repository for the package containers and build and push the packages containers to the repo. Finally, the STACK module uses AWS Cdk to deploy cloudformation stacks representing the infrastructure and applications contained in the packages.
 
@@ -29,11 +21,76 @@ The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage appl
 </picture>
 </p>
 
-### packages
+## Pre-requisite
 
-This monorepo contains 3 packages which will be explained here. The packages are cli, lib, params, and ui. 
+- [Node](https://nodejs.org/en/download/)
 
-The cli package contains the code for the end user command line interface tool. 
+  If you don't have it already you'll need to install the latest version of Node. Cenv currently works well with both node 16 and 18.
+   ```shell
+    nvm install <version>
+    ```
+
+- [Python](https://www.python.org/downloads/)
+- [Yarn](https://classic.yarnpkg.com/en/docs/install/#debian-stable)
+
+  ```shell
+    npm install --global yarn
+    ```
+
+- [AWS CDK](https://aws.amazon.com/cdk/) 2.x version
+
+    ```shell
+    npm install --global aws-cdk
+    ```
+  
+- [AWS CDK Local](https://www.npmjs.com/package/aws-cdk-local)
+
+    ```shell
+    npm install --global aws-cdk-local
+    ```
+
+- [Docker](https://www.docker.com/products/docker-desktop)
+
+## Getting Started
+
+Install the cli:
+
+```shell
+#npm
+npm i -g @stoked-cenv/cli 
+```
+or
+
+```shell
+#yarn
+yarn global add @stoked-cenv/cli 
+```
+
+### configuring aws
+
+You will be prompted with the following inputs during the `yarn run deploy` command:
+
+```shell
+# aws profile used to access the aws account you are deploying to.. if one doesn't already exist run "aws configure" first
+AWS_PROFILE: (stoked)
+
+# environment region
+AWS_REGION: (us-east-1)
+
+# environment name
+ENV: (dev)
+
+# this value needs to be the same as your assigned [subdomain].elevationcurb.com hosted zone for AWS deployments
+ROOT_DOMAIN: (bstoker.stokedconsulting.com)
+```
+
+##### full stack example project coming soon!
+
+### cenv-mono contents: the packages
+
+This monorepo contains 3 packages which will be explained here. The packages are cli, lib, params, and ui.
+
+The cli package contains the code for the end user command line interface tool.
 
 The lib package contains the library code that can be consumed by external libraries to manage cenv parameters in their application stacks.
 
@@ -46,3 +103,12 @@ Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b
 ### license
 
 [MIT Licensed](https://opensource.org/license/mit/)
+
+<p align="center">
+<a href="http://stokedconsulting.com/" target="blank">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/sc-logo.white.png">
+  <img width="200px" alt="STOKED" src="./assets/sc-logo.png">
+</picture>
+</a>
+</p>

@@ -118,15 +118,23 @@ export function printProfileQuery(profile: string, environment: string) {
 }
 
 export interface ProfileData   {
-  envConfig: any,
+  envConfig?: any,
   profilePath: string,
   askUser: boolean
+}
+
+export function createDirIfNotExists(path: string) {
+  if (!existsSync(path)) {
+    mkdirSync(path);
+  }
 }
 
 export async function getProfiles(paramMatchesOnly = false, profile = '' , environment = '') {
   const filename = profile === 'default' ? 'default' : `${profile}↔${environment}`;
   const reservedFiles = ['localstack-api-key', 'default-root-domain']
-  //CenvLog.single.catchLog(`filename: ${filename} profile: ${profile} environment: ${environment}`)
+
+  createDirIfNotExists(CenvFiles.ProfilePath);
+
   const list = fs.readdirSync(CenvFiles.ProfilePath);
   const matchingProfileFiles: ProfileData[] = [];
   for (let i = 0; i < list.length; i++) {
@@ -171,10 +179,14 @@ export async function getMatchingProfileConfig(exactMatch: boolean, profile?: st
       CenvLog.single.stdLog(printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV))
     });
     process.exit(0);
-  } else {
+  } else if (!exactMatch) {
     CenvLog.single.alertLog(`No profiles matched the query: ${printProfileQuery(profile, environment)}`);
     process.exit(0);
   }
+  return {
+    profilePath: `${path.join(CenvFiles.ProfilePath, 'default')}`,
+    askUser: true
+  };
 }
 
 export async function loadCenvProfile(filename: string, options?: Record<string, any>,) {
@@ -190,7 +202,8 @@ export async function loadCenvProfile(filename: string, options?: Record<string,
   if (existsSync(profilePath)) {
     envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
     if (!envConfig.CDK_DEFAULT_ACCOUNT) {
-      process.env.AWS_PROFILE = envConfig.AWS_PROFILE
+      process.env.AWS_PROFILE = envConfig.AWS_PROFILE;
+      process.env.AWS_REGION = envConfig.AWS_REGION;
       const accountInfo = await getAccountInfo();
       if (!accountInfo) {
         return;
@@ -235,7 +248,7 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
 
   let args: any = {};
-  let envConfig = profileData.envConfig;
+  let envConfig = profileData?.envConfig;
   const { profilePath, askUser } = profileData;
 
   if (existsSync(defaultRootDomainPath)) {
@@ -255,7 +268,7 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   if (!envConfig || (askUser && !options?.show)) {
     if (options?.profile !== 'local') {
       args = envConfig || {
-        AWS_PROFILE: 'architecture',
+        AWS_PROFILE: 'aws-profile',
         AWS_REGION: 'us-east-1',
         ENV: 'dev'
       }
@@ -283,7 +296,7 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
         let args2 = { ROOT_DOMAIN: defaultRootDomain };
         for (let i = 0; i < listZoneRes.HostedZones.length; i++) {
           const zone = listZoneRes.HostedZones[i].Name;
-          if (zone.endsWith('elevationcurb.com.')) {
+          if (zone.endsWith('your-domain.com.')) {
             args2.ROOT_DOMAIN = zone.slice(0, -1)
           }
         }

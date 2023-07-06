@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.13",
+  "version": "2.0.0-a.15",
   "private": true,
   "scripts": {
     "bootstrap": "lerna bootstrap",
@@ -20,6 +20,9 @@
     "test:integration": "lerna run test:integration",
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
+    "clean:dependencies": "lerna exec -- rm -rf node_modules",
+    "clean:lock": "lerna exec -- rm -rf yarn.lock package-lock.json; rm -rf yarn.lock package-lock.json",
+    "clean:complete": "yarn run clean:cdk; yarn run clean:dependencies; yarn run clean:lock; yarn run createLocks",
     "setVersion": "version.sh",
     "tsc-version": "tsc -v"
   },
@@ -35,7 +38,6 @@
     "@types/node": "18.11.18",
     "esbuild": "^0.17.15",
     "jest": "^28.1.3",
-    "lerna": "^6.6.2",
     "nx": "15.9.4",
     "rimraf": "4.4.1",
     "ts-node": "^10.9.1",

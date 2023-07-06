@@ -1,11 +1,11 @@
 {
   "name": "@stoked-cenv/params-build",
-  "version": "2.0.0-a.13",
+  "version": "2.0.0-a.15",
   "main": "index.js",
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "@stoked-cenv/lib": "2.0.0-a.13",
+    "@stoked-cenv/lib": "2.0.0-a.15",
     "js-yaml": "^4.1.0",
     "rimraf": "^4.4.1",
     "async-mutex": "^0.4.0"

@@ -856,7 +856,7 @@ export class Package implements IPackage {
     } else if (this.meta.url) {
       return this.meta.url;
     }
-    return `https://${this.stackName}.dev.bstoker.elevationcurb.com`;
+    return `https://${process.env.AWS_REGION}.console.aws.amazon.com`;
   }
 
   chDir() {
