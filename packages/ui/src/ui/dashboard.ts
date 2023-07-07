@@ -67,7 +67,7 @@ export class Dashboard {
   minColumnWidth = 12;
   tableWidth: number;
   splitter: any;
-  suite: Suite;
+  suite: string;
   environment;
   packageBox;
   static toggleDebug = false;
@@ -118,7 +118,8 @@ export class Dashboard {
   static paramsToggle = false;
   static horizontalSplitterUserCtrl = false;
 
-  static enableMenuCommands = true;
+  static enableMenuCommands = false;
+  titleContext: Package[];
 
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
@@ -902,16 +903,19 @@ export class Dashboard {
       }
 
       this.deploying = true;
-      Dashboard.instance.cmd = mode;
+      this.cmd = mode;
 
       const packages = this.getContext();
       if (!packages) {
         return;
       }
-      packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+
+      this.titleContext = packages;
 
       const deploymentOptions = {};
       if (Dashboard.enableMenuCommands) {
+        packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+
         if (mode === ProcessMode.DESTROY) {
           validateBaseOptions({ packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
           await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
@@ -920,15 +924,21 @@ export class Dashboard {
           await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
         }
       } else {
-        await sleep(10);
+        setTimeout(function () {
+          this.launchComplete()
+        }.bind(this), 10 * 1000)
+        return;
       }
-
-      Dashboard.instance.cmd = undefined;
-
-      this.deploying = false;
+      this.launchComplete();
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+  }
+
+  launchComplete() {
+    this.titleContext = undefined;
+    Dashboard.instance.cmd = undefined;
+    this.deploying = false;
   }
 
   getContext(type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true) {
@@ -1145,22 +1155,25 @@ export class Dashboard {
   }
 
   getTitle() {
-    let titleRoot = `[${process.env.ENV}] cenv`;
-    let titleNoun;
-    if (this.cmd) {
-      titleRoot = this.cmd.valueOf() === ProcessMode.DEPLOY.valueOf() ? 'deploy' : 'destroy';
+    let titleNoun = 'ui';
+    if (this.cmd !== undefined) {
+      titleNoun = this.cmd.valueOf() === ProcessMode.DEPLOY.valueOf() ? 'deploy' : 'destroy';
 
-      const opt = Deployment?.options;
-      if (opt?.suite) {
-        titleNoun = opt.suite + ' suite';
-      } else if (opt?.applications?.length > 1) {
-        titleNoun = `${opt?.applications?.length} application(s)`;
-      } else if (opt?.applications?.length === 1) {
-        titleNoun = opt.applications[0];
+      if (this.suite && Dashboard.stackName === 'GLOBAL') {
+        titleNoun += ' ' + this.suite;
+      } else {
+        let displayedContext = this.titleContext;
+        let extraContext = '';
+        if (this.titleContext?.length > 2) {
+          displayedContext = this.titleContext.slice(0, 2);
+          extraContext = ` ... (${this.titleContext.length} packages)`
+        }
+        titleNoun += ` ${displayedContext.map(p => p.packageName)}${extraContext}`;
       }
     }
 
-    return `${titleRoot}${titleNoun ? ' ' + titleNoun : ''}`;
+    return `[${process.env.ENV}] cenv${titleNoun ? ' ' + titleNoun : ''}`;
+
   }
 
   focusPool() {

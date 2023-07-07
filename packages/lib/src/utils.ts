@@ -1387,7 +1387,7 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
     const {suite, nonSuiteParams} = parseSuiteParam(params, options);
     if (suite) {
       options.suite = suite.name;
-      validateBaseOptions({suite, options, cmd});
+      validateBaseOptions({suite: suite.name, options, cmd});
       return {packages: suite.packages, suite, parsedParams: nonSuiteParams, validatedOptions: options}
     }
   }
@@ -1421,7 +1421,7 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
       const suite = new Suite(options.suite);
       options.suite = suite.name;
       pkgs = suite.packages;
-      validateBaseOptions({ suite, options, cmd } );
+      validateBaseOptions({ suite: suite.name, options, cmd } );
     } else {
       CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
       process.exit(0);

@@ -70,6 +70,7 @@ export class ParamsModule extends PackageModule {
   random: number;
   duplicates: { key: string; types: string[] }[] = [];
   static semaphore = new Semaphore(2);
+  static showDuplicateParams = false;
 
 
   constructor(module: IPackageModule) {
@@ -357,7 +358,7 @@ export class ParamsModule extends PackageModule {
   }
 
   getDetails() {
-    if (this.duplicates.length) {
+    if (this.duplicates.length && ParamsModule.showDuplicateParams) {
       this.status.needsFix.push(
         this.statusLineType(
           'duplicates',
@@ -609,7 +610,7 @@ export class ParamsModule extends PackageModule {
       });
     }
 
-    if (this.duplicates.length) {
+    if (this.duplicates.length && ParamsModule.showDuplicateParams) {
       this.pkg.setBroken(`[${this.pkg.packageName}] duplicate param(s)`)
     }
   }
@@ -624,7 +625,7 @@ export class ParamsModule extends PackageModule {
 
   get moduleStrings(): string[] {
     let items = super.moduleBaseStrings;
-    if (this.duplicates.length) {
+    if (this.duplicates.length && ParamsModule.showDuplicateParams) {
       items = items.concat(this.printAllDuplicates().map((d) => colors.error(d)));
     }
 

@@ -80,7 +80,7 @@ export interface BaseCommandOptions {
 
 export interface DashboardCreateOptions {
   packages?: Package[],
-  suite?: Suite,
+  suite?: string,
   environment?: Environment
   options: any,
   cmd?: ProcessMode
