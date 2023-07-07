@@ -118,7 +118,7 @@ export class Dashboard {
   static paramsToggle = false;
   static horizontalSplitterUserCtrl = false;
 
-  static enableMenuCommands = false;
+  static enableMenuCommands = true;
   titleContext: Package[];
 
   constructor(dashboardOptions: DashboardCreateOptions) {
@@ -765,9 +765,18 @@ export class Dashboard {
               if (!ctx) {
                 return;
               }
+              if (Dashboard.stackName === 'GLOBAL') {
+                ctx.push(Package.global)
+              }
               ctx.map((p: Package) => {
                 delete p.cmds;
               })
+              Dashboard.dependencyToggle = true;
+              Dashboard.paramsToggle = true;
+              Dashboard.moduleToggle = true;
+              this.cmdPanel.stdout.setContent('');
+              this.cmdPanel.stderr.setContent('');
+              this.cmdPanel.cmdPanel.setItems([]);
               this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
             });
           }.bind(this),
@@ -1316,6 +1325,7 @@ export class Dashboard {
 
   async selectPackage() {
     try {
+
       const stackNameVis = blessed.cleanTags(this.getPackageRowName());
       if (stackNameVis === '') {
         return;

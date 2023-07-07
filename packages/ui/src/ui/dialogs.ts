@@ -163,7 +163,6 @@ export default class Dialogs {
   }
 
   static saveDump(screen: any, exit = false) {
-    CenvLog.single.catchLog(new Error('hi'));
     const dump = {
       ts: Date.now(),
       packages: Object.values(Package.cache).map((p: Package) => {

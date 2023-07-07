@@ -264,7 +264,7 @@ export default class StatusPanel extends CenvPanel {
         left: 1,
         top: 1,
         name: 'text',
-        hidden: false
+        hidden: true
       });
       this.paramTextbox.type = 'paramsUI';
 
@@ -275,6 +275,7 @@ export default class StatusPanel extends CenvPanel {
       this.paramLabel = blessed.text({
         parent: this.paramForm,
         content: 'Key:',
+        hidden: true
       });
 
       if (this.saveEnabled) {
@@ -519,9 +520,6 @@ export default class StatusPanel extends CenvPanel {
     }
 
     this.modules.setItems(pkg.modules.map((m: PackageModule) => m.type.toString()));
-    this.paramForm.hide()
-    this.paramTextbox.hide();
-    this.paramLabel.hide();
 
     this.updateParams(pkg);
     if (pkg.activeModuleIndex) {
@@ -529,7 +527,6 @@ export default class StatusPanel extends CenvPanel {
     } else {
       this.selectModule(this.modules.items[0], 0);
     }
-
     this.updateVis();
     this.dashboard.screen.render();
   }
@@ -763,6 +760,11 @@ export default class StatusPanel extends CenvPanel {
       this.showType('globalEnv');
       this.showType('environment');
 
+      if (!this.selectedParamKey && !this.dashboard.paramsToggle) {
+        this.paramForm.hide()
+        this.paramTextbox.hide();
+        this.paramLabel.hide();
+      }
 
       if (Groups.fullScreenActive) {
         Groups.detailWidgets?.map((w: any) => w.show());

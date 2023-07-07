@@ -2,7 +2,6 @@ import blessed from 'blessed';
 
 
 export default class MenuBar {
-  box;
   bar;
   screen;
   active = false;
@@ -10,14 +9,14 @@ export default class MenuBar {
   constructor(screen: any, commands: any, position: any) {
     this.screen = screen;
 
-    this.box = blessed.box({
+    /*this.box = blessed.box({
       parent: this.screen,
       top: 0,
       right: 0,
       width: 'shrink',
       height: 'shrink',
       content: '...'
-    });
+    });*/
 
     this.bar = blessed.listbar({
       ...position,
@@ -53,31 +52,26 @@ export default class MenuBar {
       commands
     });
 
-    this.box.hide();
     this.bar.hide();
-    this.screen.append(this.bar);
+    //this.screen.append(this.bar);
   }
 
   hide() {
     this.active = false;
-    this.box.hide();
     this.bar.hide();
   }
 
   show() {
     this.active = true;
     this.setFront();
-    this.box.show();
     this.bar.show();
   }
 
   setFront() {
-    this.box.setFront();
     this.bar?.setFront();
   }
 
   render() {
-    this.box?.render();
     this.bar?.render();
     this.screen?.render();
   }

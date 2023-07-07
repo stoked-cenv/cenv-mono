@@ -13,7 +13,6 @@ export default class CmdPanel extends CenvPanel {
   selectedCmdIndex = -1;
   debugStr: any;
   dashboard: Dashboard;
-
   constructor(dashboard: Dashboard) {
     super(dashboard);
   }
@@ -74,7 +73,8 @@ export default class CmdPanel extends CenvPanel {
               label: {fg: 'gray'}
             },
             autoScroll: false,
-            padding: {left: 1, right: 1, top: 0, bottom: 0}
+            padding: {left: 1, right: 1, top: 0, bottom: 0},
+            hidden: true
           },
           [1, 2, 3, 3],
           true,
@@ -275,6 +275,7 @@ export default class CmdPanel extends CenvPanel {
 
   updatePackage() {
     this.updateCmds();
+
     const pkgCmds = this.getPkgCmds();
     this.stderr.setContent('');
     this.cmdList.setItems([]);
@@ -428,15 +429,17 @@ export default class CmdPanel extends CenvPanel {
 
   set(left: number, width: number, top: number, height: number) {
     this.cmdList.top = top;
-    this.stdout.top = !this.getPkg()?.isGlobal ? top + this.cmdList.height : top;
+
+    const cmdListAdditionalHeight = this.cmdList.hidden ? 0 : this.cmdList.height;
+    this.stdout.top = !this.getPkg()?.isGlobal ? top + cmdListAdditionalHeight : top;
     const cmds = this.getPkgCmds();
     const multiplier = this.selectedCmdIndex > -1 && cmds && cmds[this.selectedCmdIndex]?.stderr?.length ? 0.5 : 1;
-    this.stdout.height = Math.floor(((height - 1) - (top + (!this.getPkg()?.isGlobal ? this.cmdList.height : 0))) * multiplier);
+    this.stdout.height = Math.floor(((height - 1) - (top + (!this.getPkg()?.isGlobal ? cmdListAdditionalHeight : 0))) * multiplier);
     this.cmdList.left = left;
     this.stderr.left = left;
     this.stdout.left = left;
     this.cmdList.width = width;
-    this.stderr.top = this.stdout.hidden ?  this.cmdList.top + this.cmdList.height : this.stdout.top + this.stdout.height;
+    this.stderr.top = this.stdout.hidden ?  top + cmdListAdditionalHeight : this.stdout.top + this.stdout.height;
     this.stderr.width = width;
     this.stderr.height = height - (this.stdout.hidden ? 0 : this.stdout.top + this.stdout.height) - 1;
     this.stdout.width = width;
@@ -445,7 +448,9 @@ export default class CmdPanel extends CenvPanel {
   render() {
     this.cmdList.render();
     this.stderr.render();
-    this.stdout.render();
+    if (Dashboard.instance?.selectedPackage && !this.stdout?.hidden) {
+      this.stdout.render();
+    }
   }
 
   hide() {
@@ -458,22 +463,15 @@ export default class CmdPanel extends CenvPanel {
   updateVis() {
     super.show();
     const cmds = this.getPkgCmds();
-    if (!cmds) {
+    if (!cmds || !cmds.length) {
       this.cmdList.hide();
       this.stderr.hide();
-      this.stdout.hide();
+      this.stdout.show();
       return;
     }
 
-    if (cmds?.length) {
-      if (!this.getPkg().isGlobal) {
-        this.cmdList.show();
-      }
-    } else {
-      this.cmdList.hide();
-      this.stderr.hide();
-      this.stdout.hide();
-      return;
+    if (!this.getPkg().isGlobal) {
+      this.cmdList.show();
     }
 
     if (cmds[this.selectedCmdIndex]?.stderr) {
