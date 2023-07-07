@@ -7,7 +7,6 @@ import {
   CenvParams,
   clamp,
   colors,
-  enumKeys,
   EnvironmentStatus,
   Package,
   ProcessStatus,
@@ -16,8 +15,8 @@ import {
   ProcessMode,
   Suite,
   DashboardCreateOptions,
-  pbcopy, Deployment, PkgContextType, validateBaseOptions, killStackProcesses, Cenv, Cmd, PackageCmd,
-} from '@stoked-cenv/lib';
+  pbcopy, Deployment, PkgContextType, validateBaseOptions, killStackProcesses, Cenv, Cmd, PackageCmd, sleep
+} from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import chalk, {ChalkFunction} from 'chalk';
@@ -81,7 +80,7 @@ export class Dashboard {
   modeLast: DashboardMode = DashboardMode.MIXED;
   dependencies: string;
   cmdOptions: any;
-  selectedPackage: string;
+  selectedPackage: Package;
   selectedRowFg: number[] = undefined;
   selectedPackageFg = [14, 221, 14];
   selectedFullPackageFg = [40, 40, 40];
@@ -119,12 +118,13 @@ export class Dashboard {
   static paramsToggle = false;
   static horizontalSplitterUserCtrl = false;
 
+  static enableMenuCommands = true;
+
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
       if (Dashboard.instance) {
         return Dashboard.instance;
       }
-
 
       this.cmdOptions = dashboardOptions.options;
       this.blessedDeps = getBlessedDeps();
@@ -298,11 +298,11 @@ export class Dashboard {
             return;
           }
 
-          const stackName = blessed.cleanTags(el.content).split(' ')[0];
-          if (!stackName) {
+          const stackNameVis = blessed.cleanTags(el.content).split(' ')[0];
+          if (!stackNameVis) {
             return;
           }
-          const pkg = Package.getPackage(stackName);
+          const pkg = Package.getPackageFromVis(stackNameVis);
           if (pkg) {
             if (!this.statusBarInUse) {
               this.statusBar.setLabel(pkg.getConsoleUrl());
@@ -911,12 +911,16 @@ export class Dashboard {
       packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
       const deploymentOptions = {};
-      if (mode === ProcessMode.DESTROY) {
-        validateBaseOptions({packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
-        await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
+      if (Dashboard.enableMenuCommands) {
+        if (mode === ProcessMode.DESTROY) {
+          validateBaseOptions({ packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
+          await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
+        } else {
+          validateBaseOptions({ packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions })
+          await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
+        }
       } else {
-        validateBaseOptions({packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions })
-        await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
+        await sleep(10);
       }
 
       Dashboard.instance.cmd = undefined;
@@ -1090,6 +1094,9 @@ export class Dashboard {
         blink: true,
         color: null, // null for default
       },
+      label: {
+        padding: { left: 50 }
+      }
     });
 
     this.screen = screen;
@@ -1138,7 +1145,7 @@ export class Dashboard {
   }
 
   getTitle() {
-    let titleRoot = 'cenv';
+    let titleRoot = `[${process.env.ENV}] cenv`;
     let titleNoun;
     if (this.cmd) {
       titleRoot = this.cmd.valueOf() === ProcessMode.DEPLOY.valueOf() ? 'deploy' : 'destroy';
@@ -1296,8 +1303,8 @@ export class Dashboard {
 
   async selectPackage() {
     try {
-      const stackName = blessed.cleanTags(this.getPackageRowName());
-      if (stackName === '') {
+      const stackNameVis = blessed.cleanTags(this.getPackageRowName());
+      if (stackNameVis === '') {
         return;
       }
 
@@ -1316,34 +1323,32 @@ export class Dashboard {
         this.lastSelectedFully = this.selectedFully;
         return;
       }
-      const selectedPackage = Package.cache[stackName];
-      this.packageBox.setLabel(`${chalk.white.bold('selectedPackage.packageName')}`)
+      this.selectedPackage = Package.getPackageFromVis(stackNameVis);
+      Dashboard.stackName = this.selectedPackage.stackName;
 
       this.lastSelectedFully = false;
       this.selectedRowIndex = this.packages.rows.selected;
       this.selectedFully = false;
 
       Dialogs.close(this.menu);
-      this.selectedPackage = stackName;
-      Dashboard.stackName = stackName;
       this.setPanels(this.mode);
 
       this.packageTs = Date.now();
 
       const color = this.getStatusColor(
-        selectedPackage.environmentStatusReal,
+        this.selectedPackage.environmentStatusReal,
         true,
       ) as ChalkFunction;
       let env = '';
       let envQuote = '';
-      if (selectedPackage.packageName !== 'GLOBAL') {
-        env = ` [${color(selectedPackage.environmentStatusReal)}]`;
+      if (this.selectedPackage.packageName !== 'GLOBAL') {
+        env = ` [${color(this.selectedPackage.environmentStatusReal)}]`;
         envQuote = this.packageHover
-          ? ` - (${color(selectedPackage.getEnvironmentStatusDescription())})`
+          ? ` - (${color(this.selectedPackage.getEnvironmentStatusDescription())})`
           : '';
       }
 
-      this.packageBox.setLabel(`${selectedPackage.packageName}${env}${envQuote}\n\n`);
+      this.packageBox.setLabel(`${this.selectedPackage.packageName}${env}${envQuote}\n\n`);
 
       setTimeout(async () => {
         await this.statusPanel.updatePackage();
@@ -1407,7 +1412,7 @@ export class Dashboard {
       .map((p: Package) => {
         if (p.isGlobal) {
           return {
-            stackName: p.stackName,
+            stackName: p.stackNameVis,
             version: '-----',
             type: '-----',
             environmentStatus: envStatus,
@@ -1417,7 +1422,7 @@ export class Dashboard {
         }
 
         return {
-          stackName: p.stackName,
+          stackName: p.stackNameVis,
           version: `${p.meta.version}`,
           type: p.type,
           environmentStatus: p.environmentStatus,
@@ -1546,7 +1551,7 @@ export class Dashboard {
   }
 
   get defaultColumnWidth() {
-    return [30, 12, 10, 13, 13, 10];
+    return [Package.stackNameMaxVisibleLength + 1, 12, 10, 13, 13, 10];
   }
 
   mod(digit: number, mod: number) {
@@ -1873,7 +1878,7 @@ export class Dashboard {
         });
       }
 
-      if (this.selectedPackage === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight) {
+      if (this.selectedPackage?.stackName === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight) {
         this.statusOptions.hide();
       } else {
         this.statusOptions.show();
@@ -1881,9 +1886,7 @@ export class Dashboard {
 
       if (!this.statusBarInUse) {
         if (Dashboard.stackName && Dashboard.stackName !== '') {
-          this.statusBar.setLabel(
-            Package.fromStackName(Dashboard.stackName).getConsoleUrl(),
-          );
+          this.statusBar.setLabel(Package.fromStackName(Dashboard.stackName).getConsoleUrl());
         } else {
           this.statusBar.setLabel('');
         }

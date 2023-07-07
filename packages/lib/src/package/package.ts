@@ -362,10 +362,15 @@ export class Package implements IPackage {
   public static buildLog: any;
   public static buildLogPath: string;
 
+  public static stackNameMaxVisibleLength = 29;
+
   constructor(packageName: string, noCache = false) {
     this.load(packageName, noCache);
   }
 
+  get stackNameVis(): string {
+    return this.stackName.substring(0, Package.stackNameMaxVisibleLength);
+  }
   get type(): string {
     return this.fullType?.split('-')[0];
   }
@@ -1471,6 +1476,20 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
     if (!stackName || stackName === '') return;
     return Package.fromStackName(stackName);
   }
+
+  static getPackageFromVis(stackNameVis: string) {
+    if (!stackNameVis || stackNameVis === '') return;
+    const visMatches = Object.values(Package.cache).filter((p: Package) => stackNameVis === p.stackNameVis);
+
+    if (visMatches.length === 1) {
+      return visMatches[0];
+    } else if (visMatches.length > 1) {
+      CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} matches more than one package.. consider setting the Package.stackNameMaxVisibleLength higher than ${Package.stackNameMaxVisibleLength} or name your packages more uniquely`))
+    } else {
+      CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} does't match any packages.. this should be possible`));
+    }
+  }
+
   get deployedVersion(): string | false {
     if (!this.stack?.deployedVersion) {
       return false;
