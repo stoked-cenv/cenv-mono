@@ -28,8 +28,10 @@ export async function readAsync(prompt: string, defaultValue: string): Promise<s
   }
 }
 function cleanString(input: string) {
+  // eslint-disable-next-line no-control-regex
   return input.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '')
 }
+
 export async function ioReadVar(prompt: string, varValue: string, defaultValue: string, defaults = false, protectedMode = false): Promise<string> {
   if (!varValue) {
     if (!defaults) {
@@ -48,9 +50,7 @@ export async function ioReadVar(prompt: string, varValue: string, defaultValue: 
 
 export async function ioAppEnv(config: any, application: any, environment: any, overwrite = false, defaults = false) {
   if (config?.ConfigurationId && !overwrite) {
-    CenvLog.single.errorLog(
-      `This application is already initialized. Run "${errorBold('cenv init --force')}" to reset the application to start from scratch.`,
-    );
+    CenvLog.single.errorLog(`This application is already initialized. Run "${errorBold('cenv init --force')}" to reset the application to start from scratch.`);
     return;
   }
   application = await ioReadVar('application name', application.value, application.defaultValue, defaults);
@@ -81,7 +81,7 @@ export async function ioYesOrNo(prompt = 'Are you sure?', defaultValue = 'n'): P
 function getContextConfig() {
   const { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ENV } = process.env;
   if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_REGION && ROOT_DOMAIN && CDK_DEFAULT_ACCOUNT && CDK_DEFAULT_REGION && ENV) {
-    const args = {AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ENV };
+    const args= {AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ENV };
     process.env.CENV_CONFIGURE = inputArgsToEnvVars(args);
     return args;
   }
@@ -229,15 +229,16 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
     process.env.CENV_LOCAL = 'true';
   }
 
-  const localstackApiKeyPath = join(process.env.HOME, `.cenv/localstack-api-key`);
-  const defaultRootDomainPath = join(process.env.HOME, `.cenv/default-root-domain`);
-  if (options?.localstackApiKey !== undefined) {
+  const localstackApiKeyPath = join(CenvFiles.ProfilePath, `localstack-api-key`);
+  const defaultRootDomainPath = join(CenvFiles.ProfilePath, `default-root-domain`);
+  if (options?.localstackApiKey !== undefined && !alwaysAsk) {
     process.env.LOCALSTACK_API_KEY = options.localstackApiKey;
     writeFileSync( localstackApiKeyPath, options.localstackApiKey);
     return;
   }
+
   // verify that we need a config at all
-  if (options?.profile === 'default') {
+  if (options?.profile === 'default' && !alwaysAsk) {
     const contextConfig = getContextConfig();
     if (contextConfig) {
       return contextConfig;
@@ -245,11 +246,19 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   }
 
   let profileData: ProfileData = undefined;
-  profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
+  let profilePath = '';
+  if (!alwaysAsk) {
+    profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
+    profilePath = profileData.profilePath;
+    alwaysAsk = profileData.askUser;
+  } else {
+    profilePath = join(CenvFiles.ProfilePath, `default`);
+  }
 
   let args: any = {};
   let envConfig = profileData?.envConfig;
-  const { profilePath, askUser } = profileData;
+
+  alwaysAsk = profileData?.askUser;
 
   if (existsSync(defaultRootDomainPath)) {
     defaultRootDomain = readFileSync(defaultRootDomainPath, 'utf8');
@@ -264,8 +273,9 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   if (options?.profile === 'local') {
     args = envConfig || localDefaults
   }
+
   let kmsKey = null
-  if (!envConfig || (askUser && !options?.show)) {
+  if (!envConfig || (alwaysAsk && !options?.show)) {
     if (options?.profile !== 'local') {
       args = envConfig || {
         AWS_PROFILE: 'aws-profile',
@@ -275,13 +285,14 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
     }
 
     let envVars = null;
-    if (process.env.CENV_LOCAL) {
+    if (process.env.CENV_LOCAL && !alwaysAsk) {
       envVars = localDefaults;
-    } else if (process.env.CENV_DEFAULTS) {
+    } else if (process.env.CENV_DEFAULTS && !alwaysAsk) {
       envVars = args;
     } else {
       envVars = await ioReadVarList(args);
     }
+
     if (options?.profile !== 'local') {
       process.env.AWS_PROFILE = envVars.AWS_PROFILE;
       process.env.AWS_REGION = envVars.AWS_REGION;

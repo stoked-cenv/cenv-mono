@@ -1,5 +1,5 @@
 
-## cenv
+# cenv
 
 <p align="center">
 <picture>
@@ -16,46 +16,40 @@
   <!--[![Backers on Open Collective](https://opencollective.com/stoked-cenv/backers/badge.svg)](https://opencollective.com/stoked-cenv#backer)
   [![Sponsors on Open Collective](https://opencollective.com/stoked-cenv/sponsors/badge.svg)](https://opencollective.com/stoked-cenv#sponsor)-->
 
-###  overview
+##  overview
 
 Cenv inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 5 different types of cenv modules, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
 
 The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage application parameter configuration. The DOCKER module provides a mechanism to create an AWS ECR repository for the package containers and build and push the packages containers to the repo. Finally, the STACK module uses AWS Cdk to deploy cloudformation stacks representing the infrastructure and applications contained in the packages.
 
 
-## Pre-requisite
+### pre-requisites
 
-- [Node](https://nodejs.org/en/download/)
+- [node](https://nodejs.org/en/download/)
 
   If you don't have it already you'll need to install the latest version of Node. Cenv currently works well with both node 16 and 18.
    ```shell
     nvm install <version>
     ```
 
-- [Python](https://www.python.org/downloads/)
+- [python](https://www.python.org/downloads/)
 - [Yarn](https://classic.yarnpkg.com/en/docs/install/#debian-stable)
 
   ```shell
     npm install --global yarn
     ```
 
-- [AWS CDK](https://aws.amazon.com/cdk/) 2.x version
+- [aws cdk](https://aws.amazon.com/cdk/) 2.x version
 
     ```shell
     npm install --global aws-cdk
     ```
   
-- [AWS CDK Local](https://www.npmjs.com/package/aws-cdk-local)
-
-    ```shell
-    npm install --global aws-cdk-local
-    ```
-
-- [Docker](https://www.docker.com/products/docker-desktop)
+- [docker](https://www.docker.com/products/docker-desktop)
 
 ## Getting Started
 
-Install the cli:
+install the cli:
 
 ```shell
 #npm
@@ -70,7 +64,9 @@ yarn global add @stoked-cenv/cli
 
 ### configuring aws
 
-You will be prompted with the following inputs during the `yarn run deploy` command:
+```shell
+ cenv configure
+ ```
 
 ```shell
 # aws profile used to access the aws account you are deploying to.. if one doesn't already exist run "aws configure" first

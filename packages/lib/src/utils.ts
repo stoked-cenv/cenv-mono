@@ -18,6 +18,7 @@ import {Suite} from "./suite";
 import {Environment} from "./environment";
 import {Cenv, StackProc} from "./cenv"
 import {cancelUpdateStack} from "./aws/cloudformation";
+import { ioYesOrNo } from "./stdIo";
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
   return isString(value) ? !!value : value && value.length > 0;
@@ -968,25 +969,33 @@ export function clamp(number: number, min: number, max: number) {
   return Math.min(Math.max(number, min), max);
 }
 
-export async function killStackProcesses(stackName: string, stackProcs: StackProc[]) {
-  for(const stackProc of stackProcs) {
+const killedStackCmds: Record<string, string[]> = {};
 
+export function killStackProcesses(stackName: string, stackProcs: StackProc[]) {
+  for(const stackProc of stackProcs) {
     CenvLog.err(info(`kill child process: ${infoBold(stackProc.cmd)}`));
-    stackProc.proc.kill();
-    if (stackProc.cmd.startsWith('cdk')) {
-      await cancelUpdateStack(stackName);
+    const killSuccess= stackProc.proc.kill();
+    if (killSuccess || stackProc.cmd.startsWith('cdk')) {
+      if (!killedStackCmds[stackName]) {
+        killedStackCmds[stackName] = [];
+      }
+      killedStackCmds[stackName].push(stackProc.cmd);
     }
   }
 }
 
-export async function killRunningProcesses() {
+export function killRunningProcesses() {
   for (const [stackName, stackProcs ] of Object.entries(Cenv.runningProcesses) as [string, StackProc[]][] ) {
-    await killStackProcesses(stackName, stackProcs);
+    killStackProcesses(stackName, stackProcs);
   }
 }
 
 export function destroyUI() {
   if (Cenv.dashboard) {
+    if (Cenv.dashboard.program) {
+      Cenv.dashboard.program.destroy();
+      console.log('Cenv.dashboard.screen?.destroy(kk)');
+    }
     if (Cenv.dashboard.screen) {
       Cenv.dashboard.screen?.destroy();
       console.log('Cenv.dashboard.screen?.destroy(kk)');
@@ -996,7 +1005,7 @@ export function destroyUI() {
   }
 }
 
-export function cleanup(eventType: string) {
+export function cleanup(eventType: string, error?: Error, exitCode?: number) {
   destroyUI();
   console.log('cleanup', new Error().stack);
 
@@ -1007,6 +1016,46 @@ export function cleanup(eventType: string) {
   }
 
   killRunningProcesses();
+
+  if (error) {
+    console.error(error);
+  }
+
+  if (eventType !== 'exit') {
+    const killedCmds = Object.values(killedStackCmds);
+    const killedCdkCommands: string[] = [];
+    if (killedCmds.length) {
+      for (const cmd in killedCmds.flat(1)) {
+        if (cmd.indexOf('cdk ') !== -1) {
+          killedCdkCommands.push(cmd);
+        }
+      }
+    }
+    if (killedCdkCommands.length) {
+      let question = 'process.exit() called while the following cdk child processes were running: \n';
+      for (const cmd in killedCdkCommands) {
+        question += '\t - ' + cmd + '\n';
+      }
+      question += '\nWould you like to cancel these stacks?';
+      Promise.resolve(ioYesOrNo(question))
+        .then( (shouldCancelStacks: boolean) => {
+          if (shouldCancelStacks) {
+            Promise.resolve(Promise.all(Object.keys(killedStackCmds).map((stackName) => cancelUpdateStack(stackName))))
+              .catch((ex)=>{
+                console.error('error while canceling cdk stack', ex)
+              })
+              .then(() => {
+                process.exit(exitCode);
+              });
+          }
+        })
+        .catch((ex) => {
+          console.error('error on yes or no input', ex)
+        })
+    } else if (exitCode) {
+      process.exit(exitCode);
+    }
+  }
 }
 
 // -----------------------------------------------------

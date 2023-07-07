@@ -1,5 +1,5 @@
 import { Command, Option } from 'nest-commander';
-import { getMatchingProfileConfig, printProfileQuery } from "@stoked-cenv/lib";
+import { CenvFiles, getMatchingProfileConfig, printProfileQuery } from "@stoked-cenv/lib";
 import { CenvLog, infoBold, configure as cenvConfigure, ConfigureCommandOptions } from '@stoked-cenv/lib';
 import { BaseCommand } from './base'
 
@@ -68,34 +68,29 @@ export default class ConfigureCommand extends BaseCommand {
         process.exit(6);
       }
 
-      const configPath = join(process.env.HOME, `.cenv`);
-      if (!existsSync(configPath)) {
+      if (!existsSync(CenvFiles.ProfilePath)) {
         CenvLog.single.errorLog('.cenv has not been configured yet')
         process.exit(6);
       } else {
 
         const profileData = await getMatchingProfileConfig(true, options?.profile, options?.env)
         CenvLog.single.infoLog(`default profile set to ${printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV)}`);
-        const defaultPath = join(configPath, 'default');
+        const defaultPath = join(CenvFiles.ProfilePath, 'default');
         copyFileSync(profileData.profilePath, defaultPath)
-        options.show = true;
       }
     }
-    return options;
   }
 
   async runCommand(
-    passedParam: string[],
+    passedParams: string[],
     options?: ConfigureCommandOptions,
   ): Promise<void> {
     try {
-      options = await this.set(passedParam, options);
-      await cenvConfigure(options, true);
-      if (passedParam.length === 1) {
-        await  this.set(passedParam, options);
-        options.show = true;
-        await cenvConfigure(options, false);
+      if (passedParams.length) {
+        await this.set(passedParams, options);
+        return;
       }
+      await cenvConfigure(options, true);
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
