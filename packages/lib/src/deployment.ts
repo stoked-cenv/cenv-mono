@@ -478,38 +478,50 @@ export class Deployment {
     return { active: info.Server !== null, info };
   }
 
-  static async processInit(items: Package[]) {
-    CenvLog.info('os', JSON.stringify(getOs(), null, 2), 'system')
+  static async dockerPrefight(pkgs: Package[]) {
+    // if deploying check to see if there are any docker packages if so verify docker is running
+    if (isOsSupported() && pkgs.filter((p: Package) => p.docker).length) {
+      let dockerStatus = await this.checkDockerStatus();
 
-    if (this.options.docker) {
+      if (!dockerStatus.active) {
+        CenvLog.info('attempting to start docker', 'docker daemon not active');
+        await execCmd('./', 'open -a Docker');
+        for ( const iter of ([...Array(6)])) {
+          await sleep(5);
 
-      // if deploying check to see if there are any docker packages if so verify docker is running
-      if (isOsSupported() && items.filter((p: Package) => p.docker).length) {
-        let dockerStatus = await this.checkDockerStatus();
+          dockerStatus = await this.checkDockerStatus();
+          if (dockerStatus.active) {
+            break;
+          }
+        }
 
         if (!dockerStatus.active) {
-          CenvLog.info('attempting to start docker', 'docker daemon not active');
-          await execCmd('./', 'open -a Docker');
-          for ( const iter of ([...Array(6)])) {
-            await sleep(5);
-
-            dockerStatus = await this.checkDockerStatus();
-            if (dockerStatus.active) {
-              break;
-            }
-          }
-
-          if (!dockerStatus.active) {
-            CenvLog.err('docker daemon not active after 30 seconds:\n' + info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
-            return;
-          } else {
-            CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
-          }
+          CenvLog.err('docker daemon not active after 30 seconds:\n' + info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
+          return;
         } else {
-          CenvLog.single.infoLog('verified that docker is running');
+          CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
         }
+      } else {
+        CenvLog.single.infoLog('verified that docker is running');
       }
     }
+  }
+
+  static sysInfo() {
+    const info = getOs();
+    for (const [key, value] of Object.entries(info)) {
+      CenvLog.info(key, value, '[GLOBAL]')
+    }
+  }
+
+  static async processInit(items: Package[]) {
+
+    this.sysInfo();
+
+    if (this.options.docker) {
+      await this.dockerPrefight(items);
+    }
+
     Package.global.timer.start();
 
     if (this.isDeploy()) {

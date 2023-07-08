@@ -36,8 +36,8 @@ type StringValue = Exclude<string, EncryptedValue | DecryptedValue>;
 type CenvValue = StringValue | EncryptedValue | DecryptedValue;
 type ReservedNames = "newGlobal" | "global"
 type ValidVarKey = Exclude<string, ReservedNames>;
-export type VarList = { [key: ValidVarKey]: CenvValue }
-type AppVars = VarList | VarList & { global?: [string], globalEnv?: [string] };
+export type VarList = { [key: string]: CenvValue }
+export type AppVars = VarList | VarList & { global?: [string], globalEnv?: [string] };
 export type CenvVars =  {
   app: AppVars;
   environment: VarList;

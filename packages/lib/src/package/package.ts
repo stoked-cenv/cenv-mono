@@ -515,19 +515,6 @@ export class Package implements IPackage {
         CenvLog.single.catchLog(`could not load package: ${packageName}`);
       }
 
-      /*
-      if (!existsSync(pkgPath) && !monoRoot) {
-        monoRoot = getMonoRoot();
-        pkgPath = join(monoRoot, 'node_modules', packageName);
-        console.log('monoRoot pkgPath', pkgPath)
-        if (!existsSync(pkgPath)) {
-          CenvLog.single.catchLog(
-              new Error(`[${packageName}] failed: attempting to get meta data from an undefined packagePath`),
-          );
-        }
-      }
-      */
-
       const pkgPathParts = pkgPath.split('/');
 
       if (!this.fullType) {
@@ -1420,6 +1407,11 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
   static getRootPackageName() {
     const monoRepoRoot = getMonoRoot();
     return this.getPackageName(monoRepoRoot);
+  }
+
+  static getRootPackagePath() {
+    const monoRepoRoot = getMonoRoot();
+    return path.join(monoRepoRoot, './package.json');
   }
 
 

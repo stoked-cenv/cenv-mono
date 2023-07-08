@@ -23,9 +23,9 @@
     "src/"
   ],
   "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "cdk.out"
+    "**/node_modules",
+    "**/dist",
+    "**/build",
+    "**/cdk.out"
   ]
 }

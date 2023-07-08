@@ -23,7 +23,7 @@ import {
   Cenv,
   Cmd,
   PackageCmd,
-  sleep, execCmd
+  sleep, execCmd, Queue
 } from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
@@ -31,7 +31,6 @@ import chalk, {ChalkFunction} from 'chalk';
 import { isFunction } from "lodash";
 import {HelpUI} from "./help";
 import Groups from "./group";
-import Queue from "../queue"
 
 interface PkgInfo {
   stackName: string,

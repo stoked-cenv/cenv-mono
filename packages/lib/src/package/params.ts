@@ -1,5 +1,5 @@
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
-import { AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList } from '../file';
+import { AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList, AppVars } from '../file';
 import path, { join } from 'path';
 import { existsSync } from 'fs';
 import { destroyAppConfig, destroyRemainingConfigs, getConfig } from '../aws/appConfig';
@@ -327,7 +327,7 @@ export class ParamsModule extends PackageModule {
   async fixDupes() {
     try {
       for (const key of Object.keys(this.localVarsTyped.globalEnv) as string[]) {
-        if (this.localVarsTyped.app[key]) {
+        if (this.localVarsTyped.app[key as keyof AppVars]) {
           this.pkg.alert(`${key} from app and keeping the version in globalEnv`, 'remove parameter');
           await CenvParams.removeParameters([key], {}, ['app'], false);
         }
