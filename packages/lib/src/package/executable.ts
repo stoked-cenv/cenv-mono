@@ -1,10 +1,14 @@
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
 import { CenvLog } from '../log';
+import { existsSync } from "fs";
 
 export class ExecutableModule extends PackageModule {
+  installPath: string;
+
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.EXEC);
   }
+
 
   upToDate(): boolean {
     return !!this.pkg?.meta?.executables?.filter(e => !e.installed).length;
@@ -21,18 +25,11 @@ export class ExecutableModule extends PackageModule {
         })
       return;
     } else {
-      this.pkg?.meta?.executables?.filter(e => e.installed).map(e => {
-        this.pkg.status.deployed.push(this.statusLine(
-          'installed',
-          `executable [${e.exec}] is installed`,
-          false,
-        ));
-      })
       this.pkg?.meta?.executables?.filter(e => !e.installed).map(e => {
         this.pkg.status.needsFix.push(this.statusLine(
           'not installed',
           `executable [${e.exec}] is not installed`,
-          false,
+          true,
         ));
       })
     }
@@ -58,16 +55,17 @@ export class ExecutableModule extends PackageModule {
   }
 
   printCheckStatusComplete(): void {
-    this.info('installed at', this.pkg?.meta?.executables?.toLocaleString(), 'executable')
+    this.getDetails();
+    this.info('installed at', this.installPath, 'executable')
   }
 
   async checkStatus() {
     this.printCheckStatusStart();
-    await this.pkg.build(false, false);
     await Promise.all(this.pkg?.meta?.executables?.map(async (e) => {
       const res = await this.pkg.pkgCmd(`which ${e.exec}`,{ packageModule: this, returnOutput: true });
-      if (res.code === 0) {
+      if (res.code === 0 && res.stdout?.length && existsSync(res.stdout)) {
         e.installed = true;
+        this.installPath = res.stdout;
       }
     }));
     this.printCheckStatusComplete();

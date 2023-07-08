@@ -1,11 +1,11 @@
-import {computeMetaHash, execCmd, getMonoRoot, packagePath, printFlag, spawnCmd, Timer} from '../utils';
+import {computeMetaHash, execCmd, getMonoRoot, packagePath, spawnCmd, Timer} from '../utils';
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import path, {join} from 'path';
+import path from 'path';
 import { PackageStatus } from './module'
 import { CenvLog, colors, LogLevel, Mouth } from '../log';
 import { BumpMode, Version } from '../version';
 import semver, { coerce, inc, parse, SemVer } from 'semver';
-import { PackageModule, PackageModuleType, ProcessMode } from './module';
+import { PackageModule, PackageModuleType } from './module';
 import { ParamsModule } from './params';
 import { DockerModule } from './docker';
 import { StackModule } from './stack';
@@ -245,12 +245,11 @@ export class PackageCmd implements Cmd {
 
 export interface IPackageMeta {
   dockerBaseImage?: string;
-  service?: Package[];
-  serviceStacks?: string[];
-  serviceStacksRemaining?: string[];
-  destroy?: Package[];
+  deployDependencies?: Package[];
+  destroyDependencies?: Package[];
   dependencies?: { [key: string]: string };
-  destroyStacks?: string[];
+  deployDependencyNames?: string[];
+  destroyDependencyNames?: string[];
   dependencyDelay?: string;
   preBuildScripts?: string[];
   preDeployScripts?: string[];
@@ -271,6 +270,114 @@ export interface IPackageMeta {
   dockerType: string;
   url?: string;
   volatileContextKeys?: string[]
+  bin: any;
+  scripts: any;
+}
+
+export class PackageMetaConsolidated implements IPackageMeta {
+  dockerBaseImage?: string;
+  deployDependencies?: Package[] = [];
+  destroyDependencies?: Package[] = [];
+  dependencies?: { [key: string]: string } = {};
+  dependencyDelay?: string;
+  preBuildScripts?: string[] = [];
+  preDeployScripts?: string[] = [];
+  postDeployScripts?: string[] = [];
+  versionHashDir?: string;
+  versionHash?: string;
+  buildHash?: string;
+  currentHash?: string;
+  currentVersion?: semver.SemVer;
+  buildVersion?: semver.SemVer;
+  version: semver.SemVer;
+  name: string;
+  skipDeployBuild: boolean;
+  verifyStack?: string;
+  deployStack?: string;
+  destroyStack?: string;
+  executables?: { exec: string, installed: boolean }[] = [];
+  dockerType: string;
+  url?: string;
+  volatileContextKeys?: string[] = [];
+  bin: any = {};
+  scripts: any = {};
+
+  // used to reference modules to metas
+  // Record<moduleType, packagePath>
+  modules: Record<string, string> = {};
+
+  // Record<packagePath, meta>
+  metas: Record<string, IPackageMeta> = {};
+
+  load(packagePath: string): IPackageMeta {
+    if (this.metas[packagePath]) {
+      return this.metas[packagePath];
+    }
+
+    if (!packagePath) {
+      CenvLog.single.catchLog(new Error(`[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`));
+    }
+
+    const pkgMeta = require(path.resolve(packagePath, 'package.json'));
+
+    const dep = {
+      deployDependencies: pkgMeta?.deployDependencies ? pkgMeta?.deployDependencies.map((dep: string) => Package.fromPackageName(dep)) : [],
+      destroyDependencies: pkgMeta?.destroyDependencies ? pkgMeta?.destroyDependencies.map((dep: string) => Package.fromPackageName(dep)) : [],
+      dependencyDelay: pkgMeta?.dependencyDelay,
+      preBuildScripts: pkgMeta?.preBuildScripts ? pkgMeta?.preBuildScripts : [],
+      preDeployScripts: pkgMeta?.preDeployScripts ? pkgMeta?.preDeployScripts : [],
+      postDeployScripts: pkgMeta?.postDeployScripts ? pkgMeta?.postDeployScripts : [],
+      dependencies: pkgMeta?.dependencies,
+      versionHashDir: pkgMeta?.versionHashDir,
+      versionHash: pkgMeta?.versionHash,
+      buildHash: pkgMeta?.buildHash,
+      currentHash: pkgMeta?.currentHash,
+      version: pkgMeta?.version,
+      buildVersion: pkgMeta?.buildVersion,
+      currentVersion: pkgMeta?.currentVersion,
+      name: pkgMeta?.name,
+      skipDeployBuild: pkgMeta?.skipDeployBuild,
+      verifyStack: pkgMeta?.verifyStack,
+      deployStack: pkgMeta?.deployStack,
+      destroyStack: pkgMeta?.destroyStack,
+      volatileContextKeys: pkgMeta?.volatileContextKeys ? pkgMeta?.volatileContextKeys : [],
+      dockerType: pkgMeta?.dockerType,
+      url: pkgMeta?.url,
+      bin: pkgMeta?.bin,
+      scripts: pkgMeta?.scripts
+    };
+
+    this.metas[packagePath] = dep;
+
+    this.deployDependencies = this.deployDependencies.concat(dep.deployDependencies);
+    this.destroyDependencies = this.destroyDependencies.concat(dep.destroyDependencies);
+    this.dependencyDelay = dep?.dependencyDelay;
+    this.preBuildScripts = this.preBuildScripts.concat(dep?.preBuildScripts);
+    this.preDeployScripts = this.preDeployScripts.concat(dep?.preDeployScripts);
+    this.postDeployScripts = this.postDeployScripts.concat(dep?.postDeployScripts);
+    this.dependencies = { ...this.dependencies, ...dep?.dependencies };
+    this.versionHashDir = dep?.versionHashDir;
+    this.versionHash = dep?.versionHash;
+    this.buildHash = dep?.buildHash;
+    this.currentHash = dep?.currentHash;
+    this.version = dep?.version;
+    this.buildVersion = dep?.buildVersion;
+    this.currentVersion = dep?.currentVersion;
+    this.name = dep?.name;
+    this.skipDeployBuild = dep?.skipDeployBuild;
+    this.verifyStack = dep?.verifyStack;
+    this.deployStack = dep?.deployStack;
+    this.destroyStack = dep?.destroyStack;
+    this.dockerType = dep?.dockerType;
+    this.url = dep?.url;
+    this.volatileContextKeys = dep?.volatileContextKeys;
+  }
+
+  addModule(module: PackageModule, packagePath: string) {
+    this.modules[module.constructor.name] = packagePath;
+    this.bin[packagePath] = this.metas[packagePath].bin;
+    this.scripts[packagePath] = this.metas[packagePath].scripts;
+  }
 }
 
 export interface IPackage {
@@ -301,7 +408,6 @@ export interface IPackage {
   primaryLink: string;
   local: boolean;
   root: boolean;
-
 }
 
 export interface CommandEvents {
@@ -318,7 +424,6 @@ export class Package implements IPackage {
   stack: StackModule;
   lib: LibModule;
   exec: ExecutableModule;
-  meta: IPackageMeta;
   statusTime: number;
   processStatus: ProcessStatus = undefined;
   environmentStatus: EnvironmentStatus = EnvironmentStatus.NONE;
@@ -349,16 +454,16 @@ export class Package implements IPackage {
   packageModules?: { [packageName: string]: PackageModule[] } = {};
   deploymentBlocked? = false;
   mouth: Mouth;
-
+  meta: PackageMetaConsolidated = new PackageMetaConsolidated();
   deployDependencies?: Package[];
   deployDependenciesRemaining?: Package[];
 
-  static statusCompleted = false;
   static loading = true;
   static deployment: any;
   static callbacks: any = {};
   static suites: any = {};
   static defaultSuite: string;
+
   public static buildLog: any;
   public static buildLogPath: string;
 
@@ -392,206 +497,82 @@ export class Package implements IPackage {
       if (!noCache && Package.cache[stackName]) {
         return Package.cache[stackName];
       }
+      this.stackName = stackName;
 
-      let pkgPath;
-      const isRoot =
-          packageName === Package.getRootPackageName() || packageName === 'root';
+      let packageMetaPath;
+      const isRoot = packageName === Package.getRootPackageName();
       const isGlobal = packageName === 'GLOBAL';
-      let packageType = null;
-      let dockerName = null;
-      let paramType: ParamsModule = undefined;
-      let dockerType: DockerModule = undefined;
-      let deployType: StackModule = undefined;
-      let libType: LibModule = undefined;
-      let execType: ExecutableModule = undefined;
-      let monoRoot;
+
       if (isRoot || isGlobal) {
-        monoRoot = getMonoRoot();
-        pkgPath = monoRoot;
-        packageType = packageName.toLowerCase();
-
-        if (isRoot) {
-          dockerName = require(path.resolve(pkgPath, 'package.json')).name;
-          dockerName = Package.packageNameToDockerName(dockerName);
-        }
+        packageMetaPath = getMonoRoot();
+        this.fullType = packageName.toLowerCase();
       } else {
-        pkgPath = packagePath(packageName);
+        packageMetaPath = packagePath(packageName);
       }
-      if (!pkgPath || !existsSync(pkgPath)) {
-        if (!monoRoot) {
-          monoRoot = getMonoRoot();
-          pkgPath = join(monoRoot, 'node_modules', packageName);
-          console.log('monoRoot pkgPath', pkgPath)
-          if (!existsSync(pkgPath)) {
-            CenvLog.single.catchLog(
-                new Error(`[${packageName}] failed: attempting to get meta data from an undefined packagePath`),
-            );
-          }
-        }
-      }
-      const pkgPathMeta = Package.getPackageMeta(pkgPath);
+
+      const pkgPath = packageMetaPath;
       if (!pkgPath) {
-        CenvLog.single.catchLog(`could not load: ${packageName}`);
+        CenvLog.single.catchLog(`could not load package: ${packageName}`);
       }
+
+      /*
+      if (!existsSync(pkgPath) && !monoRoot) {
+        monoRoot = getMonoRoot();
+        pkgPath = join(monoRoot, 'node_modules', packageName);
+        console.log('monoRoot pkgPath', pkgPath)
+        if (!existsSync(pkgPath)) {
+          CenvLog.single.catchLog(
+              new Error(`[${packageName}] failed: attempting to get meta data from an undefined packagePath`),
+          );
+        }
+      }
+      */
+
       const pkgPathParts = pkgPath.split('/');
-      let deployPackage = existsSync(path.join(pkgPath, './cdk.json'));
-      const paramsPackage =
-          existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
-          existsSync(path.join(pkgPath, EnvVarsFile.NAME));
-      let dockerPackage = existsSync(path.join(pkgPath, './Dockerfile'));
-      if (!packageType) {
-        while ( pkgPathParts.shift() !== 'packages' &&pkgPathParts.length > 0) { /* loop  until done sucka */ }
+
+      if (!this.fullType) {
+        while ( pkgPathParts.shift() !== 'packages' && pkgPathParts.length > 0) { /* loop  until done sucka */ }
+        this.fullType = pkgPathParts.shift();
       }
-      packageType = isRoot || isGlobal ? packageType : pkgPathParts.shift();
-      const metas: any = {};
+
+
+      this.meta.load(pkgPath);
+      const pathMeta = this.meta.metas[packageMetaPath];
+
+      const paramsPackage = existsSync(path.join(pkgPath, AppVarsFile.NAME)) || existsSync(path.join(pkgPath, EnvVarsFile.NAME));
       if (paramsPackage) {
-        metas['params'] = pkgPathMeta;
-        paramType = new ParamsModule({
-          pkg: this,
-          name: packageName,
-          path: pkgPath,
-          ...pkgPathMeta,
-        });
+        this.params = new ParamsModule({ pkg: this, path: pkgPath });
       }
 
-      if (deployPackage) {
-        const meta = Package.getPackageMeta(pkgPath);
-        metas['stack'] = meta;
-        deployType = new StackModule({
-          pkg: this,
-          name: packageName,
-          path: pkgPath,
-          ...meta,
-        });
+      if (existsSync(path.join(pkgPath, './cdk.json')) || pathMeta.deployStack) {
+        this.stack = new StackModule({ pkg: this, path: pkgPath });
       }
 
-      if (dockerPackage) {
-        const meta = Package.getPackageMeta(pkgPath);
-        metas['docker'] = meta;
-        dockerType = new DockerModule({
-          pkg: this,
-          path: pkgPath,
-          ...meta,
-          name: packageName,
-        });
+      if (existsSync(path.join(pkgPath, './Dockerfile'))) {
+        this.docker = new DockerModule({ pkg: this, path: pkgPath });
       }
 
-      if (deployPackage && (!paramsPackage || !dockerPackage)) {
-        const nestedInSrc =
-            pkgPathParts.pop() === 'deploy' && packageName.endsWith('-deploy');
-        if (nestedInSrc) {
-          const paramsPath = path.resolve(pkgPath, '../');
-          const paramsExist =
-              existsSync(path.join(pkgPath, AppVarsFile.NAME)) ||
-              existsSync(path.join(pkgPath, EnvVarsFile.NAME));
-          if (paramsExist) {
-            const meta = Package.getPackageMeta(paramsPath);
-            if (!metas['params']) {
-              metas['params'] = meta;
-            }
-            paramType = new ParamsModule({
-              pkg: this,
-              name: packageName,
-              path: paramsPath,
-              ...meta,
-            });
-            paramType.name = packageName.replace(/-(deploy)$/, '');
-          }
-          if (!dockerPackage) {
-            const dockerPath = path.join(paramsPath, './Dockerfile');
-            dockerPackage = existsSync(dockerPath);
-            if (dockerPackage) {
-              metas['docker'] = Package.getPackageMeta(paramsPath);
-              dockerName = dockerName ? dockerName : Package.packageNameToDockerName(packageName);
-              dockerType = new DockerModule({
-                pkg: this,
-                path: dockerPath,
-                ...metas['docker'],
-                dockerName,
-              });
-            }
-          }
-        }
-      } else if ((dockerPackage || paramsPackage) && !deployPackage) {
-        deployType = this.addStackModule(packageName, pkgPath)
+      if (pathMeta.bin) {
+        this.exec = new ExecutableModule({ pkg: this, path: pkgPath })
       }
 
-      if (paramsPackage) {
-        packageType += '-params';
+      if (pathMeta.scripts?.build) {
+        this.lib = new LibModule({ pkg: this, path: pkgPath });
       }
 
-      if (dockerPackage) {
-        packageType += '-docker';
+      if ((this.docker || this.params || this.lib || this.exec) && !this.stack) {
+        this.stack = this.addStackModule(packageName, pkgPath)
       }
 
-      if (deployPackage) {
-        packageType += '-deploy';
-      }
-
-      let meta: IPackageMeta;
-      if (!isGlobal) {
-        if (deployPackage) {
-          meta = metas['stack'];
-        } else if (paramsPackage) {
-          meta = metas['params'];
-        } else if (dockerPackage) {
-          meta = metas['docker'];
-        } else if (pkgPathMeta) {
-          meta = pkgPathMeta;
-          if (pkgPathMeta.executables) {
-            metas['exec'] = pkgPathMeta;
-            execType = new ExecutableModule({
-              pkg: this,
-              name: packageName,
-              path: pkgPath,
-              ...pkgPathMeta
-            })
-          } else if (pkgPathMeta.deployStack) {
-            metas['stack'] = pkgPathMeta;
-            deployType = new StackModule({
-              pkg: this,
-              name: packageName,
-              path: pkgPath,
-              ...pkgPathMeta,
-            });
-          } else {
-            metas['lib'] = pkgPathMeta;
-            libType = new LibModule({
-              pkg: this,
-              name: packageName,
-              path: pkgPath,
-              ...pkgPathMeta,
-            });
-
-            deployType = this.addStackModule(packageName, pkgPath)
-          }
-        }
-
-        meta?.serviceStacks?.map((ss) =>
-            Package.cache[ss]?.meta?.serviceStacks?.map((childDep) => {
-              if (meta?.serviceStacks?.indexOf(childDep) === -1) {
-                meta.serviceStacks.push(childDep);
-              }
-            }),
-        );
-      }
-
-      if (!isGlobal && !deployType && !paramType && !dockerType && !libType && !execType) {
+      if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {
         const errString = `${colors.alertBold(packageName)} is not a valid package`;
         CenvLog.single.catchLog(new Error(errString));
         return undefined;
       }
 
       this.name = stackName.replace(process.env.ENV + '-', '');
-      this.stackName = stackName;
-      this.fullType = packageType;
       if (!isGlobal) {
-        this.params = paramType;
-        this.stack = deployType;
-        this.docker = dockerType;
-        this.lib = libType;
-        this.exec = execType;
-        this.modules = [paramType, dockerType, deployType, libType, execType].filter((n) => n) as PackageModule[];
+        this.modules = [this.params, this.docker, this.stack, this.lib, this.exec].filter((n) => n) as PackageModule[];
         this.modules.map((m) => {
           if (!this.packageModules[m.name.toString()]) {
             this.packageModules[m.name.toString()] = [];
@@ -603,14 +584,9 @@ export class Package implements IPackage {
       }
       this.ensureModuleVersionConsistency();
 
-      this.meta = meta;
       this.statusTime = Date.now();
-      this.processStatus = isGlobal
-          ? ProcessStatus.NONE
-          : ProcessStatus.INITIALIZING;
-      this.environmentStatus = isGlobal
-          ? EnvironmentStatus.NONE
-          : EnvironmentStatus.INITIALIZING;
+      this.processStatus = isGlobal ? ProcessStatus.NONE : ProcessStatus.INITIALIZING;
+      this.environmentStatus = isGlobal ? EnvironmentStatus.NONE : EnvironmentStatus.INITIALIZING;
       this.timer = null;
       this.cmds = [];
       this.isGlobal = isGlobal;
@@ -642,10 +618,9 @@ export class Package implements IPackage {
     const hasDeploy = existsSync(deployPath) && existsSync(cdkPath);
 
     if (hasDeploy) {
-      const meta = Package.getPackageMeta(deployPath);
+      const meta = this.meta.load(deployPath);
       return new StackModule({
         pkg: this,
-        name: packageName + '-deploy',
         path: deployPath,
         ...meta
       });
@@ -689,7 +664,7 @@ export class Package implements IPackage {
     };
 
     if (this.lib) {
-      await this.lib.deploy();
+      await this.lib.build();
     }
 
     if (this.isParamDeploy(deployOptions)) {
@@ -813,26 +788,15 @@ export class Package implements IPackage {
     }
   }
 
+  // TODO: must compute separate hashes per module..
   async hash() {
     if (this?.meta?.versionHashDir) {
-      this.meta.currentHash = await computeMetaHash(
-        this,
-        path.join(this.path, this.meta.versionHashDir),
-      );
+      this.meta.currentHash = await computeMetaHash(this, path.join(this.path, this.meta.versionHashDir));
     } else {
       if (this.isRoot) {
-        this.meta = {
-          ...this.meta,
-          currentHash: await computeMetaHash(
-            this,
-            path.join(this.path, 'package.json'),
-          ),
-        };
+        this.meta.currentHash = await computeMetaHash(this, path.join(this.path, 'package.json'));
       } else if (this.path) {
-        this.meta = {
-          ...this.meta,
-          currentHash: await computeMetaHash(this, this.path),
-        };
+        this.meta.currentHash = await computeMetaHash(this, this.path);
       }
     }
   }
@@ -1149,7 +1113,7 @@ export class Package implements IPackage {
     addToGloalLog = false
   ) {
     try {
-      const latestCmdActive = this.activeCmdIndex == this.cmds.length - 1;
+      const latestCmdActive = this.cmds ? this.activeCmdIndex === this.cmds.length - 1 : false;
       const cmd = new PackageCmd(this, command, code, message);
       if (latestCmdActive) {
         this.activeCmdIndex = this.cmds.length - 1;
@@ -1238,7 +1202,7 @@ export class Package implements IPackage {
   }
 
   async checkStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
-    const cmd = this.createCmd('cenv stat ');
+    const cmd = this.createCmd('cenv stat');
     this.resetStatus()
     await this.checkModuleStatus();
     await this.finalizeStatus(targetMode, endStatus);
@@ -1290,7 +1254,7 @@ export class Package implements IPackage {
     }
     if (this.scopeName) {
       // language=JSRegexp format=false
-const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
+const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
       packageName = packageName.replace(scopeRegEx, '')
     }
     return `${process.env.ENV}-${packageName.replace(/-(deploy)$/, '')}`;
@@ -1368,65 +1332,6 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})\/`, '');
     } catch(e) {
       console.log('std plain error', e)
     }
-  }
-
-  static getPackageMeta(packagePath: string): IPackageMeta {
-    if (!packagePath) {
-      CenvLog.single.catchLog(
-        new Error(
-          `[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`,
-        ),
-      );
-    }
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pkg = require(path.resolve(packagePath, 'package.json'));
-    let service = undefined;
-    if (pkg?.deployDependencies?.length) {
-      service = [];
-      for (let i = 0; i < pkg.deployDependencies.length; i++) {
-        const d = pkg.deployDependencies[i];
-        service.push(Package.fromPackageName(d));
-      }
-    }
-
-    let destroy = undefined;
-    if (pkg?.destroyDependencies?.length) {
-      destroy = [];
-      for (let i = 0; i < pkg.destroyDependencies.length; i++) {
-        const d = pkg.destroyDependencies[i];
-        destroy.push(Package.fromPackageName(d));
-      }
-    }
-
-    let dockerType = undefined;
-    if (pkg?.dockerType) {
-      dockerType = pkg?.dockerType;
-    }
-
-    return {
-      service,
-      destroy,
-      dependencyDelay: pkg?.dependencyDelay,
-      preBuildScripts: pkg?.preBuildScripts,
-      preDeployScripts: pkg?.preDeployScripts,
-      postDeployScripts: pkg?.postDeployScripts,
-      dependencies: pkg?.dependencies,
-      versionHashDir: pkg?.versionHashDir,
-      versionHash: pkg?.versionHash,
-      buildHash: pkg?.buildHash,
-      currentHash: pkg?.currentHash,
-      version: pkg?.version,
-      buildVersion: pkg?.buildVersion,
-      currentVersion: pkg?.currentVersion,
-      name: pkg?.name,
-      skipDeployBuild: pkg?.skipDeployBuild,
-      verifyStack: pkg?.verifyStack,
-      deployStack: pkg?.deployStack,
-      destroyStack: pkg?.destroyStack,
-      dockerType,
-      url: pkg?.url,
-      volatileContextKeys: pkg?.volatileContextKeys
-    };
   }
 
   static getCurrentVersion(dir: string, isRoot = false) {

@@ -180,7 +180,7 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
   try {
     if (!process.env.ENV) {
       CenvLog.single.errorLog('ENV environment variable is not set')
-      process.exit(1);
+      process.exit(8);
     }
 
     if (process.env.ENV === 'local') {

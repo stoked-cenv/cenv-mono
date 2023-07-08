@@ -60,7 +60,7 @@ export default class PushCommand extends BaseCommand {
       const config = CenvFiles.GetConfig();
       if (!config) {
         CenvLog.single.errorLog('push: could not load config');
-        process.exit(1);
+        process.exit(8);
       }
       if (options?.environment) {
         const envRes = await getEnvironment(config.ApplicationId, options.environment);

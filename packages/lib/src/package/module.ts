@@ -17,9 +17,9 @@ export enum PackageModuleType {
 }
 
 export interface IPackageModule {
-  name: string;
+  name?: string;
   path: string;
-  version: SemVer;
+  version?: SemVer;
   buildVersion?: SemVer;
   currentVersion?: SemVer;
   versionHash?: string;
@@ -66,10 +66,12 @@ export abstract class PackageModule implements IPackageModule {
   readonly _type: PackageModuleType;
 
   protected constructor(module: IPackageModule, moduleType: PackageModuleType) {
-    this.name = module.name;
     this.path = module.path;
     this.pkg = module.pkg;
 
+    module = { ...module, ...this.pkg.meta.metas[this.path] };
+
+    this.name = module.name;
     this.version = module.version;
     this.buildVersion = module.buildVersion;
     this.currentVersion = module.currentVersion;
@@ -79,6 +81,9 @@ export abstract class PackageModule implements IPackageModule {
     this.currentHash = module.currentHash;
     this.checked = false;
     this._type = moduleType;
+
+    this.pkg.meta.addModule(this, this.path);
+
     this.createMouth(moduleType, Package.packageNameToStackName(this.name));
   }
 

@@ -33,13 +33,13 @@ export class LibModule extends PackageModule {
       this.status.needsFix.push(this.statusLine(
         'build failed',
         `build failed at [${this.timestamp.toLocaleString()}]`,
-        false,
+        true,
       ));
     } else {
       this.status.incomplete.push(this.statusLine(
         'unbuilt',
         `no attempt to build has been made yet`,
-        false,
+        true,
       ));
     }
   }
@@ -49,7 +49,6 @@ export class LibModule extends PackageModule {
   }
 
   reset() {
-    this.buildStatus = LibStatus.UNBUILT
     this.status = { needsFix: [], deployed: [], incomplete: [] };
     this.checked = false;
   }
@@ -58,21 +57,23 @@ export class LibModule extends PackageModule {
     this.verbose(`build status: [${this.buildStatus}] build timestamp: [${this.timestamp?.toLocaleString()}]`);
   }
 
-  async deploy() {
+  async build() {
+    this.timestamp = new Date();
     this.buildStatus = await this.pkg.build(false, false) ? LibStatus.SUCCESS : LibStatus.FAILED;
-    this.getDetails();
   }
 
   printCheckStatusComplete(): void {
-
+    this.getDetails();
     this.checked = true;
 
   }
 
   async checkStatus() {
     this.printCheckStatusStart();
+    if (this.buildStatus === LibStatus.UNBUILT) {
+      await this.build();
+    }
     // no op
-    this.timestamp = new Date();
     this.printCheckStatusComplete();
   }
 

@@ -36,3 +36,5 @@ lerna-debug.log*
 !.vscode/extensions.json
 /deploy/materializationLambda/function.zip
 /deploy/materializationLambda/hello-world-dev-config.json
+
+**/*/node_modules/*

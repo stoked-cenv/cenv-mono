@@ -130,7 +130,7 @@ export class CenvParams {
 
       if (params.length && options?.all) {
         CenvLog.single.errorLog('You must not specify variables to delete with the --all flag');
-        process.exit(1);
+        process.exit(2);
       }
 
       await sleep(3);
@@ -184,7 +184,7 @@ export class CenvParams {
 
               if ((varType === 'globalEnv' || varType === 'global') && !options?.kill && !inCenvRoot) {
                 CenvLog.single.errorLog('Must use --kill flag with rm for global and globalEnv variables');
-                process.exit(1);
+                process.exit(3);
               }
               found = true;
               break;
@@ -200,10 +200,10 @@ export class CenvParams {
           if (exitOnFail) {
             if (inCenvRoot) {
               CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
-              process.exit(1);
+              process.exit(4);
             } else {
               CenvLog.single.errorLog(`${param} does not exist in the current env: ${process.env.ENV}`);
-              process.exit(2);
+              process.exit(5);
             }
           } else {
             CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
@@ -226,7 +226,7 @@ export class CenvParams {
       const killItWithFire = await readAsync('The --kill flag removes the global parameter entirely. Any services that depend on it will be broken. Are you sure you want to delete the global parameter? (y/n): ', 'n');
       if (killItWithFire !== 'y') {
         console.log(errorInfo('The global parameter was not deleted. If you simply want to remove the reference from this application to the global parameter use the same command without --kill.'));
-        process.exit(1);
+        process.exit(6);
       }
     }
 

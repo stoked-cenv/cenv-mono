@@ -15,8 +15,17 @@ import {
   ProcessMode,
   Suite,
   DashboardCreateOptions,
-  pbcopy, Deployment, PkgContextType, validateBaseOptions, killStackProcesses, Cenv, Cmd, PackageCmd, sleep
-} from "@stoked-cenv/lib";
+  pbcopy,
+  Deployment,
+  PkgContextType,
+  validateBaseOptions,
+  killStackProcesses,
+  Cenv,
+  Cmd,
+  PackageCmd,
+  sleep,
+  Queue
+} from '@stoked-cenv/lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import chalk, {ChalkFunction} from 'chalk';
@@ -113,6 +122,8 @@ export class Dashboard {
   clearLabelTimeout: NodeJS.Timeout = null;
   deploying = false;
   statusOptions: Menu;
+  clickQueue: Queue = new Queue<any>();
+
   static moduleToggle = true;
   static dependencyToggle = true;
   static paramsToggle = false;
@@ -190,9 +201,7 @@ export class Dashboard {
                 pkgs.length > 1
                   ? `${pkgs.length} packages`
                   : `${pkgs[0].packageName}`;
-              this.setStatusBar(
-                'launchDestroy',
-                this.statusText(`destroy`, packages),
+              this.setStatusBar('launchDestroy', this.statusText(`destroy`, packages),
               );
               await this.launchDeployment(ProcessMode.DESTROY);
             });
@@ -270,6 +279,15 @@ export class Dashboard {
         },
         height: 1,
         hideBorder: true,
+      });
+
+
+      this.statusBar.on('click', function(data: any) {
+         CenvLog.info(`statusBar::click() - ${JSON.stringify(data, null, 2)}`);
+        this.clickQueue.enqueue(data);
+        if (this.clickQueue.size() > 10) {
+          this.dequeue();
+        }
       });
 
       this.packages = this.grid.set(0, 0, 5, 2, contrib.table, {
@@ -777,6 +795,7 @@ export class Dashboard {
               this.cmdPanel.stdout.setContent('');
               this.cmdPanel.stderr.setContent('');
               this.cmdPanel.cmdPanel.setItems([]);
+              CenvLog.single.infoLog('clear all logs');
               this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
             });
           }.bind(this),
@@ -923,7 +942,7 @@ export class Dashboard {
 
       const deploymentOptions = {};
       if (Dashboard.enableMenuCommands) {
-        packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
+        //packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
 
         if (mode === ProcessMode.DESTROY) {
           validateBaseOptions({ packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
@@ -1171,13 +1190,14 @@ export class Dashboard {
       if (this.suite && Dashboard.stackName === 'GLOBAL') {
         titleNoun += ' ' + this.suite;
       } else {
+        this.titleContext = this.titleContext.filter((p: Package) => !Deployment.packageDone(p))
         let displayedContext = this.titleContext;
         let extraContext = '';
         if (this.titleContext?.length > 2) {
           displayedContext = this.titleContext.slice(0, 2);
           extraContext = ` ... (${this.titleContext.length} packages)`
         }
-        titleNoun += ` ${displayedContext.map(p => p.packageName)}${extraContext}`;
+        titleNoun += ` ${displayedContext.map(p => p.packageName).join(' ')}${extraContext}`;
       }
     }
 
@@ -1306,7 +1326,7 @@ export class Dashboard {
       return;
     }
 
-    if (!pkg.cmds.length) {
+    if (!pkg.cmds?.length) {
       pkg.createCmd('log');
     }
 
@@ -1397,14 +1417,14 @@ export class Dashboard {
     setTimeout(() => {
       Dashboard.instance.statusBarInUse = false;
       delete this.debounceFlags[name];
-    }, 2000);
+    }, 5000);
 
     if (this.clearLabelTimeout) {
       clearTimeout(this.clearLabelTimeout);
     }
     this.clearLabelTimeout = setTimeout(() => {
       Dashboard.instance.statusBar.setLabel('');
-    }, 2000);
+    }, 5000);
   }
 
   getUpdatePackages() {
@@ -1643,8 +1663,8 @@ export class Dashboard {
         return color(dep.packageName)
       }).join(', ');
       this.dependencies = `${deps}`;
-    } else if (pkg?.meta?.service) {
-      const deps = pkg?.meta?.service?.map((dep: Package) => {
+    } else if (pkg?.meta?.deployDependencies) {
+      const deps = pkg?.meta?.deployDependencies?.map((dep: Package) => {
         const color = this.getStatusColor(dep.environmentStatus, true) as ChalkFunction;
         return color(dep.packageName)
       }).join(', ');

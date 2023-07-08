@@ -5,7 +5,7 @@ import { Environments } from './environment'
 import { Cenv } from './cenv'
 import {BaseCommandOptions, CenvParams} from "./params";
 import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from "./package/package";
-import { cleanup, execCmd, ICmdOptions, printFlag, sleep } from "./utils";
+import { cleanup, execCmd, getOs, ICmdOptions, isOsSupported, printFlag, sleep } from "./utils";
 import Fake from "./fake";
 import {PackageModule, ProcessMode} from "./package/module";
 import { CenvLog, colors, info, LogLevel } from "./log";
@@ -164,7 +164,7 @@ export class Deployment {
 
       if (this.isDeploy()) {
         if (pkg.meta.deployStack) {
-          return await pkg.pkgCmd(pkg.meta?.deployStack);
+          return await pkg.pkgCmd(pkg.meta.deployStack);
         } else {
           await pkg.deploy(this.options);
           await pkg.checkStatus(ProcessMode.DEPLOY.toString(), pkg.processStatus);
@@ -182,8 +182,6 @@ export class Deployment {
     } catch (e) {
       Deployment.cancelDependencies(pkg);
       this.setDeployStatus(pkg, ProcessStatus.FAILED);
-      pkg.err('deployment failed', '223', e);
-      pkg.err(e.stack);
       return false;
     }
   }
@@ -325,10 +323,10 @@ export class Deployment {
   }
 
   static getProcessDependencies = (packageInfo: Package) : Package[] => {
-    if (this.isDeploy() && packageInfo?.meta?.service && packageInfo.meta.service.length > 0) {
-      return packageInfo.meta.service;
-    } else if (this.isDestroy() && packageInfo?.meta?.destroy && packageInfo.meta.destroy.length > 0) {
-      return packageInfo.meta.destroy;
+    if (this.isDeploy() && packageInfo?.meta?.deployDependencies && packageInfo.meta.deployDependencies.length > 0) {
+      return packageInfo.meta.deployDependencies;
+    } else if (this.isDestroy() && packageInfo?.meta?.destroyDependencies && packageInfo.meta.destroyDependencies.length > 0) {
+      return packageInfo.meta.destroyDependencies;
     }
   };
 
@@ -373,11 +371,11 @@ export class Deployment {
     );
     packagesToProcess
       .filter((app: Package) => this.dependencies[app.stackName])
-      .map((dockerApp: Package) => {
-        if (this.packageDone(dockerApp)) {
-        } else if (dockerApp.processStatus !== ProcessStatus.CANCELLED) {
-          // dockerApp.processStatus = ProcessStatus.HAS_PREREQS
-          dockerApp.statusTime = Date.now();
+      .map((pkg: Package) => {
+        if (this.packageDone(pkg)) {
+        } else if (pkg.processStatus !== ProcessStatus.CANCELLED) {
+          pkg.processStatus = ProcessStatus.HAS_PREREQS
+          pkg.statusTime = Date.now();
         }
       });
 
@@ -474,17 +472,39 @@ export class Deployment {
   }
 
   static processItems: any[] = [];
+  static async checkDockerStatus() {
+    const res = await execCmd('./', 'docker version -f json', 'check docker', {}, false, true);
+    const info = JSON.parse(res);
+    return { active: info.Server !== null, info };
+  }
+
   static async processInit(items: Package[]) {
+    CenvLog.info('os', JSON.stringify(getOs(), null, 2), 'system')
 
     if (this.options.docker) {
-      // if deploying check to see if there are any docker packages if so verify docker is running
-      if (items.filter((p: Package) => p.docker).length) {
-        const dockerStatus = await execCmd('./', 'docker version -f json', 'check docker', {}, false, true);
-        const dockerStatusParsed = JSON.parse(dockerStatus);
 
-        if (dockerStatusParsed.Server === null) {
-          CenvLog.single.errorLog('docker daemon not active:\n' + info(JSON.stringify(dockerStatusParsed, null, 2)));
-          return;
+      // if deploying check to see if there are any docker packages if so verify docker is running
+      if (isOsSupported() && items.filter((p: Package) => p.docker).length) {
+        let dockerStatus = await this.checkDockerStatus();
+
+        if (!dockerStatus.active) {
+          CenvLog.info('attempting to start docker', 'docker daemon not active');
+          await execCmd('./', 'open -a Docker');
+          for ( const iter of ([...Array(6)])) {
+            await sleep(5);
+
+            dockerStatus = await this.checkDockerStatus();
+            if (dockerStatus.active) {
+              break;
+            }
+          }
+
+          if (!dockerStatus.active) {
+            CenvLog.err('docker daemon not active after 30 seconds:\n' + info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
+            return;
+          } else {
+            CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
+          }
         } else {
           CenvLog.single.infoLog('verified that docker is running');
         }

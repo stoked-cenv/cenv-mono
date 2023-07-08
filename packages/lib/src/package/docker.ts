@@ -14,9 +14,6 @@ import semver from 'semver';
 import {CenvLog, colors} from '../log';
 import {StackModule} from "./stack";
 import {execCmd, sleep, spawnCmd} from "../utils";
-import path from "path";
-import {CenvFiles} from "../file";
-import {getParams} from "../aws/parameterStore";
 
 export class DockerModule extends PackageModule {
   digest?: string;
@@ -31,6 +28,7 @@ export class DockerModule extends PackageModule {
   dockerName: string;
   envVars = { DOCKER_BUILDKIT: 1 }
   doNotPush: false;
+  dockerBaseImage: string;
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.DOCKER);
@@ -100,10 +98,12 @@ export class DockerModule extends PackageModule {
     const { build, push, dependencies } = cmdOptions;
 
     if (dependencies) {
-      if (this.pkg?.meta?.service) {
-        await Promise.all(this.pkg?.meta?.service?.map(async (dep: Package) => {
-          this.pkg.info('pkg: ' + this.pkg.packageName + ' => DockerBuild(' + dep.packageName + ')')
-          await dep.docker.build(args, cmdOptions)
+      if (this.pkg?.meta?.deployDependencies) {
+        await Promise.all(this.pkg?.meta?.deployDependencies?.map(async (dep: Package) => {
+          if (dep.docker) {
+            this.pkg.info('pkg: ' + this.pkg.packageName + ' => DockerBuild(' + dep.packageName + ')')
+            await dep.docker.build(args, cmdOptions)
+          }
         }));
       }
     }
@@ -124,7 +124,7 @@ export class DockerModule extends PackageModule {
     if (build) {
       const force = cmdOptions.force ? ' --no-cache' : '';
       const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .`;
-      const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars, packageModule: this };
+      const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars, packageModule: this, failOnError: true };
       await this.pkg.pkgCmd(buildCmd, buildOptions)
     }
 
@@ -141,7 +141,7 @@ export class DockerModule extends PackageModule {
 
   async pushBaseImage(pull = true, push = true): Promise<number> {
 
-    let repoName = this.pkg.meta.dockerBaseImage;
+    let repoName = this.dockerBaseImage;
     const repoParts = repoName.split(':');
     let tag = 'latest';
 
@@ -160,15 +160,15 @@ export class DockerModule extends PackageModule {
     }
 
     if (pull) {
-      const pullCmd = `docker pull ${this.pkg.meta.dockerBaseImage}`;
+      const pullCmd = `docker pull ${this.dockerBaseImage}`;
       await spawnCmd(this.pkg.docker.path, pullCmd, pullCmd, { envVars: this.envVars }, this.pkg);
     }
     if (push) {
 
-      let cmd = `docker tag ${this.pkg.meta.dockerBaseImage} ${DockerModule.ecrUrl}/${this.pkg.meta.dockerBaseImage}`;
+      let cmd = `docker tag ${this.dockerBaseImage} ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
       await spawnCmd(this.pkg.docker.path, cmd, cmd,{ returnOutput: true }, this.pkg);
 
-      cmd = `docker push ${DockerModule.ecrUrl}/${this.pkg.meta.dockerBaseImage}`;
+      cmd = `docker push ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
       await spawnCmd(this.pkg.docker.path, cmd, cmd,{ redirectStdErrToStdOut: true }, this.pkg);
     }
   }
@@ -221,7 +221,7 @@ export class DockerModule extends PackageModule {
 
       }
     }
-    if (this.pkg?.meta?.dockerBaseImage) {
+    if (this.dockerBaseImage) {
       await this.pushBaseImage();
     }
 

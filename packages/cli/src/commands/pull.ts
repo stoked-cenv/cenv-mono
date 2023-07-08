@@ -68,7 +68,7 @@ export default class PullCommand extends BaseCommand {
       const config = CenvFiles.GetConfig();
       if (!config) {
         CenvLog.single.errorLog('pull: could not load config')
-        process.exit(1);
+        process.exit(7);
       }
       if (options.environment) {
         const envRes = await getEnvironment(config.ApplicationId, options.environment);

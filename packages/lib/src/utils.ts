@@ -1218,12 +1218,17 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
 }
 
 export function isOsSupported() {
+
   switch (os.platform()) {
     case 'darwin':
       return true;
     default:
       return false;
   }
+}
+
+export function getOs() {
+  return { platform: os.platform(),  arch: os.arch(), version: os.version(), release: os.release(), type: os.type() }
 }
 
 

@@ -364,7 +364,7 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
   if (!args['CDK_DEFAULT_ACCOUNT'] || !args['AWS_ACCOUNT_USER'] || !['AWS_ACCOUNT_USER_ARN']) {
     const accountInfo: any = process.env.ENV === 'local' ? { Account: '000000000000', User: '' } : await getAccountInfo();
     if (!accountInfo) {
-      process.exit(1);
+      process.exit(9);
     } else {
       args = {...args, ...accountInfo};
     }

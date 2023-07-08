@@ -25,7 +25,7 @@ export default class StatusPanel extends CenvPanel {
   dependencies: any;
   selectedIndex: any;
   debugStr: any;
-  dashboard;
+  dashboard: Dashboard;
   screen;
   initialized = false;
   moduleInfo: any;
@@ -536,6 +536,25 @@ export default class StatusPanel extends CenvPanel {
   previousWidth = -1;
   panelWidth = -1;
 
+  dependenciesVisable() {
+    const pkg = this.getPkg();
+    if (!pkg) {
+      return false;
+    }
+
+    if ( Dashboard.dependencyToggle) {
+      if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.deployDependencies?.length) {
+        return false;
+      } else if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.destroyDependencies?.length) {
+        return false;
+      } else if (!pkg.meta?.destroyDependencies?.length && !pkg.meta?.deployDependencies?.length) {
+        return false
+      }
+      return true;
+    }
+    return false;
+  }
+
   set(left: number, width: number, top: number, height: number) {
     try {
       this.panelWidth = width;
@@ -560,14 +579,15 @@ export default class StatusPanel extends CenvPanel {
         this.moduleInfo.left = this.screen.width + 1;
       }
 
-      if (pkg.meta?.service?.length && Dashboard.dependencyToggle) {
+
+      if (this.dependenciesVisable()) {
         this.dependencies.width = width;
         this.dependencies.left = left;
         this.dependencies.top = top;
         this.dependencies.height = 4;
         top = this.dependencies.top + this.dependencies.height;
       } else {
-        this.dependencies.left = this.screen.width + 1;
+        this.dependencies.hide();
       }
 
       if (this.showParams) {
@@ -749,7 +769,7 @@ export default class StatusPanel extends CenvPanel {
         this.moduleInfo.hide();
       }
 
-      if (pkg.meta?.service?.length && Dashboard.dependencyToggle) {
+      if (this.dependenciesVisable()) {
         this.dependencies.show();
         this.lastBottom = this.dependencies.bottom;
       } else {
@@ -760,7 +780,7 @@ export default class StatusPanel extends CenvPanel {
       this.showType('globalEnv');
       this.showType('environment');
 
-      if (!this.selectedParamKey && !this.dashboard.paramsToggle) {
+      if (!this.selectedParamKey && !Dashboard.paramsToggle) {
         this.paramForm.hide()
         this.paramTextbox.hide();
         this.paramLabel.hide();

@@ -9,3 +9,4 @@ zip -r materializationLambda.zip  index.js package.json node_modules #> zip.log
 mv ./materializationLambda.zip ../
 cd ..
 cd
+rm -rf build
