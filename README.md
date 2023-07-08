@@ -2,10 +2,11 @@
 # cenv
 
 <p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/cenv-deploy.png" >
-  <img width="800" alt="STOKED" src="./assets/cenv-deploy.png">
+  <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif" >
+  <img width="1400" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif">
 </picture>
+  
 </p>
   <p align="center">A well considered cli and <a href="http://nodejs.org" target="_blank">Node.js</a> library for helping manage application, infrastructure, and configuration management.</p>
   <p align="center">
@@ -67,16 +68,20 @@ yarn global add @stoked-cenv/cli
 ```shell
  cenv configure
  ```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif" >
+  <img width="352" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif">
+</picture>
 
 ```shell
 # aws profile used to access the aws account you are deploying to.. if one doesn't already exist run "aws configure" first
-AWS_PROFILE: (stoked)
+AWS_PROFILE: (architecture)
 
 # environment region
 AWS_REGION: (us-east-1)
 
 # environment name
-ENV: (dev)
+ENV: (cenv-web)
 
 # this value needs to be the same as your assigned [subdomain].elevationcurb.com hosted zone for AWS deployments
 ROOT_DOMAIN: (bstoker.stokedconsulting.com)
