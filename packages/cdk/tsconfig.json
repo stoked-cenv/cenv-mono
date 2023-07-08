@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDir": "./",
+    "outDir": "dist",
+    "lib": ["es2021"],
+    "module": "commonjs",
+    "target": "es2021"
+  },
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "dist/**/*",
+    "node_modules/**/*",
+    "node_modules",
+    "cdk.out"
+  ]
+}
