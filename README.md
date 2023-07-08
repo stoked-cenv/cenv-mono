@@ -2,11 +2,10 @@
 # cenv
 
 <p align="center">
-  <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif" >
-  <img width="800" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif">
-</picture>
-  
+  <a href="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif" target="_blank"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/cenv-deploy.png">
+  <img width="800" alt="STOKED" src="./assets/cenv-deploy.png">
+</picture></a>
 </p>
   <p align="center">A well considered cli and <a href="http://nodejs.org" target="_blank">Node.js</a> library for helping manage application, infrastructure, and configuration management.</p>
   <p align="center">
@@ -70,7 +69,13 @@ yarn global add @stoked-cenv/cli
  ```
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif" >
-  <img width="352" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif">
+  <img width="300" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif">
+</picture>
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud_3.gif" >
+  <img width="650" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud_3.gif">
 </picture>
 
 ```shell
@@ -116,3 +121,5 @@ Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b
 ### license
 
 [MIT Licensed](https://opensource.org/license/mit/)
+
+
