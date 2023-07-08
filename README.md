@@ -2,10 +2,10 @@
 # cenv
 
 <p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud_3.gif" >
-  <img width="800" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud_3.gif">
-</picture>
+  <a href="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif" target="_blank"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/cenv-deploy.png">
+  <img width="800" alt="STOKED" src="./assets/cenv-deploy.png">
+</picture></a>
 </p>
   <p align="center">A well considered cli and <a href="http://nodejs.org" target="_blank">Node.js</a> library for helping manage application, infrastructure, and configuration management.</p>
   <p align="center">
@@ -28,7 +28,7 @@ The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage appl
 - [node](https://nodejs.org/en/download/)
 - [python](https://www.python.org/downloads/)
 - [Yarn](https://classic.yarnpkg.com/en/docs/install/#debian-stable)
-- [aws cdk](https://aws.amazon.com/cdk/) 2.x version
+- [aws cdk](https://aws.amazon.com/cdk/) 
 - [docker](https://www.docker.com/products/docker-desktop)
 
 ## Getting Started
@@ -51,6 +51,10 @@ yarn global add @stoked-cenv/cli
 ```shell
  cenv configure
  ```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif" >
+  <img width="300" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv+config.gif">
+</picture>
 
 ```shell
 # aws profile used to access the aws account you are deploying to.. if one doesn't already exist run "aws configure" first
