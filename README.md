@@ -4,7 +4,7 @@
 <p align="center">
   <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif" >
-  <img width="1400" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif">
+  <img width="800" alt="STOKED" src="https://cenv-mono-artifacts.s3.amazonaws.com/cenv-deploy-curb-cloud.gif">
 </picture>
   
 </p>
