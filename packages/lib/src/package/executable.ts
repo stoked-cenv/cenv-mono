@@ -1,34 +1,44 @@
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
 import { CenvLog } from '../log';
 import { existsSync } from "fs";
+import { execCmd } from "../utils";
 
 export class ExecutableModule extends PackageModule {
   installPath: string;
-
+  installed: boolean = undefined;
+  
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.EXEC);
   }
 
+  get exec() {
+    if (!this.pkg?.meta?.metas || !this.pkg?.meta?.metas[this.path]?.bin) {
+      return 'exec_unknown';
+    }
+    const execs = Object.keys(this.pkg.meta.metas[this.path].bin);
+    if (!execs?.length) {
+      return 'exec_unknown';
+    }
+    return execs[0]
+  }
 
   upToDate(): boolean {
-    return !!this.pkg?.meta?.executables?.filter(e => !e.installed).length;
+    return this.installed;
   }
 
   getDetails() {
     if (this.upToDate()) {
-        this.pkg?.meta?.executables?.map(e => {
           this.pkg.status.deployed.push(this.statusLine(
             'installed',
-            `executable [${e.exec}] is installed`,
+            `executable [${this.exec}] is installed`,
             false,
           ));
-        })
       return;
     } else {
       this.pkg?.meta?.executables?.filter(e => !e.installed).map(e => {
         this.pkg.status.needsFix.push(this.statusLine(
           'not installed',
-          `executable [${e.exec}] is not installed`,
+          `executable [${this.exec}] is not installed`,
           true,
         ));
       })
@@ -36,22 +46,21 @@ export class ExecutableModule extends PackageModule {
   }
 
   get anythingDeployed(): boolean {
-    return !!this.pkg?.meta?.executables?.filter(e => e.installed).length;
+    return !!this.installed;
   }
 
   reset() {
-    this.pkg?.meta?.executables?.map(e => e.installed = false);
+    this.installed = undefined;
+    this.installPath = undefined;
     this.checked = false;
   }
 
   statusIssues() {
-    this.pkg?.meta?.executables?.filter(e => !e.installed).map(e => {
       this.verbose(this.statusLine(
         'not installed',
-        `executable [${e.exec}] is not installed`,
+        `executable [${this.exec}] is not installed`,
         false,
       ));
-    });
   }
 
   printCheckStatusComplete(): void {
@@ -61,13 +70,16 @@ export class ExecutableModule extends PackageModule {
 
   async checkStatus() {
     this.printCheckStatusStart();
-    await Promise.all(this.pkg?.meta?.executables?.map(async (e) => {
-      const res = await this.pkg.pkgCmd(`which ${e.exec}`,{ packageModule: this, returnOutput: true });
-      if (res.code === 0 && res.stdout?.length && existsSync(res.stdout)) {
-        e.installed = true;
-        this.installPath = res.stdout;
-      }
-    }));
+    const execWhich = `which ${this.exec}`;
+    const cmd = await this.pkg.createCmd(execWhich);
+    const execPath = await execCmd('./', execWhich);
+    if (execPath?.length && existsSync(execPath))
+    {
+      this.installPath = execPath;
+      this.installed = true;
+    }
+    cmd.result(0);
+
     this.printCheckStatusComplete();
     this.checked = true;
   }
@@ -88,8 +100,7 @@ export class ExecutableModule extends PackageModule {
   }
 
   async link() {
-    await this.pkg.pkgCmd(`npm unlink ${this.name} -g`,{ packageModule: this });
-    await this.pkg.pkgCmd(`nx run ${this.name}:build`,{ packageModule: this });
+    //await this.pkg.pkgCmd(`npm unlink ${this.name} -g`,{ packageModule: this });
     await this.pkg.pkgCmd(`npm link`,{ packageModule: this });
   }
 }

@@ -303,7 +303,7 @@ export async function spawnCmd(
       function handleErrors() {
         if (hasErrors) {
           errors.forEach((err: string) => {
-            packageInfo.err(err)
+            packageInfo.err('err handleErrors()' + err);
           })
         }
       }
@@ -471,7 +471,7 @@ export async function spawnCmd(
     });
   } catch (e) {
     if (packageInfo) {
-      packageInfo.err(e)
+      packageInfo.err('spawnCmd() catch:' + e);
     }
     return 1;
   }

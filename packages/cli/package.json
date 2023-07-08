@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.16",
+  "version": "2.0.0-a.17",
   "description": "",
   "author": "Brian Stoker",
   "license": "MIT",
@@ -8,6 +8,7 @@
   "bin": {
     "cenv": "dist/main.js"
   },
+  "lib": {},
   "scripts": {
     "prebuild": "rimraf dist tsconfig.tsbuildinfo",
     "lint": "eslint src --ext .ts",
@@ -34,8 +35,8 @@
     "@nestjs/common": "^9.1.6",
     "@nestjs/core": "^9.1.6",
     "@nestjs/platform-express": "^9.0.0",
-    "@stoked-cenv/lib": "*",
-    "@stoked-cenv/ui": "*",
+    "@stoked-cenv/lib": "2.0.0-a.16",
+    "@stoked-cenv/ui": "2.0.0-a.16",
     "@types/inquirer": "^8.1.3",
     "chalk": "^4.1.0",
     "eslint": "^8.36.0",

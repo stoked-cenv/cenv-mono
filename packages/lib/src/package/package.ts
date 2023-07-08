@@ -71,7 +71,7 @@ function cmdResult(
     return true;
   }
   if (CenvLog.logLevel === LogLevel.MINIMAL && minOut !== '') {
-    pkg?.err(minOut)
+    pkg?.err('xxx' + minOut)
   }
 
   pkg.err(`${completeMsg}exit code (${code}) [failed]`, cmd);
@@ -665,6 +665,10 @@ export class Package implements IPackage {
 
     if (this.lib) {
       await this.lib.build();
+    }
+
+    if (this.exec) {
+      await this.exec.link();
     }
 
     if (this.isParamDeploy(deployOptions)) {

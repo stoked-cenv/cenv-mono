@@ -5,6 +5,7 @@ import semver, { SemVer } from 'semver';
 import { colors } from '../log';
 import {spawnCmd} from "../utils";
 import {Package} from "./package";
+import {CenvLog} from "../log"
 
 export enum DeployType {
   ECS = 'ECS',
@@ -37,7 +38,7 @@ export class StackModule extends PackageModule {
     const actualCommand = StackModule.commands[ProcessMode.DESTROY];
     await this.pkg.pkgCmd(actualCommand, {packageModule: this});
     // await spawnCmd(this.pkg.stack.path, actualCommand, `${actualCommand} ${this.pkg.stackName}`, { redirectStdErrToStdOut: true }, this.pkg);
-
+    CenvLog.single.errorLog('run it!')
     //const cleanCmd = `cenv clean ${this.pkg.packageName} --mode cdk`;
     //await spawnCmd(this.path, cleanCmd, cleanCmd,{}, this.pkg);
   }

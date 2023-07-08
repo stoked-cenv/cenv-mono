@@ -23,15 +23,15 @@ import {
   Cenv,
   Cmd,
   PackageCmd,
-  sleep,
-  Queue
-} from '@stoked-cenv/lib';
+  sleep, execCmd
+} from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import chalk, {ChalkFunction} from 'chalk';
 import { isFunction } from "lodash";
 import {HelpUI} from "./help";
 import Groups from "./group";
+import Queue from "../queue"
 
 interface PkgInfo {
   stackName: string,
@@ -51,6 +51,8 @@ export enum DashboardMode {
   STATUS = 'STATUS'
 }
 
+
+export interface Click {ts: number, x: number, y: number }
 
 export class Dashboard {
   screen: any;
@@ -122,7 +124,9 @@ export class Dashboard {
   clearLabelTimeout: NodeJS.Timeout = null;
   deploying = false;
   statusOptions: Menu;
-  clickQueue: Queue = new Queue<any>();
+  clickQueue: Click[] = [];
+  //clickQueue: Queue<Click> = new Queue<Click>();
+
 
   static moduleToggle = true;
   static dependencyToggle = true;
@@ -282,13 +286,21 @@ export class Dashboard {
       });
 
 
-      this.statusBar.on('click', function(data: any) {
-         CenvLog.info(`statusBar::click() - ${JSON.stringify(data, null, 2)}`);
-        this.clickQueue.enqueue(data);
-        if (this.clickQueue.size() > 10) {
-          this.dequeue();
+
+      this.statusBar.on('click', async function(data: any) {
+        CenvLog.info(`statusBar::click() - ${JSON.stringify(data, null, 2)}`);
+        const click: Click = {ts: Date.now(), x: data.x, y: data.y };
+        this.clickQueue.unshift()
+        if (this.clickQueue.length > 4) {
+          this.clickQueue.pop()
         }
-      });
+
+        if (this.clickQueue.length) {
+          if (Math.abs(click.ts - this.clickQueue[0].ts) < 300) {
+            await execCmd('/', `open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`)
+          }
+        }
+      }.bind(this));
 
       this.packages = this.grid.set(0, 0, 5, 2, contrib.table, {
         mouse: true,
