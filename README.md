@@ -9,8 +9,8 @@
 </p>
   <p align="center">A well considered cli and <a href="http://nodejs.org" target="_blank">Node.js</a> library for helping manage application, infrastructure, and configuration management.</p>
   <p align="center">
-    <a href="https://nodejs.org/en/download/" target="_blank"><img src="https://img.shields.io/badge/node-18.16.1-gree" alt="Node Version" /></a>&nbsp
-    <a href="https://www.typescriptlang.org/" target="_blank"><img src="https://img.shields.io/badge/typescript-4.9.5-blue" alt="Node Version" /></a>&nbsp
+    <a href="https://nodejs.org/en/download/" target="_blank"><img src="https://img.shields.io/badge/node-18.16.1-gree" alt="Node Version" /></a> 
+    <a href="https://www.typescriptlang.org/" target="_blank"><img src="https://img.shields.io/badge/typescript-4.9.5-blue" alt="Node Version" /></a> 
     <a href="https://aws.amazon.com/cdk/" target="_blank"><img src="https://img.shields.io/badge/cdk-2.85.0-orange" alt="Node Version" /></a>
   </p>
   <!--[![Backers on Open Collective](https://opencollective.com/stoked-cenv/backers/badge.svg)](https://opencollective.com/stoked-cenv#backer)
