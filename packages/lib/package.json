@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.16",
+  "version": "2.0.0-a.18",
   "description": "Library responsible for cenv params.",
   "main": "dist/index.js",
   "test": "hi",
@@ -13,7 +13,8 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm run lint -- --fix",
     "docker": "cenv docker @stoked-cenv/lib -d; ",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "version": "pnpm version"
   },
   "types": "dist/index.d.ts",
   "author": "Brian Stoker",

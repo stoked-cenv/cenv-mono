@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/ui",
-  "version": "2.0.0-a.16",
+  "version": "2.0.0-a.18",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
   "main": "dist/index.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "push": "pnpm publish --access public",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "version": "pnpm version"
   },
   "author": "Brian Stoker",
   "license": "MIT",

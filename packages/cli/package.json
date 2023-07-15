@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.17",
+  "version": "2.0.0-a.18",
   "description": "",
   "author": "Brian Stoker",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "watch": "tsc --watch",
     "compile": "tsc",
     "push": "pnpm publish --access public",
-    "version": "pnpm version ",
+    "version": "pnpm version",
     "unlink": "npm unlink @stoked-cenv/cli -g",
     "package": "tsc && webpack --config webpack.config.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
