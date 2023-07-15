@@ -1,3 +1,3 @@
-# @ec/deploy-utils
+# @stoked-cenv/cdk
 
-The main purpose of this module is to provide a place for reusable code and other utilities to help with the deployment of other services.  If you find yourself copying and pasting CDK code from one project to another, perhaps it should be moved to this module and reused. It is written in Typescript.
+The main purpose of this module is to provide a place for reusable cdk code and other cdk related utilities to help with the deployment of services into AWS.  If you find yourself copying and pasting CDK code from one project to another, perhaps it should be moved to this module and reused. 

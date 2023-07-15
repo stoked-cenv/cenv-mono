@@ -23,7 +23,7 @@ import {
   Cenv,
   Cmd,
   PackageCmd,
-  sleep, execCmd, Queue
+  sleep, execCmd, Queue, deleteStack
 } from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
@@ -40,6 +40,14 @@ interface PkgInfo {
   type: string;
   version: string;
   statusTime?: number;
+}
+
+export enum ModuleDeployMode {
+  ALL,
+  PARAMETERS,
+  STACK,
+  DOCKER,
+  NONE
 }
 
 export enum DashboardMode {
@@ -124,6 +132,7 @@ export class Dashboard {
   deploying = false;
   statusOptions: Menu;
   clickQueue: Click[] = [];
+  moduleDeployMode = ModuleDeployMode.ALL;
   //clickQueue: Queue<Click> = new Queue<Click>();
 
 
@@ -168,8 +177,8 @@ export class Dashboard {
           fg: 'white',
           bg: 'black',
           bold: true,
-          border: { fg: 'black' },
-          label: { bold: true },
+          border: {fg: 'black'},
+          label: {bold: true},
         },
         border: false,
         transparent: true,
@@ -180,21 +189,27 @@ export class Dashboard {
       const pkgButtons = {
         deploy: {
           keys: ['d'],
-            callback: async function () {
+          callback: async function () {
             this.debounceCallback('deploy', async () => {
+              await this.launchDeployment(ProcessMode.DEPLOY);
+            });
+          }.bind(this),
+        },
+        synth: {
+          keys: ['s'],
+          callback: async function () {
+            this.debounceCallback('synth', async () => {
               const pkgs = this.getContext();
               if (!pkgs) {
                 return;
               }
-              const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName.toUpperCase()}`;
-              this.setStatusBar('launchDeployment', this.statusText(`deploy`, `${packages}`));
-              await this.launchDeployment(ProcessMode.DEPLOY);
+              await Promise.all(pkgs.map(async (p: Package) => await p.stack.synth()));
             });
           }.bind(this),
         },
         destroy: {
           keys: ['y'],
-            callback: async function () {
+          callback: async function () {
             this.debounceCallback('destroy', async () => {
               const pkgs = this.getContext();
               if (!pkgs) {
@@ -220,12 +235,12 @@ export class Dashboard {
                 return;
               }
               const name = 'build';
-              this.setStatusBar(name, this.statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
-              await Promise.all(ctx?.map(async (p: Package) => await p.build()));
+              this.setStatusBar(name, this.statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName));
+              await Promise.all(ctx?.map(async (p: Package) => await p?.lib?.build(false, true)));
             });
           }.bind(this),
         },
-        "check status": {
+        "status": {
           keys: ['enter'],
           callback: async function () {
             const ctx = this.getContext(PkgContextType.COMPLETE, false);
@@ -233,7 +248,7 @@ export class Dashboard {
               return;
             }
             const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
-            this.setStatusBar('checkStatus', this.statusText('status check',`check deployment status of ${packages}`),
+            this.setStatusBar('checkStatus', this.statusText('status check', `check deployment status of ${packages}`),
             );
             ctx.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
           }.bind(this),
@@ -261,23 +276,40 @@ export class Dashboard {
                   delete Deployment.toProcess[p.stackName];
                 }
                 p.processStatus = ProcessStatus.CANCELLED;
-                await killStackProcesses(p.stackName, Cenv.runningProcesses[p.stackName])
+                await killStackProcesses(p.stackName)
               }));
 
               this.setStatusBar('cancel deploy', `cancel ${ctx.length === 1 ? ctx[0].packageName : ctx.length + ' packages (does not cancel cloudformation)'}`);
             });
           }.bind(this),
         },
+        "kill hard": {
+          keys: ['C-k'],
+          callback: async function () {
+            this.debounceCallback('hard kill', async () => {
+              const ctx = this.getContext();
+              if (!ctx) {
+                return;
+              }
+              if (ctx.length !== 1) {
+                this.setStatusBar('kill hard fail', this.statusText('failed to kill hard', 'the kill hard command only works one package at a time'));
+                return;
+              }
+
+              this.setStatusBar('kill hard', this.statusText('kill hard', ctx[0].stackName));
+              await deleteStack(ctx[0].stackName)
+            });
+          }.bind(this),
+        },
       }
 
       this.processOptions = new Menu(this.screen, pkgButtons, {top: 0, left: 0, right: 0});
-
       this.statusBar = this.grid.set(5, 0, 1, 2, blessed.box, {
         fg: 'white',
         label: '',
         style: {
           fg: 'white',
-          bg: 'black',
+          bg: 'pink',
           label: {},
         },
         height: 1,
@@ -285,18 +317,22 @@ export class Dashboard {
       });
 
 
-
-      this.statusBar.on('click', async function(data: any) {
-        CenvLog.info(`statusBar::click() - ${JSON.stringify(data, null, 2)}`);
-        const click: Click = {ts: Date.now(), x: data.x, y: data.y };
-        this.clickQueue.unshift()
+      this.statusBar.on('click', async function (data: any) {
+        const click: Click = {ts: Date.now(), x: data.x, y: data.y};
+        this.clickQueue.unshift(click);
         if (this.clickQueue.length > 4) {
           this.clickQueue.pop()
         }
-
         if (this.clickQueue.length) {
+          if (this.clickQueue[0]) {
+            CenvLog.info(`click.ts: ${click.ts}, ${this.clickQueue[0].ts}, ${this.clickQueue.length}`)
+          }
+//          CenvLog.info(`${Math.abs(click.ts - this.clickQueue[0].ts)}`)
           if (Math.abs(click.ts - this.clickQueue[0].ts) < 300) {
-            await execCmd('/', `open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`)
+            CenvLog.info(`statusBar::click() - ${JSON.stringify(click, null, 2)}`);
+            this.debounceCallback('deploy', async () => {
+              await execCmd('/', `open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`)
+            });
           }
         }
       }.bind(this));
@@ -311,7 +347,7 @@ export class Dashboard {
         columnSpacing: this.columnSpacing,
         columnWidth: this.defaultColumnWidth,
         style: {
-          border: { fg: [24, 242, 24] },
+          border: {fg: [24, 242, 24]},
         },
       });
 
@@ -323,29 +359,30 @@ export class Dashboard {
 
       this.packages.on('element mouseover',
         async function mouseover(el: any) {
-
-          if (el.parent?.name !== 'packageRows') {
-            return;
-          }
-
-          const stackNameVis = blessed.cleanTags(el.content).split(' ')[0];
-          if (!stackNameVis) {
-            return;
-          }
-          const pkg = Package.getPackageFromVis(stackNameVis);
-          if (pkg) {
-            if (!this.statusBarInUse) {
-              this.statusBar.setLabel(pkg.getConsoleUrl());
+          try {
+            if (el.parent?.name !== 'packageRows') {
+              return;
             }
-          }
 
-          if (this.packages.rows.items[this.selectedRowIndex] === el) {
-            this.hoverRowIndex = this.selectedRowIndex;
-          } else {
-            this.hoverRowIndex = this.packages.rows.getItemIndex(el);
-          }
+            const stackNameVis = blessed.cleanTags(el.content).split(' ')[0];
+            if (!stackNameVis) {
+              return;
+            }
 
-          await this.update();
+            const pkg = Package.getPackageFromVis(stackNameVis);
+            if (pkg) {
+              this.setStatusBar(pkg.getConsoleUrl())
+            }
+            if (this.packages.rows.items[this.selectedRowIndex] === el) {
+              this.hoverRowIndex = this.selectedRowIndex;
+            } else {
+              this.hoverRowIndex = this.packages.rows.getItemIndex(el);
+            }
+
+            await this.update();
+          } catch(ex) {
+            console.log('################', ex)
+          }
         }.bind(this),
       );
 
@@ -368,9 +405,7 @@ export class Dashboard {
 
 
       for (let i = 0; i < this.defaultColumnWidth.length; i++) {
-        this.priorityColumnWidth.push(
-          this.defaultColumnWidth[this.columnPriority.indexOf(i)],
-        );
+        this.priorityColumnWidth.push(this.defaultColumnWidth[this.columnPriority.indexOf(i)]);
       }
 
       this.focusedBox = this.packages;
@@ -432,7 +467,7 @@ export class Dashboard {
         style: {
           fg: 'white',
           bg: 'black',
-          border: { fg: 'gray' },
+          border: {fg: 'gray'},
         },
         autoScroll: true,
       });
@@ -453,11 +488,11 @@ export class Dashboard {
         style: {
           fg: 'white',
           bg: 'black',
-          border: { fg: 'gray' },
-          label: { fg: 'gray' }
+          border: {fg: 'gray'},
+          label: {fg: 'gray'}
         },
         autoScroll: false,
-        padding: { left: 2, right: 2, top: 0, bottom: 0 }
+        padding: {left: 2, right: 2, top: 0, bottom: 0}
       });
 
       this.status.enableDrag = () => {
@@ -474,7 +509,7 @@ export class Dashboard {
         const typedVars = pkg.params?.localVarsTyped;
         delete typedVars[this.focusedBox.name][this.statusPanel.selectedParamKey];
         const vars: any = {};
-        vars[this.focusedBox.name] = typedVars[this.focusedBox.name] ;
+        vars[this.focusedBox.name] = typedVars[this.focusedBox.name];
         if (this.focusedBox.name !== 'app') {
           vars.app = typedVars['app'];
         }
@@ -506,7 +541,7 @@ export class Dashboard {
         }
       });
 
-      this.screen.key(['f'], function(ch: any, key: any) {
+      this.screen.key(['f'], function (ch: any, key: any) {
         if (!this.fullScreenCtrl) {
           this.fullScreenCtrl = this.focusPool()[this.focusIndex];
         } else {
@@ -519,19 +554,19 @@ export class Dashboard {
         function () {
           if (this.focusIndex === 0) {
             let text = Dashboard.stackName + ':\n';
-            text += Package.cache[Dashboard.stackName].cmds.map((cmd: PackageCmd) =>
+            text += Package.fromPackageName(Dashboard.stackName).cmds.map((cmd: PackageCmd) =>
               this.printCmd(cmd),
             );
             pbcopy(blessed.cleanTags(text));
           } else if (this.focusIndex === 1) {
             pbcopy(
               blessed.cleanTags(this.printCmd(
-                Package.cache[Dashboard.stackName].cmds[this.cmdPanel.cmdList.selected],
+                Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected],
               ))
             );
           } else if (this.focusIndex === 2) {
             pbcopy(
-              blessed.cleanTags(Package.cache[Dashboard.stackName].cmds[this.cmdPanel.cmdList.selected].stdout)
+              blessed.cleanTags(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected].stdout)
             );
           } else if (this.focusIndex === 3) {
             pbcopy(blessed.cleanTags(this.cmdPanel.dependencies.getText()));
@@ -539,7 +574,7 @@ export class Dashboard {
         }.bind(this),
       );
 
-      this.screen.key(
+      /*this.screen.key(
         ['C-s'],
         async function (ch: any, key: any) {
           Dialogs.saveSuiteDialog(this.screen);
@@ -551,9 +586,9 @@ export class Dashboard {
         async function (ch: any, key: any) {
           //Dialogs.saveDump(this.screen);
         }.bind(this),
-      );
+      );*/
 
-      this.screen.key(['tab'],function (ch: any, key: any) {
+      this.screen.key(['tab'], function (ch: any, key: any) {
           const isLastIndex = this.focusIndex + 1 > this.focusPool().length - 1;
           const newIndex = isLastIndex ? 0 : this.focusIndex + 1;
           this.setFocusIndex(newIndex);
@@ -576,7 +611,7 @@ export class Dashboard {
         left: 'center',
         top: 'center',
         width: 1,
-        position: { left: this.maxColumnWidth - 1, width: 1 },
+        position: {left: this.maxColumnWidth - 1, width: 1},
         height: '100%',
         style: {
           bg: [50, 50, 50],
@@ -586,7 +621,7 @@ export class Dashboard {
       });
 
       this.screen.on('resize', function () {
-        this.updateVis();
+          this.updateVis();
         }.bind(this),
       );
 
@@ -730,6 +765,7 @@ export class Dashboard {
             });
           }.bind(this),
         },
+        /*
         "save dump": {
           keys: ['s'],
           callback: function () {
@@ -767,7 +803,7 @@ export class Dashboard {
               CenvLog.single.catchLog(e);
             }
           }.bind(this),
-        },
+        },*/
         "strict versions": {
           keys: ['S-v'],
           callback: function () {
@@ -807,7 +843,7 @@ export class Dashboard {
               this.cmdPanel.stderr.setContent('');
               this.cmdPanel.cmdPanel.setItems([]);
               CenvLog.single.infoLog('clear all logs');
-              this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName ));
+              this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName));
             });
           }.bind(this),
         },
@@ -815,7 +851,23 @@ export class Dashboard {
           keys: ['C-d'],
           callback: function () {
             this.debounceCallback('clearVersions', async () => {
-              Dashboard.instance.statusBarInUse = true;
+              if (this.focusedBox === this.cmdPanel.stdout) {
+                this.cmdPanel.stdout.setContent('');
+                this.setStatusBar('clearStdout', this.statusText('clear', 'stdout panel'));
+              } else if (this.focusedBox === this.cmdPanel.stderr) {
+                this.cmdPanel.stderr.setContent('');
+                this.setStatusBar('clearStderr', this.statusText('clear', 'stderr panel'));
+              } else {
+                this.debugLog.setContent('');
+                this.setStatusBar('clearDebug', this.statusText('clear', 'debug log'));
+              }
+            });
+          }.bind(this),
+        },
+        "cycle module deploy mode": {
+          keys: ['m'],
+          callback: function () {
+            this.debounceCallback('clearVersions', async () => {
               if (this.focusedBox === this.cmdPanel.stdout) {
                 this.cmdPanel.stdout.setContent('');
                 this.setStatusBar('clearStdout', this.statusText('clear', 'stdout panel'));
@@ -831,7 +883,7 @@ export class Dashboard {
         },
       }
 
-      this.menu = new Menu(this.screen, commandButtons, { bottom: 0, left: 0, right: 0});
+      this.menu = new Menu(this.screen, commandButtons, {bottom: 0, left: 0, right: 0});
 
       const statusButtons = {
         modules: {
@@ -887,9 +939,9 @@ export class Dashboard {
         async function mainLoop() {
           await this.update();
           //const item =
-            //this.packages?.rows?.items[this.packages?.rows?.selected];
+          //this.packages?.rows?.items[this.packages?.rows?.selected];
           //if (!Dashboard.stackName && item) {
-            //await selectIt(item);
+          //await selectIt(item);
           //}
         }.bind(this),
         25,
@@ -950,17 +1002,21 @@ export class Dashboard {
       }
 
       this.titleContext = packages;
-
-      const deploymentOptions = {};
+      const pkgText = packages.length === 1 ? `${packages[0].packageName}` : `${packages.length} packages`;
+      const deploymentOptions: any = {};
       if (Dashboard.enableMenuCommands) {
         //packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
-
         if (mode === ProcessMode.DESTROY) {
-          validateBaseOptions({ packages, cmd: ProcessMode.DESTROY, options: deploymentOptions })
-          await Deployment.Destroy(packages, { ...Deployment.options, ...deploymentOptions });
+          this.setStatusBar('launchDeployment', this.statusText(`destroy`, `${pkgText}`));
+          validateBaseOptions({packages, cmd: ProcessMode.DESTROY, options: deploymentOptions})
+          await Deployment.Destroy(packages, {...Deployment.options, ...deploymentOptions});
         } else {
-          validateBaseOptions({ packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions })
-          await Deployment.Deploy(packages, { ...Deployment.options, ...deploymentOptions });
+          this.setStatusBar('launchDeployment', this.statusText(`deploy`, `${pkgText}`));
+          if (packages[0].environmentStatus === EnvironmentStatus.UP_TO_DATE) {
+            deploymentOptions.force = true;
+          }
+          validateBaseOptions({packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions})
+          await Deployment.Deploy(packages, {...Deployment.options, ...deploymentOptions});
         }
       } else {
         setTimeout(function () {
@@ -991,33 +1047,27 @@ export class Dashboard {
     if (selectedPkg?.stackName === 'GLOBAL') {
       Deployment.options.dependencies = true;
     } else {
-      Deployment.options.dependencies = false ;
+      Deployment.options.dependencies = false;
     }
     return ctx.packages;
   }
 
-  debounceCallback(name: string, callback: any, onTimeout: any = undefined) {
+  debounceCallback(name: string, callback: any, onTimeout: any = undefined, ts = 2000) {
     if (this.debounceFlags[name]) {
       return;
     }
-    Dashboard.instance.statusBarInUse = true;
     callback();
 
     this.debounceFlags[name] = true;
 
     setTimeout(() => {
-      Dashboard.instance.statusBarInUse = false;
       delete this.debounceFlags[name];
-    }, 250);
+    }, ts);
 
-    if (this.clearLabelTimeout) {
-      clearTimeout(this.clearLabelTimeout);
-    }
     this.clearLabelTimeout = setTimeout(() => {
       if (onTimeout) {
         onTimeout();
       }
-      Dashboard.instance.statusBar.setLabel('');
     }, 2000);
   }
 
@@ -1116,7 +1166,7 @@ export class Dashboard {
   logErr(stackName: string, ...text: string[]) {
     stackName = blessed.cleanTags(stackName);
     //const finalMsg = text.map((t) => (t.endsWith('\n') ? t : t + '\n'))
-      //.join(' ');
+    //.join(' ');
     const finalMsg = text.join(' ');
     this.storeLog(stackName, text.join(' '), 'stderr');
     if (stackName !== Dashboard.stackName) {
@@ -1128,6 +1178,13 @@ export class Dashboard {
 
   static logErr(stackName: string, ...text: string[]) {
     Dashboard.instance?.logErr(stackName, ...text);
+  }
+
+  static cleanTags(...text: string[]) {
+    for (let i = 0; i < text.length; i++) {
+      text[i] = blessed.cleanTags(text[i]);
+    }
+    return text;
   }
 
   createBaseWidgets() {
@@ -1144,14 +1201,14 @@ export class Dashboard {
         color: null, // null for default
       },
       label: {
-        padding: { left: 50 }
+        padding: {left: 50}
       }
     });
 
     this.screen = screen;
 
     //create layout and widgets
-    this.grid = new contrib.grid({ rows: 6, cols: 5, screen: this.screen });
+    this.grid = new contrib.grid({rows: 6, cols: 5, screen: this.screen});
   }
 
   getPackageRowName(index = this.packages?.rows?.selected) {
@@ -1161,6 +1218,7 @@ export class Dashboard {
       return items[index].content.split(' ')[0];
     }
   }
+
   nextMode() {
     /*
 
@@ -1175,9 +1233,11 @@ export class Dashboard {
       }
 
      */
-      return DashboardMode.MIXED;
-    }
+    return DashboardMode.MIXED;
+  }
+  setStatus(status: string) {
 
+  }
 
   setMode(mode: DashboardMode) {
     this.mode = mode;
@@ -1200,7 +1260,7 @@ export class Dashboard {
 
       if (this.suite && Dashboard.stackName === 'GLOBAL') {
         titleNoun += ' ' + this.suite;
-      } else {
+      } else if (this.titleContext) {
         this.titleContext = this.titleContext.filter((p: Package) => !Deployment.packageDone(p))
         let displayedContext = this.titleContext;
         let extraContext = '';
@@ -1317,7 +1377,7 @@ export class Dashboard {
   }
 
   getPkg(stackName?: string) {
-    return Package.cache[stackName ? stackName : Dashboard.stackName];
+    return Package.fromStackName(stackName ? stackName : Dashboard.stackName);
   }
 
   storeLogBase(cmd: any, type: string, msg: string) {
@@ -1331,6 +1391,9 @@ export class Dashboard {
     }
   }
   storeLog(stackName: string, message: string, type: string) {
+    if (!message) {
+      return;
+    }
     const pkg = this.getPkg(stackName);
     if (!pkg) {
       Dashboard.debug('stackName not found: ' + stackName + ' - ' + message, new Error().stack);
@@ -1417,17 +1480,15 @@ export class Dashboard {
   }
 
   setStatusBar(name: string, msg: string) {
-    if (msg === '' || this.debounceFlags[name]) {
-      delete this.debounceFlags[name];
+
+    if (!msg) {
       return;
     }
     Dashboard.instance.statusBarInUse = true;
     this.statusBar?.setLabel(msg);
-    this.debounceFlags[name] = true;
 
     setTimeout(() => {
       Dashboard.instance.statusBarInUse = false;
-      delete this.debounceFlags[name];
     }, 5000);
 
     if (this.clearLabelTimeout) {
@@ -1440,7 +1501,8 @@ export class Dashboard {
 
   getUpdatePackages() {
 
-    const pks: Package[] = Object.values(Package.cache).filter((p: Package) => !p.skipUI || Deployment.toggleDependencies);
+    const realPkgs = Package.getPackages(true);
+    const pks: Package[] = realPkgs.filter((p: Package) => !p.skipUI || Deployment.toggleDependencies);
     const noGlobals = pks.filter(p => p.stackName !== 'GLOBAL');
     const upToDate = !noGlobals.filter(p => p.environmentStatus !== EnvironmentStatus.UP_TO_DATE).length;
     const notDeployed = !noGlobals.filter(p => p.environmentStatus !== EnvironmentStatus.NOT_DEPLOYED).length;
@@ -1461,7 +1523,7 @@ export class Dashboard {
       processStatus = ProcessStatus.STATUS_CHK;
     }
 
-    let packages: PkgInfo[] = Object.values(Package.cache)
+    let packages: PkgInfo[] = realPkgs
       .filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
       .map((p: Package) => {
         if (p.isGlobal) {
@@ -1477,7 +1539,7 @@ export class Dashboard {
 
         return {
           stackName: p.stackNameVis,
-          version: `${p.meta.version}`,
+          version: `${p.meta.data.version}`,
           type: p.type,
           environmentStatus: p.environmentStatus,
           processStatus: p.processStatus,
@@ -1605,7 +1667,7 @@ export class Dashboard {
   }
 
   get defaultColumnWidth() {
-    return [Package.stackNameMaxVisibleLength + 1, 12, 10, 13, 13, 10];
+    return [Package.maxVisibleLength + 1, 12, 10, 13, 13, 10];
   }
 
   mod(digit: number, mod: number) {
@@ -1674,8 +1736,8 @@ export class Dashboard {
         return color(dep.packageName)
       }).join(', ');
       this.dependencies = `${deps}`;
-    } else if (pkg?.meta?.deployDependencies) {
-      const deps = pkg?.meta?.deployDependencies?.map((dep: Package) => {
+    } else if (pkg?.meta?.data.deployDependencies) {
+      const deps = pkg?.meta?.data.deployDependencies?.map((dep: Package) => {
         const color = this.getStatusColor(dep.environmentStatus, true) as ChalkFunction;
         return color(dep.packageName)
       }).join(', ');
@@ -1759,7 +1821,7 @@ export class Dashboard {
   updateStatus() {
     this.updateDependenciesStatus();
 
-    const packages = Package.getPackages().filter((p: Package) => !p.isGlobal);
+    const packages = Package.getPackages();
     let noun = '';
     const opt = this.cmdOptions;
     const multiplePackagesLoaded = packages.length > 1;
@@ -1773,7 +1835,7 @@ export class Dashboard {
     }
 
     let status = '';
-    const selectedPackage = Package.cache[Dashboard.stackName];
+    const selectedPackage = Package.fromStackName(Dashboard.stackName);
     const validStatus = selectedPackage && Dashboard.stackName && Dashboard.stackName !== '' && [ProcessStatus.BUILDING, ProcessStatus.STATUS_CHK, ProcessStatus.INITIALIZING].indexOf(selectedPackage?.processStatus) === -1
     if ((multiplePackagesLoaded && Dashboard.stackName === 'GLOBAL') || !validStatus) {
       status += '\n';
@@ -1897,7 +1959,7 @@ export class Dashboard {
         this.complete = true;
       }
 
-      if (Object.keys(Package.cache).length) {
+      if (Package.getPackages(true).length) {
         this.packages.rows.interactive = false;
         this.packages.setData({
           headers: headers,
@@ -2043,7 +2105,7 @@ export class Dashboard {
     if (!tableCalcs) {
       tableCalcs = this.calcTableInfo();
     }
-    this.maxProcessOptionsHeight = Object.keys(Package.cache).length + 14;
+    this.maxProcessOptionsHeight = Package.getPackages(true).length + 14;
     this.packages.width = tableCalcs.tableWidth;
     this.packages.top = 0;
     this.packages.height = Package.getPackages().length + 5;

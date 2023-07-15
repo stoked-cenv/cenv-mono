@@ -1,0 +1,41 @@
+{
+  "name": "@stoked-cenv/params",
+  "version": "2.0.0-a.16",
+  "private": true,
+  "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
+  "main": "index.js",
+  "scripts": {
+    "wipe": "npx rimraf dist build materializationLambda.zip pnpm-lock.yaml node_modules",
+    "prebuild": "pnpm --filter @stoked-cenv run wipe",
+    "build": "./build.sh"
+  },
+  "keywords": [
+    "AWS",
+    "AppConfig",
+    "Lambda",
+    "SNS",
+    "Deployment",
+    "ConfigurationProfile"
+  ],
+  "author": "Brian Stoker",
+  "license": "MIT",
+  "dependencies": {
+    "@stoked-cenv/lib": "2.0.0-a.16",
+    "async-mutex": "^0.4.0",
+    "build": "^0.1.4",
+    "js-yaml": "^4.1.0",
+    "rimraf": "^4.4.1"
+  },
+  "devDependencies": {
+  },
+  "workspaces": {
+    "packages": [],
+    "nohoist": [
+      "**"
+    ]
+  },
+  "skipDeployBuild": true,
+  "verifyStack": "cenv i --verify",
+  "deployStack": "cenv i -cenv",
+  "destroyStack": "cenv u -cenv"
+}

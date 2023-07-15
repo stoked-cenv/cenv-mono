@@ -1,4 +1,3 @@
-import { EnvironmentStatus, Package, PackageCmd } from './package';
 import { IPackageModule, PackageModule, PackageModuleType } from './module';
 import {
   createRepository,
@@ -14,6 +13,7 @@ import semver from 'semver';
 import {CenvLog, colors} from '../log';
 import {StackModule} from "./stack";
 import {execCmd, sleep, spawnCmd} from "../utils";
+
 
 export class DockerModule extends PackageModule {
   digest?: string;
@@ -68,11 +68,15 @@ export class DockerModule extends PackageModule {
   }
 
   async getDigest() {
-    const repoDigest = await execCmd('./', `echo $(docker inspect ${this.dockerName}) | jq -r '.[].RepoDigests[]'`);
-    if (repoDigest.indexOf('No such object') !== -1) {
-      return false;
+    const previousCmdLines = this.pkg.cmds[this.pkg.cmds.length - 1].stdout.split('\n');
+    for (let i = previousCmdLines.length - 1; i > 0; --i) {
+      const ln = previousCmdLines[i];
+      if (ln.startsWith('latest: digest: sha256')) {
+        const startDigestIndex = ln.indexOf('sha256');
+        const restOfLine = ln.substring(startDigestIndex);
+        return restOfLine.substring(0, restOfLine.indexOf(' '));
+      }
     }
-    return repoDigest.split('@')[1]?.trim();
   }
 
   async push(url: string) {
@@ -98,8 +102,8 @@ export class DockerModule extends PackageModule {
     const { build, push, dependencies } = cmdOptions;
 
     if (dependencies) {
-      if (this.pkg?.meta?.deployDependencies) {
-        await Promise.all(this.pkg?.meta?.deployDependencies?.map(async (dep: Package) => {
+      if (this.pkg?.meta?.data.deployDependencies) {
+        await Promise.all(this.pkg?.meta?.data.deployDependencies?.map(async (dep: Package) => {
           if (dep.docker) {
             this.pkg.info('pkg: ' + this.pkg.packageName + ' => DockerBuild(' + dep.packageName + ')')
             await dep.docker.build(args, cmdOptions)
@@ -107,12 +111,6 @@ export class DockerModule extends PackageModule {
         }));
       }
     }
-
-    const buildTitle = 'DockerBuild ' + this.pkg.packageName;
-    if (!DockerModule.build[buildTitle]) {
-      DockerModule.build[buildTitle] = 0;
-    }
-    DockerModule.build[buildTitle]++;
 
     const exists = await repositoryExists(this.dockerName);
     if (!exists) {
@@ -123,14 +121,26 @@ export class DockerModule extends PackageModule {
 
     if (build) {
       const force = cmdOptions.force ? ' --no-cache' : '';
-      const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .`;
+      //const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .`;
+
+      let context = '.';
+      if (this.meta?.cenv?.docker?.context) {
+        context = this.meta.cenv.docker.context;
+      }
+
+      let file = '';
+      if (this.meta?.cenv?.docker?.file) {
+        file = ' -f ' + this.meta.cenv.docker.file;
+      }
+
+      const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest ${context}${file}`;
       const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars, packageModule: this, failOnError: true };
       await this.pkg.pkgCmd(buildCmd, buildOptions)
     }
 
     if (push) {
       if (process.env.CENV_MULTISTAGE) {
-        if (this.pkg.meta?.dockerType !== 'base') {
+        if (this.pkg.meta?.data.dockerType !== 'base') {
           await this.push(DockerModule.ecrUrl);
         }
       } else {
@@ -214,9 +224,9 @@ export class DockerModule extends PackageModule {
       }
     }
 
-    if (this.pkg?.meta?.preBuildScripts) {
-      for (let i = 0; i < this.pkg.meta.preBuildScripts.length; i++) {
-        const script = this.pkg.meta.preBuildScripts[i];
+    if (this.pkg?.meta?.data.preBuildScripts) {
+      for (let i= 0; i < this.pkg.meta.data.preBuildScripts.length; i++) {
+        const script = this.pkg.meta.data.preBuildScripts[i];
         await spawnCmd(this.pkg.params.path, script, script,{ ...options,      redirectStdErrToStdOut: true }, this.pkg);
 
       }
@@ -403,3 +413,4 @@ export class DockerModule extends PackageModule {
     return items;
   }
 }
+import { Package } from './package';

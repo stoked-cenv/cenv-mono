@@ -40,7 +40,7 @@ export class Environment {
     }).filter(p => !!p);
 
     this.packages = this.stacks.map((s) => {
-      const pkg = Package.cache[s.StackName];
+      const pkg = Package.fromStackName(s.StackName);
       pkg.stack.summary = s;
       return pkg;
     });

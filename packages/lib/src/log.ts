@@ -3,7 +3,7 @@ import { Cenv } from './cenv';
 import {cleanup} from "./utils";
 
 const info = chalk.gray;
-const infoBold = chalk.blueBright.underline;
+const infoBold = chalk.blueBright;
 const infoDim = chalk.dim;
 const errorInfo = chalk.red;
 const errorBold = chalk.redBright;
@@ -131,6 +131,12 @@ export class CenvLog {
     if (message === '' || !message) {
       return;
     }
+    if (!(message.endsWith instanceof Function)) {
+      return;
+    }
+    if (message && message?.endsWith('\n')) {
+      message = message.substring(0, message.length - 1)
+    }
     if (process.env.EXIT_ON_LOG && process.env.EXIT_ON_LOG === message) {
       const err = new Error();
       console.log(infoInput(err.stack));
@@ -230,7 +236,7 @@ export class CenvLog {
   catchLog(error: any) {
 
     cleanup('catchLog');
-    this.errorLog('\n\n\n\n\n');
+
     this.errorLog(error);
 
     if (!error || !error.stack)

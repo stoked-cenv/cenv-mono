@@ -94,6 +94,15 @@ export default class ParamsCommand extends BaseCommand {
   }
 
   @Option({
+    name: 'envToParams',
+    flags: '-ep, --env-to-params',
+    description: 'Import .env file as system parameters on init.',
+  })
+  parseEnvToParams(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
     name: 'decrypted',
     flags: '-de, --decrypted',
     description: 'Display decrypted values on SecureString blessed.',
@@ -117,24 +126,6 @@ export default class ParamsCommand extends BaseCommand {
     defaultValue: 'default',
   })
   parseProfile(val: string): string {
-    return val;
-  }
-
-  @Option({
-    name: 'output',
-    flags: '-o, --output [output]',
-    description: 'Print all the variable meta data including path, value, and type.',
-  })
-  parseOutput(val: string): string {
-    return val;
-  }
-
-  @Option({
-    name: 'test',
-    flags: '-t, --test',
-    description: 'Test mode for params.',
-  })
-  parseTest(val: boolean): boolean {
     return val;
   }
 

@@ -4,7 +4,7 @@ import {
   ListFunctionsCommand,
   DeleteFunctionCommand,
   InvokeCommand,
-  LambdaClient, UpdateFunctionConfigurationCommand,
+  LambdaClient, UpdateFunctionConfigurationCommand, FunctionCode,
 } from '@aws-sdk/client-lambda';
 import { fromUtf8, toUtf8 } from '@aws-sdk/util-utf8-node';
 import { CenvLog, errorBold } from '../log';
@@ -31,7 +31,7 @@ export async function updateConfiguration(FunctionName: string, envVars: any) {
     return `lambda configuration update: ${FunctionName}`;
   }
 }
-export async function createFunction(name: string, zipFile: string, lambdaRole: string, envVars: any = {}, tags: Record<string, string> = {}) {
+export async function createFunction(name: string, functionCode: FunctionCode, lambdaRole: string, envVars: any = {}, tags: Record<string, string> = {}) {
   try {
 
     if (process.env.AWS_ENDPOINT) {
@@ -39,7 +39,7 @@ export async function createFunction(name: string, zipFile: string, lambdaRole: 
     }
     const cmd = new CreateFunctionCommand({
       Runtime: 'nodejs18.x',
-      Code: { ZipFile: readFileSync(zipFile) },
+      Code: functionCode,
       Handler: 'index.handler',
       Role: lambdaRole,
       FunctionName: name,

@@ -20,7 +20,7 @@ export default class BumpCommand extends BaseCommand {
       if (params?.length === 1 && ['major', 'minor', 'patch', 'prerelease', 'reset'].indexOf(params[0]) > -1) {
         console.log(packages[0].isRoot);
         if (params[0] !== 'reset') {
-          await Promise.all(packages.map(async (p: Package) => await p.build()));
+          await Promise.all(packages.map(async (p: Package) => await p?.lib?.build()));
         }
         await Version.Bump(packages, params[0]);
       } else {

@@ -28,18 +28,17 @@ Global environment variables are different between each environment but consiste
 
 ```bash
 # local
-$ BASE_URL="http://localhost:9193/api"
+$ SERVICEA_API="localhost:9193/api"
 
 # dev
-$ BASE_URL="https://dev.serviceA.elevationcurb.com/api"
+$ SERVICEA_API="api.serviceA.devstokedconsulting.com"
 
 # qa
-$ BASE_URL="https://qa.serviceA.elevationcurb.com/api"
+$ SERVICEA_API="api.serviceA.qa.stokedconsulting.com"
 
 # prod
-$ BASE_URL="https://serviceA.elevationcurb.com/api"
+$ SERVICEA_API="api.serviceA.stokedconsulting.com"
 ```
-
 
 ###Setup environment data files for your new-service
 ```bash

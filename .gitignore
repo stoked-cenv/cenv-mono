@@ -1,6 +1,9 @@
 # compiled output
-/dist
-**/node_modules
+**/dist
+/node_modules
+/dist_backup
+**/*/node_modules/*
+
 
 # Logs
 logs
@@ -9,7 +12,6 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
 
 # OS
 .DS_Store
@@ -28,7 +30,6 @@ lerna-debug.log*
 *.sublime-workspace
 
 # cenv
-
 .version.json
 
 # IDE - VSCode
@@ -39,3 +40,16 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 *.tsbuildinfo
+
+# js files, declarations, and deps
+**/*.js
+!**/jest.config.js
+**/*.d.ts
+**/node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+cdk.context.json
+*.js.map

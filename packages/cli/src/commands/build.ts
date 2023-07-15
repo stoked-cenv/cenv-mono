@@ -1,5 +1,5 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, Package, Suite } from '@stoked-cenv/lib'
+import { CenvLog, Package, LibModule, Suite } from '@stoked-cenv/lib'
 import { BaseCommand } from './base'
 
 @Command({
@@ -43,9 +43,9 @@ export default class BuildCommand extends BaseCommand {
 
       if ((params?.length === 1 && params[0] === 'all') || packages[0].root) {
         new Suite(Package.defaultSuite);
-        await Package.build(options);
+        await LibModule.build(options);
       } else if (packages.length) {
-        await Promise.all(packages.map(async (p: Package) => p.build(options.force, options.install)));
+        await Promise.all(packages.map(async (p: Package) => p.lib?.build(options.force, true)));
       } else {
         CenvLog.single.alertLog('No packages were supplied or picked up from the current working directory. In order to build something you can supply \'all\' to build everything in the monorepo, a space separated list of packages like "@stoked-cenv/core-middleware-service @stoked-cenv/live-data-service", or a suite such as "curb-cloud"');
       }

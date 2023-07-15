@@ -1,4 +1,4 @@
-import {computeMetaHash, execCmd, getMonoRoot, packagePath, spawnCmd, Timer} from '../utils';
+import {computeMetaHash, execCmd, exec, getMonoRoot, packagePath, spawnCmd, Timer} from '../utils';
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from 'path';
 import { PackageStatus } from './module'
@@ -50,8 +50,7 @@ export enum ProcessStatus {
 }
 
 function cmdResult(
-  stackName: string,
-  packageName: string,
+  pkg: Package,
   cmd: string,
   failOnError: boolean,
   code: number,
@@ -59,22 +58,20 @@ function cmdResult(
   minOut?: string
 ): boolean {
 
-  const pkg = Package.cache[stackName];
-
   let completeMsg = '';
   if (message) {
     completeMsg = (Array.isArray(message) ? message.join(' ') : message) + ' - '
   }
 
   if (code === 0) {
-    pkg?.std(`${completeMsg}exit code (${code}) [success]`, cmd);
+    pkg?.std(`${completeMsg}exit code - ${code} [SUCCESS]`, cmd);
     return true;
   }
   if (CenvLog.logLevel === LogLevel.MINIMAL && minOut !== '') {
     pkg?.err('xxx' + minOut)
   }
 
-  pkg.err(`${completeMsg}exit code (${code}) [failed]`, cmd);
+  pkg.err(`${completeMsg}exit code - ${code} [FAILED]`, cmd);
   if (failOnError) {
     Package?.callbacks?.cancelDependencies(pkg);
     pkg.setDeployStatus(ProcessStatus.FAILED);
@@ -106,8 +103,7 @@ class LogCmd implements Cmd {
     if (code) {
       this.code = code;
       this.res = cmdResult(
-        'GLOBAL',
-        'GLOBAL',
+        Package.global,
         cmd,
         false,
         code,
@@ -129,7 +125,7 @@ class LogCmd implements Cmd {
     if (this.code) {
       return !!this.code;
     }
-    return cmdResult('GLOBAL', 'GLOBAL', this.cmd, false, code, message);
+    return cmdResult(Package.global, this.cmd, false, code, message);
   }
 }
 
@@ -179,8 +175,7 @@ export class PackageCmd implements Cmd {
     if (code) {
       this.code = code;
       this.res = cmdResult(
-        pkg.stackName,
-        pkg.packageName,
+        pkg,
         cmd,
         failOnError,
         code,
@@ -213,6 +208,7 @@ export class PackageCmd implements Cmd {
 
   err(...message: string[]) {
     this.ensureCommand();
+    this.ensureCommand();
     this.pkg.err(...message);
   }
 
@@ -222,8 +218,7 @@ export class PackageCmd implements Cmd {
     }
     this.ensureCommand();
     this.res = cmdResult(
-      this.pkg.stackName,
-      this.pkg.packageName,
+      this.pkg,
       this.cmd,
       this.failOnError,
       code,
@@ -236,14 +231,30 @@ export class PackageCmd implements Cmd {
 
   static createCmd(cmd: string, code: number = undefined, message: string = undefined): Cmd {
     if (Cenv.dashboard) {
-      return Package.getPackage('GLOBAL').createCmd(cmd, code, message);
+      return Package.fromPackageName('GLOBAL').createCmd(cmd, code, message);
     } else {
       return new LogCmd(cmd, code, message);
     }
   }
 }
 
-export interface IPackageMeta {
+export interface CenvMeta {
+  stack: {
+    package: string,
+    buildPath?: string
+    assignedSubDomain?: string
+    certArnName?: string
+  };
+  docker: {
+    context: string;
+    file: string;
+  },
+  lib: {
+    loadVars: boolean
+  }
+}
+
+export type TPackageMeta = {
   dockerBaseImage?: string;
   deployDependencies?: Package[];
   destroyDependencies?: Package[];
@@ -272,111 +283,83 @@ export interface IPackageMeta {
   volatileContextKeys?: string[]
   bin: any;
   scripts: any;
+  cenv: CenvMeta;
 }
 
-export class PackageMetaConsolidated implements IPackageMeta {
-  dockerBaseImage?: string;
-  deployDependencies?: Package[] = [];
-  destroyDependencies?: Package[] = [];
-  dependencies?: { [key: string]: string } = {};
-  dependencyDelay?: string;
-  preBuildScripts?: string[] = [];
-  preDeployScripts?: string[] = [];
-  postDeployScripts?: string[] = [];
-  versionHashDir?: string;
-  versionHash?: string;
-  buildHash?: string;
-  currentHash?: string;
-  currentVersion?: semver.SemVer;
-  buildVersion?: semver.SemVer;
-  version: semver.SemVer;
-  name: string;
-  skipDeployBuild: boolean;
-  verifyStack?: string;
-  deployStack?: string;
-  destroyStack?: string;
-  executables?: { exec: string, installed: boolean }[] = [];
-  dockerType: string;
-  url?: string;
-  volatileContextKeys?: string[] = [];
-  bin: any = {};
-  scripts: any = {};
+export interface IPackageMeta {
+  data: TPackageMeta;
+}
+
+export class PackageMeta implements IPackageMeta {
+  data: TPackageMeta;
+
+  constructor(packagePath: string) {
+    this.data = PackageMeta.load(packagePath);
+  }
+
+  static load(packagePath: string) {
+
+    const pkgPath = path.resolve(packagePath, 'package.json');
+    if (!packagePath || !existsSync(pkgPath)) {
+      CenvLog.single.catchLog(new Error(`[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`));
+    }
+
+    const pkgMeta = require(path.resolve(packagePath, 'package.json'));
+    const data = { ...pkgMeta };
+    data.deployDependencies = pkgMeta?.deployDependencies ? pkgMeta?.deployDependencies.map((dep: string) => Package.fromPackageName(dep)) : [];
+    data.destroyDependencies = pkgMeta?.destroyDependencies ? pkgMeta?.destroyDependencies.map((dep: string) => Package.fromPackageName(dep)) : [];
+    data.preBuildScripts = pkgMeta?.preBuildScripts ? pkgMeta?.preBuildScripts : [];
+    data.preDeployScripts = pkgMeta?.preDeployScripts ? pkgMeta?.preDeployScripts : [];
+    data.postDeployScripts = pkgMeta?.postDeployScripts ? pkgMeta?.postDeployScripts : [];
+    data.volatileContextKeys = pkgMeta?.volatileContextKeys ? pkgMeta?.volatileContextKeys : [];
+    return data;
+  }
+}
+
+export class PackageMetaConsolidated extends PackageMeta {
+
 
   // used to reference modules to metas
   // Record<moduleType, packagePath>
   modules: Record<string, string> = {};
 
   // Record<packagePath, meta>
-  metas: Record<string, IPackageMeta> = {};
+  metas: Record<string, TPackageMeta> = {};
 
-  load(packagePath: string): IPackageMeta {
+  constructor(packagePath: string) {
+    super(packagePath);
+
     if (this.metas[packagePath]) {
-      return this.metas[packagePath];
+      return;
     }
 
-    if (!packagePath) {
-      CenvLog.single.catchLog(new Error(`[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`));
-    }
+    this.metas[packagePath] = this.data;
+  }
 
-    const pkgMeta = require(path.resolve(packagePath, 'package.json'));
-
-    const dep = {
-      deployDependencies: pkgMeta?.deployDependencies ? pkgMeta?.deployDependencies.map((dep: string) => Package.fromPackageName(dep)) : [],
-      destroyDependencies: pkgMeta?.destroyDependencies ? pkgMeta?.destroyDependencies.map((dep: string) => Package.fromPackageName(dep)) : [],
-      dependencyDelay: pkgMeta?.dependencyDelay,
-      preBuildScripts: pkgMeta?.preBuildScripts ? pkgMeta?.preBuildScripts : [],
-      preDeployScripts: pkgMeta?.preDeployScripts ? pkgMeta?.preDeployScripts : [],
-      postDeployScripts: pkgMeta?.postDeployScripts ? pkgMeta?.postDeployScripts : [],
-      dependencies: pkgMeta?.dependencies,
-      versionHashDir: pkgMeta?.versionHashDir,
-      versionHash: pkgMeta?.versionHash,
-      buildHash: pkgMeta?.buildHash,
-      currentHash: pkgMeta?.currentHash,
-      version: pkgMeta?.version,
-      buildVersion: pkgMeta?.buildVersion,
-      currentVersion: pkgMeta?.currentVersion,
-      name: pkgMeta?.name,
-      skipDeployBuild: pkgMeta?.skipDeployBuild,
-      verifyStack: pkgMeta?.verifyStack,
-      deployStack: pkgMeta?.deployStack,
-      destroyStack: pkgMeta?.destroyStack,
-      volatileContextKeys: pkgMeta?.volatileContextKeys ? pkgMeta?.volatileContextKeys : [],
-      dockerType: pkgMeta?.dockerType,
-      url: pkgMeta?.url,
-      bin: pkgMeta?.bin,
-      scripts: pkgMeta?.scripts
-    };
+  merge(packagePath: string) {
+    const dep = PackageMeta.load(packagePath);
 
     this.metas[packagePath] = dep;
 
-    this.deployDependencies = this.deployDependencies.concat(dep.deployDependencies);
-    this.destroyDependencies = this.destroyDependencies.concat(dep.destroyDependencies);
-    this.dependencyDelay = dep?.dependencyDelay;
-    this.preBuildScripts = this.preBuildScripts.concat(dep?.preBuildScripts);
-    this.preDeployScripts = this.preDeployScripts.concat(dep?.preDeployScripts);
-    this.postDeployScripts = this.postDeployScripts.concat(dep?.postDeployScripts);
-    this.dependencies = { ...this.dependencies, ...dep?.dependencies };
-    this.versionHashDir = dep?.versionHashDir;
-    this.versionHash = dep?.versionHash;
-    this.buildHash = dep?.buildHash;
-    this.currentHash = dep?.currentHash;
-    this.version = dep?.version;
-    this.buildVersion = dep?.buildVersion;
-    this.currentVersion = dep?.currentVersion;
-    this.name = dep?.name;
-    this.skipDeployBuild = dep?.skipDeployBuild;
-    this.verifyStack = dep?.verifyStack;
-    this.deployStack = dep?.deployStack;
-    this.destroyStack = dep?.destroyStack;
-    this.dockerType = dep?.dockerType;
-    this.url = dep?.url;
-    this.volatileContextKeys = dep?.volatileContextKeys;
+    this.data.deployDependencies = this.data.deployDependencies.concat(dep.deployDependencies);
+    this.data.destroyDependencies = this.data.destroyDependencies.concat(dep.destroyDependencies);
+    this.data.preBuildScripts = this.data.preBuildScripts.concat(dep?.preBuildScripts);
+    this.data.preDeployScripts = this.data.preDeployScripts.concat(dep?.preDeployScripts);
+    this.data.postDeployScripts = this.data.postDeployScripts.concat(dep?.postDeployScripts);
+    this.data.dependencies = { ...this.data.dependencies, ...dep?.dependencies };
+    this.data.bin = { ...this.data.bin, ...dep.bin };
+    this.data = { ...dep };
+    return dep;
   }
 
   addModule(module: PackageModule, packagePath: string) {
     this.modules[module.constructor.name] = packagePath;
-    this.bin[packagePath] = this.metas[packagePath].bin;
-    this.scripts[packagePath] = this.metas[packagePath].scripts;
+    if (this.metas[packagePath].bin) {
+      this.data.bin = this.data.bin ? this.data.bin : {};
+      this.data.bin[packagePath] = this.metas[packagePath].bin;
+    }
+    this.data.scripts = this.data.scripts ? this.data.scripts : {};
+    this.data.scripts[packagePath] = this.metas[packagePath].scripts;
   }
 }
 
@@ -389,7 +372,7 @@ export interface IPackage {
   stack: StackModule;
   lib: LibModule;
   exec: ExecutableModule;
-  meta: IPackageMeta;
+  meta: PackageMetaConsolidated;
   statusTime: number;
   processStatus: ProcessStatus;
   environmentStatus: EnvironmentStatus;
@@ -413,6 +396,7 @@ export interface IPackage {
 export interface CommandEvents {
   preCommandFunc?: () => Promise<void>,
   postCommandFunc?: () => Promise<void>
+  failureCommandFunc?: () => Promise<void>
 }
 
 export class Package implements IPackage {
@@ -428,13 +412,9 @@ export class Package implements IPackage {
   processStatus: ProcessStatus = undefined;
   environmentStatus: EnvironmentStatus = EnvironmentStatus.NONE;
   environmentStatusReal: EnvironmentStatus = EnvironmentStatus.NONE;
-  timer: Timer;
   timerFinalElapsed: string;
-  cmds: PackageCmd[];
   isGlobal = false;
   isRoot = false;
-  activeCmdIndex: number;
-  activeModuleIndex: number;
   modules: PackageModule[];
   cenvVars?: any;
 
@@ -454,9 +434,17 @@ export class Package implements IPackage {
   packageModules?: { [packageName: string]: PackageModule[] } = {};
   deploymentBlocked? = false;
   mouth: Mouth;
-  meta: PackageMetaConsolidated = new PackageMetaConsolidated();
+  meta: PackageMetaConsolidated;
   deployDependencies?: Package[];
   deployDependenciesRemaining?: Package[];
+  component: string = undefined;
+  package: string = undefined;
+  instance: string = undefined;
+  codifiedName: string = undefined;
+  activeCmdIndex = -1;
+  activeModuleIndex = 0;
+  timer: Timer = null;
+  cmds: PackageCmd[] = [];
 
   static loading = true;
   static deployment: any;
@@ -464,24 +452,42 @@ export class Package implements IPackage {
   static suites: any = {};
   static defaultSuite: string;
 
-  public static buildLog: any;
-  public static buildLogPath: string;
+  public static maxVisibleLength = 29;
 
-  public static stackNameMaxVisibleLength = 29;
-
-  constructor(packageName: string, noCache = false) {
-    this.load(packageName, noCache);
+  get codifiedNameVis(): string {
+    return this.codifiedName.substring(0, Package.maxVisibleLength)
   }
 
   get stackNameVis(): string {
-    return this.stackName.substring(0, Package.stackNameMaxVisibleLength);
+    let stack= this.stackName;
+    if (this.component) {
+      stack = Package.packageNameToStackName(this.codifiedName);
+    }
+    return stack.substring(0, Package.maxVisibleLength);
   }
+
   get type(): string {
     return this.fullType?.split('-')[0];
   }
 
-  static get global(): Package {
-    return Package.fromStackName('GLOBAL');
+  public get packageName() {
+    return this.isGlobal ? this.stackName : Package.stackNameToPackageName(this.stackName);
+  }
+
+  static getPackageComponent(packageName: string) {
+    if (packageName.indexOf('#') > -1) {
+      const parts = packageName.split('#');
+      if (parts[1].indexOf('@') === -1) {
+        return {package: parts[0], component: parts[1]};
+      } else {
+        const instanceParts = parts[1].split('@');
+        return {package: parts[0], component: instanceParts[0], instance: instanceParts[1]};
+      }
+    }
+    return { package: packageName };
+  }
+  constructor(packageName: string, noCache = false) {
+    this.load(packageName, noCache);
   }
 
   load(packageName: string, noCache = false) {
@@ -492,27 +498,39 @@ export class Package implements IPackage {
       this.err(err.stack);
     }
 
+    const isGlobal = packageName === 'GLOBAL';
+
     try {
-      const stackName = Package.packageNameToStackName(packageName);
-      if (!noCache && Package.cache[stackName]) {
-        return Package.cache[stackName];
+      const packageComponent = Package.getPackageComponent(packageName);
+      this.codifiedName = packageName;
+      this.package = packageComponent.package;
+      this.component = packageComponent.component;
+      this.instance = packageComponent.instance;
+      this.stackName = Package.packageNameToStackName(packageName);
+
+
+      if (!noCache) {
+        const pkg = Package.cache[this.stackName];
+        if (pkg) {
+          return pkg;
+        }
       }
-      this.stackName = stackName;
 
-      let packageMetaPath;
-      const isRoot = packageName === Package.getRootPackageName();
-      const isGlobal = packageName === 'GLOBAL';
+      const isRoot = this.package === Package.getRootPackageName();
 
+      let pkgPath;
       if (isRoot || isGlobal) {
-        packageMetaPath = getMonoRoot();
-        this.fullType = packageName.toLowerCase();
+        pkgPath = getMonoRoot();
+        this.fullType = this.package.toLowerCase();
       } else {
-        packageMetaPath = packagePath(packageName);
+        pkgPath = packagePath(this.package);
+        if (!pkgPath) {
+          pkgPath = packagePath(this.package, __dirname);
+        }
       }
 
-      const pkgPath = packageMetaPath;
       if (!pkgPath) {
-        CenvLog.single.catchLog(`could not load package: ${packageName}`);
+        CenvLog.single.catchLog(`could not load package: ${this.codifiedNameVis}`);
       }
 
       const pkgPathParts = pkgPath.split('/');
@@ -522,16 +540,15 @@ export class Package implements IPackage {
         this.fullType = pkgPathParts.shift();
       }
 
-
-      this.meta.load(pkgPath);
-      const pathMeta = this.meta.metas[packageMetaPath];
+      this.meta = new PackageMetaConsolidated(pkgPath);
+      const pathMeta = this.meta.metas[pkgPath];
 
       const paramsPackage = existsSync(path.join(pkgPath, AppVarsFile.NAME)) || existsSync(path.join(pkgPath, EnvVarsFile.NAME));
       if (paramsPackage) {
         this.params = new ParamsModule({ pkg: this, path: pkgPath });
       }
 
-      if (existsSync(path.join(pkgPath, './cdk.json')) || pathMeta.deployStack) {
+      if (existsSync(path.join(pkgPath, './cdk.json')) || pathMeta.deployStack || this.meta?.data?.cenv?.stack) {
         this.stack = new StackModule({ pkg: this, path: pkgPath });
       }
 
@@ -539,7 +556,7 @@ export class Package implements IPackage {
         this.docker = new DockerModule({ pkg: this, path: pkgPath });
       }
 
-      if (pathMeta.bin) {
+      if (this.meta?.metas[pkgPath].bin) {
         this.exec = new ExecutableModule({ pkg: this, path: pkgPath })
       }
 
@@ -548,16 +565,21 @@ export class Package implements IPackage {
       }
 
       if ((this.docker || this.params || this.lib || this.exec) && !this.stack) {
-        this.stack = this.addStackModule(packageName, pkgPath)
+        this.stack = this.addStackModule(pkgPath)
       }
 
+      this.setDependentComponentVolatileKeys();
+
       if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {
-        const errString = `${colors.alertBold(packageName)} is not a valid package`;
-        CenvLog.single.catchLog(new Error(errString));
+        const errString = `${colors.alertBold(this.codifiedName)} is not a valid package`;
+        //CenvLog.single.catchLog(new Error(errString));
+        CenvLog.single.infoLog(errString);
+        console.log(errString);
+        process.exit()
         return undefined;
       }
 
-      this.name = stackName.replace(process.env.ENV + '-', '');
+      this.name = this.stackName.replace(process.env.ENV + '-', '');
       if (!isGlobal) {
         this.modules = [this.params, this.docker, this.stack, this.lib, this.exec].filter((n) => n) as PackageModule[];
         this.modules.map((m) => {
@@ -574,22 +596,39 @@ export class Package implements IPackage {
       this.statusTime = Date.now();
       this.processStatus = isGlobal ? ProcessStatus.NONE : ProcessStatus.INITIALIZING;
       this.environmentStatus = isGlobal ? EnvironmentStatus.NONE : EnvironmentStatus.INITIALIZING;
-      this.timer = null;
-      this.cmds = [];
+
       this.isGlobal = isGlobal;
       this.isRoot = isRoot;
-      this.activeCmdIndex = -1;
-      this.activeModuleIndex = 0;
-      this.mouth = new Mouth(stackName, stackName);
-      this.timer = new Timer(stackName, 'seconds');
+
+      this.mouth = new Mouth(this.stackName, this.stackName);
+      this.timer = new Timer(this.stackName, 'seconds');
 
       if (!noCache) {
-        Package.cache[stackName] = this;
+        Package.cache[this.stackName] = this;
       }
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
   }
+
+  setDependentComponentVolatileKeys() {
+    if (this.meta?.data?.volatileContextKeys) {
+      this.meta.data.deployDependencies?.map((p: Package) => {
+        if (p.component) {
+          if (p.meta.data?.volatileContextKeys) {
+            p.meta.data.volatileContextKeys = p.meta.data.volatileContextKeys.concat(this.meta.data.volatileContextKeys)
+          } else {
+            p.meta.data.volatileContextKeys = this.meta.data.volatileContextKeys;
+          }
+        }
+      })
+    }
+  }
+
+  static get global(): Package {
+    return Package.fromStackName('GLOBAL');
+  }
+
 
   setBroken(brokenText: string, deploymentBlocked = false) {
     this.brokenText = brokenText;
@@ -599,13 +638,13 @@ export class Package implements IPackage {
     }
   }
 
-  addStackModule(packageName: string, pkgPath: string) {
+  addStackModule(pkgPath: string) {
     const deployPath = path.join(pkgPath, 'deploy');
     const cdkPath = path.join(deployPath, './cdk.json');
     const hasDeploy = existsSync(deployPath) && existsSync(cdkPath);
 
     if (hasDeploy) {
-      const meta = this.meta.load(deployPath);
+      const meta = this.meta.merge(deployPath);
       return new StackModule({
         pkg: this,
         path: deployPath,
@@ -626,55 +665,76 @@ export class Package implements IPackage {
   isStackDeploy(options?: any) {
     return this.stack && options?.stack && (!options?.strictVersions || !this.stack.upToDate())
   }
+
+  isParamDestroy(options?: any) {
+    return this.params?.hasCenvVars && options?.parameters && this.params.anythingDeployed;
+  }
+
+  isDockerDestroy(options?: any) {
+    return this.docker && options?.docker && this.docker.anythingDeployed;
+  }
+
+  isStackDestroy(options?: any) {
+    return this.stack && options?.stack && this.stack.anythingDeployed;
+  }
+
+
   async destroy (deployOptions: any) {
 
-    if (this.isStackDeploy(deployOptions)) {
+    if (this.isStackDestroy(deployOptions)) {
       await this.stack.destroy();
     }
 
-    if (this.isDockerDeploy(deployOptions)) {
+    if (this.isDockerDestroy(deployOptions)) {
       await this.docker.destroy();
     }
 
-    if (this.isParamDeploy(deployOptions)) {
+    if (this.isParamDestroy(deployOptions)) {
       await this.params.destroy();
     }
   }
 
   async deploy(deployOptions: any) {
-    const options: any = {
-      failOnError: true,
-      envVars: {
-        CENV_LOG_LEVEL: deployOptions.logLevel,
-        CENV_DEFAULTS: 'true'
-      },
-    };
+    try {
+      const options: any = {
+        failOnError: true,
+        envVars: {
+          CENV_LOG_LEVEL: deployOptions.logLevel,
+          CENV_DEFAULTS: 'true'
+        },
+      };
 
-    if (this.lib) {
-      await this.lib.build();
-    }
+      if (this.lib) {
+        await this.lib.build();
+      }
 
-    if (this.exec) {
-      await this.exec.link();
-    }
+      if (this.exec) {
+        await this.exec.link();
+      }
 
-    if (this.isParamDeploy(deployOptions)) {
-      await this.params.deploy(options);
-    }
+      if (this.isParamDeploy(deployOptions)) {
+        await this.params.deploy(options);
+      }
 
-    if (this.isDockerDeploy(deployOptions)) {
-      await this.docker.deploy(options);
-    }
+      if (this.isDockerDeploy(deployOptions)) {
+        await this.docker.deploy(options);
+      }
 
-    if (this.isStackDeploy(deployOptions)) {
-      await this.stack.deploy(deployOptions, options);
+      if (this.isStackDeploy(deployOptions)) {
+        await this.stack.deploy(deployOptions, options);
+      }
+    } catch (ex) {
+      if (ex instanceof Error) {
+        CenvLog.single.errorLog(ex?.stack, this.stackName, true);
+      }
+      throw ex;
     }
   }
 
   async depCheck() {
     await Promise.all(this.getPackageModules().map(async (packageModule: PackageModule) => {
 
-        const unusedDeps = await this.pkgShell(
+        const unusedDeps = await this.execCmd(
           `depcheck --json | jq -r '[.dependencies[]]|join(" ")'`,
           { packageModule },
         );
@@ -720,78 +780,6 @@ export class Package implements IPackage {
     );
   }
 
-  static loadBuildLog() {
-    this.buildLogPath = path.join(getMonoRoot(), './cenv.build.log');
-    if (existsSync(this.buildLogPath)) {
-      this.buildLog = JSON.parse(readFileSync(this.buildLogPath, 'utf-8'));
-    } else {
-      this.buildLog = {
-        builds: []
-      }
-    }
-  }
-
-  writeBuildLog() {
-    Package.loadBuildLog();
-    Package.buildLog.builds.push({
-      package: this.packageName,
-      ts: new Date()
-    })
-    writeFileSync(Package.buildLogPath, JSON.stringify(Package.buildLog, null, 2));
-  }
-
-  async build(force = false, install = false) {
-    try {
-      if (this.skipDeployBuild && !force) {
-        return;
-      }
-      this.processStatus = ProcessStatus.BUILDING;
-      if (!this.packageName) {
-        console.log(
-          this.params?.path || this.stack?.path || this.docker?.path,
-        );
-      }
-      if (!this.isRoot) {
-        await Promise.all(
-          this.getPackageModules().map(async (packageModule: PackageModule) => {
-            try {
-              await this.pkgCmd(
-                  `nx run ${packageModule.name}:build${force ? ' --skip-nx-cache' : ''}`,
-                  {packageModule, returnOutput: true},
-              );
-            } catch (e) {
-              this.setBroken(`[${packageModule.name}] build failed`, true);
-              Deployment.setDeployStatus(this, ProcessStatus.FAILED);
-              return false;
-            }
-          }),
-        );
-      }
-      if (Version.bumpMode !== BumpMode.DISABLED) {
-        this.processStatus = ProcessStatus.HASHING;
-        await this.hash();
-      }
-      this.writeBuildLog()
-      this.processStatus = ProcessStatus.COMPLETED;
-      return true;
-    } catch (e) {
-      CenvLog.single.catchLog(e);
-    }
-  }
-
-  // TODO: must compute separate hashes per module..
-  async hash() {
-    if (this?.meta?.versionHashDir) {
-      this.meta.currentHash = await computeMetaHash(this, path.join(this.path, this.meta.versionHashDir));
-    } else {
-      if (this.isRoot) {
-        this.meta.currentHash = await computeMetaHash(this, path.join(this.path, 'package.json'));
-      } else if (this.path) {
-        this.meta.currentHash = await computeMetaHash(this, this.path);
-      }
-    }
-  }
-
   setCmdIndex(cmdIndex: number) {
     this.activeCmdIndex = cmdIndex;
   }
@@ -813,8 +801,8 @@ export class Package implements IPackage {
     const type = this.type;
     if (type === 'services') {
       return `https://${process.env.AWS_REGION}.console.aws.amazon.com/ecs/v2/clusters/${this.stackName}-cluster/services?region=${process.env.AWS_REGION}`;
-    } else if (this.meta.url) {
-      return this.meta.url;
+    } else if (this.meta?.data?.url) {
+      return this.meta.data.url;
     }
     return `https://${process.env.AWS_REGION}.console.aws.amazon.com`;
   }
@@ -833,39 +821,34 @@ export class Package implements IPackage {
     return true;
   }
 
-  public get packageName() {
-    return this.isGlobal
-      ? this.stackName
-      : Package.stackNameToPackageName(this.stackName);
-  }
-
   public get path() {
     return this.params?.path || this.docker?.path || this.stack?.path;
   }
 
   static fromPackageName(packageName: string): Package {
-    const stackName = Package.packageNameToStackName(packageName);
-    if (Package.cache[stackName]) {
-      return Package.cache[stackName];
+    if (!packageName || packageName === '') return;
+    const packageComponent = Package.getPackageComponent(packageName);
+    const pkgs = Object.values(Package.cache).filter((p: Package) => {
+      return p.packageName === packageName &&
+        p?.component === packageComponent?.component &&
+        p?.instance === packageComponent?.instance;
+    });
+    if (pkgs.length > 1) {
+      CenvLog.single.catchLog(new Error(`more than one package found.. this isn't supported.. YET!`))
+      process.exit()
+    } else if (pkgs.length === 1) {
+      return pkgs[0];
     }
     return new Package(packageName);
   }
 
-  static fromStackName(stackName: string) {
-    if (Package.cache[stackName]) {
-      return Package.cache[stackName];
-    }
-    return new Package(Package.stackNameToPackageName(stackName));
+  static fromStackName(stackName: string): Package {
+    return Package.fromPackageName(Package.stackNameToPackageName(stackName));
   }
 
   hasChanged() {
-    return this.meta.versionHash !== this.meta.currentHash;
+    return this.meta.data.versionHash !== this.meta.data.currentHash;
   }
-
-  static async install() {
-    await this.getPackage('GLOBAL').pkgCmd('yarn install');
-  }
-
 
 
   async bumpComplete() {
@@ -882,16 +865,16 @@ export class Package implements IPackage {
     if (!this.meta) {
       return;
     }
-    const pre = parse(this.meta.buildVersion);
+    const pre = parse(this.meta.data.buildVersion);
 
     if (pre.prerelease[0] !== prerelease) {
       CenvLog.single.catchLog(
         `[${this.packageName}] attempting to bump in ${ process.env.CENV_BUILD_TYPE } mode but prerelease version doesn't match. Expecting ${prerelease} but found ${pre.prerelease[0]} while bumping module ${this.type}.`,
       );
     }
-    this.meta.version = coerce(pre);
-    this.meta.buildVersion = undefined;
-    this.meta.currentVersion = undefined;
+    this.meta.data.version = coerce(pre);
+    this.meta.data.buildVersion = undefined;
+    this.meta.data.currentVersion = undefined;
   }
 
   useHighestVersion(versionA: SemVer, versionB: SemVer): SemVer {
@@ -975,27 +958,7 @@ export class Package implements IPackage {
     this.setVersion('version', this.moduleVersion);
   }
 
-  static async build(options: BuildCommandOptions) {
 
-    if (options.install) {
-      await Package.install();
-    }
-
-    let packages: any = []
-    Package.getPackages().map((p: Package) => {
-      p.processStatus = ProcessStatus.BUILDING;
-      packages = packages.concat(p.getPackageModuleNames());
-    });
-
-    let parallel = '';
-    if (options.parallel) {
-      parallel = '--maxParallel=' + options.parallel;
-    }
-    await Package.global.pkgCmd(`nx affected:build --all --output-style=static${options.force ? ' --skip-nx-cache' : ''} ${parallel}`);
-
-    const projects = await execCmd(getMonoRoot(), 'nx show projects --all')
-    CenvLog.single.catchLog(new Error(projects));
-  }
 
   async bump(type: string) {
     try {
@@ -1011,8 +974,8 @@ export class Package implements IPackage {
       this.ensureModuleVersionConsistency();
       if (
         !this.meta ||
-        !this.meta.currentHash ||
-        this.meta.currentHash === (this.meta.buildHash || this.meta.versionHash)
+        !this.meta.data.currentHash ||
+        this.meta.data.currentHash === (this.meta.data.buildHash || this.meta.data.versionHash)
       ) {
         return;
       }
@@ -1027,7 +990,7 @@ export class Package implements IPackage {
         case 'major':
         case 'minor':
         case 'patch':
-          this.meta.currentVersion = semver.parse(
+          this.meta.data.currentVersion = semver.parse(
             inc(this.rollupVersion, type),
           );
           break;
@@ -1043,19 +1006,19 @@ export class Package implements IPackage {
               this.confirmPrerelease('b');
               break;
             case 'PRERELEASE':
-              this.meta.currentVersion = semver.parse(
+              this.meta.data.currentVersion = semver.parse(
                 inc(this.rollupVersion, 'prerelease', 'r'),
               );
               break;
             case 'BETA_PRERELEASE':
-              this.meta.currentVersion = semver.parse(
+              this.meta.data.currentVersion = semver.parse(
                 inc(this.rollupVersion, 'prerelease', 'b'),
               );
               break;
             // considered alpha prerelease by default
             case 'ALPHA_PRERELEASE':
             default:
-              this.meta.currentVersion = semver.parse(
+              this.meta.data.currentVersion = semver.parse(
                 inc(this.rollupVersion, 'prerelease', 'a'),
               );
               break;
@@ -1070,7 +1033,7 @@ export class Package implements IPackage {
         m.bump(type);
       });
 
-      const newVersion = this.meta.version;
+      const newVersion = this.meta.data.version;
       if (previousVersion === newVersion) {
         return;
       }
@@ -1085,8 +1048,8 @@ export class Package implements IPackage {
         packages.map(async (p: Package) => {
           if (
             p.packageName !== this.packageName &&
-            p.meta?.dependencies &&
-            Object.keys(p.meta?.dependencies)?.includes(this.packageName)
+            p.meta?.data.dependencies &&
+            Object.keys(p.meta?.data.dependencies)?.includes(this.packageName)
           ) {
             await p.bump(type);
           }
@@ -1185,19 +1148,39 @@ export class Package implements IPackage {
     this.statusCheckComplete = true;
     if (endStatus) {
       this.processStatus = endStatus;
-    } else if (targetMode === 'DEPLOY') {
+    } else if (targetMode === 'DEPLOY' || Deployment.mode.toString() === 'DEPLOY') {
       this.processStatus = this.environmentStatus === EnvironmentStatus.UP_TO_DATE ? ProcessStatus.COMPLETED : ProcessStatus.PROCESSING;
-    } else if (targetMode === 'DESTROY') {
+    } else if (targetMode === 'DESTROY' || Deployment.mode.toString() === 'DESTROY') {
       this.processStatus = this.environmentStatus === EnvironmentStatus.NOT_DEPLOYED ? ProcessStatus.COMPLETED : ProcessStatus.PROCESSING;
     }
   }
 
   async checkStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
-    const cmd = this.createCmd('cenv stat');
+
+    let options = '';
+    if (CenvLog.isVerbose) {
+      if (targetMode) {
+        options = ` --target-mode ${targetMode}`
+      }
+
+      if (endStatus) {
+        options += ` --end-status ${Object.keys(ProcessStatus)[Object.values(ProcessStatus).indexOf(endStatus)]}`
+      }
+    }
+
+    const cmd = this.createCmd(`cenv stat ${this.packageName}${options}`);
     this.resetStatus()
     await this.checkModuleStatus();
     await this.finalizeStatus(targetMode, endStatus);
-    cmd.result(0, `[${this.environmentStatus}]`);
+    cmd.result(0);
+    /*
+    await this.pkgCmdFunc(`cenv stat ${this.packageName}${options}`, async (targetMode?: string, endStatus?: ProcessStatus) => {
+      this.resetStatus()
+      await this.checkModuleStatus();
+      await this.finalizeStatus(targetMode, endStatus);
+    }, [targetMode, endStatus])
+
+     */
   }
 
   get needsFix() {
@@ -1215,6 +1198,16 @@ export class Package implements IPackage {
 
   static async checkStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
     return this.getPackages().map(async (p: Package) => {
+      /*let options = '';
+      if (targetMode) {
+        options = ` --target-mode ${targetMode}`
+      }
+
+      if (endStatus) {
+        options += ` --end-status ${Object.keys(ProcessStatus)[Object.values(ProcessStatus).indexOf(endStatus)]}`
+      }
+      await p.execCmd(`cenv stat ${p.packageName}${options}`)
+      */
       await p?.checkStatus(targetMode, endStatus)
     });
   }
@@ -1244,16 +1237,19 @@ export class Package implements IPackage {
       return packageName;
     }
     if (this.scopeName) {
-      // language=JSRegexp format=false
-const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
-      packageName = packageName.replace(scopeRegEx, '')
+      packageName = this.packageNameNoScope(packageName);
     }
     return `${process.env.ENV}-${packageName.replace(/-(deploy)$/, '')}`;
   }
 
+  static packageNameNoScope(packageName: string) {
+    const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
+    return packageName.replace(scopeRegEx, '')
+  }
+
   static realPackagesLoaded() {
-    let pkgs = Object.values(Package.cache);
-    pkgs = pkgs.filter((p: Package) => p.stackName !== 'GLOBAL' && !p.local);
+    let pkgs = Package.getPackages();
+    pkgs = pkgs.filter((p: Package) => !p.local);
     return pkgs?.length;
   }
 
@@ -1266,6 +1262,7 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
     ) {
       return stackName;
     }
+
     const stackPrefix = `${process.env.ENV}-`;
     if (!stackName.startsWith(stackPrefix)) {
       const badStackName = new Error(
@@ -1359,18 +1356,12 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
     return undefined;
   }
 
-  static getPackages(applications?: string[]) {
-    if (applications) {
-      return applications?.map((a) => Package.fromPackageName(a));
+  static getPackages(includeGlobal = false) {
+    const pkgs = Object.values(Package.cache);
+    if (includeGlobal) {
+      return pkgs;
     }
-    return Object.values(Package.cache).filter(
-      (p: Package) => p.packageName !== 'GLOBAL',
-    );
-  }
-
-  static getPackage(stackName: string) {
-    if (!stackName || stackName === '') return;
-    return Package.fromStackName(stackName);
+    return pkgs.filter((p: Package) => !p.isGlobal);
   }
 
   static getPackageFromVis(stackNameVis: string) {
@@ -1380,17 +1371,17 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
     if (visMatches.length === 1) {
       return visMatches[0];
     } else if (visMatches.length > 1) {
-      CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} matches more than one package.. consider setting the Package.stackNameMaxVisibleLength higher than ${Package.stackNameMaxVisibleLength} or name your packages more uniquely`))
+      //CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} matches more than one package.. consider setting the Package.xaxVisibleLength higher than ${Package.maxVisibleLength} or name your packages more uniquely`))
     } else {
-      CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} does't match any packages.. this should be possible`));
+      //CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} does't match any packages.. this should be possible`));
     }
   }
 
-  get deployedVersion(): string | false {
-    if (!this.stack?.deployedVersion) {
+  get stackVersion(): string | false {
+    if (!this.stack?.stackVersion) {
       return false;
     }
-    return this.stack?.deployedVersion;
+    return this.stack?.stackVersion.toString();
   }
 
   static getPackageName(packagePath?: string) {
@@ -1426,45 +1417,74 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
       packageModule?: PackageModule;
       returnOutput?: boolean;
       silent?: boolean;
-      commandEvents?: CommandEvents
+      commandEvents?: CommandEvents;
+      pkgPath?: string;
     } = {
       envVars: {},
       cenvVars: {},
       redirectStdErrToStdOut: false,
-      returnOutput: false
+      returnOutput: false,
+      failOnError: true,
+      silent: false
     }
   ) {
     try {
-      const pkgCmd = !options.silent ? this.createCmd(cmd) : undefined;
-      options.pkgCmd = pkgCmd;
 
 
-      const pkgPath = options?.packageModule ? options.packageModule.path : packagePath(this.packageName);
+      if (!options?.pkgPath) {
+        options.pkgPath = options?.packageModule ? options.packageModule.path : packagePath(this.packageName);
+      }
+      const root = getMonoRoot();
+      const relativePath = path.relative(root, options.pkgPath)
+
+      if (!options.pkgCmd && options.silent !== true) {
+        options.pkgCmd = this.createCmd(relativePath + ' ' + cmd);
+      }
+
+      options.pkgCmd.out('opt', options?.pkgPath, options?.silent?.toString(), options.pkgCmd?.cmd)
 
       if (!options.silent) {
         if (!Cenv.dashboard && process.env.CENV_LOG_LEVEL === 'VERBOSE') {
-          pkgCmd.out(cmd + ' [started]', 'pkgCmd')
+          options.pkgCmd.out(cmd + ' [STARTED]')
         }
-        pkgCmd.info(`[${cmd}] cd ${colors.infoBold(pkgPath)}`);
       }
 
-      if (!options.failOnError) {
-        options.failOnError = false;
+      if (options.failOnError === undefined) {
+        options.failOnError = true;
       }
 
       const res = await spawnCmd(
-        pkgPath,
+        options.pkgPath,
         cmd,
         cmd,
         options,
         this,
       );
 
+      if (options.pkgCmd.running) {
+        options.pkgCmd.out('output', res.stdout)
 
-      pkgCmd.result(res);
+        if (res?.result !== undefined && res.result !== 0) {
+          await options.commandEvents.failureCommandFunc();
+        }
+
+        options.pkgCmd?.result(res?.result !== undefined ? res.result : res, res.stdout);
+      }
+
       return res;
     } catch (e) {
-      this.err(e || e.stack);
+      const error = `pkgCmd failed: ${e.stack || e} (${cmd})`;
+      if (options?.pkgCmd?.res !== undefined) {
+        if (options.pkgCmd.code === 0) {
+          options.pkgCmd.code = -41;
+        }
+      } else {
+        if (options.pkgCmd) {
+          options.pkgCmd.result(e, error)
+        } else {
+          this.err(error);
+        }
+      }
       if (options.failOnError) {
         throw e;
       }
@@ -1472,7 +1492,7 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
     }
   }
 
-  async pkgShell(
+  async execCmd(
     cmd: string,
     options: {
       envVars?: any;
@@ -1492,7 +1512,6 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
     try {
       const pkgCmd = this.createCmd(cmd);
       const pkgPath = options?.packageModule ? options.packageModule.path : packagePath(this.packageName);
-      pkgCmd.out(`[${cmd}] cd ${colors.infoBold(pkgPath)}`);
       options.pkgCmd = pkgCmd;
       if (!options.failOnError) {
         options.failOnError = false;
@@ -1513,6 +1532,13 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
     }
   }
 
+  async pkgCmdFunc(cmd: string, func: (...args: any[]) => any, ...args: any[]) {
+    const funcCmd = this.createCmd(cmd);
+    const res = await func(...args)();
+    funcCmd.result(res === undefined ? 0 : res);
+    return res;
+  }
+
   static async pkgCmd(
     pkg: Package,
     cmd: string,
@@ -1529,7 +1555,7 @@ const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
 
   printEnvVars(vars: Record<string, string>) {
     for (let i = 0; i < Object.keys(vars).length; i++) {
-      this.stdPlain(`export ${vars[Object.keys(vars)[i]]}=${Object.keys(vars)[i]}`);
+      this.stdPlain(`export ${Object.keys(vars)[i]}=${vars[Object.keys(vars)[i]]}`);
     }
   }
 }

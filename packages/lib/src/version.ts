@@ -1,5 +1,5 @@
 import path, { join } from 'path';
-import {CenvLog, infoAlertBold} from './log';
+import {CenvLog, info, infoAlertBold, infoBold} from './log';
 import { Package } from './package/package';
 import semver, {SemVer, RangeOptions } from "semver";
 import fs, {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
@@ -131,10 +131,10 @@ export class Version {
     return packageName.replace('@stoked-cenv/', '');
   }
 
-  static setEnvVars(libraryId: string) {
-    const versionString = `${libraryId}: ${this.currentVersion}`;
+  static setEnvVars(packageName: string, libraryId: string) {
+    const versionString = `${info(packageName)}: ${infoBold(this.currentVersion)}`;
     if (process.env.CENV_VERSION) {
-      process.env.CENV_VERSION += ' ' + versionString + '\n';
+      process.env.CENV_VERSION += versionString + '\n';
     } else {
       process.env.CENV_VERSION = versionString + '\n';
     }
@@ -146,7 +146,6 @@ export class Version {
     const libraryId = this.getLibraryId(packageName);
     const isLib = libraryId === 'lib';
     if (!isLib) {
-
       pkgPath = path.join(pkgPath, '../', libraryId);
     }
     this.currentVersion = require(path.join(pkgPath, './package.json')).version;
@@ -163,14 +162,14 @@ export class Version {
     this.installedVersion = semver.parse(this.versionFileData.version, this.opt) as SemVer;
     this.lastVersion = this.versionFileData.version as SemVer;
     if (libraryId !== 'lib' || semver.eq(this.currentVersion, this.lastVersion, this.opt)) {
-      this.setEnvVars(libraryId);
+      this.setEnvVars(packageName, libraryId);
       return;
     }
     await this.Upgrade();
 
     this.incrementVersionFile(this.currentVersion);
 
-    this.setEnvVars(libraryId);
+    this.setEnvVars(packageName, libraryId);
     writeFileSync(versionFile, JSON.stringify(this.versionFileData, null, 2));
     return this.versionFileData;
   }
@@ -221,7 +220,7 @@ export class Version {
     const search = search_sync(path.resolve(monoRoot), false, true, '.cenv', {
       excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
       startsWith: true,
-    });
+    }) as string[];
 
     const newDirs: any = {};
     for (let i = 0; i < search.length; i++) {
@@ -254,7 +253,7 @@ export class Version {
         const cenvSearch = search_sync(dir, false, true, '.cenv', {
           excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
           startsWith: true,
-        });
+        }) as string[];
         if (Array.isArray(cenvSearch)) {
           cenvSearch.forEach((f) => {
             const fileParts = path.parse(f);
@@ -273,7 +272,7 @@ export class Version {
       true,
       searchF,
       { excludedDirs: ['node_modules', 'cdk.out'], startsWith: true },
-    );
+    ) as string[];
     for (let i = 0; i < cenvEnvSearch.length; i++) {
       const file = cenvEnvSearch[i];
       const newFile = file.replace(

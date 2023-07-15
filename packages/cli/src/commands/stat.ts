@@ -1,10 +1,11 @@
 import { Command, Option } from 'nest-commander';
-import { CenvLog, Package, Suite } from '@stoked-cenv/lib'
+import {BaseCommandOptions, CenvLog, Package, ProcessStatus} from '@stoked-cenv/lib'
 import { BaseCommand } from './base';
 
-//export interface StatCommandOptions extends BaseCommandOptions {
-//  environment?: string;
-//}
+export interface StatCommandOptions extends BaseCommandOptions {
+  targetMode?: string;
+  endStatus?: string;
+}
 
 @Command({
   name: 'stat',
@@ -27,10 +28,27 @@ export default class StatusCommand extends BaseCommand {
     return val;
   }
 
+  @Option({
+    flags: '-t, --target-mode, <targetMode>',
+    description: `Target mode`,
+  })
+  parseTargetMode(val: string): string {
+    return val;
+  }
+
+  @Option({
+    flags: '-e, --end-status, <endStatus>',
+    description: `Desired end status`,
+  })
+  parseEndStatus(val: string): string {
+    return val;
+  }
+
   async runCommand(passedParam: string[], options: any, packages: Package[]): Promise<void> {
     try {
       await Promise.allSettled(packages.map((p: Package) => {
-        p.checkStatus();
+        const endStatus: ProcessStatus = options?.endStatus ? Object.values(ProcessStatus)[options.endStatus] : undefined;
+        p.checkStatus(options?.targetMode, endStatus);
       }))
     } catch (e) {
       CenvLog.single.catchLog(e)

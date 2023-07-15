@@ -15,7 +15,7 @@ export default class ConfigureCommand extends BaseCommand {
 
   @Option({
     flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
+    description: `Logging mode 2`,
   })
   parseLogLevel(val: string): string {
     return val;

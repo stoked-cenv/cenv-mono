@@ -1,7 +1,0 @@
-*.zip
-zip.log
-yarn.lock
-*.js
-materialization*
-dist
-build

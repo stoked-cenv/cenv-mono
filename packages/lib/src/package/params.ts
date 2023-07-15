@@ -66,8 +66,10 @@ export class ParamsModule extends PackageModule {
   envValid: boolean;
   geValid: boolean;
   gValid: boolean;
-
   random: number;
+  varsLoaded = false;
+  cenvVars: any = {};
+
   duplicates: { key: string; types: string[] }[] = [];
   static semaphore = new Semaphore(2);
   static showDuplicateParams = false;
@@ -134,35 +136,41 @@ export class ParamsModule extends PackageModule {
     }
   }
 
+  async loadVars() {
+    // switch dir
+    if (!this.varsLoaded) {
+      const toDirVars = path.relative(process.cwd(), this.path);
+      if (toDirVars !== '') {
+        process.chdir(toDirVars);
+      }
+
+      // load config
+      CenvFiles.LoadEnvConfig(process.env.ENV);
+      const config = CenvFiles.GetConfig();
+
+      // get deployed vars
+      this.cenvVars = await getParams({...config, AllValues: true}, 'all', 'simple', false, true, true);
+    }
+    if (CenvLog.isInfo) {
+      this.pkg.stdPlain('# cenv vars')
+      this.pkg.printEnvVars(this.cenvVars)
+    }
+
+    if (CenvLog.isVerbose && process.env.CENV_ENV_VARS_VERBOSE) {
+      this.pkg.stdPlain('# env vars')
+      this.pkg.printEnvVars(process.env)
+    }
+    this.varsLoaded = true;
+  }
+
   async deploy(options: any) {
     const [value, release] = await ParamsModule.semaphore.acquire();
 
 
     const commandEvents = {
       postCommandFunc: async () => {
-
-        // switch dir
-        const toDirVars = path.relative(process.cwd(), this.path);
-        if (toDirVars !== '') {
-          process.chdir(toDirVars);
-        }
-
-        // load config
-        CenvFiles.LoadEnvConfig(process.env.ENV);
-        const config = CenvFiles.GetConfig();
-
-        // get deployed vars
-        options.cenvVars = await getParams({ ...config, AllValues: true },'all', 'simple', false, true, true);
-
-        if (CenvLog.isInfo) {
-          this.pkg.stdPlain('# cenv vars')
-          this.pkg.printEnvVars(options.cenvVars)
-        }
-
-        if (CenvLog.isVerbose) {
-          this.pkg.stdPlain('# env vars')
-          this.pkg.printEnvVars(process.env)
-        }
+        await this.loadVars();
+        options.cenvVars = {...options.cenvVars, ...this.cenvVars}
       }
     }
 

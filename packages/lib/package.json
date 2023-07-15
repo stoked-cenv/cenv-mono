@@ -8,9 +8,10 @@
     "prebuild": "rimraf dist",
     "start": "node dist/index.js",
     "build": "tsc;",
-    "push": "npm publish --access public",
+    "watch": "tsc --watch",
+    "push": "pnpm publish --access public",
     "lint": "eslint src --ext .ts",
-    "lint:fix": "npm run lint -- --fix",
+    "lint:fix": "pnpm run lint -- --fix",
     "docker": "cenv docker @stoked-cenv/lib -d; ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,35 +19,40 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-appconfig": "^3.186.0",
-    "@aws-sdk/client-appconfigdata": "^3.186.0",
-    "@aws-sdk/client-cloudformation": "^3.208.0",
-    "@aws-sdk/client-ecr": "^3.186.0",
-    "@aws-sdk/client-iam": "^3.186.0",
-    "@aws-sdk/client-ec2": "^3.186.0",
-    "@aws-sdk/client-kms": "^3.208.0",
-    "@aws-sdk/client-lambda": "^3.186.0",
-    "@aws-sdk/client-route-53": "^3.218.0",
-    "@aws-sdk/client-sns": "^3.208.0",
-    "@aws-sdk/client-ssm": "^3.186.0",
-    "@aws-sdk/util-utf8-node": "^3.186.0",
+    "@aws-sdk/client-appconfig": "^3.370.0",
+    "@aws-sdk/client-appconfigdata": "^3.370.0",
+    "@aws-sdk/client-cloudformation": "^3.370.0",
+    "@aws-sdk/client-ec2": "^3.370.0",
+    "@aws-sdk/client-ecr": "^3.370.0",
+    "@aws-sdk/client-iam": "^3.370.0",
+    "@aws-sdk/client-kms": "^3.370.0",
+    "@aws-sdk/client-lambda": "^3.370.0",
+    "@aws-sdk/client-route-53": "^3.370.0",
+    "@aws-sdk/client-sns": "^3.370.0",
+    "@aws-sdk/client-ssm": "^3.370.0",
+    "@aws-sdk/client-sts": "^3.370.0",
+    "@aws-sdk/util-utf8-node": "^3.259.0",
+    "@aws-sdk/util-waiter": "^3.370.0",
     "@base2/pretty-print-object": "^1.0.2",
     "ajv": "^8.11.0",
+    "async-mutex": "^0.4.0",
     "chalk": "^4.1.0",
     "js-yaml": "^4.1.0",
     "limiter": "^2.1.0",
     "node-cron": "^3.0.2",
     "read": "^2.0.0",
-    "semver": "^7.3.8",
+    "semver": "^7.5.0",
+    "stoked-cenv": "link:/Users/stoked/code/cenv-mono",
     "typescript": "^4.9.5",
-    "yaml": "^2.1.3",
-    "async-mutex": "^0.4.0"
+    "yaml": "^2.1.3"
   },
   "devDependencies": {
     "@types/jest": "^28.1.3",
-    "@types/node": "^18.11.18",
     "@types/js-yaml": "^4.0.5",
+    "@types/node": "^18.11.18",
+    "@types/semver": "^7.5.0",
     "jest": "^28.1.3",
+    "rimraf": "^4.4.1",
     "ts-jest": "^28.0.8"
   },
   "repository": {
@@ -58,5 +64,12 @@
     "application",
     "configuration",
     "parameters"
-  ]
+  ],
+  "cenv": {
+    "stack": {
+      "package": "@stoked-cenv/cdk#lambda-api",
+      "shortName": "materialize",
+      "buildPath": "packages/lib/dist/materialize"
+    }
+  }
 }

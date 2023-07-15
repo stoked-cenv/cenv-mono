@@ -1,31 +1,31 @@
 {
   "compileOnSave": true,
   "compilerOptions": {
-    "module": "commonjs",
     "declaration": true,
+    "module": "commonjs",
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "target": "es2017",
-    "sourceMap": true,
     "outDir": "./dist",
+    "sourceMap": true,
     "baseUrl": "src",
-    "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "typeRoots": [
-      "./types/read", "./node_modules/@types"
+      "types/read",
+      "node_modules/@types"
     ]
   },
   "include": [
-    "./src",
-    "./types"
+    "src",
+    "types/read"
   ],
   "exclude": [
     "node_modules",

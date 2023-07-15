@@ -44,7 +44,7 @@ export default class Dialogs {
   }
 
   static saveSuiteDialog(screen: any) {
-    const packages = Object.values(Package.cache);
+    const packages = Package.getPackages(true);
     const screenContent = '\n\n\nCreate a deployment with the following packages:\n\n' + packages.map((p: Package) => p.packageName).join(', ')
     const bg = 'gray';
     let form: any = undefined;
@@ -165,7 +165,7 @@ export default class Dialogs {
   static saveDump(screen: any, exit = false) {
     const dump = {
       ts: Date.now(),
-      packages: Object.values(Package.cache).map((p: Package) => {
+      packages: Package.getPackages(true).map((p: Package) => {
         if (p?.params?.pkg) {
           delete p.params.pkg;
         }

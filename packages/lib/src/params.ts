@@ -29,17 +29,13 @@ import { AppVarsFile, CenvFiles, EnvConfig, EnvVarsFile, GlobalEnvVarsFile, Glob
 import { existsSync, } from 'fs';
 import { Package } from './package/package';
 import { updateLambdas } from './aws/lambda';
-import child_process from 'child_process';
-import path from 'path';
-import {Suite} from "./suite";
 import {Environment} from "./environment";
 import {ProcessMode} from "./package/module";
-
 export const variableTypes = [ 'app', 'environment', 'global', 'globalEnv' ];
 
 export function filteredCount(options: string[], types: string[]) {
   const filtered = options.filter(el => {
-    return types.indexOf(el) > -1;
+    return types.indexOf(el.replace('Type', '')) > -1;
   });
   return filtered;
 }
@@ -54,7 +50,7 @@ export function validateCount(options: string[], types: string[], silent = false
       console.log(errorInfo('The command included more than one type - included: ' + filtered.join(', ')));
     }
   }
-  return valid ? filtered[0] : false;
+  return valid ? filtered[0].replace('Type', '') : false;
 }
 
 export function validateOneType(options: string[]) {
@@ -76,6 +72,8 @@ export interface BaseCommandOptions {
   defaultSuite?: string;
   scopeName?: string;
   help?: boolean;
+  skipBuild?: boolean;
+  userInterface?: boolean;
 }
 
 export interface DashboardCreateOptions {
@@ -383,7 +381,7 @@ export class CenvParams {
       parametersVerified = matching;
       if (!parametersVerified) {
         await sleep(10);
-        CenvLog.single.alertLog('sleeping for 5 seconds to wait for consistency in parameter store before materialization', Package.packageNameToStackName(config.ApplicationName));
+        CenvLog.single.alertLog('sleeping for 5 seconds to wait for consistency in parameter store before materialization', config.ApplicationName);
         CenvLog.single.alertLog(JSON.stringify(unmatched, null, 4));
         count--;
       }
@@ -486,13 +484,12 @@ export class CenvParams {
       const mergeGlobalDataRes = await this.mergeDataType(GlobalVarsFile, variables.global, 'globalVariables');
       variables.global = mergeGlobalDataRes.vars;
 
-      if (mergeAppDataRes.changed || mergeEnvDataRes.changed || mergeGlobalEnvDataRes.changed || mergeGlobalDataRes.changed) {
-        if (save) {
-          CenvFiles.SaveVars(variables, data.EnvironmentName, false);
-        }
-        if (push) {
-          await this.push(true, false);
-        }
+      const changed = mergeAppDataRes.changed || mergeEnvDataRes.changed || mergeGlobalEnvDataRes.changed || mergeGlobalDataRes.changed
+      if (save || changed) {
+        CenvFiles.SaveVars(variables, data.EnvironmentName, false);
+      }
+      if (push || changed) {
+        await this.push(true, false);
       }
     } else if (Object.keys(variables).length > 0) {
       if (save) {

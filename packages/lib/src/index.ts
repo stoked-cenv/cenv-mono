@@ -22,6 +22,8 @@ export { Fake }
 export * from './package/package';
 export * from './package/docker';
 export * from './package/params';
+export * from './package/lib';
+export * from './package/executable';
 export * from './package/docker';
 export * from './package/module';
 export * from './deployment';

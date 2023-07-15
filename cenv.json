@@ -1,13 +1,13 @@
 {
-  "global": "globals",
   "defaultSuite": "cenv",
-  "scopeName": "@stoked-cenv",
+  "scope": "@stoked-cenv",
   "suites": {
     "cenv": {
       "packages": [
         "@stoked-cenv/ui",
         "@stoked-cenv/lib",
-        "@stoked-cenv/cli"
+        "@stoked-cenv/cli",
+        "@stoked-cenv/cdk"
       ]
     }
   }

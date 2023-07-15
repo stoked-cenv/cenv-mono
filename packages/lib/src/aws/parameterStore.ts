@@ -205,7 +205,7 @@ export async function deleteParametersByPath(path: string, outputPrefix = '', pa
   if (outputPrefix !== '') {
     outputPrefix += ' ';
   }
-  Package.cache['GLOBAL'].info(`${outputPrefix}deleted ${infoBold(total)} parameters under ${infoBold(path)}`, packageName);
+  Package.global.info(`${outputPrefix}deleted ${infoBold(total)} parameters under ${infoBold(path)}`, packageName);
   return;
 }
 

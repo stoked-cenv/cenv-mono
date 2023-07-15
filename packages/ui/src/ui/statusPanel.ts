@@ -10,8 +10,6 @@ import { CenvPanel } from './panel';
 import Groups from './group';
 import chalk from 'chalk';
 import { Dashboard } from './dashboard';
-import Menu from "./menu";
-import { show } from "nx/src/command-line/show";
 
 enum ParamType {
   app,
@@ -543,11 +541,11 @@ export default class StatusPanel extends CenvPanel {
     }
 
     if ( Dashboard.dependencyToggle) {
-      if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.deployDependencies?.length) {
+      if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.data.deployDependencies?.length) {
         return false;
-      } else if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.destroyDependencies?.length) {
+      } else if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.data.destroyDependencies?.length) {
         return false;
-      } else if (!pkg.meta?.destroyDependencies?.length && !pkg.meta?.deployDependencies?.length) {
+      } else if (!pkg.meta?.data.destroyDependencies?.length && !pkg.meta?.data.deployDependencies?.length) {
         return false
       }
       return true;
@@ -602,7 +600,7 @@ export default class StatusPanel extends CenvPanel {
         const widthRemainder = this.panelWidth - (this.parameterWidth * 4);
         let leftWidth = -1;
 
-        if (paramWidthValid) {
+        if (paramWidthValid && this.app) {
           this.app.left = left;
           this.app.top = top2;
           this.app.height = parameterHeight;
@@ -613,7 +611,7 @@ export default class StatusPanel extends CenvPanel {
 
         widthMultiplier++
 
-        if (paramWidthValid) {
+        if (paramWidthValid && this.environment) {
           this.environment.left = leftWidth;
           this.environment.top = top2;
           this.environment.height = parameterHeight;
@@ -623,7 +621,7 @@ export default class StatusPanel extends CenvPanel {
 
         widthMultiplier++
 
-        if (paramWidthValid) {
+        if (paramWidthValid && this.global) {
           this.global.left = leftWidth;
           this.global.top = top2;
           this.global.height = parameterHeight;
@@ -633,7 +631,7 @@ export default class StatusPanel extends CenvPanel {
 
         widthMultiplier++;
 
-        if (paramWidthValid) {
+        if (paramWidthValid && this.globalEnv) {
           this.globalEnv.top = top2;
           this.globalEnv.width = this.parameterWidth;
           this.globalEnv.height = parameterHeight;
@@ -644,19 +642,29 @@ export default class StatusPanel extends CenvPanel {
         this.previousWidth = this.parameterWidth;
         this.parameterWidth = Math.floor(width / visibleParamTypeCount);
         this.parameterColumnWidth = this.parameterWidth - 1;
-        this.app.options.columnWidth = [this.parameterWidth]
-        this.global.options.columnWidth = [this.parameterWidth]
-        this.environment.options.columnWidth = [this.parameterWidth]
-        this.globalEnv.options.columnWidth = [this.parameterWidth]
+        if (this.app) {
+          this.app.options.columnWidth = [this.parameterWidth]
+        }
+        if (this.global) {
+          this.global.options.columnWidth = [this.parameterWidth]
+        }
+        if (this.environment) {
+          this.environment.options.columnWidth = [this.parameterWidth]
+        }
+        if (this.globalEnv) {
+          this.globalEnv.options.columnWidth = [this.parameterWidth]
+        }
 
         top += parameterHeight  + (this.selectedParamKey && !this.paramTextbox.hidden ? 3 : 0);
 
 
       } else {
-        this.app.left = this.screen.width + 1;
-        this.environment.left = this.screen.width + 1;
-        this.global.left = this.screen.width + 1;
-        this.globalEnv.left = this.screen.width + 1;
+        if (this.app && this.environment && this.global && this.globalEnv) {
+          this.app.left = this.screen.width + 1;
+          this.environment.left = this.screen.width + 1;
+          this.global.left = this.screen.width + 1;
+          this.globalEnv.left = this.screen.width + 1;
+        }
       }
 
       if (Groups.fullScreenActive) {

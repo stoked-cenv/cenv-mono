@@ -22,7 +22,7 @@ export default class CenvCommand extends BaseCommand {
     return val;
   }
 
-  async runCommand(params: string[], options?: Record<string, any>, packages?: Package[]): Promise<void> {
+  async runCommand(params: string[], options?: any, packages?: Package[]): Promise<void> {
     if (options.version) {
       console.log(process.env.CENV_VERSION);
     } else {

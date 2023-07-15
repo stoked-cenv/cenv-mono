@@ -24,10 +24,10 @@ function getClient() {
 export async function createHostedZone(Name: string) {
   try {
 
-    const cmd = new CreateHostedZoneCommand({Name, CallerReference: 'r1'});
+    const cmd = new CreateHostedZoneCommand({Name, CallerReference: Date.now().toString()});
     const res = await getClient().send(cmd);
     if (res) {
-      CenvLog.info(`hosted zone ${infoBold( res.HostedZone.Name)} create`)
+      CenvLog.info(`hosted zone ${infoBold( res.HostedZone.Name)} created`)
       return res.HostedZone.Id;
     }
   } catch (e) {

@@ -35,13 +35,11 @@ export class ExecutableModule extends PackageModule {
           ));
       return;
     } else {
-      this.pkg?.meta?.executables?.filter(e => !e.installed).map(e => {
-        this.pkg.status.needsFix.push(this.statusLine(
-          'not installed',
-          `executable [${this.exec}] is not installed`,
-          true,
-        ));
-      })
+      this.pkg.status.needsFix.push(this.statusLine(
+        'not installed',
+        `executable [${this.exec}] is not installed`,
+        true,
+      ));
     }
   }
 
@@ -90,12 +88,11 @@ export class ExecutableModule extends PackageModule {
 
   get moduleStrings(): string[] {
     const items = super.moduleBaseStrings;
-    this.pkg?.meta?.executables?.filter(e => e.installed).map(e => {
-      items.push(`executable: [${e.exec}] installed`);
-    })
-    this.pkg?.meta?.executables?.filter(e => !e.installed).map(e => {
-      items.push(`executable: [${e.exec}] not installed`);
-    })
+    if (this.installed) {
+      items.push(`executable: [${this.exec}] installed`);
+    } else {
+      items.push(`executable: [${this.exec}] not installed`);
+    }
     return items;
   }
 

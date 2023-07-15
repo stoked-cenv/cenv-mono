@@ -3,11 +3,16 @@ import {
   ListStacksCommand,
   DescribeStacksCommand,
   ListExportsCommand,
-  CancelUpdateStackCommand
+  CancelUpdateStackCommand,
+  DeleteStackCommand,
+  waitUntilStackDeleteComplete,
+
 } from '@aws-sdk/client-cloudformation';
 
 import { CenvLog, errorBold } from '../log';
 import {Package} from "../package/package";
+import {checkExceptions, WaiterConfiguration, WaiterState} from '@aws-sdk/util-waiter'
+import {WaiterResult} from "@aws-sdk/util-waiter/dist-types/waiter";
 
 let _client: CloudFormationClient = null;
 
@@ -75,13 +80,35 @@ export async function listExports() {
   }
 }
 
+export async function deleteStack(StackName: string, waitForIt = true, errorOnFailure = false): Promise<boolean> {
+  try {
+    const cmd = new DeleteStackCommand({ StackName });
+    const res= await getClient().send(cmd);
+    Package.fromStackName(StackName)?.info(JSON.stringify(res.$metadata));
+    if (waitForIt) {
+      const waiter = await waitUntilStackDeleteComplete({client: getClient(), maxWaitTime: 2000}, { StackName})
+      checkExceptions(waiter);
+    }
+    return true;
+  } catch (e) {
+    const errorString = `delete stack ${StackName}: ${errorBold(e.message)}, ${e}`;
+    if (!errorOnFailure) {
+      CenvLog.single.errorLog(errorString);
+      return false
+    } else {
+      throw new Error(errorString);
+    }
+  }
+}
+
+
 export async function cancelUpdateStack(StackName: string) {
   try {
     const cmd = new CancelUpdateStackCommand({ StackName });
     const res= await getClient().send(cmd);
-    Package.cache[StackName]?.info(JSON.stringify(res.$metadata));
+    Package.fromStackName(StackName)?.info(JSON.stringify(res.$metadata));
   } catch (e) {
-    CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`)
+    CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`);
   }
 }
 

@@ -1,4 +1,0 @@
-{
-  ApplicationName: { type: String, required: true },
-  EnvironmentName: { type: String, required: true }
-}

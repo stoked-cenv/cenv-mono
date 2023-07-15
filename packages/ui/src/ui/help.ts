@@ -369,10 +369,6 @@ export class HelpUI {
     return [this.commands];
   }
 
-  getPkg(commandName?: string) {
-    return Package.cache[commandName ? commandName : HelpUI.commandName];
-  }
-
   selectCommand(menuType: MenuType) {
     try {
       if (!this.initialized || this[menuType].rows.selected === -1) {

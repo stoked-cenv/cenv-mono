@@ -190,7 +190,7 @@ export default class CmdPanel extends CenvPanel {
           }
           this.stderr.setContent(cmd.stderr);
           if (process.env.CENV_STDTEMP) {
-            this.stdout.setContent(cmd.stdtemp || cmd.stdout);
+          //  this.stdout.setContent(cmd.stdtemp || cmd.stdout);
           } else {
             this.stdout.setContent(cmd.stdout);
           }
@@ -415,14 +415,14 @@ export default class CmdPanel extends CenvPanel {
       if (pkgCmds[cmdIndex].stderr) {
         this.stderr.setContent(pkgCmds[cmdIndex].stderr);
       } else {
-        this.stderr.setContent('');
+        //this.stderr.setContent('');
       }
       if (pkgCmds[cmdIndex].stdtemp && process.env.CENV_STDTEMP) {
-        this.stdout.setContent(pkgCmds[cmdIndex].stdtemp);
+        //this.stdout.setContent(pkgCmds[cmdIndex].stdtemp);
       } else if (pkgCmds[cmdIndex].stdout) {
         this.stdout.setContent(pkgCmds[cmdIndex].stdout);
       } else {
-        this.stdout.setContent(' - ');
+        //this.stdout.setContent(' - ');
       }
     }
   }
@@ -480,7 +480,7 @@ export default class CmdPanel extends CenvPanel {
       this.stderr.hide();
     }
 
-    if ((cmds[this.selectedCmdIndex]?.stdout || (cmds[this.selectedCmdIndex]?.stdtemp && process.env.CENV_STDTEMP)) && !Dashboard.toggleDebug) {
+    if (!cmds[this.selectedCmdIndex]?.stderr || (cmds[this.selectedCmdIndex]?.stdout || (cmds[this.selectedCmdIndex]?.stdtemp && process.env.CENV_STDTEMP)) && !Dashboard.toggleDebug) {
       this.stdout.show();
     } else {
       this.stdout.hide();

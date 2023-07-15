@@ -24,18 +24,26 @@ export abstract class BaseCommand extends CommandRunner {
   meta: any;
 
   async run(passedParams: string[], options?: any) {
-
-    const pkg = Package.getPackage('GLOBAL');
+    const pkg = Package.global;
     if (this.allowUI) {
       pkg.createCmd('clean this up');
     }
     Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
-    await Cenv.cmdInit(options);
+    Cenv.cleanTags = (...text: string[]) => {
+      return Dashboard.cleanTags(...text);
+    }
+    const runningInit = this.command.name() === 'init';
+    await Cenv.cmdInit(options, runningInit);
 
     if (!process.env.CENV_VERSION) {
       await Version.getVersion('@stoked-cenv/cli');
       await Version.getVersion('@stoked-cenv/lib');
       await Version.getVersion('@stoked-cenv/ui');
+    }
+
+    if (runningInit) {
+      await this.runCommand(passedParams, options);
+      return;
     }
 
     if (!options?.profile && !options?.env) {
@@ -58,13 +66,6 @@ export abstract class BaseCommand extends CommandRunner {
       process.env.CENV_DEFAULTS = 'true';
     }
     await this.runCommand(parsedParams, { ...validatedOptions, ...passThru }, packages);
-  }
-  @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
-    return val;
   }
 
   protected abstract runCommand(passedParam: string[], options?: BaseCommandOptions, packages?: Package[]): Promise<void>;

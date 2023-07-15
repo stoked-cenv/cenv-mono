@@ -1,4 +1,4 @@
-import { Package } from './package';
+import {Package, PackageMeta, TPackageMeta} from './package';
 import { SemVer } from 'semver';
 import { writeFileSync } from 'fs';
 import path from 'path';
@@ -38,8 +38,9 @@ export interface PackageStatus {
 }
 
 export enum ProcessMode {
-  DEPLOY,
-  DESTROY,
+  DEPLOY = 'DEPLOY',
+  DESTROY = 'DESTROY',
+  SYNTH = 'SYNTH'
 }
 
 export abstract class PackageModule implements IPackageModule {
@@ -62,6 +63,7 @@ export abstract class PackageModule implements IPackageModule {
   depCheckReport: string = null;
   mouth: Mouth;
   status: PackageStatus = { needsFix: [], deployed: [], incomplete: [] };
+  meta: TPackageMeta;
 
   readonly _type: PackageModuleType;
 
@@ -82,9 +84,9 @@ export abstract class PackageModule implements IPackageModule {
     this.checked = false;
     this._type = moduleType;
 
+    this.meta = this.pkg.meta.metas[this.path];
     this.pkg.meta.addModule(this, this.path);
-
-    this.createMouth(moduleType, Package.packageNameToStackName(this.name));
+    this.createMouth(moduleType, this.pkg.stackName);
   }
 
   abstract statusIssues(): void;
@@ -118,17 +120,13 @@ export abstract class PackageModule implements IPackageModule {
       return;
     }
 
-    if (
-      this.pkg?.meta?.currentHash &&
-      this.pkg?.meta?.currentHash !==
-        (pkgJson?.buildHash || pkgJson?.versionHash)
-    ) {
-      pkgJson.currentHash = this.pkg.meta.currentHash;
-      pkgJson.currentVersion = this.pkg.meta.currentVersion;
+    if (this.pkg?.meta?.data.currentHash && this.pkg?.meta?.data.currentHash !== (pkgJson?.buildHash || pkgJson?.versionHash)) {
+      pkgJson.currentHash = this.pkg.meta.data.currentHash;
+      pkgJson.currentVersion = this.pkg.meta.data.currentVersion;
       if (!this.currentVersion && pkgJson.currentHash) {
         delete pkgJson.currentHash;
       }
-      pkgJson.buildVersion = this.pkg.meta.buildVersion;
+      pkgJson.buildVersion = this.pkg.meta.data.buildVersion;
       if (!this.buildVersion && pkgJson.buildHash) {
         delete pkgJson.buildHash;
       }
@@ -218,10 +216,10 @@ export abstract class PackageModule implements IPackageModule {
     }
 
     if (
-      this.pkg?.deployedVersion &&
-      this.version !== semver.parse(this.pkg.deployedVersion)
+      this.pkg?.stackVersion &&
+      this.version !== semver.parse(this.pkg.stackVersion)
     ) {
-      items.push(`deployed version: v${this.pkg.deployedVersion}`);
+      items.push(`deployed version: v${this.pkg.stackVersion}`);
     }
     return items;
   }

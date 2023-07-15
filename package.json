@@ -3,58 +3,39 @@
   "version": "2.0.0-a.16",
   "private": true,
   "scripts": {
-    "bootstrap": "lerna bootstrap",
-    "publish": "nx run-many --target=publish --all",
-    "build": "nx run-many --target=build --all",
-    "build:skip-cache": "nx run-many --target=build --all --skip-nx-cache",
-    "lint": "nx run-many --target=lint --all",
-    "lint:fix": "nx run-many --target=lint:fix --all",
-    "build:since": "nx affected --target=build",
-    "start": "lerna run start --stream",
-    "test": "lerna run test",
-    "test:unit": "lerna run test:unit",
-    "lerna-publish": "lerna version patch --yes --force-publish --no-git-tag-version",
-    "graph": "lerna-dependency-graph",
+    "publish": "pnpm -r run publish",
+    "build": "pnpm -r --filter ...@stoked-cenv/lib run build",
+    "build:all": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "lint:fix": "pnpm -r run lint:fix",
     "report": "istanbul report --include coverage.json --dir f3 html",
-    "coverage": "yarn coverage-merge && yarn report",
-    "test:integration": "lerna run test:integration",
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
-    "clean:dependencies": "lerna exec -- rm -rf node_modules",
-    "clean:lock": "lerna exec -- rm -rf yarn.lock package-lock.json; rm -rf yarn.lock package-lock.json",
-    "clean:complete": "yarn run clean:cdk; yarn run clean:dependencies; yarn run clean:lock; yarn run createLocks",
-    "setVersion": "version.sh",
-    "tsc-version": "tsc -v"
+    "version": "tsc -v; node --version; pnpm --version; cenv --version"
   },
   "husky": {
     "hooks": {
-      "pre-push": "yarn lint"
+      "pre-push": "pnpm run lint"
     }
   },
   "dependencies": {
-    "@nrwl/nx-cloud": "16.0.5",
-    "@nrwl/workspace": "15.9.4",
     "@types/jest": "^28.1.3",
     "@types/node": "18.11.18",
     "esbuild": "^0.17.15",
     "jest": "^28.1.3",
-    "nx": "15.9.4",
     "rimraf": "4.4.1",
     "ts-node": "^10.9.1",
     "typescript": "4.9.5"
   },
-  "cli": {
-    "packageManager": "yarn"
-  },
-  "workspaces": {
-    "packages": [
-      "**"
-    ]
-  },
-  "license": "UNLICENSED",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.60.1",
     "@typescript-eslint/parser": "^5.60.1",
-    "eslint": "^8.44.0"
-  }
+    "concurrently": "^8.2.0",
+    "eslint": "^8.44.0",
+    "tslib": "^2.6.0"
+  },
+  "cli": {
+    "packageManager": "pnpm"
+  },
+  "license": "UNLICENSED"
 }

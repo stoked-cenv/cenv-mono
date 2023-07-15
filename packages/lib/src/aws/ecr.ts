@@ -146,3 +146,33 @@ export async function hasTag(repositoryName: string, tag: string, digest: any = 
   }
   return false;
 }
+
+export async function getTag(repositoryName: string, tag: string) {
+  const images = await listImages(repositoryName);
+  if (!images) {
+    return false;
+  }
+
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i];
+    if (image.imageTag === tag){
+      return image;
+    }
+  }
+  return false;
+}
+
+export async function getDigest(repositoryName: string, digest: string) {
+  const images = await listImages(repositoryName);
+  if (!images) {
+    return false;
+  }
+
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i];
+    if (image.imageDigest === digest){
+      return image;
+    }
+  }
+  return false;
+}

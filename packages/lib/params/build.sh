@@ -1,12 +1,17 @@
-tsc
-mkdir -p build
-cp dist/index.js build
-cp params-build.json build/package.json
+npx rimraf dist build materializationLambda materializationLambda.zip pnpm-lock.yaml node_modules package-lock.json
+mkdir -p build/params
+mkdir -p build/lib
+cp ../package.json build/lib/
+dist ../package.json build/lib/
+cp ./package.json.disable build/package.json
+cp ./tsconfig.json build/tsconfig.json
+cp -r ./src build/src
 cd build
-yarn install
+npm i
+tsc
 rm -rf materializationLambda.zip
-zip -r materializationLambda.zip  index.js package.json node_modules #> zip.log
+zip -r materializationLambda.zip  index.js package.json node_modules > zip.log
 mv ./materializationLambda.zip ../
 cd ..
-cd
 rm -rf build
+

@@ -11,10 +11,6 @@ import {PackageModule, ProcessMode} from "./package/module";
 import { CenvLog, colors, info, LogLevel } from "./log";
 import {Version} from "./version";
 import {listStacks} from "./aws/cloudformation";
-import {deleteRepository, describeRepositories} from "./aws/ecr";
-import {deleteParametersByPath, stripPath} from "./aws/parameterStore";
-import {destroyAppConfig, destroyRemainingConfigs} from "./aws/appConfig";
-import * as util from "util";
 import {ParamsModule} from "./package/params";
 import {DockerModule} from "./package/docker";
 
@@ -24,10 +20,8 @@ export interface CdkCommandOptions extends BaseCommandOptions {
   dependencies?: boolean;
   strictVersions?: boolean;
   cli?: boolean;
-  userInterface?: boolean;
   failOnError?: boolean;
   suite?: string;
-
   test?: boolean;
   stack?: boolean;
   parameters?: boolean;
@@ -50,7 +44,6 @@ export interface DeployCommandOptions extends CdkCommandOptions {
   verify?: boolean;
   force?: boolean;
   bump: string;
-  skipBuild?: boolean;
 }
 
 export interface DestroyCommandOptions extends CdkCommandOptions {
@@ -111,6 +104,7 @@ export class Deployment {
     switch(status) {
       case ProcessStatus.COMPLETED:
         this.removeDependency(pkg);
+      // eslint-disable-next-line no-fallthrough
       case ProcessStatus.FAILED:
       case ProcessStatus.CANCELLED:
         this.stopProcessing(pkg);
@@ -143,7 +137,7 @@ export class Deployment {
   }
 
   static async cmd(
-    stackName: string,
+    pkg: Package,
     name: string,
     options: ICmdOptions = {
       envVars: {},
@@ -155,7 +149,6 @@ export class Deployment {
       getCenvVars: false,
     },
   ) {
-    const pkg: Package = Package.cache[stackName];
     try {
 
       if (await this.handleFake(pkg)) {
@@ -163,15 +156,11 @@ export class Deployment {
       }
 
       if (this.isDeploy()) {
-        if (pkg.meta.deployStack) {
-          return await pkg.pkgCmd(pkg.meta.deployStack);
-        } else {
-          await pkg.deploy(this.options);
-          await pkg.checkStatus(ProcessMode.DEPLOY.toString(), pkg.processStatus);
-        }
+        await pkg.deploy(this.options);
+        await pkg.checkStatus(ProcessMode.DEPLOY.toString(), pkg.processStatus);
       } else {
-        if (pkg.meta.destroyStack) {
-          const res = await pkg.pkgCmd(pkg.meta.destroyStack);
+        if (pkg.meta.data.destroyStack) {
+          const res = await pkg.pkgCmd(pkg.meta.data.destroyStack);
           await pkg.checkStatus(ProcessMode.DESTROY.toString(), pkg.processStatus);
           return false
         }
@@ -180,20 +169,24 @@ export class Deployment {
       }
       return true;
     } catch (e) {
+      if (e instanceof Number) {
+        CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.packageName, true);
+      } else if (e instanceof Error) {
+        CenvLog.single.errorLog(e.stack, pkg.packageName, true);
+      } else {
+        CenvLog.single.errorLog(`${e} not sure what this exception type is`, pkg.packageName, true);
+      }
       Deployment.cancelDependencies(pkg);
       this.setDeployStatus(pkg, ProcessStatus.FAILED);
       return false;
     }
   }
 
-
   static async packageStart(
-    stackName: string,
+    pkg: Package,
     message: string,
     envVars: any = {},
   ) {
-    const pkg = Package.cache[stackName];
-
     pkg.timer.start();
 
     if (pkg.processStatus === ProcessStatus.HAS_PREREQS && pkg?.cmds?.length > 0) {
@@ -208,14 +201,14 @@ export class Deployment {
 
     if (this.isDeploy() && !process.env.BOOTSTRAP_COMPLETE) {
       await this.cmd(
-        pkg.stackName,
+        pkg,
         `boostrapping ${pkg.stackName}`,
         envVars,
       );
       process.env.BOOTSTRAP_COMPLETE = 'true';
     }
 
-    const processRes = await this.cmd(pkg.stackName, message, {
+    const processRes = await this.cmd(pkg, message, {
       envVars,
       getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
     });
@@ -275,8 +268,8 @@ export class Deployment {
     this.processing = this.processing.filter((p) => p.stackName !== packageInfo.stackName);
     this.completed.push(packageInfo);
 
-    if (this.isDeploy() && packageInfo?.meta?.dependencyDelay) {
-      await sleep(parseInt(packageInfo.meta.dependencyDelay));
+    if (this.isDeploy() && packageInfo?.meta?.data.dependencyDelay) {
+      await sleep(parseInt(packageInfo.meta.data.dependencyDelay));
     }
 
     if (this.dependencies) {
@@ -323,10 +316,10 @@ export class Deployment {
   }
 
   static getProcessDependencies = (packageInfo: Package) : Package[] => {
-    if (this.isDeploy() && packageInfo?.meta?.deployDependencies && packageInfo.meta.deployDependencies.length > 0) {
-      return packageInfo.meta.deployDependencies;
-    } else if (this.isDestroy() && packageInfo?.meta?.destroyDependencies && packageInfo.meta.destroyDependencies.length > 0) {
-      return packageInfo.meta.destroyDependencies;
+    if (this.isDeploy() && packageInfo?.meta?.data.deployDependencies && packageInfo.meta.data.deployDependencies.length > 0) {
+      return packageInfo.meta.data.deployDependencies;
+    } else if (this.isDestroy() && packageInfo?.meta?.data.destroyDependencies && packageInfo.meta.data.destroyDependencies.length > 0) {
+      return packageInfo.meta.data.destroyDependencies;
     }
   };
 
@@ -366,13 +359,14 @@ export class Deployment {
       availableProcesses.map(async (app: Package) => {
         this.processing.push(app);
         delete this.toProcess[app.stackName];
-        await this.packageStart(app.stackName, `${this.mode()} ${app.stackName}`);
+        await this.packageStart(Package.fromStackName(app.stackName), `${this.mode()} ${app.stackName}`);
       }),
     );
     packagesToProcess
       .filter((app: Package) => this.dependencies[app.stackName])
       .map((pkg: Package) => {
         if (this.packageDone(pkg)) {
+          // TODO: what is this? why is this that way..
         } else if (pkg.processStatus !== ProcessStatus.CANCELLED) {
           pkg.processStatus = ProcessStatus.HAS_PREREQS
           pkg.statusTime = Date.now();
@@ -515,67 +509,70 @@ export class Deployment {
   }
 
   static async processInit(items: Package[]) {
+    try {
+      this.sysInfo();
 
-    this.sysInfo();
-
-    if (this.options.docker) {
-      await this.dockerPrefight(items);
-    }
-
-    Package.global.timer.start();
-
-    if (this.isDeploy()) {
-      if (this.options?.bump !== 'reset' && !this.options?.skipBuild) {
-        await Promise.all(items.map(async (p: Package) => await p.build()))
+      if (this.options.docker) {
+        await this.dockerPrefight(items);
       }
-      if (this.options.bump) {
-        await Version.Bump(Package.getPackages(), this.options.bump);
-      }
-    }
 
+      Package.global.timer.start();
 
-    if (process.env.FAKE_SUCCESS) {
-      Package.getPackages().map(p => p.environmentStatus = this.isDeploy() ? EnvironmentStatus.NOT_DEPLOYED : EnvironmentStatus.UP_TO_DATE);
-    } else {
-      await Promise.allSettled(items.map(async (p: Package) => p.checkStatus(this.options.mode)));
-    }
-
-    this.processItems = items;
-    await Promise.allSettled(
-      items.map(async (i) => {
-        i.statusTime = Date.now();
-        if (this?.options?.dependencies) {
-          await this.setDeploymentDependencies(i);
+      if (this.isDeploy()) {
+        if (this.options?.bump !== 'reset' && !this.options?.skipBuild) {
+          await Promise.all(items.map(async (p: Package) => await p?.lib?.build()))
         }
-      }),
-    );
+        if (this.options.bump) {
+          await Version.Bump(Package.getPackages(), this.options.bump);
+        }
+      }
 
-    this.setDeploymentStatuses();
-    this.logStatus('processInit()');
-    await this.start();
+
+      if (process.env.FAKE_SUCCESS) {
+        Package.getPackages().map(p => p.environmentStatus = this.isDeploy() ? EnvironmentStatus.NOT_DEPLOYED : EnvironmentStatus.UP_TO_DATE);
+      } else {
+        await Promise.allSettled(items.map(async (p: Package) => p.checkStatus(this.options.mode)));
+      }
+
+      this.processItems = items;
+      await Promise.allSettled(
+        items.map(async (i) => {
+          i.statusTime = Date.now();
+          if (this?.options?.dependencies) {
+            await this.setDeploymentDependencies(i);
+          }
+        }),
+      );
+
+      this.setDeploymentStatuses();
+      this.logStatus('processInit()');
+      await this.start();
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
   }
 
   public static cancelDependencies(pkg: Package) {
     try {
       const dependencyKeys = Object.keys(this.dependencies);
       if (dependencyKeys?.length) {
-        const cancelledDependencies = [];
-
+        const cancelledDependencies = new Set<string>();
         for (let i = 0; i < dependencyKeys?.length ? dependencyKeys.length : 0; i++) {
           const dependencyLinks = this.dependencies[dependencyKeys[i]];
           if (dependencyLinks?.dependencies.find(d => d === pkg)) {
-            cancelledDependencies?.push(dependencyKeys[i]);
-            if (Package.cache[dependencyKeys[i]]) {
-              Package.cache[dependencyKeys[i]].processStatus =
-                ProcessStatus.CANCELLED;
-              Package.cache[dependencyKeys[i]].statusTime = Date.now();
+            const pkgName = dependencyKeys[i];
+            const dependencyPkg = Package.fromStackName(pkgName);
+            if (dependencyPkg && dependencyPkg.processStatus !== ProcessStatus.CANCELLED) {
+              cancelledDependencies?.add(pkgName);
+              dependencyPkg.processStatus = ProcessStatus.CANCELLED;
+              dependencyPkg.statusTime = Date.now();
             }
           }
         }
         cancelledDependencies?.forEach((f) => {
           CenvLog.single.alertLog(`${colors.alertBold(f)} service cancelled because it was depending on ${colors.alertBold(pkg.packageName,)} which failed`, f);
           delete this.toProcess[f];
-          this.cancelDependencies(Package.cache[f]);
+          this.cancelDependencies(Package.fromStackName(f));
         });
       }
 
@@ -588,11 +585,8 @@ export class Deployment {
     const packApps = this.options?.applications?.filter((a: string) => a !== 'GLOBAL');
     const packs = await Promise.all(
       packApps.map(async (a: string) => {
-        if (!Package.cache[a]) {
-          return Package.fromPackageName(a);
-        }
-        return Package.cache[a];
-      }),
+        return Package.fromPackageName(a)
+      })
     );
     return packs;
   }
@@ -647,7 +641,7 @@ export class Deployment {
     options = Deployment.deployDestroyOptions(options);
 
     this.options = { ...this.options, ...options };
-    if (Object.keys(Package.cache).length === 0) {
+    if (Object.keys(Package.getPackages()).length === 0) {
       CenvLog.single.alertLog('no packages loaded');
       process.exit();
     }
@@ -713,7 +707,9 @@ export class Deployment {
   static options: any = { strictVersions: false };
   public static async Deploy(packages: Package[] = [], options: any) {
     try {
+      Cenv.dashboard?.debug('deploy:', packages.map((p: Package) => p.packageName).join(', '))
       options.mode = ProcessMode.DEPLOY;
+      this.options.mode = options.mode;
       const validInstall = await Cenv.verifyCenv(false);
       if (!validInstall) {
         await Cenv.deployCenv(true);
@@ -729,6 +725,7 @@ export class Deployment {
   static async Destroy(packages: Package[] = [], options: any) {
     try {
       options.mode = ProcessMode.DESTROY;
+      this.options.mode = options.mode;
       await this.startDeployment(packages, options);
       const uninstallables = await this.getUninstallables(packages);
       if (packages?.length) {

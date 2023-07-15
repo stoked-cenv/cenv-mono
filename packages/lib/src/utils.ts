@@ -1,8 +1,8 @@
 import * as path from 'path';
 import {join} from 'path';
-import child_process, {exec} from 'child_process';
+import * as child from 'child_process';
 import {ClientMode, startCenv} from './aws/appConfigData';
-import {CenvLog, info, infoAlert, infoBold, LogLevel} from './log';
+import {CenvLog, errorBold, info, infoAlert, infoBold, LogLevel} from './log';
 import fs, {existsSync, readFileSync, rmSync} from 'fs';
 import * as os from 'os';
 import {hostname} from 'os';
@@ -17,8 +17,9 @@ import {deleteCenvData} from "./aws/appConfig";
 import {Suite} from "./suite";
 import {Environment} from "./environment";
 import {Cenv, StackProc} from "./cenv"
-import {cancelUpdateStack} from "./aws/cloudformation";
+import {cancelUpdateStack, deleteStack, describeStacks} from "./aws/cloudformation";
 import { ioYesOrNo } from "./stdIo";
+import {Stack} from "@aws-sdk/client-cloudformation";
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
   return isString(value) ? !!value : value && value.length > 0;
@@ -43,17 +44,34 @@ export function stringToArray(value: string | string[]): string[] {
 }
 
 const packagePaths: any = {};
-export function packagePath(packageName: string): string {
-  if (packageName === 'GLOBAL') {
-    return getMonoRoot();
+
+export function stackPath(codifiedName: string): string {
+  const pkgComp = Package.getPackageComponent(codifiedName);
+  const result = packagePath(pkgComp.package, __dirname);
+  if (!result || !result.length) {
+    CenvLog.alert(`could not find the related files for the codified package name ${codifiedName} `);
+    return;
   }
-  if (packagePaths[packageName])
+
+  const compResults = search_sync(result, true, true, pkgComp.component, {excludedDirs: ['cdk.out', 'node_modules', 'dist']})  as string[];
+  if (!compResults || !compResults.length) {
+    CenvLog.alert(`found the package ${pkgComp.package} could not find the related files for the codified package name ${codifiedName} `);
+    return;
+  }
+  return compResults[0]
+}
+
+export function packagePath(packageName: string, workingDirectory?: string, useCache = true): string {
+  if (packageName === 'GLOBAL') {
+    return getMonoRoot(workingDirectory, useCache);
+  }
+  if (useCache && packagePaths[packageName])
     return packagePaths[packageName];
 
-  const monoRoot = getMonoRoot();
-  const packages = search_sync(monoRoot, false, true, 'package.json', {
+  const cwd = getMonoRoot(workingDirectory, workingDirectory ? false : useCache);
+  const packages = search_sync(cwd, false, true, 'package.json', {
     excludedDirs: ['cdk.out', 'node_modules'],
-  });
+  })  as string[];
 
   for (let i = 0; i < packages.length; i++) {
     let packagePath: any = packages[i].split('/');
@@ -81,20 +99,12 @@ export async function execAll(
   if (sequential) {
     concurrency = '--concurrency 1 ';
   }
-  const execRes = await execCmd(
-    './',
-    `/Users/stoked/.npm-packages/bin/lerna exec ${concurrency} -- ${shell}`,
-  );
-  return execRes;
+  return await execCmd('./',`/Users/stoked/.npm-packages/bin/lerna exec ${concurrency} -- ${shell}`);
 }
 
 export async function isLocalStackRunning() {
   try {
-    let status: any = await execCmd(
-      './',
-      'localstack status docker --format json',
-      'localstack status',
-    );
+    let status: any = await execCmd('./','localstack status docker --format json', 'localstack status');
     status = JSON.parse(status);
     return status.running;
   } catch (e) {
@@ -193,7 +203,7 @@ export interface ICmdOptions {
   detached?: boolean;
   waitSeconds?: number;
   waitForOutput?: string;
-  stdio?: child_process.StdioOptions;
+  stdio?: child.StdioOptions;
   getCenvVars?: boolean;
   output?: boolean;
   stdin?: any;
@@ -219,8 +229,56 @@ function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
   }
 }
 
+function log(options: any, cmdLog: PackageCmd, packageInfo: Package, ...text: string[]) {
+  if (options.silent) {
+    return;
+  }
+  if (cmdLog) {
+    cmdLog.info(...text);
+  } else if (packageInfo) {
+    packageInfo.info(...text);
+  } else if (!options.silent) {
+    CenvLog.single.infoLog(text)
+  }
+}
+
 export async function spawn(cmd: string) {
   await spawnCmd('./', cmd);
+}
+
+function err(errors: string[], options: any, cmdLog: PackageCmd, packageInfo: Package, ...text: string[]) {
+  errors = errors.concat(text)
+  if (options.silent) {
+    return;
+  } else if (cmdLog) {
+    cmdLog.err(...text);
+  } else if (packageInfo) {
+    packageInfo.err(...text);
+  } else if (!options.silent) {
+    CenvLog.single.errorLog(text)
+  }
+  return { errors };
+}
+
+function spawnErr(options: any, cmdLog: PackageCmd, chunk: string, output: string, pkg: Package, errors: string[]) {
+  if (options?.redirectStdErrToStdOut) {
+    const actualErrors = new RegExp(/ERROR/, 'i').exec(chunk);
+    if (!actualErrors) {
+      spawnInfo(options, chunk, output, pkg);
+    } else {
+      err( errors, options, cmdLog, pkg, chunk)
+    }
+  } else {
+    err( errors, options, cmdLog, pkg, chunk)
+  }
+}
+
+function handleErrors(errors: string[], packageInfo: Package) {
+  if (errors.length) {
+    errors.forEach((err: string) => {
+      packageInfo.err('err handleErrors()' + err);
+    })
+  }
 }
 
 export async function spawnCmd(
@@ -248,93 +306,47 @@ export async function spawnCmd(
   if (packageInfo && !cmdLog && !options.silent) {
     cmdLog = packageInfo.createCmd(cmd);
   }
-  if (cmd === 'cenv destroy --parameters --config') {
-    packageInfo.alert('cmdLog', cmdLog.cmd)
-  }
 
-  function log(...text: string[]) {
-    if (options.silent) {
-      return;
-    }
-    if (cmdLog) {
-      cmdLog.info(...text);
-    } else if (packageInfo) {
-      packageInfo.info(...text);
-    } else if (!options.silent) {
-      CenvLog.single.infoLog(text)
-    }
-  }
+    //packageInfo.alert('options', JSON.stringify(options, null, 2))
 
-  let hasErrors = false;
-  let errors: any = [];
+
+  const errors: any = [];
   try {
 
-    function err(...text: string[]) {
-      hasErrors = true;
-      errors = errors.concat(text)
-      if (options.silent) {
-        return;
-      } else if (cmdLog) {
-        cmdLog.err(...text);
-      } else if (packageInfo) {
-        packageInfo.err(...text);
-      } else if (!options.silent) {
-        CenvLog.single.errorLog(text)
-      }
-    }
 
-    function spawnErr(options: any, chunk: string, output: string, pkg: Package) {
-      if (options?.redirectStdErrToStdOut) {
-        const actualErrors = new RegExp(/ERROR/, 'i').exec(chunk);
-        if (!actualErrors) {
-          spawnInfo(options, chunk, output, pkg);
-        } else {
-          err(chunk, pkg ? pkg.stackName : undefined)
-        }
-      } else {
-        err(chunk, pkg ? pkg.stackName : undefined)
-      }
+
+    if (options.commandEvents?.preCommandFunc) {
+      await options.commandEvents.preCommandFunc();
     }
 
     const relativeDir = path.relative(process.cwd(), path.resolve(folder));
     const newCwd: string = './' + relativeDir;
-    return new Promise(async (resolve, reject) => {
+    if (relativeDir !== '') {
+      process.chdir(newCwd);
+    }
 
-      function handleErrors() {
-        if (hasErrors) {
-          errors.forEach((err: string) => {
-            packageInfo.err('err handleErrors()' + err);
-          })
+    let configVarDisplay: string = null;
+    let configVars: any = {};
+    if (options.getCenvVars && !packageInfo) {
+      const useCurrentDirectory = existsSync('.cenv');
+      const useParentDirectory = useCurrentDirectory ? false : existsSync('../.cenv');
+      const skipCenv = !useCurrentDirectory && !useParentDirectory;
+      if (!skipCenv) {
+        configVars = await startCenv(ClientMode.REMOTE_ON_STARTUP, '0 * * * *', true);
+        if (Object.keys(configVars).length) {
+          configVarDisplay = inputArgsToEnvVars(configVars);
+          configVarDisplay = ' ' + configVarDisplay;
         }
+      }
+      if (useParentDirectory) {
+        process.chdir('../');
       }
 
-      if (options.commandEvents?.preCommandFunc) {
-        await options.commandEvents.preCommandFunc();
+      if (useParentDirectory) {
+        process.chdir('./deploy');
       }
-
-      if (relativeDir !== '') {
-        process.chdir(newCwd);
-      }
-      let configVars = null;
-      let configVarDisplay = null;
-      if (options.getCenvVars && !packageInfo) {
-        const useCurrentDirectory = existsSync('.cenv');
-        const useParentDirectory = useCurrentDirectory ? false : existsSync('../.cenv');
-        const skipCenv = !useCurrentDirectory && !useParentDirectory;
-        if (useParentDirectory) {
-          process.chdir('../');
-        }
-        if (!skipCenv) {
-          configVars = await startCenv(ClientMode.REMOTE_ON_STARTUP, '0 * * * *', true);
-          if (Object.keys(configVars).length) {
-            configVarDisplay = inputArgsToEnvVars(configVars);
-            configVarDisplay = ' ' + configVarDisplay;
-          }
-        }
-        if (useParentDirectory) {
-          process.chdir('./deploy');
-        }
-      }
+    }
+    return new Promise( (resolve, reject) => {
       let envVarDisplay;
       if (!packageInfo) {
         if (options?.envVars && Object.keys(options?.envVars).length) {
@@ -365,19 +377,19 @@ export async function spawnCmd(
       const cons = `${hostname()}:${consoleFolder} ${process.env.USER}$`;
       if (!packageInfo) {
         if (envVarDisplay && envVarDisplay.trim().length > 0) {
-          log(envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo,envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
         }
         if (configVarDisplay && configVarDisplay.trim().length > 0) {
-          log('# cenv config vars');
-          log(configVarDisplay ? configVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo,'# cenv config vars');
+          log(options, cmdLog, packageInfo,configVarDisplay ? configVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
         }
-        log(`${info(`${cons} `)}${infoBold(cmd)}`)
+        log(options, cmdLog, packageInfo,`${info(`${cons} `)}${infoBold(cmd)}`)
       }
 
       const spawnArgs = cmd.split(' ');
       const cmdFinal = spawnArgs.shift();
 
-      let stdio: child_process.StdioOptions = 'inherit';
+      let stdio: child.StdioOptions = 'inherit';
 
       let pipedOutput = false;
       if (
@@ -403,7 +415,7 @@ export async function spawnCmd(
       if (packageInfo && process.env.CENV_VERBOSE_SPAWN_OPTIONS) {
         packageInfo.info(packageInfo.packageName, JSON.stringify(opt, null, 2));
       }
-      const proc = child_process.spawn(cmdFinal, spawnArgs, opt);
+      const proc = child.spawn(cmdFinal, spawnArgs, opt);
       const processName = `${packageInfo ? `[${packageInfo.stackName}] ` : ''}${cmd}`;
       Cenv.addSpawnedProcess(packageInfo.stackName, processName, proc);
 
@@ -417,15 +429,17 @@ export async function spawnCmd(
           spawnInfo(options, chunk, output, packageInfo);
         });
         proc.stderr.on('data', function (chunk) {
-          spawnErr(options, chunk, output, packageInfo);
+          spawnErr(options, cmdLog, chunk, output, packageInfo, errors);
         });
       }
       // proc.on('close', function (code) { });
       proc.on('error', function (error: any) {
-        spawnErr(options, error, output, packageInfo);
+        spawnErr(options, cmdLog, error, output, packageInfo, errors);
       });
 
       proc.on('exit', async function (code) {
+        delete Cenv.processes[proc.pid];
+
         if (code === undefined || code === null) {
           code = 1;
         }
@@ -437,11 +451,15 @@ export async function spawnCmd(
         if (options.returnOutput) {
           const returnOutput = { stdout: output, result: code };
           if (cmdLog) {
-            !cmdLog.result(code, output) ? reject(returnOutput) : resolve(returnOutput);
+            if(!cmdLog.result(code)) {
+              reject(returnOutput)
+            } else {
+              resolve(returnOutput);
+            }
           } else {
-            if (code !== 0 || hasErrors) {
-              if (hasErrors) {
-                handleErrors();
+            if (code !== 0 || errors.length) {
+              if (errors.length) {
+                handleErrors(errors, packageInfo);
               }
               reject(returnOutput);
             } else {
@@ -449,10 +467,14 @@ export async function spawnCmd(
             }
           }
         } else if (cmdLog) {
-          !cmdLog.result(code) ? reject(code) : resolve(code);
-        } else if (code !== 0 || hasErrors) {
-          if (hasErrors) {
-            handleErrors();
+          if(!cmdLog.result(code)) {
+            reject(code)
+          } else {
+            resolve(code);
+          }
+        } else if (code !== 0 || errors.length) {
+          if (errors.length) {
+            handleErrors(errors, packageInfo);
           }
           reject(code);
         } else {
@@ -477,6 +499,10 @@ export async function spawnCmd(
   }
 }
 
+export async function exec(cmd: string, silent = false) {
+  return await execCmd('./', cmd, cmd,{}, false, silent);
+}
+
 export function execCmd(
   folder: string,
   cmd: string,
@@ -484,23 +510,24 @@ export function execCmd(
   envVars: object = {},
   rejectOnStdErr = false,
   silent = false,
-  packageInfo: Package = undefined,
+  pkg: Package = undefined,
 ): Promise<string> {
 
   function log(...text: string[]) {
-    if (packageInfo) {
-      packageInfo.info(...text);
-    } else  {
-      CenvLog.single.infoLog(text)
-    }
+
+    //if (!silent && packageInfo) {
+    //  packageInfo.info(...text);
+    //} else if (!silent) {
+    CenvLog.single.stdLog(text, pkg?.stackName);
+    //}
   }
 
   function err(...text: string[]) {
-    if (packageInfo) {
-      packageInfo.err(...text);
-    } else  {
-      CenvLog.single.errorLog(text)
-    }
+    //if (!silent && packageInfo) {
+    //  packageInfo.err(...text);
+    //} else if (!silent) {
+      CenvLog.single.errorLog(text, pkg?.stackName, true);
+    //}
   }
 
   let envVarDisplay: string, envVarFinal: string;
@@ -518,19 +545,20 @@ export function execCmd(
     envVarDisplay = ' ' + envVarDisplay;
     envVarFinal += ' ';
   }
+
   return new Promise((resolve, reject) => {
 
     const relativeDir = path.relative(process.cwd(), path.resolve(folder));
     const newCwd: string = './' + relativeDir;
 
     const originalDir = process.cwd();
-    const consoleFolder = folder.split('/').pop();
-    const cons = `${hostname()}:${consoleFolder} ${process.env.USER}$`;
+    const consoleFolder = path.resolve(newCwd).split('/').pop();
+    const cons = `${process.env.USER}@${hostname()} ${consoleFolder} %`;
     try {
       if (name && !silent) {
-        log(`${cons} cd ${infoBold(folder)}`);
+        //log(`${cons} cd ${infoBold(folder)}`);
         log(envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '')
-        log(`${cons} ${infoBold(cmd)}`)
+        CenvLog.single.infoLog(`${info(cons)} ${cmd}`, pkg?.stackName);
       }
     } catch(e) {
       err(e);
@@ -547,7 +575,8 @@ export function execCmd(
     } else {
       name = 'execCmd ';
     }
-    exec(cmd, (error, stdout, stderr) => {
+
+    child.exec(cmd, (error, stdout, stderr) => {
       if (error) {
         if (!silent) {
           err(`${error}`);
@@ -562,12 +591,13 @@ export function execCmd(
       }
       if (stdout) {
         if (!silent) {
-          log(`${stdout}`);
+          //log(`${stdout}`);
         }
       }
       if (originalDir != process.cwd()) {
         process.chdir(originalDir);
       }
+
       resolve(stdout);
     });
   });
@@ -600,6 +630,25 @@ export function unimplemented() {
   console.log(infoAlert('Unimplemented!'));
 }
 
+export interface searchSyncFallbackResults {
+  results: string[],
+  fallbacks: string[]
+}
+
+function parsedRet(retVal: searchSyncFallbackResults, res: searchSyncFallbackResults | string[], fallback = false) {
+  if (fallback) {
+    const resFallback = res as searchSyncFallbackResults;
+    if (resFallback.results.length) {
+      retVal.results = retVal.results.concat(resFallback.results);
+    }
+    if (resFallback.fallbacks.length) {
+      retVal.fallbacks = retVal.fallbacks.concat(resFallback.fallbacks);
+    }
+  } else {
+    retVal.results = retVal.results.concat(res as string[]);
+  }
+}
+
 export function search_sync(
   dir: string,
   first = false,
@@ -611,6 +660,7 @@ export function search_sync(
     excludedDirs?: string[];
     includedDirs?: string[];
     regex?: boolean;
+    fallBack?: string;
   } = {
     startsWith: false,
     endsWith: false,
@@ -618,8 +668,8 @@ export function search_sync(
     includedDirs: [],
     regex: false,
   },
-): string[] | string {
-  let results = [];
+): searchSyncFallbackResults | string[] {
+  const retVal: searchSyncFallbackResults = { results: [], fallbacks: [] };
   const list = fs.readdirSync(dir);
   const directories = [];
   for (let i = 0; i < list.length; i++) {
@@ -636,9 +686,13 @@ export function search_sync(
         );
         addDir = !excludedMatches.length;
       }
-      if (addDir) {
+      const folder = file.split('/').pop();
+      if (first && folder === searchFile) {
+        return [file];
+      } else if (addDir) {
         directories.push(file);
       }
+
     } else {
       if (options?.includedDirs?.length) {
         const includedMatches = options?.includedDirs?.filter((id) =>
@@ -648,6 +702,11 @@ export function search_sync(
           continue;
         }
       }
+
+      if (options.fallBack && fileName === options.fallBack) {
+        retVal.fallbacks.push(file);
+      }
+
       let foundFile = undefined;
       if (searchFile instanceof RegExp) {
         const m = fileName.match(searchFile)?.length;
@@ -668,30 +727,41 @@ export function search_sync(
       }
       if (foundFile) {
         if (first) {
-          return [filename];
+          if (options.fallBack) {
+            return { results: [filename], fallbacks: [] };
+          } else {
+            return [filename];
+          }
+
         }
-        results.push(foundFile);
+        retVal.results.push(foundFile);
       }
     }
   }
+
   if (searchDown) {
     for (let i = 0; i < directories.length; i++) {
       const dirPath = directories[i];
-      results = results.concat(
-        search_sync(dirPath, first, searchDown, searchFile, options),
-      );
+      const res = search_sync(dirPath, first, searchDown, searchFile, options);
+      parsedRet(retVal, res, options?.fallBack !== undefined);
     }
   } else {
-    results = results.concat(
-      search_sync(join(dir, '../'), first, searchDown, searchFile, options),
-    );
+    const numSlashes = path.resolve(dir).split('/').length - 1;
+    if (numSlashes > 1) {
+      const res = search_sync(join(dir, '../'), first, searchDown, searchFile, options);
+      parsedRet(retVal, res, options?.fallBack !== undefined);
+    }
   }
-  return results;
+  if (options.fallBack) {
+    return retVal as searchSyncFallbackResults;
+  } else {
+    return retVal.results as string[];
+  }
 }
 
 export function exitWithoutTags(tags: any) {
   if (tags.length > 0) {
-    const pkgPath = search_sync('./', true);
+    const pkgPath = search_sync('./', true) as string[];
     const pkg = require(pkgPath[0].toString());
     let packHasMatchingTag = false;
     for (let i = 0; i < tags.length; i++) {
@@ -706,16 +776,25 @@ export function exitWithoutTags(tags: any) {
   }
 }
 
-export function getMonoRoot() {
-  if (packagePaths['root']) {
+export function getMonoRoot(workingDirectory = './', useCache = true) {
+  if (useCache && packagePaths['root']) {
     return packagePaths['root'];
   }
-  const searchResults = search_sync('./', true, false, 'cenv.json');
-  const root = searchResults[0].split('/');
+  const searchResults = search_sync(workingDirectory, true, false, 'cenv.json', { fallBack: 'package.json' }) as searchSyncFallbackResults;
+  if (!searchResults?.results.length && !searchResults.fallbacks.length) {
+    return false;
+  }
+  const root = searchResults?.results.length ? searchResults?.results[0].split('/') : searchResults?.fallbacks[0].split('/');
   root.pop();
   const rootPath = path.resolve(root.join('/'));
-  packagePaths['root'] = rootPath;
+  if (useCache) {
+    packagePaths['root'] = rootPath;
+  }
   return rootPath;
+}
+
+export function getMonoRootName() {
+  return getMonoRoot().split('/').pop();
 }
 
 function elapsedBase(start: [number, number], format = 'seconds', note: string, silent = false) {
@@ -930,7 +1009,7 @@ export async function deleteFiles(search: string | RegExp, options: any) {
     true,
     search,
     options,
-  );
+  ) as string[];
   for (let i = 0; i < results.length; i++) {
     const file = results[i];
 
@@ -971,23 +1050,47 @@ export function clamp(number: number, min: number, max: number) {
 
 const killedStackCmds: Record<string, string[]> = {};
 
-export function killStackProcesses(stackName: string, stackProcs: StackProc[]) {
-  for(const stackProc of stackProcs) {
-    CenvLog.err(info(`kill child process: ${infoBold(stackProc.cmd)}`));
-    const killSuccess= stackProc.proc.kill();
-    if (killSuccess || stackProc.cmd.startsWith('cdk')) {
-      if (!killedStackCmds[stackName]) {
-        killedStackCmds[stackName] = [];
+export async function killStackProcesses(StackName: string) {
+  for (const  [pid, stackProc] of Object.entries(Cenv.processes)) {
+    if (stackProc.stackName === StackName) {
+      CenvLog.alert(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
+      const killSuccess = stackProc.proc.kill();
+
+      if (stackProc.cmd.startsWith('cdk deploy')) {
+        const stacks: Stack[] = await describeStacks(StackName);
+        const status = stacks[0].StackStatus;
+        CenvLog.single.alertLog(`the current status is ${status}` , 'killed cdk deploy process')
+        if (status === "UPDATE_IN_PROGRESS") {
+          CenvLog.single.alertLog(`now attempting to cancel the cloudformation update`, 'killed cdk deploy process')
+          await cancelUpdateStack(StackName)
+        } else if (status === "CREATE_IN_PROGRESS") {
+          CenvLog.single.alertLog(`now attempting to destroy the cloud formation creation`, 'killed cdk deploy process')
+          await deleteStack(StackName)
+        }
       }
-      killedStackCmds[stackName].push(stackProc.cmd);
+      if (killSuccess) {
+        delete Cenv.processes[pid];
+      }
     }
+
   }
+  delete Cenv.processes;
+  delete Cenv.runningProcesses;
 }
 
 export function killRunningProcesses() {
-  for (const [stackName, stackProcs ] of Object.entries(Cenv.runningProcesses) as [string, StackProc[]][] ) {
-    killStackProcesses(stackName, stackProcs);
+  for (const  [pid, stackProc] of Object.entries(Cenv.processes)) {
+    CenvLog.err(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
+    const killSuccess= stackProc.proc.kill();
+    if (killSuccess) {
+      if (!killedStackCmds[stackProc.stackName]) {
+        killedStackCmds[stackProc.stackName] = [];
+      }
+      killedStackCmds[stackProc.stackName].push(stackProc.cmd);
+    }
   }
+  delete Cenv.processes;
+  delete Cenv.runningProcesses;
 }
 
 export function destroyUI() {
@@ -1005,9 +1108,13 @@ export function destroyUI() {
   }
 }
 
+let throwStackAtEnd = true;
 export function cleanup(eventType: string, error?: Error, exitCode?: number) {
   destroyUI();
-  console.log('cleanup', new Error().stack);
+  if (throwStackAtEnd) {
+    console.log('cleanup', new Error().stack);
+    throwStackAtEnd = false;
+  }
 
   if (process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     process.argv.shift();
@@ -1015,8 +1122,8 @@ export function cleanup(eventType: string, error?: Error, exitCode?: number) {
     console.log(`[${eventType}] ${process.argv.join(' ')}`);
   }
 
-  killRunningProcesses();
-
+  //killRunningProcesses();
+/*
   if (error) {
     console.error(error);
   }
@@ -1056,6 +1163,7 @@ export function cleanup(eventType: string, error?: Error, exitCode?: number) {
       process.exit(exitCode);
     }
   }
+  */
 }
 
 // -----------------------------------------------------
@@ -1174,7 +1282,7 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
   let packages;
   const invalidStatePackages = [];
   if (selectedPkg?.stackName === 'GLOBAL') {
-    packages = Object.values(Package.cache).filter((p: Package) => !p.isGlobal);
+    packages = Package.getPackages();
   } else {
     packages = [selectedPkg];
   }
@@ -1464,7 +1572,59 @@ export async function parseParamsExec(params: string[], options: any, asyncExecF
 }
 
 export function pbcopy(data: any) {
-  const proc = child_process.spawn('pbcopy');
+  const proc = child.spawn('pbcopy');
   proc.stdin.write(data);
   proc.stdin.end();
+}
+export async function createParamsLibrary(pkgPath: string) {
+
+  if (!fs.existsSync(pkgPath)) {
+    fs.mkdirSync(pkgPath);
+  }
+
+  const libPathModule = pkgPath + '/node_modules/@stoked-cenv/lib'
+  if (!fs.existsSync(libPathModule)) {
+    fs.mkdirSync(libPathModule, { recursive: true });
+  }
+
+  const libPath = path.join(__dirname, '../');
+  const pkg = '/package.json'
+  const tsconfig = '/tsconfig.json';
+  const index = '/index.ts'
+
+  fs.cpSync(libPath + 'dist', libPathModule, { recursive: true });
+  fs.copyFileSync(libPath + tsconfig, libPathModule + tsconfig );
+  const pkgMeta = require(libPath + 'package.json');
+  delete pkgMeta.dependencies['stoked-cenv'];
+  fs.writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
+  const paramsPath = path.join(__dirname, '../params');
+  fs.copyFileSync(paramsPath + pkg + '.build', pkgPath + pkg);
+  fs.copyFileSync(paramsPath + tsconfig + '.build', pkgPath + tsconfig );
+  fs.copyFileSync(paramsPath + index + '.build', pkgPath + index );
+
+  await execCmd(libPathModule, 'npm i');
+  await execCmd(pkgPath , 'npm i');
+  await execCmd(pkgPath , 'tsc');
+
+  await execCmd(pkgPath, `zip -r materializationLambda.zip * > zip.log`);
+  return path.join(pkgPath, `materializationLambda.zip`)
+}
+
+export function validateEnvVars(envVars: string[]): Record<string, string> | never {
+  let valid = true;
+  const validatedEnvVars: Record<string, string> = {};
+  for (const keyIndex in envVars) {
+    const key = envVars[keyIndex];
+    const value = process.env[key];
+    if (value === undefined) {
+      CenvLog.single.errorLog(`the required environment variable "${key}" was not provided to the stack`)
+      valid = false;
+    } else {
+      validatedEnvVars[key] = value;
+    }
+  }
+  if (!valid) {
+    process.exit(-33);
+  }
+  return validatedEnvVars;
 }

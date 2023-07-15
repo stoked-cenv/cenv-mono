@@ -1,4 +1,4 @@
-import {CenvLog, errorBold, infoBold, LogLevel} from './log'
+import {CenvLog, errorBold, info, infoBold, LogLevel} from './log'
 import {
   addUserToGroup,
   attachPolicyToGroup,
@@ -13,7 +13,7 @@ import {
   getPolicy,
   getRole,
 } from './aws/iam'
-import {Package, PackageCmd,} from './package/package'
+import {IPackageMeta, Package, PackageCmd,} from './package/package'
 import {createFunction, deleteFunction, getFunction} from './aws/lambda'
 import {
   createApplication,
@@ -35,12 +35,13 @@ import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
 import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import { execCmd, exitWithoutTags, getMonoRoot, packagePath, search_sync, sleep } from "./utils";
+import {createParamsLibrary, exec, execCmd, getMonoRoot, packagePath, search_sync, sleep} from "./utils";
 import {ioAppEnv, ioYesOrNo} from "./stdIo";
 import {deleteHostedZone} from "./aws/route53";
-import {existsSync} from "fs";
-import child_process from "child_process";
-import { ParamsModule } from "./package/params";
+import {existsSync, mkdirSync, writeFileSync, openSync, closeSync, readFileSync} from "fs";
+import * as child from 'child_process';
+
+
 
 interface FlagValidation {
   application: string;
@@ -66,20 +67,162 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   output?: string;
   test?: boolean;
   defaults?: boolean;
+  envToParams?: boolean;
+}
+
+export interface InitCommandOptions extends BaseCommandOptions {
+  scope?: string
 }
 
 export interface StackProc {
   cmd: string,
-  proc: child_process.ChildProcess
+  proc: child.ChildProcess
+  stackName?: string
 }
 
+export function createMaterializeApi() {
+
+}
 export class Cenv {
   static runningProcesses?: { [stackName: string]: StackProc[] } = {};
+  static processes?: { [pid: number]: StackProc } = {};
   static dashboard: any = null;
+  static cleanTags: (...text: string[]) => string[];
   static dashboardCreator: DashboardCreator;
   static dashboardCreateOptions: DashboardCreateOptions;
 
-  static addSpawnedProcess(stackName: string, cmd: string, proc: child_process.ChildProcess) {
+  static async init(options: InitCommandOptions) {
+
+    const res = await exec('pnpm m ls --json --depth=-1', true);
+    const pkgs: [] = JSON.parse(res);
+
+    // for now don't include the root
+    pkgs.shift();
+
+    const folderName =  process.cwd().split('/').pop();
+
+    const workspaces = pkgs;
+    const workspaceNames =  workspaces.map((w: any) => w?.name);
+    const workspacePaths = workspaces.map((w: any) => w?.path);
+    const pathCounts: Record<string, number> = {}
+    let mostCommonPath = 'packages';
+    let largestCount = 0;
+    for (let i = 0; i < workspacePaths.length; i++) {
+      const path = workspacePaths[i];
+      const splitPath = path.split('/')
+      splitPath.pop();
+      const thePath = splitPath.join('/');
+      if (!pathCounts[thePath]) {
+        pathCounts[thePath] = 1;
+      } else {
+        pathCounts[thePath]++;
+      }
+      if (pathCounts[thePath] > largestCount) {
+        largestCount = pathCounts[thePath];
+        mostCommonPath = thePath
+      }
+    }
+
+    const globalsNameNoScope = folderName + '-globals';
+    const globalsPath = path.join(mostCommonPath, 'globals');
+    if (!existsSync(globalsPath)) {
+      mkdirSync(globalsPath);
+
+
+
+    }
+    const cenvDir = path.join(globalsPath, '.cenv');
+    if (!existsSync(cenvDir)) {
+      mkdirSync(cenvDir);
+    }
+    const globalsCenvPath = path.join(cenvDir, '.cenv.globals');
+    if (!existsSync(globalsCenvPath)) {
+      writeFileSync(globalsCenvPath, '');
+    }
+
+    const globalsCenvEnvTemplatePath = path.join(cenvDir, '.cenv.env.globals.template');
+    if (!existsSync(globalsCenvEnvTemplatePath)) {
+      writeFileSync(globalsCenvEnvTemplatePath, '');
+    }
+
+    const globalsName = options.scope ? `${options.scope}/${globalsNameNoScope}` : globalsNameNoScope;
+    const globalMeta = {
+      "name": globalsName,
+      "version": "0.0.1"
+    };
+
+    writeFileSync(path.join(globalsPath, 'package.json'), JSON.stringify(globalMeta, null, 2) + '\n');
+    console.log(`${info('generated')} ${infoBold('globals package')}`);
+
+    if (CenvLog.logLevel === LogLevel.VERBOSE) {
+      console.log(info(JSON.stringify(globalMeta, null, 2)))
+      console.log(' ')
+    }
+    const cenvConfig: any = {
+      global: globalsNameNoScope,
+      defaultSuite: folderName
+    }
+    if (options?.scope) {
+      cenvConfig.scope = options.scope;
+    }
+
+    cenvConfig.suites = {};
+    cenvConfig.suites[folderName] = {
+      "packages": workspaceNames.filter((w: string) => !w.endsWith('globals'))
+    }
+
+    const configOutput = JSON.stringify(cenvConfig, null, 2) + '\n';
+    writeFileSync(path.join(process.cwd(), 'cenv.json'), configOutput);
+    console.log(`${info('generated')} ${infoBold('cenv.json')}`)
+    if (CenvLog.logLevel === LogLevel.VERBOSE) {
+      console.log(info(JSON.stringify(cenvConfig, null, 2)))
+    }
+  }
+
+  static async cmdInit(options: any, runningInitCmd = false): Promise<boolean> {
+    try {
+      if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
+        options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
+        const { logLevel }: {logLevel: keyof typeof LogLevel} = options;
+        process.env.CENV_LOG_LEVEL = LogLevel[logLevel] ;
+        CenvLog.logLevel = LogLevel[logLevel];
+        CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
+      } else {
+        process.env.CENV_LOG_LEVEL = LogLevel.INFO
+        CenvLog.logLevel = LogLevel.INFO;
+      }
+
+      const monoRoot = getMonoRoot();
+      const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
+      if (existsSync(cenvConfigPath)) {
+        const cenvConfig = require(cenvConfigPath);
+        Package.defaultSuite = cenvConfig.defaultSuite;
+        Package.scopeName = cenvConfig.scope;
+        Package.suites = cenvConfig.suites;
+        if (cenvConfig.global) {
+          const globalPackage = `${cenvConfig.scope}/${cenvConfig.global}`;
+          const packageGlobalPath = packagePath(globalPackage);
+          if (!existsSync(packageGlobalPath)) {
+            if (!runningInitCmd) {
+              CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${globalPackage} (using scope and globals property)`);
+            }
+          } else if (packageGlobalPath) {
+            CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
+          }
+        }
+      } else {
+        CenvLog.single.infoLog('no cenv.json configuration file exists at the root')
+        return false
+      }
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
+    return true;
+  }
+
+  static addSpawnedProcess(stackName: string, cmd: string, proc: child.ChildProcess) {
+    Cenv.processes[proc.pid] =  { stackName, cmd, proc };
+
     if (!Cenv.runningProcesses[stackName]) {
       Cenv.runningProcesses[stackName] = [{cmd, proc}];
     } else {
@@ -130,9 +273,8 @@ export class Cenv {
     const type = validateOneType(Object.keys(options));
     if (!type) {
       cmd.err(
-        `Must contain at least one type flag (${infoBold('--app')}, ${infoBold(
-          '--environment',
-        )}, ${infoBold('--global')}, ${infoBold('--globalEnv')}`,
+        `Must contain at least one type flag (${infoBold('--app-type')}, ${infoBold('--environment-type',)}, 
+        ${infoBold('--global-type')}, ${infoBold('--global-env-type')}`,
       );
       cmd.result(2);
       return cmd;
@@ -257,12 +399,12 @@ export class Cenv {
       process.exit(0);
     }
 
-    exitWithoutTags(tags);
+    // exitWithoutTags(tags);
     return { application, environment, options, envConfig };
   }
 
   private static async processApplicationEnvironmentNames(options: Record<string, any>, application: string, environment: string, envConfig: EnvConfig) {
-    const pkgPath = search_sync(process.cwd(), true);
+    const pkgPath = search_sync(process.cwd(), true) as string[];
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pkg = require(pkgPath[0].toString());
 
@@ -392,6 +534,25 @@ export class Cenv {
     }
   }
 
+  static async envToParams(envConfig: EnvConfig) {
+    const envFile = path.join(process.cwd(), '.env');
+    if (existsSync(envFile)) {
+      const envData = readFileSync(envFile, 'utf-8');
+      const lines = envData.split('\n');
+      const pkg = Package.fromPackageName(envConfig.ApplicationName)
+      await Promise.all(lines.map(async (line: string) => {
+        const keyValue = line.split('=')
+        if (keyValue.length === 2) {
+          const key = keyValue[0].trim();
+          const value = keyValue[1].trim();
+          if (key.length > 1 && value.length > 1) {
+            await Cenv.addParam(pkg, [key, value], {appType: true});
+          }
+        }
+      }))
+    }
+  }
+
   static async initParams(options?: ParamsCommandOptions, tags: string[] = []) {
     try {
       const flagValidateResponse = this.initFlagValidation(options, tags);
@@ -429,6 +590,10 @@ export class Cenv {
       envConfig = await this.processConfigurationProfile(envConfig);
 
       await this.processInitData(envConfig, options);
+
+      if (options?.envToParams) {
+        await this.envToParams(envConfig);
+      }
     } catch (err) {
       CenvLog.single.catchLog(
         'Cenv.init err: ' + (err.stack ? err.stack : err),
@@ -446,42 +611,6 @@ export class Cenv {
     return true;
   }
 
-  static async cmdInit(options: any): Promise<void> {
-    try {
-      if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
-        options.logLevel = process.env.CENV_LOG_LEVEL || options?.logLevel?.toUpperCase();
-        const { logLevel }: {logLevel: keyof typeof LogLevel} = options;
-        process.env.CENV_LOG_LEVEL = LogLevel[logLevel] ;
-        CenvLog.logLevel = LogLevel[logLevel];
-        CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
-      } else {
-        process.env.CENV_LOG_LEVEL = LogLevel.INFO
-        CenvLog.logLevel = LogLevel.INFO;
-      }
-
-      const monoRoot = getMonoRoot();
-      const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
-      const monoRootPackageName = require(path.resolve(monoRoot, 'package.json')).name;
-      if (existsSync(cenvConfigPath)) {
-        const cenvConfig = require(cenvConfigPath);
-        const globalPackage = `${cenvConfig.scopeName}/${cenvConfig.global}`;
-        Package.defaultSuite = cenvConfig.defaultSuite;
-        Package.scopeName = cenvConfig.scopeName;
-        Package.suites = cenvConfig.suites;
-        const packageGlobalPath = packagePath(globalPackage);
-        if (!existsSync(packageGlobalPath) && monoRootPackageName !== 'stoked-cenv') {
-          CenvLog.single.catchLog(`globals could not be loaded from the ${globalPackage} package defined in cenv.json definition (using scope and globals property)`);
-        }
-        if (packageGlobalPath) {
-          CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
-        }
-      } else {
-        CenvLog.single.catchLog(new Error('could not load the global package from the "global" property in the root cenv.json file'))
-      }
-    } catch (e) {
-      CenvLog.single.catchLog(e);
-    }
-  }
 
   static materializationPkg = '@stoked-cenv/params';
 
@@ -679,27 +808,14 @@ export class Cenv {
 
       CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${infoBold('🙄')}`);
       await sleep(8);
+      // iam client => waitUntilRoleExists
+
       const materializationExists = await getFunction('cenv-params');
-
-      const pkgPath = path.join(__dirname, '../../lib/params');
-
       if (!materializationExists) {
-        await execCmd(
-          pkgPath,
-          'yarn run build',
-          'build materialization artifacts',
-        );
-
-        const materializationRes = await createFunction(
-          'cenv-params',
-          path.join(pkgPath, '/materializationLambda.zip'),
-          roleArn,
-          {},
-          {
-            ApplicationName: '@stoked-cenv/cenv',
-            EnvironmentName: process.env.ENV,
-          },
-        );
+        //const pkgPath = process.env.HOME + '/.paramsBuilder';
+        //await execCmd(pkgPath, `rm -rf *`);
+        //const zipFile = await createParamsLibrary(pkgPath);
+        //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV },);
       }
     } catch (e) {
       CenvLog.single.catchLog(
@@ -708,13 +824,11 @@ export class Cenv {
     }
   }
 
+
+
   static async destroyCenv(): Promise<boolean> {
     let destroyedAnything = false;
     try {
-
-
-      //const cmd = mat.createCmd('cenv destroy -cenv');
-
       const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
       const AppConfigGetArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/AppConfigGod`;
 
@@ -726,12 +840,25 @@ export class Cenv {
       }
 
       const roleExists = await getRole(this.roleName);
+      const KmsPolicyExists = await getPolicy(KmsPolicyArn);
+      const policyExists = await getPolicy(AppConfigGetArn);
+      const ssmPolicyExists = await getPolicy(this.policySsmFullAccessArn);
+
+
       if (roleExists) {
         destroyedAnything = true;
         await detachPolicyFromRole(this.roleName, this.policyLambdaBasic);
-        await detachPolicyFromRole(this.roleName, this.policySsmFullAccessArn);
-        await detachPolicyFromRole(this.roleName, AppConfigGetArn);
-        await detachPolicyFromRole(this.roleName, KmsPolicyArn);
+        if (ssmPolicyExists) {
+          await detachPolicyFromRole(this.roleName, this.policySsmFullAccessArn);
+        }
+        if (policyExists) {
+          await detachPolicyFromRole(this.roleName, AppConfigGetArn);
+        }
+        if (KmsPolicyExists) {
+          console.log('KmsPolicyExists', JSON.stringify(KmsPolicyExists, null, 2))
+          await detachPolicyFromRole(this.roleName, KmsPolicyArn);
+        }
+        console.log(JSON.stringify(roleExists, null, 2));
         const roleRes = await deleteRole(this.roleName);
         if (!roleRes) {
           return;
@@ -741,7 +868,6 @@ export class Cenv {
       if (process.env.KMS_KEY) {
         const groupDelRes = await deleteGroup(this.keyGroupName, false);
 
-        const KmsPolicyExists = await getPolicy(KmsPolicyArn);
         if (KmsPolicyExists) {
           destroyedAnything = true;
           const polRes = await deletePolicy(KmsPolicyArn);
@@ -750,7 +876,6 @@ export class Cenv {
           }
         }
       }
-      const policyExists = await getPolicy(AppConfigGetArn);
       if (policyExists) {
         destroyedAnything = true;
         const polRes = await deletePolicy(AppConfigGetArn);
