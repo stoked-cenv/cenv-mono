@@ -11,7 +11,7 @@
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
     "version:bump": "pnpm -r run version prerelease --force && pnpm -r up @stoked-cenv/* && git add package.json packages/cli/package.json packages/ui/package.json packages/lib/package.json packages/cdk/package.json pnpm-lock.yaml && git commit -m \"push bump packages\" && git push && pnpm version prerelease && git push",
-    "publish": "pnpm --filter \"@stoked-cenv/*\" run publish"
+    "publish:bump": "pnpm run version:bump && pnpm --filter \"@stoked-cenv/*\" run publish"
   },
   "husky": {
     "hooks": {
