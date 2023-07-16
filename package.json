@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.17",
+  "version": "2.0.0-a.18",
   "private": true,
   "scripts": {
     "publish": "pnpm -r run publish",
@@ -11,7 +11,7 @@
     "report": "istanbul report --include coverage.json --dir f3 html",
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
-    "version": "tsc -v; node --version; pnpm --version; cenv --version"
+    "version": "pnpm version prerelease && pnpm -r run version prerelease"
   },
   "husky": {
     "hooks": {

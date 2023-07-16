@@ -43,7 +43,7 @@ export default class CmdPanel extends CenvPanel {
               ch: ' ',
               inverse: true,
             },
-            hidden: true
+            hidden: false
           },
           [0, 2, 1, 3],
           true,
@@ -470,9 +470,9 @@ export default class CmdPanel extends CenvPanel {
       return;
     }
 
-    if (!this.getPkg().isGlobal) {
+    // if (!this.getPkg().isGlobal) {
       this.cmdList.show();
-    }
+    // }
 
     if (cmds[this.selectedCmdIndex]?.stderr) {
       this.stderr.show();

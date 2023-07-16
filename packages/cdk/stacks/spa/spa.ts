@@ -86,7 +86,7 @@ export class SpaStack extends Stack {
       {
         sslMethod: SSLMethod.SNI,
         securityPolicy: SecurityPolicyProtocol.TLS_V1_1_2016,
-        aliases: [www],
+        aliases: ENV === 'prod' ? [domainName, www] : [www],
       },
     );
 

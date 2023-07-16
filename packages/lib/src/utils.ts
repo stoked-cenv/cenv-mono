@@ -1465,7 +1465,6 @@ async function execEnvironment(environment: string, fileList: string[] = [], fun
       CenvLog.single.errorLog(`No package.json for ${path}`);
     }
 
-    console.log('cwd', process.cwd());
     console.log('change to lerna', )
     process.chdir(lernaPath)
   }

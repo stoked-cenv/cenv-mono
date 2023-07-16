@@ -3,7 +3,6 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from 'path';
 import { PackageStatus } from './module'
 import { CenvLog, colors, LogLevel, Mouth } from '../log';
-import { BumpMode, Version } from '../version';
 import semver, { coerce, inc, parse, SemVer } from 'semver';
 import { PackageModule, PackageModuleType } from './module';
 import { ParamsModule } from './params';
@@ -663,7 +662,7 @@ export class Package implements IPackage {
   }
 
   isStackDeploy(options?: any) {
-    return this.stack && options?.stack && (!options?.strictVersions || !this.stack.upToDate())
+    return this.stack && options?.stack && (!options?.strictVersions || !this.stack.upToDate());
   }
 
   isParamDestroy(options?: any) {
@@ -677,7 +676,6 @@ export class Package implements IPackage {
   isStackDestroy(options?: any) {
     return this.stack && options?.stack && this.stack.anythingDeployed;
   }
-
 
   async destroy (deployOptions: any) {
 
@@ -704,11 +702,11 @@ export class Package implements IPackage {
         },
       };
 
-      if (this.lib) {
+      if (this.lib && !Deployment.options.none) {
         await this.lib.build();
       }
 
-      if (this.exec) {
+      if (this.exec && !Deployment.options.none) {
         await this.exec.link();
       }
 

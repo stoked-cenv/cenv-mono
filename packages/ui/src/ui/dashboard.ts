@@ -865,19 +865,44 @@ export class Dashboard {
           }.bind(this),
         },
         "cycle module deploy mode": {
-          keys: ['m'],
+          keys: ['S-m'],
           callback: function () {
             this.debounceCallback('clearVersions', async () => {
-              if (this.focusedBox === this.cmdPanel.stdout) {
-                this.cmdPanel.stdout.setContent('');
-                this.setStatusBar('clearStdout', this.statusText('clear', 'stdout panel'));
-              } else if (this.focusedBox === this.cmdPanel.stderr) {
-                this.cmdPanel.stderr.setContent('');
-                this.setStatusBar('clearStderr', this.statusText('clear', 'stderr panel'));
-              } else {
-                this.debugLog.setContent('');
-                this.setStatusBar('clearDebug', this.statusText('clear', 'debug log'));
+             this.moduleDeployMode++;
+              if (this.moduleDeployMode > 4) {
+                this.moduleDeployMode = 0;
               }
+              switch(this.moduleDeployMode) {
+                case ModuleDeployMode.ALL:
+                  Deployment.options.parameters = Deployment.options.stack = Deployment.options.docker = true;
+                  break
+                case ModuleDeployMode.PARAMETERS:
+                  Deployment.options.parameters = true;
+                  Deployment.options.stack = Deployment.options.docker = false;
+                  break
+                case ModuleDeployMode.STACK:
+                  Deployment.options.parameters = Deployment.options.docker = false;
+                  Deployment.options.stack = true;
+                  break;
+                case ModuleDeployMode.DOCKER:
+                  Deployment.options.parameters = Deployment.options.stack = false;
+                  Deployment.options.docker = true;
+                  break;
+                case ModuleDeployMode.NONE:
+                  Deployment.options.none = true;
+                  Deployment.options.parameters = Deployment.options.stack = Deployment.options.docker = false;
+                  break;
+              }
+              this.setStatusBar('cycle module deploy mode', this.statusText('cycle module deploy mode', Object.values(ModuleDeployMode)[this.moduleDeployMode].toString().toLowerCase() + ' mode'));
+            });
+          }.bind(this),
+        },
+        force: {
+          keys: ['S-f'],
+          callback: function () {
+            this.debounceCallback('forceMode', async () => {
+              Deployment.options.force = !Deployment.options.force;
+              this.setStatusBar('toggle force mode', this.statusText('toggle force mode', 'force mode ' + (Deployment.options.force ? 'enabled' : 'disabled')));
             });
           }.bind(this),
         },
@@ -1235,9 +1260,6 @@ export class Dashboard {
      */
     return DashboardMode.MIXED;
   }
-  setStatus(status: string) {
-
-  }
 
   setMode(mode: DashboardMode) {
     this.mode = mode;
@@ -1479,7 +1501,7 @@ export class Dashboard {
     }
   }
 
-  setStatusBar(name: string, msg: string) {
+  setStatusBar(name: string, msg: string, exclusive = 3000, active = 5000) {
 
     if (!msg) {
       return;
@@ -1489,14 +1511,14 @@ export class Dashboard {
 
     setTimeout(() => {
       Dashboard.instance.statusBarInUse = false;
-    }, 5000);
+    }, exclusive);
 
     if (this.clearLabelTimeout) {
       clearTimeout(this.clearLabelTimeout);
     }
     this.clearLabelTimeout = setTimeout(() => {
       Dashboard.instance.statusBar.setLabel('');
-    }, 5000);
+    }, active);
   }
 
   getUpdatePackages() {

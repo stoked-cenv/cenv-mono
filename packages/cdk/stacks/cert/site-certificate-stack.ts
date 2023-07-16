@@ -50,11 +50,6 @@ export class SiteCertificateStack extends Stack {
       exportName: `${ENV}-site-cert`
     });
 
-
-    this.exportValue(JSON.stringify(certificate, null, 2), {
-      name: `${ENV}-cdk-cert@${APP}`,
-    })
-
     tagStack(this);
   }
 }

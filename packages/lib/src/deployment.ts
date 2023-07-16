@@ -169,11 +169,11 @@ export class Deployment {
       }
       return true;
     } catch (e) {
-      if (e instanceof Number) {
+      if (e instanceof Number || (typeof e === 'string' && !Number.isNaN(Number(e)))) {
         CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.packageName, true);
       } else if (e instanceof Error) {
         CenvLog.single.errorLog(e.stack, pkg.packageName, true);
-      } else {
+      } else if (typeof e === 'string') {
         CenvLog.single.errorLog(`${e} not sure what this exception type is`, pkg.packageName, true);
       }
       Deployment.cancelDependencies(pkg);
@@ -232,7 +232,9 @@ export class Deployment {
   }
 
   static packageDone(pkg: Package) {
-
+    if (this.options.force) {
+      return false;
+    }
     switch(pkg.environmentStatus) {
       case EnvironmentStatus.UP_TO_DATE:
         if (this.isDeploy()) return true;
@@ -595,7 +597,8 @@ export class Deployment {
     if (
       !options?.parameters &&
       !options?.stack &&
-      !options?.docker
+      !options?.docker &&
+      !options?.none
     ) {
       options.parameters = true;
       options.stack = true;
@@ -605,7 +608,7 @@ export class Deployment {
   }
 
   static async validateBootstrap() {
-    const cmd = PackageCmd.createCmd('cdk bootstrap --validate');
+    const cmd= Package.global.createCmd('cdk bootstrap --validate');
     const stacks = await listStacks(['CREATE_COMPLETE']);
 
     const bootstrapStack = stacks?.filter((s) => s.StackName === 'CDKToolkit');

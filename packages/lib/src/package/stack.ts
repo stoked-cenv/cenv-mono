@@ -130,7 +130,6 @@ export class StackModule extends PackageModule {
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {
         const componentPackage = this.meta.cenv?.stack?.package || this.pkg.codifiedName
         opt.pkgPath = stackPath(`${componentPackage}`);
-        this.std('opt.pkgPath', componentPackage, opt.pkgPath)
         if (this.meta?.cenv?.stack?.buildPath) {
           opt.cenvVars = {CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack.buildPath), ...opt.cenvVars};
         }
@@ -246,7 +245,6 @@ export class StackModule extends PackageModule {
 
       if (versionTag) {
         this.stackVersion = semver.parse(versionTag);
-        this.std('stackVersion', versionTag, this.stackVersion.toString());
       }
 
       if (this.detail?.Outputs) {

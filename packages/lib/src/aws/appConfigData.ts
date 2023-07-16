@@ -188,7 +188,7 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
       if (process.env.GLOBAL_PATH) {
         CenvFiles.GlobalPath = process.env.GLOBAL_PATH;
       } else {
-        CenvFiles.GlobalPath = packagePath(`${Package.scopeName}/cenv-globals`);
+        CenvFiles.GlobalPath = packagePath(`${Package.scopeName}/${Package.global}`);
       }
     }
 

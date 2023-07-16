@@ -30,7 +30,10 @@ export interface ECSServiceDeploymentParams {
 
 const { ENV, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ASSIGNED_DOMAIN } = process.env;
 export const defaultStackProps = {
-  env: { account: CDK_DEFAULT_ACCOUNT, region: CDK_DEFAULT_REGION },
+  env: {
+    account: CDK_DEFAULT_ACCOUNT,
+    region: CDK_DEFAULT_REGION
+  },
 }
 
 if (!ROOT_DOMAIN) {
