@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.24",
+  "version": "2.0.0-a.22",
   "description": "",
   "author": "Brian Stoker",
   "license": "MIT",
@@ -16,8 +16,6 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "compile": "tsc",
-    "publish": "pnpm publish --access public",
-    "version": "pnpm version",
     "unlink": "npm unlink @stoked-cenv/cli -g",
     "package": "tsc && webpack --config webpack.config.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -29,7 +27,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --cdoverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "version": "pnpm version",
+    "publish": "pnpm publish --access public"
   },
   "dependencies": {
     "@babel/preset-env": "^7.22.9",
