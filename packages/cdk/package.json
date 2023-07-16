@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cdk",
-  "version": "2.0.0-a.18",
+  "version": "2.0.0-a.24",
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "tsc",
