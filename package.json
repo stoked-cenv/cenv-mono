@@ -11,7 +11,7 @@
     "report": "istanbul report --include coverage.json --dir f3 html",
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
-    "version": "pnpm -r run version prerelease && git add package.json && git commit -m \"bump prerelease\" && git push && pnpm version prerelease"
+    "version": "pnpm -r run version prerelease && git add packages/cli/package.json packages/lib/package.json packages/ui/package.json packages/cdk/package.json && git commit -m \"bump prerelease\" && git push && pnpm version prerelease"
   },
   "husky": {
     "hooks": {
