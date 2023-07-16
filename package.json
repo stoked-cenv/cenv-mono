@@ -3,7 +3,7 @@
   "version": "2.0.0-a.19",
   "private": true,
   "scripts": {
-    "publish": "pnpm -r run publish",
+    "publish": "pnpm -r run publish --publish-branch ",
     "build": "pnpm -r --filter ...@stoked-cenv/lib run build",
     "build:all": "pnpm -r run build",
     "lint": "pnpm -r run lint",
