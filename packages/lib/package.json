@@ -13,8 +13,8 @@
     "lint:fix": "pnpm run lint -- --fix",
     "docker": "cenv docker @stoked-cenv/lib -d",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "version": "pnpm version",
-    "publish": "pnpm publish --access public"
+    "version:bump": "pnpm version",
+    "publish:bump": "pnpm publish --access public"
   },
   "types": "dist/index.d.ts",
   "author": "Brian Stoker",

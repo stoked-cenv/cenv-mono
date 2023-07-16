@@ -5,8 +5,8 @@
     "prebuild": "rimraf dist",
     "build": "tsc",
     "dev": "tsc -w",
-    "version": "pnpm version",
-    "publish": "pnpm publish --access public"
+    "version:bump": "pnpm version",
+    "publish:bump": "pnpm publish --access public"
   },
   "type": "module",
   "main": "dist/index.js",

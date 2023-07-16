@@ -10,10 +10,9 @@
     "lint:fix": "pnpm run lint -- --fix",
     "build": "tsc",
     "watch": "tsc --watch",
-    "push": "pnpm publish --access public",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "version": "pnpm version",
-    "publish": "pnpm publish --access public"
+    "version:bump": "pnpm version",
+    "publish:bump": "pnpm publish --access public"
   },
   "author": "Brian Stoker",
   "license": "MIT",
