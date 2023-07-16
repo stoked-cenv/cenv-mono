@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "build": "tsc;",
     "watch": "tsc --watch",
-    "push": "pnpm publish --access public",
+    "publish": "pnpm publish --access public",
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm run lint -- --fix",
     "docker": "cenv docker @stoked-cenv/lib -d; ",

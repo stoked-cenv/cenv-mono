@@ -58,7 +58,7 @@ importers:
         specifier: ^2.41.0
         version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.0.5)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.16
+        specifier: ^2.0.0-a.19
         version: link:../lib
       aws-cdk:
         specifier: 2.43.1
@@ -131,10 +131,10 @@ importers:
         specifier: ^2.0.0-a.17
         version: 'link:'
       '@stoked-cenv/lib':
-        specifier: 2.0.0-a.16
+        specifier: 2.0.0-a.19
         version: link:../lib
       '@stoked-cenv/ui':
-        specifier: 2.0.0-a.16
+        specifier: 2.0.0-a.19
         version: link:../ui
       chalk:
         specifier: ^4.1.0
@@ -358,7 +358,7 @@ importers:
         specifier: ^3.186.0
         version: 3.208.0
       '@stoked-cenv/lib':
-        specifier: 2.0.0-a.16
+        specifier: 2.0.0-a.19
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0

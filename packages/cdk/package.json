@@ -4,7 +4,8 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "tsc",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "publish": "pnpm publish --access public"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -25,7 +26,7 @@
     "@aws-cdk/aws-lambda-python-alpha": "2.43.1-alpha.0",
     "@aws-solutions-constructs/aws-apigateway-lambda": "^2.41.0",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.41.0",
-    "@stoked-cenv/lib": "^2.0.0-a.16",
+    "@stoked-cenv/lib": "^2.0.0-a.19",
     "aws-cdk": "2.43.1",
     "aws-cdk-lib": "^2.82.0",
     "aws-lambda": "^1.0.7",
