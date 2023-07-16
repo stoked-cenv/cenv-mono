@@ -1,9 +1,8 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.22",
+  "version": "2.0.0-a.23",
   "private": true,
   "scripts": {
-    "publish": "pnpm -r run publish",
     "build": "pnpm -r --filter ...@stoked-cenv/lib run build",
     "build:all": "pnpm -r run build",
     "lint": "pnpm -r run lint",
@@ -11,7 +10,8 @@
     "report": "istanbul report --include coverage.json --dir f3 html",
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
-    "version": "pnpm -r run version prerelease && git add packages/cli/package.json packages/lib/package.json packages/ui/package.json packages/cdk/package.json && git commit -m \"bump prerelease\" && git push && sleep 5 && pnpm version prerelease && pnpm -r up @stoked-cenv/*"
+    "version": "pnpm -r run version prerelease && pnpm -r up @stoked-cenv/*",
+    "publish": "pnpm -r run publish"
   },
   "husky": {
     "hooks": {
