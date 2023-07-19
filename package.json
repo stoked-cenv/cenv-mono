@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.32",
+  "version": "2.0.0-a.33",
   "private": true,
   "scripts": {
     "build": "pnpm -r --filter ...@stoked-cenv/lib run build",
