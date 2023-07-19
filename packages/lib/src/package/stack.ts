@@ -200,7 +200,6 @@ export class StackModule extends PackageModule {
     );
   }
 
-
   reset() {
     this.verified = undefined;
     this.summary = undefined;
@@ -238,7 +237,8 @@ export class StackModule extends PackageModule {
       }
     }
 
-    const stacks: Stack[] = await describeStacks(this.pkg.stackName.replace('-cdk#', '-').replace('@', '-'), true);
+    const modifiedStackName = this.pkg.stackName.replace('-cdk#', '-').replace('@', '-');
+    const stacks: Stack[] = await describeStacks(modifiedStackName, true);
     if (stacks && stacks.length) {
       this.detail = stacks[0];
       const versionTag = this.getTag(`CENV_PKG_VERSION`);
@@ -324,8 +324,7 @@ export class StackModule extends PackageModule {
       this.status.incomplete.push(this.statusLine(
         'not deployed',
         `the stack [${this.pkg.stackName}] has not been deployed`,
-        true,
-      ));
+        true));
       return;
     } else {
       if (!this.getStackComplete()) {
@@ -335,7 +334,7 @@ export class StackModule extends PackageModule {
             true));
         } else {
           this.status.incomplete.push(this.statusLine('stack in progress',
-            `the stack's current status is [${this.detail.StackStatus}]`,
+            `the stack's current status is [${this.detail.StackStatus}] .`,
             true));
         }
       }
@@ -345,8 +344,7 @@ export class StackModule extends PackageModule {
           `the stack [${colors.errorBold(this.pkg.stackName)}] exists in environment ${
             process.env.ENV
           } but has not been tagged with a CENV_PKG_VERSION`,
-          true,
-        ));
+          true));
       } else if (semver.parse(this.stackVersion) !== this.pkg.rollupVersion) {
         this.status.incomplete.push(this.versionMismatch(this.stackVersion.toString()));
       }

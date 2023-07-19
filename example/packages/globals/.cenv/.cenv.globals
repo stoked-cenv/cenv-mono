@@ -1,0 +1,4 @@
+APP: cenv
+AUDIENCE: https://cenv.stokedconsulting.com
+DOMAIN: stokedconsulting.com
+REACT_APP_AUTH0_AUDIENCE: <{AUDIENCE}>

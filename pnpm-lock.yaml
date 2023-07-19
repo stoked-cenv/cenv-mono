@@ -50,22 +50,22 @@ importers:
     dependencies:
       '@aws-cdk/aws-lambda-python-alpha':
         specifier: 2.43.1-alpha.0
-        version: 2.43.1-alpha.0(aws-cdk-lib@2.87.0)(constructs@10.2.69)
+        version: 2.43.1-alpha.0(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@aws-solutions-constructs/aws-apigateway-lambda':
         specifier: ^2.41.0
-        version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.87.0)(constructs@10.2.69)
+        version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@aws-solutions-constructs/aws-cloudfront-s3':
         specifier: ^2.41.0
-        version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.87.0)(constructs@10.2.69)
+        version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.30
+        specifier: workspace:2.0.0-a.31
         version: link:../lib
       aws-cdk:
         specifier: 2.43.1
         version: 2.43.1
       aws-cdk-lib:
-        specifier: ^2.87.0
-        version: 2.87.0(constructs@10.2.69)
+        specifier: 2.82.0
+        version: 2.82.0(constructs@10.2.69)
       aws-lambda:
         specifier: ^1.0.7
         version: 1.0.7
@@ -74,7 +74,7 @@ importers:
         version: 2.1415.0
       cdk-ecr-deployment:
         specifier: ^2.5.30
-        version: 2.5.30(aws-cdk-lib@2.87.0)(constructs@10.2.69)
+        version: 2.5.30(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       constructs:
         specifier: ^10.2.69
         version: 10.2.69
@@ -128,10 +128,10 @@ importers:
         specifier: ^9.4.3
         version: 9.4.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.30
+        specifier: workspace:2.0.0-a.31
         version: link:../lib
       '@stoked-cenv/ui':
-        specifier: workspace:2.0.0-a.30
+        specifier: workspace:2.0.0-a.31
         version: link:../ui
       chalk:
         specifier: ^4.1.2
@@ -352,7 +352,7 @@ importers:
         specifier: ^3.259.0
         version: 3.259.0
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.30
+        specifier: workspace:2.0.0-a.31
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0
@@ -477,14 +477,14 @@ packages:
     resolution: {integrity: sha512-bsyLQD/vqXQcc9RDmlM1XqiFNO/yewgVFXmkMcQkndJbmE/jgYkzewwYGrBlfL725hGLQipXq19+jwWwdsXQqg==}
     dev: false
 
-  /@aws-cdk/aws-lambda-python-alpha@2.43.1-alpha.0(aws-cdk-lib@2.87.0)(constructs@10.2.69):
+  /@aws-cdk/aws-lambda-python-alpha@2.43.1-alpha.0(aws-cdk-lib@2.82.0)(constructs@10.2.69):
     resolution: {integrity: sha512-JrC9cENeQ2l5gQDwOxqF5ve0OTozl5hVjkTzm5fLbbmMeae4rC5Qeilpk7LQMjzEjxFWn+lAJVPRfBJlrBBsTg==}
     engines: {node: '>= 14.15.0'}
     peerDependencies:
       aws-cdk-lib: ^2.43.1
       constructs: ^10.0.0
     dependencies:
-      aws-cdk-lib: 2.87.0(constructs@10.2.69)
+      aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
 
@@ -1465,37 +1465,37 @@ packages:
       tslib: 2.6.0
     dev: false
 
-  /@aws-solutions-constructs/aws-apigateway-lambda@2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.87.0)(constructs@10.2.69):
+  /@aws-solutions-constructs/aws-apigateway-lambda@2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69):
     resolution: {integrity: sha512-Zu+GydUHkxb3y7z4RWqQH6luD57e+yhC1k+CcImnzAzLL81cmH/o6Tk2Jn6twyizSZ0RKsHsEmpRcCaj0L9K6g==}
     peerDependencies:
       '@aws-solutions-constructs/core': 2.41.0
       aws-cdk-lib: ^2.82.0
       constructs: ^10.0.0
     dependencies:
-      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.87.0)(constructs@10.2.69)
-      aws-cdk-lib: 2.87.0(constructs@10.2.69)
+      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.82.0)(constructs@10.2.69)
+      aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
 
-  /@aws-solutions-constructs/aws-cloudfront-s3@2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.87.0)(constructs@10.2.69):
+  /@aws-solutions-constructs/aws-cloudfront-s3@2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69):
     resolution: {integrity: sha512-MQC0tS09xWIkOAZhycoevaYnEVACRSbp7f3cZVSB83vNZARLokfhB4uvfvIrACjuttKSxf+0WCTCgdN0XEfyDg==}
     peerDependencies:
       '@aws-solutions-constructs/core': 2.41.0
       aws-cdk-lib: ^2.82.0
       constructs: ^10.0.0
     dependencies:
-      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.87.0)(constructs@10.2.69)
-      aws-cdk-lib: 2.87.0(constructs@10.2.69)
+      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.82.0)(constructs@10.2.69)
+      aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
 
-  /@aws-solutions-constructs/core@2.41.0(aws-cdk-lib@2.87.0)(constructs@10.2.69):
+  /@aws-solutions-constructs/core@2.41.0(aws-cdk-lib@2.82.0)(constructs@10.2.69):
     resolution: {integrity: sha512-J8qjzH3TKGbwN0mg/OhQSAKpKzGPHZjIKK1UBCJxXuF9oxOjIcPZphZSLOH8Lvz/naO3G5CZhvZLFKbqI9br2A==}
     peerDependencies:
       aws-cdk-lib: ^2.82.0
       constructs: ^10.0.0
     dependencies:
-      aws-cdk-lib: 2.87.0(constructs@10.2.69)
+      aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
     bundledDependencies:
@@ -4964,8 +4964,8 @@ packages:
     engines: {node: '>= 0.4'}
     dev: false
 
-  /aws-cdk-lib@2.87.0(constructs@10.2.69):
-    resolution: {integrity: sha512-9kirXX7L7OP/yGmCbaYlkt5OAtowGiGw0AYFIQvSwvx/UU3aJO5XuDwAgDsvToDkRpBi0yX0bNwqa0DItu+C6A==}
+  /aws-cdk-lib@2.82.0(constructs@10.2.69):
+    resolution: {integrity: sha512-icLhHvoxxo5mu9z8oplSHF+A7scbRiXYoRp2hyFkYSCoY9H+eBeIVXKA2S5YPpJfJO4SeORbCQnsyXBbz31XXw==}
     engines: {node: '>= 14.15.0'}
     peerDependencies:
       constructs: ^10.0.0
@@ -5385,13 +5385,13 @@ packages:
     engines: {node: '>= 0.8.0'}
     dev: false
 
-  /cdk-ecr-deployment@2.5.30(aws-cdk-lib@2.87.0)(constructs@10.2.69):
+  /cdk-ecr-deployment@2.5.30(aws-cdk-lib@2.82.0)(constructs@10.2.69):
     resolution: {integrity: sha512-IFS/DD6OmNcXv24YKjjaz1sb04xxsoUb7vPYwx7kTBAOxOnT0CuAadF8/HVfM/YVoqoOPXCJe3ikAXy1iI0nKw==}
     peerDependencies:
       aws-cdk-lib: ^2.0.0
       constructs: ^10.0.5
     dependencies:
-      aws-cdk-lib: 2.87.0(constructs@10.2.69)
+      aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
       got: 11.8.6
       hpagent: 0.1.2

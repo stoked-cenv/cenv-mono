@@ -19,8 +19,12 @@ export class SiteCertificateStack extends Stack {
     super(scope, id, props);
 
     const domainName = ROOT_DOMAIN!;
-    const envDomain = `*.${ENV}.${domainName}`;
     const appDomain = `*.${APP}.${ENV}.${domainName}`;
+    const envDomain = `*.${ENV}.${domainName}`;
+    const altDomains = [envDomain];
+    if (ENV === 'prod') {
+      altDomains.push(`${APP}.${domainName}`);
+    }
 
     console.log("ROOT_DOMAIN: " + ROOT_DOMAIN!);
     console.log("ENV: " + ENV!);
@@ -38,9 +42,9 @@ export class SiteCertificateStack extends Stack {
       this,
       'SiteCertificate',
       {
-        domainName: envDomain,
+        domainName: appDomain,
         hostedZone: zone,
-        subjectAlternativeNames: [appDomain],
+        subjectAlternativeNames: altDomains,
         region: CDK_DEFAULT_REGION, // Cloudfront only checks this region for certificates.
       },
     );

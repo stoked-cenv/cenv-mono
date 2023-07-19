@@ -292,12 +292,18 @@ export class Dashboard {
                 return;
               }
               if (ctx.length !== 1) {
-                this.setStatusBar('kill hard fail', this.statusText('failed to kill hard', 'the kill hard command only works one package at a time'));
+                this.setStatusBar('kill hard fail', this.statusText('kill hard failure', 'the kill hard command only works one package at a time'));
                 return;
               }
 
-              this.setStatusBar('kill hard', this.statusText('kill hard', ctx[0].stackName));
-              await deleteStack(ctx[0].stackName)
+              Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack.detail.StackStatus}. Are you sure you want to destroy this stack?`,
+                async function (killIt: boolean) {
+                  if (killIt) {
+                    await deleteStack(ctx[0].stackName);
+                    this.setStatusBar('kill hard', this.statusText('kill hard', ctx[0].stackName));
+                  }
+                }.bind(this));
+
             });
           }.bind(this),
         },
@@ -1037,9 +1043,6 @@ export class Dashboard {
           await Deployment.Destroy(packages, {...Deployment.options, ...deploymentOptions});
         } else {
           this.setStatusBar('launchDeployment', this.statusText(`deploy`, `${pkgText}`));
-          if (packages[0].environmentStatus === EnvironmentStatus.UP_TO_DATE) {
-            deploymentOptions.force = true;
-          }
           validateBaseOptions({packages, cmd: ProcessMode.DEPLOY, options: deploymentOptions})
           await Deployment.Deploy(packages, {...Deployment.options, ...deploymentOptions});
         }

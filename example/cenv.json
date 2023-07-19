@@ -1,0 +1,13 @@
+{
+  "globalPackage": "@stoked-cenv-web/globals",
+  "defaultSuite": "cenv-web",
+  "scope": "@stoked-cenv-web",
+  "suites": {
+    "cenv-web": {
+      "packages": [
+        "@stoked-cenv-web/api",
+        "@stoked-cenv-web/spa"
+      ]
+    }
+  }
+}

@@ -239,4 +239,80 @@ export default class Dialogs {
       screen.render();
     });
   }
+
+
+  static yesOrNoDialog(prompt: string, callback: (response: boolean) => void) {
+
+    const form = blessed.form({
+      parent: Dashboard.instance.screen,
+      shadow: false,
+      left: 'center',
+      top: 'center',
+      width: '50%',
+      height: '50%',
+      style: {
+        bg: 'red',
+        transparent: false
+      },
+      border: 'line',
+      draggable: true,
+      tags: true,
+      content: prompt
+    });
+
+    form.on('submit', function(response: any) {
+       callback(response);
+      form.destroy();
+    });
+
+    this.dialogs.push(form);
+
+    const yes = blessed.button({
+      parent: form,
+      mouse: true,
+      keys: true,
+      shrink: true,
+      padding: {
+        left: 1,
+        right: 1
+      },
+      left: 29,
+      top: 1,
+      name: 'submit',
+      content: 'yes',
+      style: {
+        bg: 'blue',
+        focus: {
+          bg: 'red'
+        }
+      }
+    });
+    yes.on('press', function() {
+      form.submit(true);
+    });
+
+    const no = blessed.button({
+      parent: form,
+      mouse: true,
+      keys: true,
+      shrink: true,
+      padding: {
+        left: 8,
+        right: 1
+      },
+      left: 29,
+      top: 2,
+      name: 'submit',
+      content: 'no',
+      style: {
+        bg: 'blue',
+        focus: {
+          bg: 'red'
+        }
+      }
+    });
+    no.on('press', function() {
+      form.submit(false);
+    });
+  }
 }

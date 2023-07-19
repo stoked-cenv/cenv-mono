@@ -1,5 +1,3 @@
-
-// @ts-ignore
 import cron from "node-cron";
 import {
   AppConfigDataClient,
@@ -10,10 +8,11 @@ import YAML from 'yaml';
 import chalk from 'chalk';
 import { CenvParams } from '../params';
 import { CenvLog, info, infoAlertBold } from '../log';
-import { CenvFiles, EnvConfigFile } from '../file';
+import { CenvFiles } from '../file';
 import { packagePath, sleep } from '../utils';
 import { decryptValue, isEncrypted } from './parameterStore';
 import {Package} from "../package/package";
+import {getConfig} from "./appConfig";
 
 let _client: AppConfigDataClient = null;
 
@@ -30,13 +29,16 @@ function getClient() {
   return _client;
 }
 
-export async function startSession (config: any) {
-  const startConfigParams = {
-    ApplicationIdentifier: config.ApplicationId,
-    ConfigurationProfileIdentifier: config.ConfigurationProfileId,
-    EnvironmentIdentifier: config.EnvironmentId
+export async function startSession () {
+  if (CenvFiles.EnvConfig.ApplicationId === undefined || CenvFiles.EnvConfig.EnvironmentId === undefined || CenvFiles.EnvConfig.ConfigurationProfileId === undefined) {
+    const configRes = await getConfig();
+    if (!configRes) {
+      CenvLog.single.catchLog(['startSession error', 'No config found']);
+      process.exit();
+    }
+    CenvFiles.EnvConfig = configRes.config
   }
-  const command = new StartConfigurationSessionCommand(startConfigParams);
+  const command = new StartConfigurationSessionCommand(CenvFiles.SESSION_PARAMS);
   try {
     const response = await getClient().send(command);
     return response.InitialConfigurationToken;
@@ -46,18 +48,16 @@ export async function startSession (config: any) {
   }
 }
 
-export async function getLatestConfiguration (token: any, allValues?: boolean) {
-  const getConfigParams = {
-    ConfigurationToken: token,
-  }
+export async function getLatestConfiguration (token: any, allValues = false) {
+  const getConfigParams = { ConfigurationToken: token };
   const command = new GetLatestConfigurationCommand(getConfigParams);
   let result = {};
   try {
     const response = await getClient().send(command);
     process.env.NextPollConfigurationToken = response.NextPollConfigurationToken;
-    const config = new TextDecoder().decode(response.Configuration);
-    if (config) {
-      result = await parseConfig(config, allValues);
+    const configParamsDecoded = new TextDecoder().decode(response.Configuration);
+    if (configParamsDecoded) {
+      result = await parseConfig(configParamsDecoded, allValues);
     }
     return result
   } catch (e) {
@@ -66,7 +66,7 @@ export async function getLatestConfiguration (token: any, allValues?: boolean) {
   }
 }
 
-async function parseConfig(configInput: any, allValues?: boolean) {
+async function parseConfig(configInput: any, allValues = false) {
   const ymlConfig = YAML.parse(configInput);
   const updatedConfig: any = {};
   const env: { [key: string]: string } = process.env;
@@ -87,22 +87,15 @@ async function parseConfig(configInput: any, allValues?: boolean) {
   return updatedConfig;
 }
 
-async function getInitialConfigVars(config: any) {
-  const allValues = config.AllValues;
-  delete config.AllValues;
-  let token = await startSession(config);
-  if (!token) {
-    await CenvParams.Materialize();
-    await sleep(10);
-    token = await startSession(config);
-  }
+async function getInitialConfigVars(allValues = false){
+
+  let token = await startSession();
 
   if (!token) {
-    CenvLog.single.errorLog('could not start appconfigdata session');
+    CenvLog.single.errorLog('could not start appConfigData session');
   }
 
-  const configVars = await getLatestConfiguration(token, allValues);
-  return configVars;
+  return await getLatestConfiguration(token);
 }
 
 interface StartConfigPollingParams {
@@ -120,8 +113,7 @@ function startConfigPolling(options: StartConfigPollingParams) {
       const res = await getLatestConfiguration(process.env.NextPollConfigurationToken);
       displayConfigVars('UPDATED CONFIG VARS', res);
     } else {
-      const envConfig = CenvFiles.GetConfig();
-      const configVars = await getInitialConfigVars(envConfig)
+      const configVars = await getInitialConfigVars()
       displayConfigVars('UPDATED CONFIG VARS', configVars);
     }
     await options?.postConfigCallback();
@@ -146,16 +138,17 @@ function displayConfigVars(title: string, configVars: any) {
   CenvLog.info('*******************************************************************');
 }
 
-export async function getDeployedVars(config: any, cronExpression: string = undefined, silent = false): Promise<any> {
-  const configVars = await getInitialConfigVars(config);
+export async function getConfigVars(allValues = false) {
+  return await getInitialConfigVars(allValues);
+}
+
+export async function getDeployedVars(cronExpression: string, silent = true): Promise<any> {
+  const configVars = await getInitialConfigVars();
   if (configVars && !silent) {
     displayConfigVars('INITIAL CONFIG VARS', configVars);
   }
-
   if (cronExpression) {
-
-    startConfigPolling({cronExpression : cronExpression});
-
+    startConfigPolling({ cronExpression });
   }
   return configVars;
 }
@@ -178,26 +171,7 @@ export enum ClientMode {
 export async function startCenv(clientType: ClientMode, cronExpression = '0 * * * *', silent = false) {
 
   try {
-    if (!process.env.ENV) {
-      CenvLog.single.errorLog('ENV environment variable is not set')
-      process.exit(8);
-    }
 
-    if (process.env.ENV === 'local') {
-      clientType = ClientMode.LOCAL_ONLY;
-      if (process.env.GLOBAL_PATH) {
-        CenvFiles.GlobalPath = process.env.GLOBAL_PATH;
-      } else {
-        CenvFiles.GlobalPath = packagePath(`${Package.scopeName}/${Package.global}`);
-      }
-    }
-
-    const config: any = await CenvFiles.GetConfig();
-
-    if (!config?.ApplicationId) {
-      CenvLog.single.errorLog(`${EnvConfigFile.NAME} does not exist or is invalid`);
-      process.exit(2);
-    }
     if (clientType === ClientMode.LOCAL_ONLY || clientType === ClientMode.LOCAL_DEFAULT) {
       const vars = await CenvFiles.GetVars(false, true);
       const parsedVars = await parseConfig(YAML.stringify(vars));
@@ -208,12 +182,20 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
         return;
       }
       await CenvParams.pull(true)
+    } else {
+
+      if (!process.env.ENV) {
+        CenvLog.single.errorLog('ENV environment variable is not set')
+        process.exit(8);
+      }
+
+      if (!process.env.APPLICATION_NAME) {
+        CenvLog.single.errorLog('APPLICATION_NAME environment variable is not set')
+        process.exit(8);
+      }
     }
 
-    const configVars = await getDeployedVars(config,
-      clientType === ClientMode.REMOTE_POLLING ? cronExpression : undefined
-      , silent);
-    return configVars;
+    return await getDeployedVars(clientType === ClientMode.REMOTE_POLLING ? cronExpression : undefined, silent);
   } catch (e) {
     CenvLog.single.alertLog(`startEnv failed: ${infoAlertBold(`${e.message}`)}\n ${JSON.stringify(e, null, 4)}`);
   }

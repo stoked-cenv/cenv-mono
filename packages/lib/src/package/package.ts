@@ -613,8 +613,8 @@ export class Package implements IPackage {
   setDependentComponentVolatileKeys() {
     if (this.meta?.data?.volatileContextKeys) {
       this.meta.data.deployDependencies?.map((p: Package) => {
-        if (p.component) {
-          if (p.meta.data?.volatileContextKeys) {
+        if (p.component && p?.meta?.data) {
+          if (p.meta?.data?.volatileContextKeys) {
             p.meta.data.volatileContextKeys = p.meta.data.volatileContextKeys.concat(this.meta.data.volatileContextKeys)
           } else {
             p.meta.data.volatileContextKeys = this.meta.data.volatileContextKeys;
@@ -1196,16 +1196,6 @@ export class Package implements IPackage {
 
   static async checkStatus(targetMode: string = undefined, endStatus: ProcessStatus = undefined) {
     return this.getPackages().map(async (p: Package) => {
-      /*let options = '';
-      if (targetMode) {
-        options = ` --target-mode ${targetMode}`
-      }
-
-      if (endStatus) {
-        options += ` --end-status ${Object.keys(ProcessStatus)[Object.values(ProcessStatus).indexOf(endStatus)]}`
-      }
-      await p.execCmd(`cenv stat ${p.packageName}${options}`)
-      */
       await p?.checkStatus(targetMode, endStatus)
     });
   }
@@ -1241,8 +1231,8 @@ export class Package implements IPackage {
   }
 
   static packageNameNoScope(packageName: string) {
-    const scopeRegEx = new RegExp(`^(${this.scopeName})/`, '');
-    return packageName.replace(scopeRegEx, '')
+    const regex = /\@.*?\//m;
+    return packageName.replace(regex, '');
   }
 
   static realPackagesLoaded() {
@@ -1439,7 +1429,7 @@ export class Package implements IPackage {
         options.pkgCmd = this.createCmd(relativePath + ' ' + cmd);
       }
 
-      options.pkgCmd.out('opt', options?.pkgPath, options?.silent?.toString(), options.pkgCmd?.cmd)
+      //options.pkgCmd.out('opt', options?.pkgPath, options?.silent?.toString(), options.pkgCmd?.cmd)
 
       if (!options.silent) {
         if (!Cenv.dashboard && process.env.CENV_LOG_LEVEL === 'VERBOSE') {

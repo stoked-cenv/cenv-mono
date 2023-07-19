@@ -169,12 +169,12 @@ export class Deployment {
       }
       return true;
     } catch (e) {
-      if (e instanceof Number || (typeof e === 'string' && !Number.isNaN(Number(e)))) {
-        CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.packageName, true);
+      if (e instanceof Number || (e instanceof String && !Number.isNaN(Number(e)))) {
+        CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.stackName, true);
       } else if (e instanceof Error) {
-        CenvLog.single.errorLog(e.stack, pkg.packageName, true);
+        CenvLog.single.catchLog(e);
       } else if (typeof e === 'string') {
-        CenvLog.single.errorLog(`${e} not sure what this exception type is`, pkg.packageName, true);
+        CenvLog.single.errorLog(`${e} not sure what this exception type is`,  pkg.stackName, true);
       }
       Deployment.cancelDependencies(pkg);
       this.setDeployStatus(pkg, ProcessStatus.FAILED);
@@ -187,35 +187,39 @@ export class Deployment {
     message: string,
     envVars: any = {},
   ) {
-    pkg.timer.start();
+    try {
+      pkg.timer.start();
 
-    if (pkg.processStatus === ProcessStatus.HAS_PREREQS && pkg?.cmds?.length > 0) {
-      pkg.cmds[0].code = 0;
-    }
-    pkg.statusTime = Date.now();
+      if (pkg.processStatus === ProcessStatus.HAS_PREREQS && pkg?.cmds?.length > 0) {
+        pkg.cmds[0].code = 0;
+      }
+      pkg.statusTime = Date.now();
 
-    if (pkg.isGlobal) {
-      return;
-    }
-    this.setDeployStatus(pkg, ProcessStatus.PROCESSING);
+      if (pkg.isGlobal) {
+        return;
+      }
+      this.setDeployStatus(pkg, ProcessStatus.PROCESSING);
 
-    if (this.isDeploy() && !process.env.BOOTSTRAP_COMPLETE) {
-      await this.cmd(
-        pkg,
-        `boostrapping ${pkg.stackName}`,
+      if (this.isDeploy() && !process.env.BOOTSTRAP_COMPLETE) {
+        await this.cmd(
+          pkg,
+          `boostrapping ${pkg.stackName}`,
+          envVars,
+        );
+        process.env.BOOTSTRAP_COMPLETE = 'true';
+      }
+
+      const processRes = await this.cmd(pkg, message, {
         envVars,
-      );
-      process.env.BOOTSTRAP_COMPLETE = 'true';
-    }
+        getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
+      });
 
-    const processRes = await this.cmd(pkg, message, {
-      envVars,
-      getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
-    });
-
-    const complete = await this.packageComplete(pkg, processRes ? ProcessStatus.COMPLETED : ProcessStatus.FAILED);
-    if (complete) {
-      Package.global.timer.stop();
+      const complete = await this.packageComplete(pkg, processRes ? ProcessStatus.COMPLETED : ProcessStatus.FAILED);
+      if (complete) {
+        Package.global.timer.stop();
+      }
+    } catch (e) {
+      CenvLog.single.catchLog(new Error(pkg.packageName + ': ' + e));
     }
   }
 
@@ -351,20 +355,21 @@ export class Deployment {
   static maxProcessing: number = process.env.CENV_MAX_PROCESSING ? parseInt(process.env.CENV_MAX_PROCESSING) : undefined;
 
   static async start() {
-    const toProcessVals =  Object.values(this.toProcess);
-    const toProcessKeys =  Object.keys(this.toProcess);
-    const packagesToProcess = toProcessVals.filter(p => !this.processing.find(processingPkg => processingPkg.packageName === p.packageName));
-    const serviceProcesses = packagesToProcess.filter((app: IPackage) => !this.dependencies[app.stackName]?.dependencies?.length);
-    const availableToProcess = this.maxProcessing ? this.maxProcessing - this.processing.length : serviceProcesses.length;
-    const availableProcesses = serviceProcesses.slice(0, availableToProcess);
-    await Promise.all(
-      availableProcesses.map(async (app: Package) => {
-        this.processing.push(app);
-        delete this.toProcess[app.stackName];
-        await this.packageStart(Package.fromStackName(app.stackName), `${this.mode()} ${app.stackName}`);
-      }),
-    );
-    packagesToProcess
+    try {
+      const toProcessVals = Object.values(this.toProcess);
+      const toProcessKeys = Object.keys(this.toProcess);
+      const packagesToProcess = toProcessVals.filter(p => !this.processing.find(processingPkg => processingPkg.packageName === p.packageName));
+      const serviceProcesses = packagesToProcess.filter((app: IPackage) => !this.dependencies[app.stackName]?.dependencies?.length);
+      const availableToProcess = this.maxProcessing ? this.maxProcessing - this.processing.length : serviceProcesses.length;
+      const availableProcesses = serviceProcesses.slice(0, availableToProcess);
+      await Promise.all(
+        availableProcesses.map(async (app: Package) => {
+          this.processing.push(app);
+          delete this.toProcess[app.stackName];
+          await this.packageStart(Package.fromStackName(app.stackName), `${this.mode()} ${app.stackName}`);
+        }),
+      );
+      packagesToProcess
       .filter((app: Package) => this.dependencies[app.stackName])
       .map((pkg: Package) => {
         if (this.packageDone(pkg)) {
@@ -375,15 +380,18 @@ export class Deployment {
         }
       });
 
-    //await Promise.all(serviceProcesses);
-    this.asyncProcesses = this.asyncProcesses.concat(availableToProcess);
-    return (
-      Object.keys(this.toProcess).length === 0 &&
-      this.processing.length === 0 &&
-      (!this?.options?.dependencies ||
-        (this?.options?.dependencies &&
-          Object.keys(this.dependencies).length === 0))
-    );
+      //await Promise.all(serviceProcesses);
+      this.asyncProcesses = this.asyncProcesses.concat(availableToProcess);
+      return (
+        Object.keys(this.toProcess).length === 0 &&
+        this.processing.length === 0 &&
+        (!this?.options?.dependencies ||
+          (this?.options?.dependencies &&
+            Object.keys(this.dependencies).length === 0))
+      );
+    } catch (e) {
+      CenvLog.single.catchLog(e);
+    }
   }
 
   static logStatusOutput(title: string, ctrl: any) {
@@ -612,10 +620,9 @@ export class Deployment {
     const stacks = await listStacks(['CREATE_COMPLETE']);
 
     const bootstrapStack = stacks?.filter((s) => s.StackName === 'CDKToolkit');
-    if (bootstrapStack) {
-      process.env.BOOTSTRAP_COMPLETE = 'true';
-    } else {
+    if (!(bootstrapStack?.length)) {
       CenvLog.info(`environment ${process.env.ENV} has not been bootstrapped`);
+      await execCmd('./', `cdk bootstrap aws://${process.env.CDK_DEFAULT_ACCOUNT}/${process.env.AWS_REGION}`);
     }
     cmd?.result(0);
   }

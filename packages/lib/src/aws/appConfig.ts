@@ -24,7 +24,7 @@ import yaml from 'js-yaml';
 import { deleteParametersByPath, stripPath } from './parameterStore';
 import {infoBold, errorBold, CenvLog} from '../log';
 import { isString } from '../utils';
-import { EnvConfig } from '../file';
+import {CenvFiles, EnvConfig} from '../file';
 
 let _client: AppConfigClient = null;
 
@@ -312,8 +312,14 @@ export async function getApplication(applicationName: string, silent = true, env
   }
 }
 
-export async function getConfig(ApplicationName: string, EnvironmentName: string = process.env.ENV, ConfigurationProfileName = 'config', Silent = true): Promise<false | { config: EnvConfig, version?: number }> {
+export async function getConfig(ApplicationName: string = process.env.APPLICATION_NAME, EnvironmentName: string = process.env.ENV, ConfigurationProfileName = 'config', Silent = true): Promise<false | { config: EnvConfig, version?: number }> {
   const command = new ListApplicationsCommand({});
+  if (ApplicationName === undefined) {
+    ApplicationName = CenvFiles.EnvConfig.ApplicationName;
+  }
+  if (EnvironmentName === undefined) {
+    EnvironmentName = CenvFiles.EnvConfig.EnvironmentName;
+  }
 
   try {
     const response = await getClient().send(command);

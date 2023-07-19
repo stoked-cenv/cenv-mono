@@ -2,7 +2,7 @@ import { IPackageModule, PackageModule, PackageModuleType } from './module';
 import { AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList, AppVars } from '../file';
 import path, { join } from 'path';
 import { existsSync } from 'fs';
-import { destroyAppConfig, destroyRemainingConfigs, getConfig } from '../aws/appConfig';
+import {destroyAppConfig, destroyRemainingConfigs, getConfig, getHostedConfigurationVersion} from '../aws/appConfig';
 import { CenvParams } from '../params';
 import { CenvLog, colors } from '../log';
 import { expandTemplateVars, randomRange, simplify } from '../utils';
@@ -66,7 +66,6 @@ export class ParamsModule extends PackageModule {
   envValid: boolean;
   geValid: boolean;
   gValid: boolean;
-  random: number;
   varsLoaded = false;
   cenvVars: any = {};
 
@@ -77,15 +76,16 @@ export class ParamsModule extends PackageModule {
 
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.PARAMS);
-    this.random = randomRange(0, 10000);
     CenvFiles.ENVIRONMENT = process.env.ENV;
     this.hasCenvVars = existsSync(join(this.path, CenvFiles.PATH, AppVarsFile.NAME));
     this.hasLocalConfig = existsSync(join(this.path, CenvFiles.PATH, EnvConfigFile.NAME));
     if (this.hasLocalConfig) {
+      if (process.cwd() !== this.path) {
+        process.chdir(this.path);
+      }
       this.localConfig = CenvFiles.LoadEnvConfig();
     }
   }
-
 
   get anythingDeployed(): boolean {
     return (
@@ -518,9 +518,9 @@ export class ParamsModule extends PackageModule {
         return;
       }
       this.printCheckStatusStart();
-      const depRes = await getConfig(this.pkg.params.name);
+      const depRes = await  getConfig();
       if (depRes) {
-        this.deployedConfig = depRes.config;
+        this.deployedConfig = depRes.config
         this.materializedVarsVersion = depRes.version;
       }
       const relative = path.relative(process.cwd(), this.path);
@@ -547,7 +547,7 @@ export class ParamsModule extends PackageModule {
           false,
           false,
           false,
-          this.deployedConfig,
+          this.deployedConfig
         );
         this.pushedCounts = this.getVarCounts(this.pushedVarsTyped);
         this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);

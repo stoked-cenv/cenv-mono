@@ -467,7 +467,7 @@ export class CenvParams {
         AllValues: allValues ? allValues : undefined
       };
 
-      variables = await getDeployedVars(options, undefined, silent);
+      variables = await getDeployedVars( undefined, silent);
     }
 
     // merge app data

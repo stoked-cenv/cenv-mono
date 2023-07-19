@@ -199,12 +199,11 @@ export class Cenv {
         Package.defaultSuite = cenvConfig.defaultSuite;
         Package.scopeName = cenvConfig.scope;
         Package.suites = cenvConfig.suites;
-        if (cenvConfig.global) {
-          const globalPackage = `${cenvConfig.scope}/${cenvConfig.global}`;
-          const packageGlobalPath = packagePath(globalPackage);
+        if (cenvConfig.globalPackage) {
+          const packageGlobalPath = packagePath(cenvConfig.globalPackage);
           if (!existsSync(packageGlobalPath)) {
             if (!runningInitCmd) {
-              CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${globalPackage} (using scope and globals property)`);
+              CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${cenvConfig.globalPackage} (using scope and globals property)`);
             }
           } else if (packageGlobalPath) {
             CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);

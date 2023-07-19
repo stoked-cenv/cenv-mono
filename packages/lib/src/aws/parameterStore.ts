@@ -10,7 +10,7 @@ import {
 
 import { RateLimiter } from "limiter";
 
-import { getDeployedVars } from './appConfigData';
+import {getConfigVars, getDeployedVars} from './appConfigData';
 import {CenvLog, infoAlertBold, infoBold, stdGreenBold} from '../log';
 import {CenvFiles, EnvVarsFile, GlobalEnvVarsFile, IParameter, File, EnvConfig} from '../file';
 import {CenvParams} from "../params";
@@ -440,7 +440,7 @@ export async function getParams(config: any, type = 'all', format: string, decry
   if (!deployed) {
     parameters = await listParameters(config, decrypted);
   } else {
-    parameters = await getDeployedVars(config, undefined, true);
+    parameters = await getConfigVars( true);
   }
   let output = {};
   if (deployed) {

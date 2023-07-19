@@ -13,6 +13,7 @@ import {CenvParams, BaseCommandOptions} from "./params";
 import { envVarToKey, pathToEnvVarKey } from './aws/parameterStore';
 import { encrypt } from './aws/kms';
 import {Package} from "./package/package";
+import {getConfig} from "./aws/appConfig";
 
 export const cenvRoot = './.cenv/';
 
@@ -335,6 +336,23 @@ if (!process.env.HOME) {
 
 export class CenvFiles {
   private static path = './.cenv/'
+
+  public static get SESSION_PARAMS(): {
+    ApplicationIdentifier: string,
+    EnvironmentIdentifier: string,
+    ConfigurationProfileIdentifier: string
+  } {
+    if (this.EnvConfig.ApplicationId === undefined || this.EnvConfig.EnvironmentId === undefined || this.EnvConfig.ConfigurationProfileId === undefined) {
+      CenvLog.single.catchLog(['SESSION_PARAMS error', 'No config found']);
+      process.exit();
+    }
+    return {
+      ApplicationIdentifier: this.EnvConfig.ApplicationId,
+      EnvironmentIdentifier: this.EnvConfig.EnvironmentId,
+      ConfigurationProfileIdentifier: this.EnvConfig.ConfigurationProfileId,
+    }
+  }
+
   public static get PATH(): any { return this.path; }
   public static set PATH(path: string ) { this.path = path; }
 
@@ -445,6 +463,12 @@ export class CenvFiles {
     }
     if (!this.EnvConfig) {
       this.EnvConfig = File.read(EnvConfigFile.NAME, EnvConfigFile.SCHEMA, true) as EnvConfig;
+    }
+    if (!this.EnvConfig) {
+      const res = await getConfig(process.env.APPLICATION_NAME, process.env.ENVIRONMENT_NAME);
+      if (!res) {
+
+      }
     }
     await this.LoadVars(decrypted);
     const ret: any = {
