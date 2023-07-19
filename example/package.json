@@ -7,7 +7,7 @@
     "start:dev:api": "pnpm --filter @stoked-cenv-web/api start:dev",
     "start:dev:spa": "pnpm --filter @stoked-cenv-web/spa start",
     "start:dev": "concurrently --kill-others \"pnpm run start:dev:api\" \"pnpm run start:dev:spa\"",
-    "version:bump": "pnpm -r run version:bump prerelease --force && pnpm -r up \"@stoked-cenv-web/*\" && && pnpm -r up \"@stoked-cenv-web/*\" git add package.json packages/api/package.json packages/spa/package.json pnpm-lock.yaml && git commit -m \"push bump packages\" && git push && pnpm version prerelease && git push",
+    "version:bump": "pnpm -r run version:bump prerelease --force && pnpm -r up \"@stoked-cenv-web/*\" && pnpm -r up \"@stoked-cenv/*\" && git add package.json packages/api/package.json packages/spa/package.json pnpm-lock.yaml && git commit -m \"push bump packages\" && git push && pnpm version prerelease && git push",
     "publish:bump": "pnpm run version:bump && pnpm --filter \"@stoked-cenv-web/*\" run publish:bump --publish-branch $(git rev-parse --abbrev-ref HEAD)"
   },
   "devDependencies": {
