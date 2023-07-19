@@ -428,20 +428,20 @@ export class Cenv {
       environment = ioAppEnvRes.environment;
     }
 
-    if (
+    /*if (
       envConfig?.ApplicationName !== undefined &&
       application !== undefined &&
       envConfig?.ApplicationName !== application &&
       !options?.force
     ) {
-      const destroyIt = await ioYesOrNo(
-        `The service has previously been configured with the application name ${envConfig?.ApplicationName}. Would you like to destroy the previously configured application, all of it's related resources, as well as the local configuration?`,
-      );
-      if (destroyIt) {
-        await pkg.params.destroy({}, )
-      }
-      return { application, environment };
-    }
+      //const destroyIt = await ioYesOrNo(
+      //  `The service has previously been configured with the application name ${envConfig?.ApplicationName}. Would you like to destroy the previously configured application, all of it's related resources, as well as the local configuration?`,
+      //);
+      //if (destroyIt) {
+      //  await pkg.params.destroy({}, )
+      //}
+      //return { application, environment };
+    }*/
     return { application, environment };
   }
 

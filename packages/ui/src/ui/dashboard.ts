@@ -324,21 +324,23 @@ export class Dashboard {
 
 
       this.statusBar.on('click', async function (data: any) {
-        const click: Click = {ts: Date.now(), x: data.x, y: data.y};
-        this.clickQueue.unshift(click);
-        if (this.clickQueue.length > 4) {
-          this.clickQueue.pop()
-        }
-        if (this.clickQueue.length) {
-          if (this.clickQueue[0]) {
-            CenvLog.info(`click.ts: ${click.ts}, ${this.clickQueue[0].ts}, ${this.clickQueue.length}`)
+        if (!process.env.DEBUG_MODE) {
+          const click: Click = {ts: Date.now(), x: data.x, y: data.y};
+          this.clickQueue.unshift(click);
+          if (this.clickQueue.length > 4) {
+            this.clickQueue.pop()
           }
+          if (this.clickQueue.length) {
+            if (this.clickQueue[0]) {
+              CenvLog.info(`click.ts: ${click.ts}, ${this.clickQueue[0].ts}, ${this.clickQueue.length}`)
+            }
 //          CenvLog.info(`${Math.abs(click.ts - this.clickQueue[0].ts)}`)
-          if (Math.abs(click.ts - this.clickQueue[0].ts) < 300) {
-            CenvLog.info(`statusBar::click() - ${JSON.stringify(click, null, 2)}`);
-            this.debounceCallback('deploy', async () => {
-              await execCmd('/', `open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`)
-            });
+            if (Math.abs(click.ts - this.clickQueue[0].ts) < 300) {
+              CenvLog.info(`statusBar::click() - ${JSON.stringify(click, null, 2)}`);
+              this.debounceCallback('deploy', async () => {
+                await execCmd('/', `open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`)
+              });
+            }
           }
         }
       }.bind(this));
@@ -1459,9 +1461,10 @@ export class Dashboard {
       }
 
       if (this.selectedRowIndex === this.packages.rows.selected) {
-        if (!Dialogs.open() && this.lastSelectedFully) {
-          Dialogs.add(this.menu);
+        if (this.lastSelectedFully) {
+          this.menu.show();
         }
+
         this.lastSelectedFully = this.selectedFully;
         return;
       }
@@ -1472,7 +1475,8 @@ export class Dashboard {
       this.selectedRowIndex = this.packages.rows.selected;
       this.selectedFully = false;
 
-      Dialogs.close(this.menu);
+      //Dialogs.close(this.menu);
+      this.menu.hide();
       this.setPanels(this.mode);
 
       this.packageTs = Date.now();
@@ -2106,9 +2110,13 @@ export class Dashboard {
 
       this.statusBar.show();
 
+      if (!this.menu?.bar?.hidden && this.screen._borderStops) {
+        this.menu.setFront();
+        this.menu.render();
+      }
+
       this.redraw();
-      this.menu.setFront();
-      this.menu.render();
+
     }
   }
 

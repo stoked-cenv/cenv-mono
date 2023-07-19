@@ -184,14 +184,8 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
       await CenvParams.pull(true)
     } else {
 
-      if (!process.env.ENV) {
-        CenvLog.single.errorLog('ENV environment variable is not set')
-        process.exit(8);
-      }
-
-      if (!process.env.APPLICATION_NAME) {
-        CenvLog.single.errorLog('APPLICATION_NAME environment variable is not set')
-        process.exit(8);
+      if (!process.env.APPLICATION_NAME || !process.env.ENV) {
+        CenvFiles.GetConfig();
       }
     }
 

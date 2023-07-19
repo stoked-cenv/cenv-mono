@@ -869,9 +869,11 @@ export class Timer {
   }
 
   stop() {
-    this.finalElapsed = elapsedBase(this.startTime, this.format, this.note, this.silent);
-    this.final = process.hrtime();
-    this.running = false;
+    if (this.running) {
+      this.finalElapsed = elapsedBase(this.startTime, this.format, this.note, this.silent);
+      this.final = process.hrtime();
+      this.running = false;
+    }
   }
 
   start() {

@@ -10,6 +10,7 @@ const envVariables: Record<string, string> = {
   AUDIENCE: process.env.AUDIENCE,
   CLIENT_ORIGIN_URL: process.env.CLIENT_ORIGIN_URL,
   API_VERSION: process.env.API_VERSION,
+  APPLICATION_NAME: process.env.APPLICATION_NAME,
 }
 
 let subdomain = 'api';
