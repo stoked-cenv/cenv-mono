@@ -87,7 +87,6 @@ export class StackModule extends PackageModule {
       }
       deployCommand += ` -o ${this.getCdkOut()}`
 
-      console.log('wtf', deployCommand);
       await this.pkg.pkgCmd(deployCommand, opt);
     }
 

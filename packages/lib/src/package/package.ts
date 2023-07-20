@@ -718,12 +718,11 @@ export class Package implements IPackage {
       if (this.isParamDeploy(deployOptions)) {
         await this.params.deploy(options);
       }
-      console.log('this.isDockerDeploy(deployOptions)', this.isDockerDeploy(deployOptions))
+
       if (this.isDockerDeploy(deployOptions)) {
         await this.docker.deploy(options);
       }
 
-      console.log('this.isStackDeploy(deployOptions)', this.isStackDeploy(deployOptions))
       if (this.isStackDeploy(deployOptions)) {
         await this.stack.deploy(deployOptions, options);
       }

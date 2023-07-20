@@ -7,11 +7,12 @@ const app = new cdk.App();
 
 const {
   ENV,
-  APP
+  APP,
+  CENV_STACK_NAME
 } = process.env;
 
 const environment = ENV;
 
-new SiteCertificateStack(app, `${ENV}-cert-${APP}`, {
+new SiteCertificateStack(app, CENV_STACK_NAME, {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION }
 });

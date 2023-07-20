@@ -3,7 +3,7 @@
   "version": "2.0.0-a.34",
   "dependencies": {
     "@auth0/auth0-react": "^2.0.0",
-    "@stoked-cenv/cdk": "2.0.0-a.34",
+    "@stoked-cenv/cdk": "2.0.0-a.36",
     "axios": "^0.27.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
