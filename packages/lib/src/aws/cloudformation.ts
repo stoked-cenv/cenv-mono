@@ -84,7 +84,6 @@ export async function deleteStack(StackName: string, waitForIt = true, errorOnFa
   try {
     const cmd = new DeleteStackCommand({ StackName });
     const res= await getClient().send(cmd);
-    Package.fromStackName(StackName)?.info(JSON.stringify(res.$metadata));
     if (waitForIt) {
       const waiter = await waitUntilStackDeleteComplete({client: getClient(), maxWaitTime: 2000}, { StackName})
       checkExceptions(waiter);

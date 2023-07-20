@@ -48,8 +48,6 @@ export class StackModule extends PackageModule {
 
     let opt: any = { cenvVars: {} };
     opt = await this.getOptions(opt, ProcessMode.DESTROY);
-    this.info('cenv', JSON.stringify(this.meta?.cenv, null, 2));
-    this.info('opt', JSON.stringify(opt, null, 2));
     await this.pkg.pkgCmd(actualCommand, opt);
   }
 
@@ -89,6 +87,7 @@ export class StackModule extends PackageModule {
       }
       deployCommand += ` -o ${this.getCdkOut()}`
 
+      console.log('wtf', deployCommand);
       await this.pkg.pkgCmd(deployCommand, opt);
     }
 
@@ -237,8 +236,7 @@ export class StackModule extends PackageModule {
       }
     }
 
-    const modifiedStackName = this.pkg.stackName.replace('-cdk#', '-').replace('@', '-');
-    const stacks: Stack[] = await describeStacks(modifiedStackName, true);
+    const stacks: Stack[] = await describeStacks(this.pkg.stackNameFinal, true);
     if (stacks && stacks.length) {
       this.detail = stacks[0];
       const versionTag = this.getTag(`CENV_PKG_VERSION`);

@@ -263,6 +263,7 @@ export default class Dialogs {
     form.on('submit', function(response: any) {
        callback(response);
       form.destroy();
+      Dialogs.close(form);
     });
 
     this.dialogs.push(form);
@@ -314,5 +315,21 @@ export default class Dialogs {
     no.on('press', function() {
       form.submit(false);
     });
+  }
+
+  static setFront() {
+    this.dialogs.map(d => d.setFront());
+  }
+
+  static show() {
+    this.dialogs.map(d => d.show());
+  }
+
+  static hide() {
+    this.dialogs.map(d => d.hide());
+  }
+
+  static render() {
+    this.dialogs.map(d => d.render());
   }
 }

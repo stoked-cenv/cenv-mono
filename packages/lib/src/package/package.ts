@@ -36,12 +36,12 @@ export enum EnvironmentStatus {
 export enum ProcessStatus {
   NONE = '------------',
   INITIALIZING = 'INITIALIZING',
-  BUILDING = 'BUILDING',
   HASHING = 'HASHING',
   BUMP = 'BUMP',
   STATUS_CHK = 'STATUS_CHK',
   HAS_PREREQS = 'HAS_PREREQS',
   READY = 'READY',
+  BUILDING = 'BUILDING',
   PROCESSING = 'PROCESSING',
   CANCELLED = 'CANCELLED',
   FAILED = 'FAILED',
@@ -394,7 +394,7 @@ export interface IPackage {
 
 export interface CommandEvents {
   preCommandFunc?: () => Promise<void>,
-  postCommandFunc?: () => Promise<void>
+  postCommandFunc?: (pkgCmd?: PackageCmd) => Promise<void>
   failureCommandFunc?: () => Promise<void>
 }
 
@@ -455,6 +455,11 @@ export class Package implements IPackage {
 
   get codifiedNameVis(): string {
     return this.codifiedName.substring(0, Package.maxVisibleLength)
+  }
+
+  //TODO: can this and stackNameVis be combined?
+  get stackNameFinal() {
+    return this.stackName.replace('-cdk#', '-').replace('@', '-')
   }
 
   get stackNameVis(): string {
@@ -713,11 +718,12 @@ export class Package implements IPackage {
       if (this.isParamDeploy(deployOptions)) {
         await this.params.deploy(options);
       }
-
+      console.log('this.isDockerDeploy(deployOptions)', this.isDockerDeploy(deployOptions))
       if (this.isDockerDeploy(deployOptions)) {
         await this.docker.deploy(options);
       }
 
+      console.log('this.isStackDeploy(deployOptions)', this.isStackDeploy(deployOptions))
       if (this.isStackDeploy(deployOptions)) {
         await this.stack.deploy(deployOptions, options);
       }

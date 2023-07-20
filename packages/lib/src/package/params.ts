@@ -8,6 +8,7 @@ import { CenvLog, colors } from '../log';
 import { expandTemplateVars, randomRange, simplify } from '../utils';
 import { decryptValue, deleteParametersByPath, getParams, isEncrypted, stripPath } from '../aws/parameterStore';
 import { Semaphore } from 'async-mutex';
+import {getConfigVars} from "../aws/appConfigData";
 
 export interface CenvVarsCount {
   app: number;
@@ -149,7 +150,9 @@ export class ParamsModule extends PackageModule {
       const config = CenvFiles.GetConfig();
 
       // get deployed vars
-      this.cenvVars = await getParams({...config, AllValues: true}, 'all', 'simple', false, true, true);
+      console.log('hi')
+      this.cenvVars = await getConfigVars(true);
+      this.pkg.stdPlain(JSON.stringify(this.cenvVars, null, 2));
     }
     if (CenvLog.isInfo) {
       this.pkg.stdPlain('# cenv vars')
@@ -179,7 +182,7 @@ export class ParamsModule extends PackageModule {
 
     // consider it a success if we have at least one parameter
     if (!options.cenvVars || !Object.keys(options.cenvVars).length) {
-      throw new Error(`deploy params - get params failure`)
+      throw new Error(`[${this.pkg.packageName}] deploy params - get params failure`)
     }
 
     release();

@@ -18,11 +18,13 @@ WORKDIR /app
 # Set to dev environment
 ENV NODE_ENV dev
 
-COPY . .
+COPY ./cenv.json ./package.json ./pnpm-workspace.yaml ./pnpm-lock.yaml ./
 COPY ./packages/globals ./packages/globals
 
 ## Copy source code into app folder
 COPY --chown=node:node ./packages/api ./packages/api
+
+RUN pnpm fetch
 
 ## Install dependencies
 RUN pnpm i --frozen-lockfile --ignore-scripts
@@ -56,6 +58,8 @@ COPY --chown=node:node ./packages/api ./packages/api
 ## Generate the production build. The build script runs "nest build" to compile the application.
 WORKDIR /app/packages/api
 RUN pnpm run build
+
+RUN pnpm fetch  --production
 
 ## Install only the production dependencies and clean cache to optimize image size.
 RUN pnpm i --frozen-lockfile --production

@@ -225,7 +225,7 @@ function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
   } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
     CenvLog.single.tempLog('t: ' + chunk, pkg?.stackName);
   } else {
-    CenvLog.single.infoLog(chunk, pkg?.stackName);
+    options.pkgCmd?.info(chunk);
   }
 }
 
@@ -445,7 +445,7 @@ export async function spawnCmd(
         }
 
         if (options.commandEvents?.postCommandFunc) {
-          await options.commandEvents.postCommandFunc();
+          await options.commandEvents.postCommandFunc(cmdLog);
         }
 
         if (options.returnOutput) {

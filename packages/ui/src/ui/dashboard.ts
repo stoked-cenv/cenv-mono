@@ -63,6 +63,7 @@ export interface Click {ts: number, x: number, y: number }
 
 export class Dashboard {
   screen: any;
+  screenRenderOriginal: any;
   initialized = false;
   debugLog;
   status;
@@ -264,7 +265,10 @@ export class Dashboard {
               await Promise.allSettled(ctx.map(async (p: Package) => {
                 CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', Dashboard.instance.cmdPanel.stdout), p.stackName);
 
-                await Deployment.packageComplete(p);
+                const complete = await Deployment.packageComplete(p);
+                if (complete) {
+                  Package.global.timer.stop();
+                }
 
                 if (Deployment.dependencies) {
                   Object.keys(Deployment.dependencies).map(stackName => {
@@ -298,9 +302,10 @@ export class Dashboard {
 
               Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack.detail.StackStatus}. Are you sure you want to destroy this stack?`,
                 async function (killIt: boolean) {
+                const service = ctx[0].stackName;
                   if (killIt) {
+                    Dashboard.instance.setStatusBar('kill hard', this.statusText('kill hard', service));
                     await deleteStack(ctx[0].stackName);
-                    this.setStatusBar('kill hard', this.statusText('kill hard', ctx[0].stackName));
                   }
                 }.bind(this));
 
@@ -343,6 +348,11 @@ export class Dashboard {
             }
           }
         }
+      }.bind(this));
+
+      this.statusBar.on('render', function () {
+        Dialogs.setFront();
+        Dialogs.render();
       }.bind(this));
 
       this.packages = this.grid.set(0, 0, 5, 2, contrib.table, {
@@ -2038,6 +2048,7 @@ export class Dashboard {
       }
 
       this.render(tableCalcs);
+
     } catch (e) {
       CenvLog.single.catchLog(e as Error);
     }
@@ -2114,6 +2125,7 @@ export class Dashboard {
         this.menu.setFront();
         this.menu.render();
       }
+
 
       this.redraw();
 

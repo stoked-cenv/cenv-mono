@@ -95,7 +95,7 @@ async function getInitialConfigVars(allValues = false){
     CenvLog.single.errorLog('could not start appConfigData session');
   }
 
-  return await getLatestConfiguration(token);
+  return await getLatestConfiguration(token, allValues);
 }
 
 interface StartConfigPollingParams {

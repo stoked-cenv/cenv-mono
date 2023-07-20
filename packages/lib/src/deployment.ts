@@ -169,11 +169,12 @@ export class Deployment {
       }
       return true;
     } catch (e) {
+      console.log('WTF', e);
       if (e instanceof Number || (e instanceof String && !Number.isNaN(Number(e)))) {
         CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.stackName, true);
       } else if (e instanceof Error) {
-        CenvLog.single.catchLog(e);
-      } else if (typeof e === 'string') {
+        CenvLog.single.errorLog(e.stack, pkg.stackName, true);
+      } else {
         CenvLog.single.errorLog(`${e} not sure what this exception type is`,  pkg.stackName, true);
       }
       Deployment.cancelDependencies(pkg);
@@ -199,15 +200,6 @@ export class Deployment {
         return;
       }
       this.setDeployStatus(pkg, ProcessStatus.PROCESSING);
-
-      if (this.isDeploy() && !process.env.BOOTSTRAP_COMPLETE) {
-        await this.cmd(
-          pkg,
-          `boostrapping ${pkg.stackName}`,
-          envVars,
-        );
-        process.env.BOOTSTRAP_COMPLETE = 'true';
-      }
 
       const processRes = await this.cmd(pkg, message, {
         envVars,

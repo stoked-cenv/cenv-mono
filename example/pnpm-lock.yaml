@@ -33,11 +33,11 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0(@nestjs/common@9.0.0)(@nestjs/core@9.0.0)
       '@stoked-cenv/cdk':
-        specifier: 2.0.0-a.32
-        version: 2.0.0-a.32(@aws-solutions-constructs/core@2.41.0)
+        specifier: 2.0.0-a.34
+        version: 2.0.0-a.34(@aws-solutions-constructs/core@2.41.0)
       '@stoked-cenv/lib':
-        specifier: 2.0.0-a.32
-        version: 2.0.0-a.32
+        specifier: 2.0.0-a.34
+        version: 2.0.0-a.34
       express-oauth2-jwt-bearer:
         specifier: ^1.3.0
         version: 1.3.0
@@ -111,8 +111,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(react-dom@18.2.0)(react@18.2.0)
       '@stoked-cenv/cdk':
-        specifier: 2.0.0-a.32
-        version: 2.0.0-a.32(@aws-solutions-constructs/core@2.41.0)
+        specifier: 2.0.0-a.34
+        version: 2.0.0-a.34(@aws-solutions-constructs/core@2.41.0)
       axios:
         specifier: ^0.27.2
         version: 0.27.2
@@ -3933,13 +3933,13 @@ packages:
       tslib: 2.6.0
     dev: false
 
-  /@stoked-cenv/cdk@2.0.0-a.32(@aws-solutions-constructs/core@2.41.0):
-    resolution: {integrity: sha512-EdFcHmkT5U2fJ2LvXiGD+WNds3QRV7GUYobYeZTl4IXShyAMW6ypnTmvZ4r49ie0ml9eLPE9QnHzQW+T+92oCA==}
+  /@stoked-cenv/cdk@2.0.0-a.34(@aws-solutions-constructs/core@2.41.0):
+    resolution: {integrity: sha512-PArfUyJeElpd2LG84R/2PphbSSMLvCnXN+TpxXZ1+4DV+UOobhUFt/P9vJjT5b+PcU9ucPY9eAy8Ei8DMk9hSQ==}
     dependencies:
       '@aws-cdk/aws-lambda-python-alpha': 2.43.1-alpha.0(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@aws-solutions-constructs/aws-apigateway-lambda': 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@aws-solutions-constructs/aws-cloudfront-s3': 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
-      '@stoked-cenv/lib': 2.0.0-a.32
+      '@stoked-cenv/lib': 2.0.0-a.34
       aws-cdk: 2.43.1
       aws-cdk-lib: 2.82.0(constructs@10.2.69)
       aws-lambda: 1.0.7
@@ -3952,8 +3952,8 @@ packages:
       - aws-crt
     dev: false
 
-  /@stoked-cenv/lib@2.0.0-a.32:
-    resolution: {integrity: sha512-AaPbn3m4tc47X5yiG9wmLZ+0iwT82kx+/8CU5bDTCafi5wqskzlaIWdBCFpW6U4ABsmlY4aoTKPm8ylJiYzKfQ==}
+  /@stoked-cenv/lib@2.0.0-a.34:
+    resolution: {integrity: sha512-qIUsUEt3EDaZZgpFK12TYkkWBtoXs9po0zei7B2h7RqHSer2toOby0zaUgf+nk9lnDgpbyAZT6PzV4ThgSYCBQ==}
     dependencies:
       '@aws-sdk/client-appconfig': 3.370.0
       '@aws-sdk/client-appconfigdata': 3.370.0
@@ -5644,7 +5644,7 @@ packages:
     resolution: {integrity: sha512-xq+q3SRMOxGivLhBNaUdC64hDTQwejJ+H0T/NB1XMtTVEwNTrfFF3gAxiyW0Bu/xWEGhjVKgUcMhCrUy2+uCWg==}
     dependencies:
       base64-js: 1.5.1
-      ieee754: 1.1.13
+      ieee754: 1.2.1
       isarray: 1.0.0
     dev: false
 
@@ -8104,7 +8104,6 @@ packages:
 
   /ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
-    dev: true
 
   /ignore@5.2.4:
     resolution: {integrity: sha512-MAb38BcSbH0eHNBxn7ql2NH/kX33OkB3lZ1BNdh7ENeRChHTYsTvWrMubiIAMNS2llXEEgZ1MUOBtXChP3kaFQ==}
@@ -13103,7 +13102,7 @@ packages:
     resolution: {integrity: sha512-drPFnkQJik/O+uPKpqSgr22mpuFHqKdbS835iAQrUC73L2F5WkboIRd63ai/2Yg6I1jzifPFKH2NTK+cfglkIA==}
     engines: {node: '>=4.0.0'}
     dependencies:
-      sax: 1.2.1
+      sax: 1.2.4
       xmlbuilder: 11.0.1
     dev: false
 

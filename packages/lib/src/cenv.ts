@@ -526,6 +526,8 @@ export class Cenv {
 
     if (!options?.push && !options?.stack) {
       await CenvParams.pull(false, false, true, true);
+    } else {
+
     }
 
     if (options?.push) {

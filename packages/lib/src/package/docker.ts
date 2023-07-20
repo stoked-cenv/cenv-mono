@@ -67,8 +67,8 @@ export class DockerModule extends PackageModule {
     }
   }
 
-  async getDigest() {
-    const previousCmdLines = this.pkg.cmds[this.pkg.cmds.length - 1].stdout.split('\n');
+  async getDigest(pkgCmd: PackageCmd) {
+    const previousCmdLines = pkgCmd.minOut.split('\n');
     for (let i = previousCmdLines.length - 1; i > 0; --i) {
       const ln = previousCmdLines[i];
       if (ln.startsWith('latest: digest: sha256')) {
@@ -82,10 +82,10 @@ export class DockerModule extends PackageModule {
   async push(url: string) {
 
     const commandEvents = {
-      postCommandFunc: async () => {
+      postCommandFunc: async (pkgCmd) => {
 
         // get the digest from the pushed container
-        const digestRes = await this.getDigest();
+        const digestRes = await this.getDigest(pkgCmd);
         if (!digestRes) {
           throw new Error('docker build failed: no digest found');
         }
@@ -139,13 +139,9 @@ export class DockerModule extends PackageModule {
     }
 
     if (push) {
-      if (process.env.CENV_MULTISTAGE) {
-        if (this.pkg.meta?.data.dockerType !== 'base') {
-          await this.push(DockerModule.ecrUrl);
-        }
-      } else {
-        await this.push(DockerModule.ecrUrl);
-      }
+      console.log('pushing: ' + this.dockerName + ' to ' + DockerModule.ecrUrl);
+      await this.push(DockerModule.ecrUrl);
+      console.log('pushed: ' + this.dockerName + ' to ' + DockerModule.ecrUrl);
     }
   }
 
@@ -413,4 +409,4 @@ export class DockerModule extends PackageModule {
     return items;
   }
 }
-import { Package } from './package';
+import {Package, PackageCmd} from './package';
