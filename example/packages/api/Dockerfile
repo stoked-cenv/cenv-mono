@@ -18,13 +18,14 @@ WORKDIR /app
 # Set to dev environment
 ENV NODE_ENV dev
 
-COPY ./cenv.json ./package.json ./pnpm-workspace.yaml ./pnpm-lock.yaml ./
+COPY ./pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm fetch
+
+COPY ./cenv.json ./package.json ./pnpm-workspace.yaml ./
 COPY ./packages/globals ./packages/globals
 
 ## Copy source code into app folder
 COPY --chown=node:node ./packages/api ./packages/api
-
-RUN pnpm fetch
 
 ## Install dependencies
 RUN pnpm i --frozen-lockfile --ignore-scripts
@@ -59,11 +60,10 @@ COPY --chown=node:node ./packages/api ./packages/api
 WORKDIR /app/packages/api
 RUN pnpm run build
 
-RUN pnpm fetch  --production
-
 ## Install only the production dependencies and clean cache to optimize image size.
-RUN pnpm i --frozen-lockfile --production
-RUN pnpm prune --prod
+RUN pnpm fetch --production \
+    && pnpm i --frozen-lockfile --production \
+    && pnpm prune --prod
 
 ## Set Docker as a non-root user
 USER node

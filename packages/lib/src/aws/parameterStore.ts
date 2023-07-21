@@ -1,49 +1,47 @@
 import {
-  SSMClient,
-  GetParameterCommand,
-  GetParametersCommand,
-  GetParametersByPathCommand,
-  DeleteParametersCommand,
-  PutParameterCommand,
   DeleteParameterCommand,
+  DeleteParametersCommand,
+  GetParameterCommand,
+  GetParametersByPathCommand,
+  GetParametersCommand,
+  PutParameterCommand,
+  SSMClient,
 } from '@aws-sdk/client-ssm';
 
-import { RateLimiter } from "limiter";
+import {RateLimiter} from "limiter";
 
-import {getConfigVars, getDeployedVars} from './appConfigData';
+import {getConfigVars} from './appConfigData';
 import {CenvLog, infoAlertBold, infoBold, stdGreenBold} from '../log';
-import {CenvFiles, EnvVarsFile, GlobalEnvVarsFile, IParameter, File, EnvConfig} from '../file';
+import {CenvFiles, EnvConfig, EnvVarsFile, File, GlobalEnvVarsFile, IParameter} from '../file';
 import {CenvParams} from "../params";
-import { AppConfigClient } from '@aws-sdk/client-appconfig';
-import { existsSync } from 'fs';
-import { decrypt } from './kms';
+import {existsSync} from 'fs';
+import {decrypt} from './kms';
 import {simplify, sleep} from '../utils'
-import { Package } from "../package/package";
+import {Package} from "../package/package";
 
-const ssmLimiter = new RateLimiter({ tokensPerInterval: 5, interval: "second" });
+const ssmLimiter = new RateLimiter({tokensPerInterval: 5, interval: "second"});
 let _client: SSMClient = null;
 
 function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
   _client = new SSMClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                            region: AWS_REGION, endpoint: AWS_ENDPOINT
+                          });
   return _client;
 }
 
 export async function getParameter(path: string, silent = false, decrypted = false) {
   const strippedPath = stripPath(path);
   try {
-    const command = new GetParameterCommand({ Name: strippedPath, WithDecryption: decrypted });
+    const command = new GetParameterCommand({Name: strippedPath, WithDecryption: decrypted});
     const remainingRequests = await ssmLimiter.removeTokens(1);
     const response = await getClient().send(command);
 
-    const { Name: Path, Value, Type, ARN } = response.Parameter;
-    return  {[Path]: { Value, Type, ARN }}
+    const {Name: Path, Value, Type, ARN} = response.Parameter;
+    return {[Path]: {Value, Type, ARN}}
   } catch (e) {
     if (!silent) {
       CenvLog.single.errorLog(['parameter not found', strippedPath]);
@@ -54,14 +52,18 @@ export async function getParameter(path: string, silent = false, decrypted = fal
 
 export async function getParameters(Names: string[], decrypted = false) {
   try {
-    const command = new GetParametersCommand({ Names: Names.map(stripPath), WithDecryption: decrypted });
+    const command = new GetParametersCommand({Names: Names.map(stripPath), WithDecryption: decrypted});
     const remainingRequests = await ssmLimiter.removeTokens(1);
     const response = await getClient().send(command);
 
     const results: any = {};
     for (let i = 0; i < response.Parameters.length; i++) {
       const param = response.Parameters[i];
-      results[param.Name] = { Value: param.Type === 'SecureString' ? param.Value.replace('kms:alias/aws/ssm:', '') : param.Value, Type: param.Type, ARN: param.ARN };
+      results[param.Name] = {
+        Value: param.Type === 'SecureString' ? param.Value.replace('kms:alias/aws/ssm:', '') : param.Value,
+        Type: param.Type,
+        ARN: param.ARN
+      };
     }
     return results;
   } catch (e) {
@@ -87,7 +89,7 @@ export function isEncrypted(value: string) {
   return !!(value.match(/^--(ENC)=/));
 }
 
-export async function decryptValue(value: string) : Promise<string> {
+export async function decryptValue(value: string): Promise<string> {
   value = value.replace(/^--(ENC)=/, '');
   if (value !== 'undefined') {
     return await decrypt(value);
@@ -95,19 +97,24 @@ export async function decryptValue(value: string) : Promise<string> {
   return;
 }
 
-export async function getParametersByPath(path: string, decrypted = false)  {
+export async function getParametersByPath(path: string, decrypted = false) {
   try {
     const strippedPath = stripPath(path);
     let NextToken = undefined;
     const responseObj: any = {};
 
     while (true) {
-      const command: GetParametersByPathCommand = new GetParametersByPathCommand({ NextToken, Path: strippedPath, Recursive: true, WithDecryption: decrypted });
+      const command: GetParametersByPathCommand = new GetParametersByPathCommand({
+                                                                                   NextToken,
+                                                                                   Path: strippedPath,
+                                                                                   Recursive: true,
+                                                                                   WithDecryption: decrypted
+                                                                                 });
 
       const remainingRequests = await ssmLimiter.removeTokens(1);
       const response = await getClient().send(command);
-      await Promise.all(response.Parameters.map(async (param) =>  {
-        const { Name, Type } = param;
+      await Promise.all(response.Parameters.map(async (param) => {
+        const {Name, Type} = param;
         let Value = param.Value;
         if (decrypted && isEncrypted(Value)) {
           Value = Value.replace(/^--(ENC)=/, '');
@@ -115,7 +122,7 @@ export async function getParametersByPath(path: string, decrypted = false)  {
             Value = await decrypt(Value as string);
           }
         }
-        responseObj[Name] = { Name: Name.replace(`${strippedPath}/`, ''), Value, Type };
+        responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
         return param;
       }));
 
@@ -137,14 +144,14 @@ export async function getParametersByPath(path: string, decrypted = false)  {
 export async function putParameter(Name: string, Value: string, Overwrite = false, Type = 'String') {
   try {
     if (Name.indexOf('global') > -1 && Value === '') {
-      new DeleteParameterCommand({ Name: stripPath(Name) });
+      new DeleteParameterCommand({Name: stripPath(Name)});
     } else {
       let KeyId = undefined;
       if (Type === 'SecureString') {
         KeyId = process.env.KMS_KEY
       }
 
-      const command = new PutParameterCommand({ Name: stripPath(Name), Value, Overwrite, Type, KeyId });
+      const command = new PutParameterCommand({Name: stripPath(Name), Value, Overwrite, Type, KeyId});
       const remainingRequests = await ssmLimiter.removeTokens(1);
       const response = await getClient().send(command);
     }
@@ -163,7 +170,7 @@ export async function appendParameter(Name: string, Value: string, Type = 'Strin
       KeyId = process.env.KMS_KEY
     }
 
-    const command = new PutParameterCommand({ Name: stripPath(Name), Value: newValue, Overwrite: true, Type, KeyId });
+    const command = new PutParameterCommand({Name: stripPath(Name), Value: newValue, Overwrite: true, Type, KeyId});
     const remainingRequests = await ssmLimiter.removeTokens(1);
     const response = await getClient().send(command);
   } catch (e) {
@@ -183,7 +190,7 @@ export async function deleteParameters(Names: string[]) {
       for (let i = 0; i < Names.length; i += 10) {
         await sleep(3);
         const chunk = Names.slice(i, i + 10);
-        const command = new DeleteParametersCommand({ Names: chunk.map(stripPath) });
+        const command = new DeleteParametersCommand({Names: chunk.map(stripPath)});
         const remainingRequests = await ssmLimiter.removeTokens(1);
         const response = await getClient().send(command);
         responseArr.push(response);
@@ -211,8 +218,8 @@ export async function deleteParametersByPath(path: string, outputPrefix = '', pa
 
 export function envVarToKey(envVar: string) {
   let key = envVar.toLowerCase().replace(/\-[a-z]*/g, (match) => {
-    const re = match.replace('-','_')
-    return  re[0].toUpperCase() + re.slice(1);
+    const re = match.replace('-', '_')
+    return re[0].toUpperCase() + re.slice(1);
   });
   key = key.replace(/\_[a-z]/g, (match) => {
     return match.replace('_', '/');
@@ -222,16 +229,18 @@ export function envVarToKey(envVar: string) {
 
 export function pathToEnvVarKey(key: string, rootPath: string): string {
   let newKey = key.replace(rootPath, '').replace(/\//g, '_');
-  newKey = newKey.replace(/\.?([A-Z])/g, function (x,y){return "-" + y.toLowerCase()});
+  newKey = newKey.replace(/\.?([A-Z])/g, function (x, y) {
+    return "-" + y.toLowerCase()
+  });
   newKey = newKey.toLocaleUpperCase();
   return newKey.startsWith('_') ? newKey.substring(1) : newKey;
 }
 
 function convertToEnvVar(paramType: string, input: Parameters, rootPath: string, displaySecured = false) {
-  const result: any = { };
+  const result: any = {};
   for (const [key, value] of Object.entries(input)) {
     const newKey = pathToEnvVarKey(key, rootPath);
-    result[newKey] = { Path: key, Value: value.Value, Type: value.Type, ParamType: paramType};
+    result[newKey] = {Path: key, Value: value.Value, Type: value.Type, ParamType: paramType};
   }
   return result;
 }
@@ -248,19 +257,14 @@ export async function getVarsByType(type: string, path: string, decrypted: boole
   return convertToEnvVar(type, params, path);
 }
 
-export async function listParameters(config: EnvConfig, decrypted: boolean, allGlobals = false, allGlobalEnvs = false) : Promise<any> {
+export async function listParameters(config: EnvConfig, decrypted: boolean, allGlobals = false, allGlobalEnvs = false): Promise<any> {
   try {
     const roots = CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName);
     const appVars = await getVarsByType('app', roots.app, decrypted);
     const environmentVars = await getVarsByType('environment', roots.environment, decrypted);
 
     const res: any = {
-      app: appVars,
-      environment: environmentVars,
-      global: {},
-      globalEnv: {},
-      allGlobals: {},
-      allGlobalEnvs: {}
+      app: appVars, environment: environmentVars, global: {}, globalEnv: {}, allGlobals: {}, allGlobalEnvs: {}
     }
 
     res.allGlobals = allGlobals ? await getParametersByPath(roots.global, decrypted) : undefined;
@@ -269,7 +273,7 @@ export async function listParameters(config: EnvConfig, decrypted: boolean, allG
       if (res.allGlobals) {
         const globalVarParams: any = {}
         globalParamPaths.map(p => globalVarParams[p] = res.allGlobals[p]);
-        const globalVars = convertToEnvVar('global',globalVarParams, roots.global);
+        const globalVars = convertToEnvVar('global', globalVarParams, roots.global);
         res.global = {...globalVars, ...res.global};
       } else {
         const chunkSize = 10;
@@ -277,7 +281,7 @@ export async function listParameters(config: EnvConfig, decrypted: boolean, allG
           const chunk = globalParamPaths.slice(i, i + chunkSize);
           const globalVarParams = await getParameters(chunk, decrypted);
           const globalVars = convertToEnvVar('global', globalVarParams, roots.global);
-          res.global = { ...globalVars, ...res.global };
+          res.global = {...globalVars, ...res.global};
         }
       }
     } else {
@@ -290,7 +294,7 @@ export async function listParameters(config: EnvConfig, decrypted: boolean, allG
       if (res.allGlobalEnvs) {
         const globalEnvVarParams: any = {}
         globalEnvParamPaths.map(p => globalEnvVarParams[p] = res.allGlobalEnvs[p]);
-        const globalEnvVars = convertToEnvVar('globalEnv',globalEnvVarParams, roots.globalEnv);
+        const globalEnvVars = convertToEnvVar('globalEnv', globalEnvVarParams, roots.globalEnv);
         res.globalEnv = {...globalEnvVars, ...res.globalEnv};
       } else {
         const chunkSize = 10;
@@ -298,7 +302,7 @@ export async function listParameters(config: EnvConfig, decrypted: boolean, allG
           const chunk = globalEnvParamPaths.slice(i, i + chunkSize);
           const globalEnvVarParams = await getParameters(chunk, decrypted);
           const globalEnvVars = convertToEnvVar('globalEnv', globalEnvVarParams, roots.globalEnv);
-          res.globalEnv = { ...globalEnvVars, ...res.globalEnv };
+          res.globalEnv = {...globalEnvVars, ...res.globalEnv};
         }
       }
     } else {
@@ -317,21 +321,21 @@ export async function listParameters(config: EnvConfig, decrypted: boolean, allG
 }
 
 export const enum UpsertResult {
-  CREATED = 'CREATED',
-  UPDATED = 'UPDATED',
-  SKIPPED = 'SKIPPED',
+  CREATED = 'CREATED', UPDATED = 'UPDATED', SKIPPED = 'SKIPPED',
 }
 
-export async function upsertParameter(config: any, parameter: {[x: string]: IParameter}, type: string) : Promise<UpsertResult> {
+export async function upsertParameter(config: any, parameter: {
+  [x: string]: IParameter
+}, type: string): Promise<UpsertResult> {
   const [paramPath, param] = Object.entries(parameter)[0];
   let linkOnly = false;
   if (!param.Value) {
-     if (!paramPath.startsWith('/global')) {
-       CenvLog.single.alertLog(` - skipping ${infoAlertBold(paramPath)} as it has no value`);
-       return UpsertResult.SKIPPED;
-     } else {
-       linkOnly = true;
-     }
+    if (!paramPath.startsWith('/global')) {
+      CenvLog.single.alertLog(` - skipping ${infoAlertBold(paramPath)} as it has no value`);
+      return UpsertResult.SKIPPED;
+    } else {
+      linkOnly = true;
+    }
   }
   const getParamRes = await getParameter(paramPath, true, true);
   let result = UpsertResult.SKIPPED;
@@ -356,7 +360,7 @@ export async function upsertParameter(config: any, parameter: {[x: string]: IPar
 
   if (param.ParamType.startsWith('global')) {
     const linkPath = param.ParamType === 'global' ? rootPaths['globalLink'] : rootPaths['globalEnvLink'];
-    const link: any = await getParameter(linkPath,true)
+    const link: any = await getParameter(linkPath, true)
     if (!link) {
       CenvLog.info(` - creating link parameter ${infoBold(linkPath)} with value ${infoBold(paramPath)}`);
       await putParameter(linkPath, paramPath, false, 'StringList');
@@ -376,7 +380,7 @@ export async function upsertParameter(config: any, parameter: {[x: string]: IPar
   return result;
 }
 
-export function updateTemplates(add: boolean,  envVar: string, type: string, value: string = undefined) {
+export function updateTemplates(add: boolean, envVar: string, type: string, value: string = undefined) {
   let file = null;
   let path = null;
   if (type === 'environment') {
@@ -388,7 +392,7 @@ export function updateTemplates(add: boolean,  envVar: string, type: string, val
   }
   if (file !== null) {
     if (!existsSync(file.TEMPLATE_PATH)) {
-      file.save({ [envVar]: value }, true, file.TEMPLATE, path);
+      file.save({[envVar]: value}, true, file.TEMPLATE, path);
     } else {
       const varData = file.read(file.TEMPLATE_PATH, file.SCHEMA, true) || {};
       const hasIt = varData ? Object.keys(varData).includes(envVar) : false;
@@ -410,8 +414,8 @@ function printYamlPretty(yamlData: any, format: string, printPkg?: string) {
     const val: any = value;
     if (format === 'simple') {
       const keyVal = val.Value ? val.Value : val;
-      console.log(`${space}${infoBold(key)}: ${ keyVal}`);
-    }else {
+      console.log(`${space}${infoBold(key)}: ${keyVal}`);
+    } else {
       console.log(`${space}${infoBold(key)}: `);
       console.log(`${space}  ${infoBold('Value')}: ${val.Value}`);
       console.log(`${space}  ${infoBold('Path')}: ${val.Path}`);
@@ -440,7 +444,7 @@ export async function getParams(config: any, type = 'all', format: string, decry
   if (!deployed) {
     parameters = await listParameters(config, decrypted);
   } else {
-    parameters = await getConfigVars( true);
+    parameters = await getConfigVars(true);
   }
   let output = {};
   if (deployed) {
@@ -449,7 +453,7 @@ export async function getParams(config: any, type = 'all', format: string, decry
   }
   let noTypeSet = false;
   if (type === 'all') {
-    output = { ...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv };
+    output = {...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv};
   } else if (type === 'allTyped') {
     if (parameters) {
       if (!silent) {
@@ -469,7 +473,7 @@ export async function getParams(config: any, type = 'all', format: string, decry
     noTypeSet = true;
   }
 
-  let result = noTypeSet ? { ...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv } : output;
+  let result = noTypeSet ? {...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv} : output;
   if (format === 'simple') {
     result = simplify(result, printPkg);
   }

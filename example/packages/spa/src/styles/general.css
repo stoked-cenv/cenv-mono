@@ -21,7 +21,7 @@ body {
 body {
   background-color: var(--light-gray);
 
-  color: var(--white);
+  color: var(--dark-aluminium);
   font-family: var(--font-primary);
 
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);

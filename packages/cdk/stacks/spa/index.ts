@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import 'source-map-support/register.js';
 import * as cdk from 'aws-cdk-lib';
-import { SpaStack } from './spa.js';
+import {SpaStack} from './spa.js';
 
-const { CDK_DEFAULT_REGION, ENV, CDK_DEFAULT_ACCOUNT, CENV_STACK_NAME } = process.env;
+const {CDK_DEFAULT_REGION, ENV, CDK_DEFAULT_ACCOUNT, CENV_STACK_NAME} = process.env;
 
 const app = new cdk.App();
 new SpaStack(app, `${ENV}-${CENV_STACK_NAME}`, {
@@ -13,7 +13,7 @@ new SpaStack(app, `${ENV}-${CENV_STACK_NAME}`, {
 
   /* Uncomment the next line to specialize this stack for the AWS Account
    * and Region that are implied by the current CLI configuration. */
-  env: { account: CDK_DEFAULT_ACCOUNT, region: CDK_DEFAULT_REGION },
+  env: {account: CDK_DEFAULT_ACCOUNT, region: CDK_DEFAULT_REGION},
 
   /* Uncomment the next line if you know exactly what Account and Region you
    * want to deploy the stack to. */

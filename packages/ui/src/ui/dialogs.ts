@@ -1,8 +1,8 @@
-import {IPackage, Package, getMonoRoot, CenvLog} from '@stoked-cenv/lib';
+import {getMonoRoot, IPackage, Package} from '@stoked-cenv/lib';
 import path from 'path';
 import blessed from 'blessed';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { Dashboard } from './dashboard';
+import {existsSync, readFileSync, writeFileSync} from 'fs';
+import {Dashboard} from './dashboard';
 
 export default class Dialogs {
   static dialogs: blessed.element[] = []
@@ -50,53 +50,52 @@ export default class Dialogs {
     let form: any = undefined;
 
     form = blessed.form({
-      parent: screen,
-      shadow: false,
-      left: 'center',
-      top: 'center',
-      width: '50%',
-      height: '50%',
-      style: {
-        bg: bg,
-        transparent: false
-      },
-      border: 'line',
-      draggable: true,
-      tags: true,
-      content: screenContent
-    });
+                          parent: screen,
+                          shadow: false,
+                          left: 'center',
+                          top: 'center',
+                          width: '50%',
+                          height: '50%',
+                          style: {
+                            bg: bg, transparent: false
+                          },
+                          border: 'line',
+                          draggable: true,
+                          tags: true,
+                          content: screenContent
+                        });
 
     this.dialogs.push(form);
 
-    form.key('left', function() {
+    form.key('left', function () {
       form.left -= 2;
       screen.render();
     });
 
-    form.key('up', function() {
+    form.key('up', function () {
       form.top -= 1;
       screen.render();
     });
 
-    form.key('right', function() {
+    form.key('right', function () {
       form.left += 2;
       screen.render();
     });
 
-    form.key('down', function() {
+    form.key('down', function () {
       form.top += 1;
       screen.render();
     });
-    form.key('C-x', function() {
+    form.key('C-x', function () {
       form.destroy();
     });
 
-    form.on('submit', function(data: any) {
+    form.on('submit', function (data: any) {
       //output.setContent(JSON.stringify(data, null, 2));
       const rootPath = getMonoRoot();
       let suites: any = {};
       const suitesPath = path.join(rootPath, 'suites.json');
-      if (existsSync(suitesPath)){
+      if (existsSync(suitesPath)) {
         suites = readFileSync(suitesPath, 'utf-8');
         suites = JSON.parse(suites);
       }
@@ -108,64 +107,44 @@ export default class Dialogs {
       form.destroy();
     });
 
-    form.key('d', function() {
+    form.key('d', function () {
       form.scroll(1, true);
       screen.render();
     });
 
-    form.key('u', function() {
+    form.key('u', function () {
       form.scroll(-1, true);
       screen.render();
     });
 
     const text = blessed.textbox({
-      parent: form,
-      mouse: true,
-      keys: true,
-      style: {
+                                   parent: form, mouse: true, keys: true, style: {
         bg: 'blue'
-      },
-      height: 1,
-      width: 20,
-      left: 1,
-      top: 1,
-      name: 'deployment'
-    });
+      }, height: 1, width: 20, left: 1, top: 1, name: 'deployment'
+                                 });
 
-    text.on('focus', function() {
+    text.on('focus', function () {
       text.readInput();
     });
 
     const submit = blessed.button({
-      parent: form,
-      mouse: true,
-      keys: true,
-      shrink: true,
-      padding: {
-        left: 1,
-        right: 1
-      },
-      left: 29,
-      top: 1,
-      name: 'submit',
-      content: 'create',
-      style: {
-        bg: 'blue',
-        focus: {
+                                    parent: form, mouse: true, keys: true, shrink: true, padding: {
+        left: 1, right: 1
+      }, left: 29, top: 1, name: 'submit', content: 'create', style: {
+        bg: 'blue', focus: {
           bg: 'red'
         }
       }
-    });
+                                  });
 
-    submit.on('press', function() {
+    submit.on('press', function () {
       form.submit();
     });
   }
 
   static saveDump(screen: any, exit = false) {
     const dump = {
-      ts: Date.now(),
-      packages: Package.getPackages(true).map((p: Package) => {
+      ts: Date.now(), packages: Package.getPackages(true).map((p: Package) => {
         if (p?.params?.pkg) {
           delete p.params.pkg;
         }
@@ -189,7 +168,7 @@ export default class Dialogs {
       form.setText(screenContent);
       selfDestructTimer -= interval;
 
-      if (selfDestructTimer < 0){
+      if (selfDestructTimer < 0) {
         clearInterval(timer);
         form.submit();
         form.destroy();
@@ -197,28 +176,27 @@ export default class Dialogs {
     }, interval)
 
     form = blessed.form({
-      parent: screen,
-      shadow: false,
-      left: 'center',
-      top: 'center',
-      width: '50%',
-      height: '50%',
-      style: {
-        bg: 'red',
-        transparent: false
-      },
-      border: 'line',
-      draggable: true,
-      tags: true,
-      content: screenContent
-    });
+                          parent: screen,
+                          shadow: false,
+                          left: 'center',
+                          top: 'center',
+                          width: '50%',
+                          height: '50%',
+                          style: {
+                            bg: 'red', transparent: false
+                          },
+                          border: 'line',
+                          draggable: true,
+                          tags: true,
+                          content: screenContent
+                        });
     this.dialogs.push(form);
 
-    form.key('C-x', function() {
+    form.key('C-x', function () {
       form.destroy();
     });
 
-    form.on('submit', function(data: any) {
+    form.on('submit', function (data: any) {
       //output.setContent(JSON.stringify(data, null, 2));
       const rootPath = getMonoRoot();
       const suitesPath = path.join(rootPath, 'dump.json');
@@ -229,12 +207,12 @@ export default class Dialogs {
       }
     });
 
-    form.key('d', function() {
+    form.key('d', function () {
       form.scroll(1, true);
       screen.render();
     });
 
-    form.key('u', function() {
+    form.key('u', function () {
       form.scroll(-1, true);
       screen.render();
     });
@@ -244,24 +222,23 @@ export default class Dialogs {
   static yesOrNoDialog(prompt: string, callback: (response: boolean) => void) {
 
     const form = blessed.form({
-      parent: Dashboard.instance.screen,
-      shadow: false,
-      left: 'center',
-      top: 'center',
-      width: '50%',
-      height: '50%',
-      style: {
-        bg: 'red',
-        transparent: false
-      },
-      border: 'line',
-      draggable: true,
-      tags: true,
-      content: prompt
-    });
+                                parent: Dashboard.instance.screen,
+                                shadow: false,
+                                left: 'center',
+                                top: 'center',
+                                width: '50%',
+                                height: '50%',
+                                style: {
+                                  bg: 'red', transparent: false
+                                },
+                                border: 'line',
+                                draggable: true,
+                                tags: true,
+                                content: prompt
+                              });
 
-    form.on('submit', function(response: any) {
-       callback(response);
+    form.on('submit', function (response: any) {
+      callback(response);
       form.destroy();
       Dialogs.close(form);
     });
@@ -269,50 +246,28 @@ export default class Dialogs {
     this.dialogs.push(form);
 
     const yes = blessed.button({
-      parent: form,
-      mouse: true,
-      keys: true,
-      shrink: true,
-      padding: {
-        left: 1,
-        right: 1
-      },
-      left: 29,
-      top: 1,
-      name: 'submit',
-      content: 'yes',
-      style: {
-        bg: 'blue',
-        focus: {
+                                 parent: form, mouse: true, keys: true, shrink: true, padding: {
+        left: 1, right: 1
+      }, left: 29, top: 1, name: 'submit', content: 'yes', style: {
+        bg: 'blue', focus: {
           bg: 'red'
         }
       }
-    });
-    yes.on('press', function() {
+                               });
+    yes.on('press', function () {
       form.submit(true);
     });
 
     const no = blessed.button({
-      parent: form,
-      mouse: true,
-      keys: true,
-      shrink: true,
-      padding: {
-        left: 8,
-        right: 1
-      },
-      left: 29,
-      top: 2,
-      name: 'submit',
-      content: 'no',
-      style: {
-        bg: 'blue',
-        focus: {
+                                parent: form, mouse: true, keys: true, shrink: true, padding: {
+        left: 8, right: 1
+      }, left: 29, top: 2, name: 'submit', content: 'no', style: {
+        bg: 'blue', focus: {
           bg: 'red'
         }
       }
-    });
-    no.on('press', function() {
+                              });
+    no.on('press', function () {
       form.submit(false);
     });
   }

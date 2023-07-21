@@ -1,17 +1,11 @@
-import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
+import {CfnOutput, Stack, StackProps} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
-import { HostedZone } from 'aws-cdk-lib/aws-route53';
-import { DnsValidatedCertificate } from 'aws-cdk-lib/aws-certificatemanager';
-import { tagStack } from '../../core/index.js';
+import {HostedZone} from 'aws-cdk-lib/aws-route53';
+import {DnsValidatedCertificate} from 'aws-cdk-lib/aws-certificatemanager';
+import {tagStack} from '../../core/index.js';
 
 const {
-  ENV,
-  ROOT_DOMAIN,
-  CDK_DEFAULT_REGION,
-  CENV_STACK_NAME,
-  CENV_CERT_SUBDOMAIN,
-  CENV_CERT_ROOT_DOMAIN,
-  APP
+  ENV, ROOT_DOMAIN, CDK_DEFAULT_REGION, CENV_STACK_NAME, CENV_CERT_SUBDOMAIN, CENV_CERT_ROOT_DOMAIN, APP
 } = process.env;
 
 export class SiteCertificateStack extends Stack {
@@ -38,20 +32,12 @@ export class SiteCertificateStack extends Stack {
       domainName: domainName
     });
 
-    const certificate = new DnsValidatedCertificate(
-      this,
-      'SiteCertificate',
-      {
-        domainName: appDomain,
-        hostedZone: zone,
-        subjectAlternativeNames: altDomains,
-        region: CDK_DEFAULT_REGION, // Cloudfront only checks this region for certificates.
-      },
-    );
+    const certificate = new DnsValidatedCertificate(this, 'SiteCertificate', {
+      domainName: appDomain, hostedZone: zone, subjectAlternativeNames: altDomains, region: CDK_DEFAULT_REGION, // Cloudfront only checks this region for certificates.
+    },);
 
     new CfnOutput(this, 'SiteCertificateArn', {
-      value: certificate.certificateArn,
-      exportName: `${ENV}-site-cert`
+      value: certificate.certificateArn, exportName: `${ENV}-site-cert`
     });
 
     tagStack(this);

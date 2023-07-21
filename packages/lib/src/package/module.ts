@@ -1,19 +1,11 @@
-import {Package, PackageMeta, TPackageMeta} from './package';
-import { SemVer } from 'semver';
-import { writeFileSync } from 'fs';
+import {Package, TPackageMeta} from './package';
+import semver, {SemVer} from 'semver';
+import {writeFileSync} from 'fs';
 import path from 'path';
-import semver from 'semver';
-import {
-  CenvLog,
-  Mouth,
-} from '../log';
+import {CenvLog, Mouth,} from '../log';
 
 export enum PackageModuleType {
-  PARAMS = 'PARAMS',
-  DOCKER = 'DOCKER',
-  STACK = 'STACK',
-  LIB = 'LIB',
-  EXEC = 'EXEC'
+  PARAMS = 'PARAMS', DOCKER = 'DOCKER', STACK = 'STACK', LIB = 'LIB', EXEC = 'EXEC'
 }
 
 export interface IPackageModule {
@@ -38,9 +30,7 @@ export interface PackageStatus {
 }
 
 export enum ProcessMode {
-  DEPLOY = 'DEPLOY',
-  DESTROY = 'DESTROY',
-  SYNTH = 'SYNTH'
+  DEPLOY = 'DEPLOY', DESTROY = 'DESTROY', SYNTH = 'SYNTH'
 }
 
 export abstract class PackageModule implements IPackageModule {
@@ -62,7 +52,7 @@ export abstract class PackageModule implements IPackageModule {
   removedDeps: any[] = [];
   depCheckReport: string = null;
   mouth: Mouth;
-  status: PackageStatus = { needsFix: [], deployed: [], incomplete: [] };
+  status: PackageStatus = {needsFix: [], deployed: [], incomplete: []};
   meta: TPackageMeta;
 
   readonly _type: PackageModuleType;
@@ -71,7 +61,7 @@ export abstract class PackageModule implements IPackageModule {
     this.path = module.path;
     this.pkg = module.pkg;
 
-    module = { ...module, ...this.pkg.meta.metas[this.path] };
+    module = {...module, ...this.pkg.meta.metas[this.path]};
 
     this.name = module.name;
     this.version = module.version;
@@ -89,9 +79,6 @@ export abstract class PackageModule implements IPackageModule {
     this.createMouth(moduleType, this.pkg.stackName);
   }
 
-  abstract statusIssues(): void;
-  abstract reset(): void;
-  abstract getDetails(): void;
   abstract get moduleStrings(): string[];
 
   get type(): PackageModuleType {
@@ -99,8 +86,51 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   abstract get anythingDeployed(): boolean;
+
+  get statusDetail(): string {
+    if (this.fixedDeps) {
+      return this.statusLine('up to date', `removed dependencies [${this.removedDeps.join(', ')}`, false,);
+    }
+
+    if (this.cleanDeps) {
+      return this.statusLine('up to date', `dependencies validated and confirmed solid by [depcheck]`, false,);
+    }
+
+    return this.statusLine('invalid dependencies', `depcheck report:\t${this.depCheckReport}`, true,);
+  }
+
+  get moduleBaseStrings(): string[] {
+    const items = [];
+    items.push(`version: v${this.version}`);
+    if (this.buildVersion) {
+      items.push(`build version: v${this.buildVersion}`);
+    }
+    if (this.currentVersion) {
+      items.push(`current version: v${this.currentVersion}`);
+    }
+
+    if (this.pkg?.stackVersion && this.version !== semver.parse(this.pkg.stackVersion)) {
+      items.push(`deployed version: v${this.pkg.stackVersion}`);
+    }
+    return items;
+  }
+
+  get moduleInfo(): string[] {
+    const moduleItems = this.moduleStrings;
+    moduleItems.push(`path: ${this.path}`);
+    return moduleItems;
+  }
+
+  abstract statusIssues(): void;
+
+  abstract reset(): void;
+
+  abstract getDetails(): void;
+
   abstract checkStatus(): Promise<void>;
+
   abstract upToDate(): boolean;
+
   abstract printCheckStatusComplete(): void;
 
   createMouth(noun: string, stackName: string) {
@@ -146,36 +176,14 @@ export abstract class PackageModule implements IPackageModule {
     }
   }
 
-  get statusDetail(): string {
-    if (this.fixedDeps) {
-      return this.statusLine(
-        'up to date',
-        `removed dependencies [${this.removedDeps.join(', ')}`,
-        false,
-      );
-    }
-
-    if (this.cleanDeps) {
-      return this.statusLine(
-        'up to date',
-        `dependencies validated and confirmed solid by [depcheck]`,
-        false,
-      );
-    }
-
-    return this.statusLine(
-      'invalid dependencies',
-      `depcheck report:\t${this.depCheckReport}`,
-      true,
-    );
-  }
-
   statusLineBase(title: string, description: string, colorCombo: any) {
     const regex = /\[(.*?)]/gm;
     let m;
     let newDesc = description;
     while ((m = regex.exec(description)) !== null) {
-      if (m.index === regex.lastIndex) { regex.lastIndex++; }
+      if (m.index === regex.lastIndex) {
+        regex.lastIndex++;
+      }
       newDesc = newDesc.replace(m[0], `${colorCombo.highlight(m[1])}`);
     }
 
@@ -205,35 +213,8 @@ export abstract class PackageModule implements IPackageModule {
     }
   }
 
-  get moduleBaseStrings(): string[] {
-    const items = [];
-    items.push(`version: v${this.version}`);
-    if (this.buildVersion) {
-      items.push(`build version: v${this.buildVersion}`);
-    }
-    if (this.currentVersion) {
-      items.push(`current version: v${this.currentVersion}`);
-    }
-
-    if (
-      this.pkg?.stackVersion &&
-      this.version !== semver.parse(this.pkg.stackVersion)
-    ) {
-      items.push(`deployed version: v${this.pkg.stackVersion}`);
-    }
-    return items;
-  }
-
-  get moduleInfo(): string[] {
-    const moduleItems = this.moduleStrings;
-    moduleItems.push(`path: ${this.path}`);
-    return moduleItems;
-  }
-
   async depCheck() {
-    await this.pkg.pkgCmd(
-      `yarn remove $(depcheck --json | jq -r '[.dependencies[]]|join(" ")')`,
-    );
+    await this.pkg.pkgCmd(`yarn remove $(depcheck --json | jq -r '[.dependencies[]]|join(" ")')`,);
   }
 
   verbose(...text: string[]): void {

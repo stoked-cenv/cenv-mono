@@ -1,7 +1,9 @@
-import { Command, Option } from 'nest-commander';
-import { CenvFiles, CenvParams, getEnvironment, createEnvironment, errorInfo, CenvLog, configure, BaseCommandOptions } from '@stoked-cenv/lib'
+import {Command, Option} from 'nest-commander';
+import {
+  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, configure, createEnvironment, errorInfo, getEnvironment
+} from '@stoked-cenv/lib'
 
-import { BaseCommand } from './base'
+import {BaseCommand} from './base'
 
 interface PushCommandOptions extends BaseCommandOptions {
   deploy?: boolean;
@@ -9,48 +11,37 @@ interface PushCommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-  name: 'push',
-  description: 'Push locally updated application configuration variables'
-})
+           name: 'push', description: 'Push locally updated application configuration variables'
+         })
 export default class PushCommand extends BaseCommand {
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '-d, --deploy',
-    description: 'Deploy the new application configuration after pushing the changes',
-  })
-  handleDeploy(val: boolean): boolean {
+            flags: '-d, --deploy', description: 'Deploy the new application configuration after pushing the changes',
+          }) handleDeploy(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    flags: '-e, --environment [string]',
-    description: 'Push the current configuration to a different environment. If the environment does not exist, use --create to create it',
-  })
-  handleEnv(val: string): string {
+            flags: '-e, --environment [string]',
+            description: 'Push the current configuration to a different environment. If the environment does not exist, use --create to create it',
+          }) handleEnv(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '-c, --create',
-    description: 'If the environment does not exist, use --create to create it',
-  })
-  handleCreate(val: string): string {
+            flags: '-c, --create', description: 'If the environment does not exist, use --create to create it',
+          }) handleCreate(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '--profile, <profile>',
-    description: `Environment profile to use on init.`,
-    defaultValue: 'default',
-  })
-  parseProfile(val: string): string {
+            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+          }) parseProfile(val: string): string {
     return val;
   }
 

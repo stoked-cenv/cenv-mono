@@ -1,10 +1,7 @@
 import {
-  CreateHostedZoneCommand,
-  DeleteHostedZoneCommand,
-  ListHostedZonesByNameCommand,
-  Route53Client
+  CreateHostedZoneCommand, DeleteHostedZoneCommand, ListHostedZonesByNameCommand, Route53Client
 } from '@aws-sdk/client-route-53';
-import { CenvLog, errorBold, infoBold } from '../log';
+import {CenvLog, errorBold, infoBold} from '../log';
 
 let _client: Route53Client = null;
 
@@ -12,12 +9,11 @@ function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new Route53Client({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                                region: AWS_REGION, endpoint: AWS_ENDPOINT
+                              });
   return _client;
 }
 
@@ -27,7 +23,7 @@ export async function createHostedZone(Name: string) {
     const cmd = new CreateHostedZoneCommand({Name, CallerReference: Date.now().toString()});
     const res = await getClient().send(cmd);
     if (res) {
-      CenvLog.info(`hosted zone ${infoBold( res.HostedZone.Name)} created`)
+      CenvLog.info(`hosted zone ${infoBold(res.HostedZone.Name)} created`)
       return res.HostedZone.Id;
     }
   } catch (e) {
@@ -41,7 +37,7 @@ export async function deleteHostedZone(Name: string) {
 
     const zoneId = await hostedZoneExists(Name);
     if (zoneId) {
-      const cmd = new DeleteHostedZoneCommand({ Id: zoneId });
+      const cmd = new DeleteHostedZoneCommand({Id: zoneId});
       const res = await getClient().send(cmd);
       if (res) {
         return true;

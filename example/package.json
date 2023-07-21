@@ -1,7 +1,8 @@
 {
-  "name": "stoked-cenv",
-  "version": "2.0.0-a.32",
+  "name": "stoked-cenv-web",
+  "version": "2.0.0-a.38",
   "license": "MIT",
+  "private": true,
   "scripts": {
     "build": "pnpm -r run build",
     "start:dev:api": "pnpm --filter @stoked-cenv-web/api start:dev",

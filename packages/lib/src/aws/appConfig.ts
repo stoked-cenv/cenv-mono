@@ -1,29 +1,28 @@
 import {
   AppConfigClient,
-  CreateApplicationCommand,
-  ListApplicationsCommand,
-  CreateEnvironmentCommand,
-  CreateConfigurationProfileCommand,
-  CreateHostedConfigurationVersionCommand,
-  ListEnvironmentsCommand,
-  ListConfigurationProfilesCommand,
-  StartDeploymentCommand,
-  ListHostedConfigurationVersionsCommand,
-  ListDeploymentStrategiesCommand,
-  CreateDeploymentStrategyCommand,
-  DeleteApplicationCommand,
-  DeleteEnvironmentCommand,
-  DeleteConfigurationProfileCommand,
-  DeleteHostedConfigurationVersionCommand,
   Application,
-  HostedConfigurationVersions,
   ConfigurationProfileSummary,
+  CreateApplicationCommand,
+  CreateConfigurationProfileCommand,
+  CreateDeploymentStrategyCommand,
+  CreateEnvironmentCommand,
+  CreateHostedConfigurationVersionCommand,
+  DeleteApplicationCommand,
+  DeleteConfigurationProfileCommand,
+  DeleteEnvironmentCommand,
+  DeleteHostedConfigurationVersionCommand,
   Environment,
+  ListApplicationsCommand,
+  ListConfigurationProfilesCommand,
+  ListDeploymentStrategiesCommand,
+  ListEnvironmentsCommand,
+  ListHostedConfigurationVersionsCommand,
+  StartDeploymentCommand,
 } from '@aws-sdk/client-appconfig';
 import yaml from 'js-yaml';
-import { deleteParametersByPath, stripPath } from './parameterStore';
-import {infoBold, errorBold, CenvLog} from '../log';
-import { isString } from '../utils';
+import {deleteParametersByPath, stripPath} from './parameterStore';
+import {CenvLog, errorBold, infoBold} from '../log';
+import {isString} from '../utils';
 import {CenvFiles, EnvConfig} from '../file';
 
 let _client: AppConfigClient = null;
@@ -32,19 +31,18 @@ function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new AppConfigClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                                  region: AWS_REGION, endpoint: AWS_ENDPOINT
+                                });
   return _client;
 }
 
 export async function createApplication(name: string): Promise<any> {
   const res = await getApplication(name, undefined, false);
   if (res) {
-    return { Id: res.ApplicationId, exists: true };
+    return {Id: res.ApplicationId, exists: true};
   }
   const createAppParams = {
     Name: name
@@ -61,11 +59,10 @@ export async function createApplication(name: string): Promise<any> {
 export async function createEnvironment(applicationId: string, name: string): Promise<any> {
   const response = await getEnvironment(applicationId, name, true);
   if (response) {
-    return { Id: response.EnvironmentId, exists: true };
+    return {Id: response.EnvironmentId, exists: true};
   }
   const createEnvParams = {
-    ApplicationId: applicationId,
-    Name: name
+    ApplicationId: applicationId, Name: name
   }
   const command = new CreateEnvironmentCommand(createEnvParams);
   try {
@@ -81,13 +78,11 @@ export async function createEnvironment(applicationId: string, name: string): Pr
 export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<any> {
   const response = await getConfigurationProfile(applicationId, name);
   if (response && response.ConfigurationProfileId) {
-    return { Id: response.ConfigurationProfileId, exists: true };
+    return {Id: response.ConfigurationProfileId, exists: true};
   }
 
   const createConfigProfileParams = {
-    ApplicationId: applicationId,
-    Name: name,
-    LocationUri: 'hosted'
+    ApplicationId: applicationId, Name: name, LocationUri: 'hosted'
   }
   const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
   try {
@@ -105,10 +100,7 @@ export async function createHostedConfigurationVersion(ApplicationId: string, Co
     const awsFormat = enc.encode(content);
 
     const createHostedConfigParams = {
-      ApplicationId,
-      ConfigurationProfileId,
-      Content: awsFormat,
-      ContentType: 'application/x-yaml',
+      ApplicationId, ConfigurationProfileId, Content: awsFormat, ContentType: 'application/x-yaml',
     }
 
     const cmdHostedConfig = new CreateHostedConfigurationVersionCommand(createHostedConfigParams);
@@ -120,13 +112,7 @@ export async function createHostedConfigurationVersion(ApplicationId: string, Co
   }
 }
 
-export async function createDeploymentStrategy(
-  name = 'Instant.AllAtOnce',
-  deploymentDurationInMinutes = 0,
-  growthFactor = 100,
-  growthType = 'LINEAR',
-  finalBakeTimeInMinutes = 0,
-  replicateTo = 'NONE'): Promise<any> {
+export async function createDeploymentStrategy(name = 'Instant.AllAtOnce', deploymentDurationInMinutes = 0, growthFactor = 100, growthType = 'LINEAR', finalBakeTimeInMinutes = 0, replicateTo = 'NONE'): Promise<any> {
 
   const createDepParams = {
     Name: name,
@@ -148,11 +134,7 @@ export async function createDeploymentStrategy(
 
 export async function startDeployment(ApplicationId: string, ConfigurationProfileId: string, ConfigurationVersion: string, EnvironmentId: string, DeploymentStrategyId: string): Promise<any> {
   const startDeploymentParams = {
-    ApplicationId,
-    ConfigurationProfileId,
-    ConfigurationVersion,
-    EnvironmentId,
-    DeploymentStrategyId,
+    ApplicationId, ConfigurationProfileId, ConfigurationVersion, EnvironmentId, DeploymentStrategyId,
   }
 
   const command = new StartDeploymentCommand(startDeploymentParams);
@@ -167,7 +149,7 @@ export async function startDeployment(ApplicationId: string, ConfigurationProfil
 
 export async function getDeploymentStrategy() {
   const command = new ListDeploymentStrategiesCommand({});
-  const result = { DeploymentStrategyId: 'Instant.AllAtOnce' };
+  const result = {DeploymentStrategyId: 'Instant.AllAtOnce'};
 
   try {
     const response = await getClient().send(command);
@@ -193,7 +175,7 @@ export async function listApplications(getEnvironments = false): Promise<Applica
   try {
     const response = await getClient().send(command);
     const result: Application[] = response ? response.Items : [];
-    if (getEnvironments ) {
+    if (getEnvironments) {
       for (let appIdx = 0; appIdx < result.length; appIdx++) {
         const app: any = result[appIdx];
         app.Environments = await listEnvironments(app.Id);
@@ -211,7 +193,16 @@ export async function getEnvironmentAppConfigs() {
   try {
     const response = await getClient().send(command);
     const result: any = response ? response.Items : [];
-    const applications: { [key: string]: { ApplicationId?: string, ApplicationName?: string, EnvironmentName?: string, EnvironmentId?: string, ConfigurationProfileId?: string, VersionNumber?: number } } = {};
+    const applications: {
+      [key: string]: {
+        ApplicationId?: string,
+        ApplicationName?: string,
+        EnvironmentName?: string,
+        EnvironmentId?: string,
+        ConfigurationProfileId?: string,
+        VersionNumber?: number
+      }
+    } = {};
     for (let appIdx = 0; appIdx < result.length; appIdx++) {
       const app: any = result[appIdx];
 
@@ -264,7 +255,7 @@ export async function getApplication(applicationName: string, silent = true, env
       }
       return false;
     }
-    const result: any = { ApplicationId: appId };
+    const result: any = {ApplicationId: appId};
     if (!!environment) {
       if (!isString(environment)) {
         result.Environments = await listEnvironments(appId,);
@@ -312,7 +303,10 @@ export async function getApplication(applicationName: string, silent = true, env
   }
 }
 
-export async function getConfig(ApplicationName: string = process.env.APPLICATION_NAME, EnvironmentName: string = process.env.ENV, ConfigurationProfileName = 'config', Silent = true): Promise<false | { config: EnvConfig, version?: number }> {
+export async function getConfig(ApplicationName: string = process.env.APPLICATION_NAME, EnvironmentName: string = process.env.ENV, ConfigurationProfileName = 'config', Silent = true): Promise<false | {
+  config: EnvConfig,
+  version?: number
+}> {
   const command = new ListApplicationsCommand({});
   if (ApplicationName === undefined) {
     ApplicationName = CenvFiles.EnvConfig.ApplicationName;
@@ -358,13 +352,20 @@ export async function getConfig(ApplicationName: string = process.env.APPLICATIO
     //infoLog([ConfigurationProfileId, EnvironmentId]);
     const deploymentStratRes = await getDeploymentStrategy();
     const DeploymentStrategyId = deploymentStratRes.DeploymentStrategyId;
-    const config = { ApplicationName, ApplicationId, EnvironmentName, EnvironmentId, ConfigurationProfileId, DeploymentStrategyId };
+    const config = {
+      ApplicationName,
+      ApplicationId,
+      EnvironmentName,
+      EnvironmentId,
+      ConfigurationProfileId,
+      DeploymentStrategyId
+    };
     const versRes = await getHostedConfigurationVersion(ApplicationId, ConfigurationProfileId);
     let version = undefined;
     if (versRes) {
       version = versRes.VersionNumber;
     }
-    return { config, version }
+    return {config, version}
   } catch (e) {
     CenvLog.single.errorLog(['getApplication error', e.message])
     return false;
@@ -372,7 +373,7 @@ export async function getConfig(ApplicationName: string = process.env.APPLICATIO
 }
 
 export async function listEnvironments(ApplicationId: string) {
-  const cmd = new ListEnvironmentsCommand({ ApplicationId });
+  const cmd = new ListEnvironmentsCommand({ApplicationId});
 
   try {
     const res = await getClient().send(cmd);
@@ -383,7 +384,7 @@ export async function listEnvironments(ApplicationId: string) {
 }
 
 async function listConfigurationProfiles(ApplicationId: string) {
-  const cmd = new ListConfigurationProfilesCommand({ ApplicationId });
+  const cmd = new ListConfigurationProfilesCommand({ApplicationId});
 
   try {
     const res = await getClient().send(cmd);
@@ -422,7 +423,7 @@ export async function getEnvironment(applicationId: string, environmentName: str
       }
       return false;
     }
-    return { EnvironmentId: envId };
+    return {EnvironmentId: envId};
   } catch (e) {
     CenvLog.single.errorLog(['getEnvironment error', e.message])
     return false;
@@ -430,7 +431,7 @@ export async function getEnvironment(applicationId: string, environmentName: str
 }
 
 export async function getConfigurationProfile(applicationId: string, configurationProfileName: string, silent = true) {
-  const result: { ConfigurationProfileId: string } = { ConfigurationProfileId: null };
+  const result: { ConfigurationProfileId: string } = {ConfigurationProfileId: null};
   try {
     const res = await listConfigurationProfiles(applicationId);
     let confProfId = null;
@@ -457,7 +458,7 @@ export async function getConfigurationProfile(applicationId: string, configurati
 
 export async function getHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string) {
   const command = new ListHostedConfigurationVersionsCommand({ApplicationId, ConfigurationProfileId});
-  const result = { VersionNumber: 0 };
+  const result = {VersionNumber: 0};
 
   try {
     const response = await getClient().send(command);
@@ -475,8 +476,12 @@ export async function getHostedConfigurationVersion(ApplicationId: string, Confi
   }
 }
 
-export async function getConfigParams (applicationName: string, environmentName: string, configurationProfileName: string) {
-  const result: { ApplicationId: string, EnvironmentId: string, ConfigurationProfileId: string } = { ApplicationId: null, EnvironmentId: null, ConfigurationProfileId: null };
+export async function getConfigParams(applicationName: string, environmentName: string, configurationProfileName: string) {
+  const result: { ApplicationId: string, EnvironmentId: string, ConfigurationProfileId: string } = {
+    ApplicationId: null,
+    EnvironmentId: null,
+    ConfigurationProfileId: null
+  };
 
   try {
     const appRes = await getApplication(applicationName, undefined, false);
@@ -505,7 +510,7 @@ export async function getConfigParams (applicationName: string, environmentName:
 
 export async function deleteApplication(ApplicationId: string) {
   try {
-    const command = new DeleteApplicationCommand({ ApplicationId });
+    const command = new DeleteApplicationCommand({ApplicationId});
     const res = await getClient().send(command);
     return res;
   } catch (e) {
@@ -522,7 +527,7 @@ export async function deleteEnvironments(ApplicationId: string, environments: En
   try {
     for (let envIdx = 0; envIdx < environments.length; envIdx++) {
       const env = environments[envIdx];
-      const command = new DeleteEnvironmentCommand({ ApplicationId, EnvironmentId: env.Id});
+      const command = new DeleteEnvironmentCommand({ApplicationId, EnvironmentId: env.Id});
       const res = await getClient().send(command);
     }
   } catch (e) {
@@ -532,7 +537,7 @@ export async function deleteEnvironments(ApplicationId: string, environments: En
 
 export async function deleteEnvironment(ApplicationId: string, EnvironmentId: string) {
   try {
-    const command = new DeleteEnvironmentCommand({ ApplicationId, EnvironmentId });
+    const command = new DeleteEnvironmentCommand({ApplicationId, EnvironmentId});
     const res = await getClient().send(command);
   } catch (e) {
     CenvLog.single.errorLog(['deleteEnvironment error', e.message]);
@@ -558,7 +563,7 @@ export async function deleteConfigurationProfiles(ApplicationId: string, profile
 
 export async function deleteConfigurationProfile(ApplicationId: string, ConfigurationProfileId: string) {
   try {
-    const command = new DeleteConfigurationProfileCommand({ ApplicationId, ConfigurationProfileId });
+    const command = new DeleteConfigurationProfileCommand({ApplicationId, ConfigurationProfileId});
     const res = await getClient().send(command);
   } catch (e) {
     CenvLog.single.errorLog(`deleteConfigurationProfile error: ${e.message} \n${e.stack}`);
@@ -566,7 +571,17 @@ export async function deleteConfigurationProfile(ApplicationId: string, Configur
 }
 
 
-export async function deleteHostedConfigurationVersions({ApplicationName, ApplicationId, ConfigurationProfileName, ConfigurationProfileId}: {ApplicationName: string, ApplicationId: string, ConfigurationProfileName: string, ConfigurationProfileId: string }, versions: any) {
+export async function deleteHostedConfigurationVersions({
+                                                          ApplicationName,
+                                                          ApplicationId,
+                                                          ConfigurationProfileName,
+                                                          ConfigurationProfileId
+                                                        }: {
+  ApplicationName: string,
+  ApplicationId: string,
+  ConfigurationProfileName: string,
+  ConfigurationProfileId: string
+}, versions: any) {
   if (!versions || versions.length === 0) {
     CenvLog.info(`  - no configuration versions for ${infoBold(ApplicationName)} [${infoBold(ApplicationId)}] and configuration profile ${infoBold(ConfigurationProfileName)} [${infoBold(ConfigurationProfileId)}]`);
     return;
@@ -585,7 +600,7 @@ export async function deleteHostedConfigurationVersions({ApplicationName, Applic
 
 export async function deleteHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string, VersionNumber: number) {
   try {
-    const command = new DeleteHostedConfigurationVersionCommand({ ApplicationId, ConfigurationProfileId, VersionNumber });
+    const command = new DeleteHostedConfigurationVersionCommand({ApplicationId, ConfigurationProfileId, VersionNumber});
     const res = await getClient().send(command);
   } catch (e) {
     CenvLog.single.errorLog(`deleteHostedConfigurationVersion error: ${e.message} \n${e.stack}`);
@@ -629,11 +644,11 @@ export async function destroyAppConfig(applicationName: string, silentErrors = f
         if (versions) {
           CenvLog.single.infoLog(`  - deleting application ${infoBold(applicationName)} configuration versions`);
           await deleteHostedConfigurationVersions({
-            ApplicationId: application.ApplicationId,
-            ApplicationName: applicationName,
-            ConfigurationProfileId: profile.Id,
-            ConfigurationProfileName: profile.Name
-          }, versions);
+                                                    ApplicationId: application.ApplicationId,
+                                                    ApplicationName: applicationName,
+                                                    ConfigurationProfileId: profile.Id,
+                                                    ConfigurationProfileName: profile.Name
+                                                  }, versions);
         }
       }
       CenvLog.single.infoLog(`  - deleting configuration profile for application ${infoBold(applicationName)}`);
@@ -655,17 +670,9 @@ export async function destroyAppConfig(applicationName: string, silentErrors = f
 
 export async function deployConfig(configProfileContent: any, appConfigArgs: any = undefined) {
 
-  const hostedConfigurationVersion = await createHostedConfigurationVersion(
-    appConfigArgs.ApplicationId,
-    appConfigArgs.ConfigurationProfileId,
-    yaml.dump(configProfileContent));
+  const hostedConfigurationVersion = await createHostedConfigurationVersion(appConfigArgs.ApplicationId, appConfigArgs.ConfigurationProfileId, yaml.dump(configProfileContent));
 
-  const deployment = await startDeployment(
-    appConfigArgs.ApplicationId,
-    appConfigArgs.ConfigurationProfileId,
-    hostedConfigurationVersion.VersionNumber.toString(),
-    appConfigArgs.EnvironmentId,
-    appConfigArgs.DeploymentStrategyId);
+  const deployment = await startDeployment(appConfigArgs.ApplicationId, appConfigArgs.ConfigurationProfileId, hostedConfigurationVersion.VersionNumber.toString(), appConfigArgs.EnvironmentId, appConfigArgs.DeploymentStrategyId);
 }
 
 export async function deleteCenvData(applicationName: string, parameters: any, applicationConfig: any, globalParameters = false) {

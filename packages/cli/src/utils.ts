@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 import * as sms from 'source-map-support';
+import {Module} from '@nestjs/common';
+import {CommandFactory} from 'nest-commander';
+
 sms.install();
 
-import { Module } from '@nestjs/common';
-import { Command, CommandFactory, CommandRunner, Option } from 'nest-commander';
-
 @Module({
-  providers: [
-  ],
-})
-export class AppModule {}
+          providers: [],
+        })
+export class AppModule {
+}
 
 async function bootstrap() {
   try {

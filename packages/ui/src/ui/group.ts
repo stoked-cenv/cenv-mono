@@ -1,4 +1,4 @@
-import { Dashboard } from './dashboard';
+import {Dashboard} from './dashboard';
 
 export default class Groups extends Object {
   static fullScreenFocus: any = undefined;
@@ -21,7 +21,7 @@ export default class Groups extends Object {
 
     this.fullScreenFocus = focusWidget;
     this.fullScreenWidgets = [focusWidget];
-    this.detailWidgets = group.filter((w: any) => w !== this.fullScreenFocus );
+    this.detailWidgets = group.filter((w: any) => w !== this.fullScreenFocus);
     const fullScreenOnly = this['fullScreenOnly' as keyof NonNullable<unknown>];
     if (fullScreenOnly) {
       this.fullScreenWidgets.push(focusWidget);
@@ -39,6 +39,7 @@ export default class Groups extends Object {
     this.detailWidgets?.forEach((r: any) => r.show());
     this.fullScreenActive = false;
   }
+
   static setFront() {
     if (this.fullScreenActive) {
       this.fullScreenWidgets?.forEach((r: any) => r.setFront());
@@ -48,6 +49,7 @@ export default class Groups extends Object {
       this.detailWidgets?.forEach((r: any) => r.setFront());
     }
   }
+
   static render() {
     if (this.fullScreenActive) {
       this.detailWidgets?.forEach((r: any) => r.hide());
@@ -64,6 +66,7 @@ export default class Groups extends Object {
       this.detailWidgets?.forEach((r: any) => r.render());
     }
   }
+
   static toggleFullscreen() {
 
     if (!this.fullScreenActive) {

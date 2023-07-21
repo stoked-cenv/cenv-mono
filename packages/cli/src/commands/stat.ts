@@ -1,6 +1,6 @@
-import { Command, Option } from 'nest-commander';
+import {Command, Option} from 'nest-commander';
 import {BaseCommandOptions, CenvLog, Package, ProcessStatus} from '@stoked-cenv/lib'
-import { BaseCommand } from './base';
+import {BaseCommand} from './base';
 
 export interface StatCommandOptions extends BaseCommandOptions {
   targetMode?: string;
@@ -8,10 +8,10 @@ export interface StatCommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-  name: 'stat',
-  description: `Get the state of a package's current code as it compares to the infrastructure`,
-  aliases: ['status'],
-})
+           name: 'stat',
+           description: `Get the state of a package's current code as it compares to the infrastructure`,
+           aliases: ['status'],
+         })
 export default class StatusCommand extends BaseCommand {
 
   constructor() {
@@ -21,26 +21,20 @@ export default class StatusCommand extends BaseCommand {
   }
 
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '-t, --target-mode, <targetMode>',
-    description: `Target mode`,
-  })
-  parseTargetMode(val: string): string {
+            flags: '-t, --target-mode, <targetMode>', description: `Target mode`,
+          }) parseTargetMode(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '-e, --end-status, <endStatus>',
-    description: `Desired end status`,
-  })
-  parseEndStatus(val: string): string {
+            flags: '-e, --end-status, <endStatus>', description: `Desired end status`,
+          }) parseEndStatus(val: string): string {
     return val;
   }
 

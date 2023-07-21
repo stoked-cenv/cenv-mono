@@ -1,22 +1,17 @@
 import {IPackageModule, PackageModule, PackageModuleType, ProcessMode} from './module';
-import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
+import {Stack, StackSummary} from '@aws-sdk/client-cloudformation';
 import {deleteStack, describeStacks} from '../aws/cloudformation';
-import semver, { SemVer } from 'semver';
+import semver, {SemVer} from 'semver';
 import {CenvLog, colors} from '../log';
-import {getMonoRoot, spawnCmd, stackPath} from "../utils";
-import {CommandEvents, Package} from "./package";
+import {getMonoRoot, runScripts, spawnCmd, stackPath} from "../utils";
+import {CommandEvents, Package, PackageCmd} from "./package";
 import path from "path";
-import {getTag} from "../aws/ecr";
 
 export enum StackType {
-  ECS = 'ECS',
-  LAMBDA = 'LAMBDA',
-  ACM = 'ACM',
-  SPA = 'SPA',
-  NETWORK = 'NETWORK'
+  ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
 }
 
-interface NameReplacer  {
+interface NameReplacer {
   name: string;
   regex: RegExp;
 }
@@ -28,26 +23,84 @@ export class StackModule extends PackageModule {
   stackVersion?: SemVer;
   stackType?: StackType;
 
-  public static get localEnv(): boolean { return process.env.ENV! === 'local'; }
-  public static get cdkExe(): string { return this.localEnv ? 'cdklocal' : 'cdk'; }
-
-  static commands = [
-    `${this.cdkExe} deploy --require-approval never --no-color -m direct`,
-    `${this.cdkExe} destroy --force --no-color`,
-    `${this.cdkExe} synth`,
-  ];
-
   constructor(module: IPackageModule) {
     super(module, PackageModuleType.STACK);
     this.stackType = this.pkg.fullType === 'services' ? StackType.ECS : StackType.LAMBDA;
   }
 
-  async destroy() {
+  public static get localEnv(): boolean {
+    return process.env.ENV! === 'local';
+  }
+
+  public static get cdkExe(): string {
+    return this.localEnv ? 'cdklocal' : 'cdk';
+  }
+  static commands = [`${this.cdkExe} deploy --require-approval never --no-color -m direct`, `${this.cdkExe} destroy --force --no-color`, `${this.cdkExe} synth`,];
+
+  get statusText(): string {
+    if (this.upToDate()) {
+      return 'up to date';
+    } else if (this.detail) {
+      return 'need to deploy the latest version';
+    }
+    return 'stack not deployed';
+  }
+
+  get anythingDeployed(): boolean {
+    return (this.verified || !!this.detail || !!this.deployedDigest || !!this.stackVersion);
+  }
+
+  get moduleStrings(): string[] {
+    const items = super.moduleBaseStrings;
+    if (this.deployedDigest) {
+      items.push(`deployed digest: ${this.deployedDigest}`);
+    }
+    if (this.detail?.LastUpdatedTime) {
+      items.push(`latest stack deployed: ${this.detail?.LastUpdatedTime}`);
+    }
+    return items;
+  }
+
+  get deployedDigest(): string | false {
+    return this.getTag('CENV_PKG_DIGEST');
+  }
+
+  get deployedDigestShort(): string | false {
+    const digestTag = this.getTag('CENV_PKG_DIGEST');
+    if (!digestTag) {
+      return false;
+    }
+    return digestTag.substring(digestTag.length - 8);
+  }
+
+  get hasLatestDeployedVersion(): boolean {
+    if (this?.stackVersion === undefined) {
+      return;
+    }
+    return (this.pkg.rollupVersion?.toString() === semver.parse(this?.stackVersion)?.toString());
+  }
+
+  get hasLatestDeployedDigest(): boolean {
+    if (!this.pkg?.stack) {
+      return true;
+    }
+    if (this?.deployedDigest === false) {
+      return;
+    }
+    return this.pkg?.docker.latestDigest === this?.deployedDigest && !!this.pkg?.docker.latestDigest;
+  }
+
+  static fromModule(module: PackageModule) {
+    return new StackModule(module);
+  }
+
+  async destroy(packageCmd?: PackageCmd) {
     let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
     actualCommand += ` -o ${this.getCdkOut()}`
 
-    let opt: any = { cenvVars: {} };
+    let opt: any = {cenvVars: {}};
     opt = await this.getOptions(opt, ProcessMode.DESTROY);
+    opt.parentCmd = packageCmd;
     await this.pkg.pkgCmd(actualCommand, opt);
   }
 
@@ -55,26 +108,24 @@ export class StackModule extends PackageModule {
     let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.SYNTH)];
     actualCommand += ` -o ${this.getCdkOut()}`
 
-    const opt: any = await this.getOptions({ cenvVars: {} }, ProcessMode.DESTROY);
+    const opt: any = await this.getOptions({cenvVars: {}}, ProcessMode.DESTROY);
     await this.pkg.pkgCmd(actualCommand, opt);
   }
 
   async deploy(deployOptions: any, options: any) {
+
+    const deployCmd = this.pkg.createCmd(`cenv deploy ${this.pkg.packageName} --stack`);
+
     if (this.needsAutoDelete()) {
-      await this.destroy();
+      await this.destroy(deployCmd);
     }
 
-    if (this.pkg.meta?.data.preDeployScripts) {
-      for (let i = 0; i < this.pkg.meta.data.preDeployScripts.length; i++) {
-        const script = this.pkg.meta.data.preDeployScripts[i];
-        await this.pkg.pkgCmd(script, { ...options, redirectStdErrToStdOut: true })
-      }
-    }
+    await runScripts(this, this.pkg.meta.data.postDeployScripts);
 
     if (!process.env.CENV_SKIP_CDK) {
 
       const opt = await this.getOptions(deployOptions, ProcessMode.DEPLOY);
-
+      opt.parentCmd = deployCmd;
       await this.resetVolatileKeys(opt)
 
       if (this.meta.deployStack) {
@@ -90,24 +141,29 @@ export class StackModule extends PackageModule {
       await this.pkg.pkgCmd(deployCommand, opt);
     }
 
+    await runScripts(this, this.pkg.meta.data.postDeployScripts);
+
     if (this?.pkg.meta?.data.postDeployScripts) {
       for (let i = 0; i < this.pkg.meta.data.postDeployScripts.length; i++) {
         const script = this.pkg.meta.data.postDeployScripts[i];
-        await spawnCmd(this.pkg.params.path, script, script,{ ...options, redirectStdErrToStdOut: true }, this.pkg);
+        await spawnCmd(this.pkg.params.path, script, script, {...options, redirectStdErrToStdOut: true}, this.pkg);
       }
     }
+    deployCmd.result(0);
   }
 
   async resetVolatileKeys(opt) {
-    if (this.pkg.meta.data.volatileContextKeys) {
-      await Promise.allSettled(this.pkg.meta.data.volatileContextKeys.map(async (key) => {
+    if (this.pkg.meta.data?.cenv?.stack?.clearContext) {
+      /*await Promise.allSettled(this.pkg.meta.data.cenv.stack.volatileContextKeys.map(async (key) => {
         key = key.replace('CDK_DEFAULT_ACCOUNT', process.env.CDK_DEFAULT_ACCOUNT);
         key = key.replace('CDK_DEFAULT_REGION', process.env.CDK_DEFAULT_REGION);
         key = key.replace('ENV', process.env.ENV);
-        await this.pkg.pkgCmd(`cdk context --reset ${key}`, opt);
-      }));
+        await this.pkg.pkgCmd(`cdk context --reset ${key}`, { ...opt, pkgPath: this.path, failOnError: false });
+      }));*/
+      await this.pkg.pkgCmd('cdk context --clear', {pkgPath: this.path});
     }
   }
+
   getCdkOut() {
     let cdkOutPath = this.path;
     if (this.pkg.component) {
@@ -128,6 +184,11 @@ export class StackModule extends PackageModule {
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {
         const componentPackage = this.meta.cenv?.stack?.package || this.pkg.codifiedName
         opt.pkgPath = stackPath(`${componentPackage}`);
+
+        const componentPackageParts = Package.getPackageComponent(componentPackage);
+        if (componentPackageParts.component === 'spa') {
+          opt.cenvVars = {CENV_BUCKET_NAME: this.pkg.bucketName, ...opt.cenvVars};
+        }
         if (this.meta?.cenv?.stack?.buildPath) {
           opt.cenvVars = {CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack.buildPath), ...opt.cenvVars};
         }
@@ -136,8 +197,7 @@ export class StackModule extends PackageModule {
       }
 
       const pkgVars = {
-        CENV_PKG_VERSION: this.pkg.rollupVersion,
-        CENV_STACK_NAME: Package.packageNameNoScope(this.pkg.packageName)
+        CENV_PKG_VERSION: this.pkg.rollupVersion, CENV_STACK_NAME: Package.packageNameNoScope(this.pkg.packageName)
       }
       opt.cenvVars = {...opt.cenvVars, ...pkgVars};
       if (this.pkg.docker) {
@@ -147,7 +207,7 @@ export class StackModule extends PackageModule {
         }
 
          */
-        opt.cenvVars.CENV_PKG_DIGEST = this.pkg.docker.latestImage.imageDigest;
+        opt.cenvVars.CENV_PKG_DIGEST = this.pkg.docker.latestImage?.imageDigest;
         opt.cenvVars.CENV_DOCKER_NAME = this.pkg.docker.dockerName;
       }
       if (this.meta?.cenv?.stack?.assignedSubDomain) {
@@ -183,28 +243,13 @@ export class StackModule extends PackageModule {
     return commandEvents;
   }
 
-  get statusText(): string {
-    if (this.upToDate()) {
-      return 'up to date';
-    } else if (this.detail) {
-      return 'need to deploy the latest version';
-    }
-    return 'stack not deployed';
-  }
-
-  get anythingDeployed(): boolean {
-    return (
-      this.verified || !!this.detail || !!this.deployedDigest || !!this.stackVersion
-    );
-  }
-
   reset() {
     this.verified = undefined;
     this.summary = undefined;
     this.stackVersion = undefined;
     this.detail = undefined;
     this.checked = false;
-    this.status = { needsFix: [], deployed: [], incomplete: [] };
+    this.status = {needsFix: [], deployed: [], incomplete: []};
   }
 
   statusIssues() {
@@ -228,7 +273,7 @@ export class StackModule extends PackageModule {
 
     if (this.pkg) {
       if (this.pkg?.meta?.data.verifyStack) {
-        const verifyRes = await this.pkg.pkgCmd(this.pkg.meta?.data.verifyStack, { returnOutput: true, silent: true });
+        const verifyRes = await this.pkg.pkgCmd(this.pkg.meta?.data.verifyStack, {returnOutput: true, silent: true});
         this.verified = verifyRes.result === 0;
         this.printCheckStatusComplete();
         return;
@@ -257,9 +302,7 @@ export class StackModule extends PackageModule {
     }
 
     if (this.deployedDigest) {
-      this.pkg.links.push(
-        `ECR (deployed image) https://${process.env.AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.name}e/_/image/${this.deployedDigest}/details?region=${process.env.AWS_REGION}`,
-      );
+      this.pkg.links.push(`ECR (deployed image) https://${process.env.AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.name}e/_/image/${this.deployedDigest}/details?region=${process.env.AWS_REGION}`,);
     }
 
     this.printCheckStatusComplete();
@@ -277,7 +320,7 @@ export class StackModule extends PackageModule {
     if (!this.detail?.StackStatus) {
       return false;
     }
-    switch(this.detail.StackStatus) {
+    switch (this.detail.StackStatus) {
       case 'CREATE_COMPLETE':
       case 'UPDATE_COMPLETE':
       case 'IMPORT_COMPLETE':
@@ -296,52 +339,32 @@ export class StackModule extends PackageModule {
 
   getDetails() {
     if (this.verified) {
-      this.status.deployed.push( this.statusLine('up to date', `verified using package.json's verifyStack cmd [${this.pkg.meta.data.verifyStack}]`, false));
+      this.status.deployed.push(this.statusLine('up to date', `verified using package.json's verifyStack cmd [${this.pkg.meta.data.verifyStack}]`, false));
       return;
     }
     if (this.upToDate()) {
       if (this.pkg.docker) {
-        this.status.deployed.push(this.statusLine(
-          'up to date',
-          `latest version [${this.pkg.rollupVersion.toString()}] deployed with digest [${this.pkg.docker.latestDigestShort}]`,
-          false,
-        ));
+        this.status.deployed.push(this.statusLine('up to date', `latest version [${this.pkg.rollupVersion.toString()}] deployed with digest [${this.pkg.docker.latestDigestShort}]`, false,));
         return;
       } else {
-        this.status.deployed.push(this.statusLine(
-          'up to date',
-          `latest version [${this.pkg.rollupVersion.toString()}] deployed`,
-          false,
-        ));
+        this.status.deployed.push(this.statusLine('up to date', `latest version [${this.pkg.rollupVersion.toString()}] deployed`, false,));
         return;
       }
     }
 
     if (!this.detail) {
-      this.status.incomplete.push(this.statusLine(
-        'not deployed',
-        `the stack [${this.pkg.stackName}] has not been deployed`,
-        true));
+      this.status.incomplete.push(this.statusLine('not deployed', `the stack [${this.pkg.stackName}] has not been deployed`, true));
       return;
     } else {
       if (!this.getStackComplete()) {
         if (this.getStackStatus() === 'ROLLBACK_COMPLETE') {
-          this.status.incomplete.push(this.statusLine('rollback complete',
-            `a deployment failed and the shell of the stack that is left will be deleted automatically during the next deploy`,
-            true));
+          this.status.incomplete.push(this.statusLine('rollback complete', `a deployment failed and the shell of the stack that is left will be deleted automatically during the next deploy`, true));
         } else {
-          this.status.incomplete.push(this.statusLine('stack in progress',
-            `the stack's current status is [${this.detail.StackStatus}] .`,
-            true));
+          this.status.incomplete.push(this.statusLine('stack in progress', `the stack's current status is [${this.detail.StackStatus}] .`, true));
         }
       }
       if (!this.stackVersion) {
-        this.status.incomplete.push(this.statusLine(
-          'not fully deployed',
-          `the stack [${colors.errorBold(this.pkg.stackName)}] exists in environment ${
-            process.env.ENV
-          } but has not been tagged with a CENV_PKG_VERSION`,
-          true));
+        this.status.incomplete.push(this.statusLine('not fully deployed', `the stack [${colors.errorBold(this.pkg.stackName)}] exists in environment ${process.env.ENV} but has not been tagged with a CENV_PKG_VERSION`, true));
       } else if (semver.parse(this.stackVersion) !== this.pkg.rollupVersion) {
         this.status.incomplete.push(this.versionMismatch(this.stackVersion.toString()));
       }
@@ -349,35 +372,12 @@ export class StackModule extends PackageModule {
 
     if (this.pkg.docker) {
       if (!this.pkg.docker.latestImage) {
-        this.status.incomplete.push(this.statusLine(
-          'docker missing',
-          `no docker image found in repo ${this.pkg.docker?.dockerName}`,
-          true,
-        ));
+        this.status.incomplete.push(this.statusLine('docker missing', `no docker image found in repo ${this.pkg.docker?.dockerName}`, true,));
       }
       if (!this.hasLatestDeployedDigest && this.pkg?.docker) {
-        this.status.incomplete.push(this.statusLine(
-          "incorrect digest",
-          `latest digest [${this.pkg?.docker.latestDigestShort}] deployed digest [${this.deployedDigestShort}]`,
-          true,
-        ));
+        this.status.incomplete.push(this.statusLine("incorrect digest", `latest digest [${this.pkg?.docker.latestDigestShort}] deployed digest [${this.deployedDigestShort}]`, true,));
       }
     }
-  }
-
-  static fromModule(module: PackageModule) {
-    return new StackModule(module);
-  }
-
-  get moduleStrings(): string[] {
-    const items = super.moduleBaseStrings;
-    if (this.deployedDigest) {
-      items.push(`deployed digest: ${this.deployedDigest}`);
-    }
-    if (this.detail?.LastUpdatedTime) {
-      items.push(`latest stack deployed: ${this.detail?.LastUpdatedTime}`);
-    }
-    return items;
   }
 
   getTag(tag: string, stackName: string = undefined): string | false {
@@ -398,11 +398,11 @@ export class StackModule extends PackageModule {
     if (outputs.length) {
       return outputs[0];
     }
-   return false;
+    return false;
   }
 
   getUrls() {
-    switch(this.stackType) {
+    switch (this.stackType) {
       case StackType.ECS:
         return this.getEcsUrls();
       case StackType.LAMBDA:
@@ -411,7 +411,7 @@ export class StackModule extends PackageModule {
         return this.getAcmUrl();
       case StackType.NETWORK:
         return this.getNetworkUrl();
-      }
+    }
   }
 
   getNetworkUrl() {
@@ -445,11 +445,10 @@ export class StackModule extends PackageModule {
 
   getEcsUrls() {
     const cluster: NameReplacer = {
-      name: `${process.env.ENV}-${Package.packageNameNoScope(this.pkg.packageName)}-cluster`,
-      regex: /CLUSTER_NAME/g
+      name: `${process.env.ENV}-${Package.packageNameNoScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g
     }
     const service: NameReplacer = {
-      name: `${process.env.ENV}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : '' }svc`,
+      name: `${process.env.ENV}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : ''}svc`,
       regex: /ECS_SERVICE/g
     }
     const urls = [];
@@ -483,8 +482,7 @@ export class StackModule extends PackageModule {
     const distroId = this.getOutput(`DistributionId`);
     if (distroId) {
       const distro: NameReplacer = {
-        name: distroId.OutputValue,
-        regex: /DISTRIBUTION_ID/g
+        name: distroId.OutputValue, regex: /DISTRIBUTION_ID/g
       }
       urls.push(this.getCloudFrontDistroUrl(distro));
     }
@@ -493,8 +491,7 @@ export class StackModule extends PackageModule {
     const bucketOutput = this.getOutput(`Bucket`);
     if (bucketOutput) {
       const bucket: NameReplacer = {
-        name: bucketOutput.OutputValue,
-        regex: /BUCKET_NAME/g
+        name: bucketOutput.OutputValue, regex: /BUCKET_NAME/g
       }
       urls.push(this.getBucketUrl(bucket));
     }
@@ -521,37 +518,9 @@ export class StackModule extends PackageModule {
   getEcsSpaUrl() {
     let url = `https://AWS_REGION.console.aws.amazon.com/cloudfront/v3/home?region=AWS_REGION#/distributions/DISTRIBUTION_ID`
   }
+
   updateRegion(urlTemplate) {
     return urlTemplate.replace(/AWS_REGION/g, process.env.AWS_REGION);
-  }
-
-  get deployedDigest(): string | false {
-    return this.getTag('CENV_PKG_DIGEST');
-  }
-
-  get deployedDigestShort(): string | false {
-    const digestTag = this.getTag('CENV_PKG_DIGEST');
-    if (!digestTag) {
-      return false;
-    }
-    return digestTag.substring(digestTag.length - 8);
-  }
-
-  get hasLatestDeployedVersion(): boolean {
-    if (this?.stackVersion === undefined) {
-      return;
-    }
-    return (this.pkg.rollupVersion?.toString() === semver.parse(this?.stackVersion)?.toString());
-  }
-
-  get hasLatestDeployedDigest(): boolean {
-    if (!this.pkg?.stack) {
-      return true;
-    }
-    if (this?.deployedDigest === false) {
-      return;
-    }
-    return this.pkg?.docker.latestDigest === this?.deployedDigest && !!this.pkg?.docker.latestDigest;
   }
 
 }

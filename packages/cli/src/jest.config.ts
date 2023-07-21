@@ -9,10 +9,7 @@ const baseConfig: Config.InitialOptions = {
   silent: false,
   coverageThreshold: {
     global: {
-      statements: 100,
-      branches: 100,
-      functions: 100,
-      lines: 100,
+      statements: 100, branches: 100, functions: 100, lines: 100,
     },
   },
   setupFilesAfterEnv: ['./test/customConsole.ts']

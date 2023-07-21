@@ -1,5 +1,5 @@
-import { Dashboard } from './dashboard'
-import { CenvParams, Package, ProcessMode, Environment, Suite, Suites, Deployment } from '@stoked-cenv/lib';
+import {Dashboard} from './dashboard'
+import {Deployment, Environment, Package, ProcessMode, Suite, Suites} from '@stoked-cenv/lib';
 
 export class CenvUI {
   dashboard: Dashboard;

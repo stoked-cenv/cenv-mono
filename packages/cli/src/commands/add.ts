@@ -1,12 +1,8 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import {
-  BaseCommandOptions,
-  CenvLog, Package,
-} from '@stoked-cenv/lib';
+import {Command, Option} from 'nest-commander';
+import {BaseCommandOptions, Cenv, CenvLog, Package,} from '@stoked-cenv/lib';
 
 
-import { BaseCommand } from './base'
-import {Cenv} from "@stoked-cenv/lib";
+import {BaseCommand} from './base'
 
 interface AddParamCommandOptions extends BaseCommandOptions {
   app?: boolean;
@@ -18,81 +14,68 @@ interface AddParamCommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-  name: 'add',
-  description: 'Add parameter(s) to package',
-  arguments: '<key> [value]',
-  aliases: ['update', 'upsert']
-})
+           name: 'add',
+           description: 'Add parameter(s) to package',
+           arguments: '<key> [value]',
+           aliases: ['update', 'upsert']
+         })
 export default class AddCommand extends BaseCommand {
 
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'app',
-    flags: '-A, --app-type',
-    description: 'Adds an app parameter. App parameters are the same across all environments and are not used in other applications.',
-  })
-  parseConfig(val: boolean): boolean {
+            name: 'app',
+            flags: '-A, --app-type',
+            description: 'Adds an app parameter. App parameters are the same across all environments and are not used in other applications.',
+          }) parseConfig(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'environment',
-    flags: '-E, --environment-type',
-    description: 'Adds an environment parameter. Environment parameters are unique to each environment and are not used in other applications.',
-  })
-  parseEnvironment(val: boolean): boolean {
+            name: 'environment',
+            flags: '-E, --environment-type',
+            description: 'Adds an environment parameter. Environment parameters are unique to each environment and are not used in other applications.',
+          }) parseEnvironment(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'global',
-    flags: '-G, --global-type',
-    description: 'Adds a global parameter. Global parameters are available to all applications in all environments.',
-  })
-  parseGlobal(val: boolean): boolean {
+            name: 'global',
+            flags: '-G, --global-type',
+            description: 'Adds a global parameter. Global parameters are available to all applications in all environments.',
+          }) parseGlobal(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'globalEnv',
-    flags: '-GE, --global-env-type',
-    description: 'Adds a global environment parameter. Global environment parameters are available to all applications in a single environment.',
-  })
-  parseGlobalEnv(val: boolean): boolean {
+            name: 'globalEnv',
+            flags: '-GE, --global-env-type',
+            description: 'Adds a global environment parameter. Global environment parameters are available to all applications in a single environment.',
+          }) parseGlobalEnv(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'encrypted',
-    flags: '-enc, --encrypted',
-    description: 'Encrypts the value in the data store.',
-  })
-  parseEncrypted(val: boolean): boolean {
+            name: 'encrypted', flags: '-enc, --encrypted', description: 'Encrypts the value in the data store.',
+          }) parseEncrypted(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'deploy',
-    flags: '-d, --deploy',
-    description: 'Deploys the configuration after the parameter is added.',
-  })
-  parseDeploy(val: boolean): boolean {
+            name: 'deploy',
+            flags: '-d, --deploy',
+            description: 'Deploys the configuration after the parameter is added.',
+          }) parseDeploy(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    flags: '--profile, <profile>',
-    description: `Environment profile to use on init.`,
-    defaultValue: 'default',
-  })
-  parseProfile(val: string): string {
+            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+          }) parseProfile(val: string): string {
     return val;
   }
 

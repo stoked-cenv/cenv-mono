@@ -1,13 +1,13 @@
 import {
+  BatchDeleteImageCommand,
   CreateRepositoryCommand,
+  DeleteRepositoryCommand,
   DescribeRepositoriesCommand,
   ECRClient,
-  DeleteRepositoryCommand,
-  BatchDeleteImageCommand,
-  ListImagesCommand, Repository,
-
+  ListImagesCommand,
+  Repository,
 } from '@aws-sdk/client-ecr';
-import { CenvLog, errorBold, infoBold } from '../log';
+import {CenvLog, errorBold, infoBold} from '../log';
 
 let _client: ECRClient = null;
 
@@ -15,12 +15,11 @@ function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new ECRClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                            region: AWS_REGION, endpoint: AWS_ENDPOINT
+                          });
   return _client;
 }
 
@@ -57,7 +56,7 @@ export async function deleteImages(repositoryName: string, imageIds: any = undef
       return true;
     }
     CenvLog.info(` - deleting ecr images ${infoBold(repositoryName)}`);
-    const cmd = new BatchDeleteImageCommand({repositoryName, imageIds: imageIds });
+    const cmd = new BatchDeleteImageCommand({repositoryName, imageIds: imageIds});
     const res = await getClient().send(cmd);
     if (res) {
       return res;
@@ -109,10 +108,11 @@ export async function describeRepositories(): Promise<Repository[] | false> {
 
 export async function getRepository(repositoryName: string): Promise<Repository | false> {
   const repositories: any = await describeRepositories();
-  if (!repositories)
+  if (!repositories) {
     return false;
+  }
 
-  for(let i = 0; i < repositories.length; i++) {
+  for (let i = 0; i < repositories.length; i++) {
     const repo = repositories[i];
     if (repo.repositoryName === repositoryName) {
       return repo;
@@ -123,8 +123,9 @@ export async function getRepository(repositoryName: string): Promise<Repository 
 
 export async function repositoryExists(repositoryName: string) {
   const repository = await getRepository(repositoryName);
-  if (!repository)
+  if (!repository) {
     return false;
+  }
 
   return true;
 }
@@ -137,7 +138,7 @@ export async function hasTag(repositoryName: string, tag: string, digest: any = 
 
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
-    if (image.imageTag === tag){
+    if (image.imageTag === tag) {
       if (digest === undefined) {
         return true;
       }
@@ -155,7 +156,7 @@ export async function getTag(repositoryName: string, tag: string) {
 
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
-    if (image.imageTag === tag){
+    if (image.imageTag === tag) {
       return image;
     }
   }
@@ -170,7 +171,7 @@ export async function getDigest(repositoryName: string, digest: string) {
 
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
-    if (image.imageDigest === digest){
+    if (image.imageDigest === digest) {
       return image;
     }
   }

@@ -1,7 +1,7 @@
 import blessed from 'blessed';
 import contrib from 'blessed-contrib'
-import { PackageCmd, Package, PackageModule } from '@stoked-cenv/lib';
-import { Dashboard } from './dashboard'
+import {Package, PackageCmd, PackageModule} from '@stoked-cenv/lib';
+import {Dashboard} from './dashboard'
 
 export abstract class CenvPanel {
   grid: contrib.Widgets.GridElement;
@@ -10,6 +10,7 @@ export abstract class CenvPanel {
   screen: blessed.Screen;
   widgets: any [];
   focusPoolWidgets: any [];
+  focusText: string;
 
   constructor(dashboard: Dashboard) {
     this.dashboard = dashboard;
@@ -17,6 +18,12 @@ export abstract class CenvPanel {
     this.screen = dashboard.screen;
     this.widgets = [];
     this.focusPoolWidgets = [];
+  }
+
+  get focusPool(): any[] {
+    return this.focusPoolWidgets.filter(w => {
+      return (w.type === 'params' && Dashboard.instance.statusPanel.showParams) || (w.type !== 'params' && !w.hidden);
+    });
   }
 
   addWidget(widget: any) {
@@ -29,25 +36,12 @@ export abstract class CenvPanel {
     this.render();
   }
 
-  focusText: string;
-  get focusPool(): any[] {
-    return this.focusPoolWidgets.filter(w => {
-      return (w.type === 'params' && Dashboard.instance.statusPanel.showParams) || (w.type !== 'params' && !w.hidden);
-    });
-  }
-
   addGridWidget(widget: any, widgetOptions: Record<string, any>, gridOptions: number[], focusable = false, grid?: undefined) {
     const theGrid = grid || this.grid;
-    const newWidget = theGrid.set(
-      gridOptions[0],
-      gridOptions[1],
-      gridOptions[2],
-      gridOptions[3],
-      widget,
-      widgetOptions);
+    const newWidget = theGrid.set(gridOptions[0], gridOptions[1], gridOptions[2], gridOptions[3], widget, widgetOptions);
 
     this.widgets.push(newWidget)
-    if (focusable){
+    if (focusable) {
       this.focusPoolWidgets.push(newWidget);
     }
 
@@ -56,12 +50,12 @@ export abstract class CenvPanel {
 
   getPkgCmd(cmdIndex: number) {
     const cmds = this.getPkgCmds();
-    if (cmds)  {
+    if (cmds) {
       return cmds[cmdIndex];
     }
   }
 
-  getPkgCmds() : PackageCmd [] {
+  getPkgCmds(): PackageCmd [] {
     return this.getPkg()?.cmds;
   }
 
@@ -69,15 +63,15 @@ export abstract class CenvPanel {
     return this.getPkgModules()[cmdIndex];
   }
 
-  getPkgModules() : PackageModule [] {
+  getPkgModules(): PackageModule [] {
     return this.getPkg()?.modules;
   }
 
-  getPkg() : Package {
+  getPkg(): Package {
     return Package?.cache[Dashboard.stackName]
   }
 
-  setFocus(focusIndex: number){
+  setFocus(focusIndex: number) {
     this.dashboard.setFocusIndex(focusIndex);
   }
 
@@ -86,6 +80,7 @@ export abstract class CenvPanel {
   }
 
   abstract set(left: number, width: number, top: number, height: number): void;
+
   abstract render(): void;
 
   hide() {
@@ -96,7 +91,10 @@ export abstract class CenvPanel {
     this.active = true;
     //Dashboard.log('hide from cmdPanel');
   }
+
   abstract setBack(): void;
+
   abstract setFront(): void;
+
   abstract init(): void;
 }

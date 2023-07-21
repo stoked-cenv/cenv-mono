@@ -18,7 +18,8 @@ export * from './stdIo';
 export * from './file';
 export * from './version';
 import Fake from './fake';
-export { Fake }
+
+export {Fake}
 export * from './package/package';
 export * from './package/docker';
 export * from './package/params';
@@ -32,5 +33,5 @@ export * from './suite';
 export * from './cenv';
 export * from './queue'
 
-export { toUtf8 } from '@aws-sdk/util-utf8-node';
+export {toUtf8} from '@aws-sdk/util-utf8-node';
 

@@ -33,11 +33,11 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0(@nestjs/common@9.0.0)(@nestjs/core@9.0.0)
       '@stoked-cenv/cdk':
-        specifier: 2.0.0-a.36
-        version: 2.0.0-a.36(@aws-solutions-constructs/core@2.41.0)
+        specifier: 2.0.0-a.38
+        version: 2.0.0-a.38(@aws-solutions-constructs/core@2.41.0)
       '@stoked-cenv/lib':
-        specifier: 2.0.0-a.36
-        version: 2.0.0-a.36
+        specifier: 2.0.0-a.38
+        version: 2.0.0-a.38
       express-oauth2-jwt-bearer:
         specifier: ^1.3.0
         version: 1.3.0
@@ -111,8 +111,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(react-dom@18.2.0)(react@18.2.0)
       '@stoked-cenv/cdk':
-        specifier: 2.0.0-a.36
-        version: 2.0.0-a.36(@aws-solutions-constructs/core@2.41.0)
+        specifier: 2.0.0-a.38
+        version: 2.0.0-a.38(@aws-solutions-constructs/core@2.41.0)
       axios:
         specifier: ^0.27.2
         version: 0.27.2
@@ -253,8 +253,8 @@ packages:
     resolution: {integrity: sha512-3M2tELJOxQv0apCIiuKQ4pAbncz9GuLwnKFqxifWfe77wuMxyTRPmxssYHs42ePqzap1LT6GDcPygGs+hHstLg==}
     dev: false
 
-  /@aws-cdk/asset-node-proxy-agent-v5@2.0.165:
-    resolution: {integrity: sha512-bsyLQD/vqXQcc9RDmlM1XqiFNO/yewgVFXmkMcQkndJbmE/jgYkzewwYGrBlfL725hGLQipXq19+jwWwdsXQqg==}
+  /@aws-cdk/asset-node-proxy-agent-v5@2.0.166:
+    resolution: {integrity: sha512-j0xnccpUQHXJKPgCwQcGGNu4lRiC1PptYfdxBIH1L4dRK91iBxtSQHESRQX+yB47oGLaF/WfNN/aF3WXwlhikg==}
     dev: false
 
   /@aws-cdk/aws-lambda-python-alpha@2.43.1-alpha.0(aws-cdk-lib@2.82.0)(constructs@10.2.69):
@@ -1252,7 +1252,7 @@ packages:
       aws-cdk-lib: ^2.82.0
       constructs: ^10.0.0
     dependencies:
-      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.87.0)(constructs@10.2.69)
+      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.88.0)(constructs@10.2.69)
       aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
@@ -1264,18 +1264,18 @@ packages:
       aws-cdk-lib: ^2.82.0
       constructs: ^10.0.0
     dependencies:
-      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.87.0)(constructs@10.2.69)
+      '@aws-solutions-constructs/core': 2.41.0(aws-cdk-lib@2.88.0)(constructs@10.2.69)
       aws-cdk-lib: 2.82.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
 
-  /@aws-solutions-constructs/core@2.41.0(aws-cdk-lib@2.87.0)(constructs@10.2.69):
+  /@aws-solutions-constructs/core@2.41.0(aws-cdk-lib@2.88.0)(constructs@10.2.69):
     resolution: {integrity: sha512-J8qjzH3TKGbwN0mg/OhQSAKpKzGPHZjIKK1UBCJxXuF9oxOjIcPZphZSLOH8Lvz/naO3G5CZhvZLFKbqI9br2A==}
     peerDependencies:
       aws-cdk-lib: ^2.82.0
       constructs: ^10.0.0
     dependencies:
-      aws-cdk-lib: 2.87.0(constructs@10.2.69)
+      aws-cdk-lib: 2.88.0(constructs@10.2.69)
       constructs: 10.2.69
     dev: false
     bundledDependencies:
@@ -3933,13 +3933,13 @@ packages:
       tslib: 2.6.0
     dev: false
 
-  /@stoked-cenv/cdk@2.0.0-a.36(@aws-solutions-constructs/core@2.41.0):
-    resolution: {integrity: sha512-aseaHhEmuAa/jwkqYzecRfCWMEi4k0oRY4XzG9MzvTEcVHBnerdiTGfbcKT3GMkxEKR/JfT48ubPJi/CjRMdgw==}
+  /@stoked-cenv/cdk@2.0.0-a.38(@aws-solutions-constructs/core@2.41.0):
+    resolution: {integrity: sha512-P7KFm2dO45IJGyLlMdZfhJljkaxMiX3tiy1OCyzTIULAYwAQ7g3GF3xChR0Xy3X+0lvlbMPpidOvRm4U3aQbWg==}
     dependencies:
       '@aws-cdk/aws-lambda-python-alpha': 2.43.1-alpha.0(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@aws-solutions-constructs/aws-apigateway-lambda': 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@aws-solutions-constructs/aws-cloudfront-s3': 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
-      '@stoked-cenv/lib': 2.0.0-a.36
+      '@stoked-cenv/lib': 2.0.0-a.38
       aws-cdk: 2.43.1
       aws-cdk-lib: 2.82.0(constructs@10.2.69)
       aws-lambda: 1.0.7
@@ -3952,8 +3952,8 @@ packages:
       - aws-crt
     dev: false
 
-  /@stoked-cenv/lib@2.0.0-a.36:
-    resolution: {integrity: sha512-YcDb8PpAoqO+9sdt3M4QFOi+RMZZNgkbCzmj+NKhG3jPX1FTPY+qcJxv1LGSINty7o0G0dzvQU4bte63TGezGw==}
+  /@stoked-cenv/lib@2.0.0-a.38:
+    resolution: {integrity: sha512-T/2QBEr+0aE55AUeKmMBdWXjC2/gIZeOgQRGwH2EAIasVQ7BNjqvac4feOmcUUZpm/T7/jbRkwJG1J5E16K6jw==}
     dependencies:
       '@aws-sdk/client-appconfig': 3.370.0
       '@aws-sdk/client-appconfigdata': 3.370.0
@@ -5232,7 +5232,7 @@ packages:
     dependencies:
       '@aws-cdk/asset-awscli-v1': 2.2.200
       '@aws-cdk/asset-kubectl-v20': 2.1.2
-      '@aws-cdk/asset-node-proxy-agent-v5': 2.0.165
+      '@aws-cdk/asset-node-proxy-agent-v5': 2.0.166
       '@balena/dockerignore': 1.0.2
       case: 1.6.3
       constructs: 10.2.69
@@ -5257,15 +5257,15 @@ packages:
       - table
       - yaml
 
-  /aws-cdk-lib@2.87.0(constructs@10.2.69):
-    resolution: {integrity: sha512-9kirXX7L7OP/yGmCbaYlkt5OAtowGiGw0AYFIQvSwvx/UU3aJO5XuDwAgDsvToDkRpBi0yX0bNwqa0DItu+C6A==}
+  /aws-cdk-lib@2.88.0(constructs@10.2.69):
+    resolution: {integrity: sha512-bmhokh30HVeqlotWaoEmK7mKB9SJbJwpbsiVgmYe3JcMu8DposHQqaIPI7LnC+dg015tZaxUsExxOYBEw+vntQ==}
     engines: {node: '>= 14.15.0'}
     peerDependencies:
       constructs: ^10.0.0
     dependencies:
       '@aws-cdk/asset-awscli-v1': 2.2.200
       '@aws-cdk/asset-kubectl-v20': 2.1.2
-      '@aws-cdk/asset-node-proxy-agent-v5': 2.0.165
+      '@aws-cdk/asset-node-proxy-agent-v5': 2.0.166
       constructs: 10.2.69
     dev: false
     bundledDependencies:
@@ -5644,7 +5644,7 @@ packages:
     resolution: {integrity: sha512-xq+q3SRMOxGivLhBNaUdC64hDTQwejJ+H0T/NB1XMtTVEwNTrfFF3gAxiyW0Bu/xWEGhjVKgUcMhCrUy2+uCWg==}
     dependencies:
       base64-js: 1.5.1
-      ieee754: 1.1.13
+      ieee754: 1.2.1
       isarray: 1.0.0
     dev: false
 
@@ -8104,7 +8104,6 @@ packages:
 
   /ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
-    dev: true
 
   /ignore@5.2.4:
     resolution: {integrity: sha512-MAb38BcSbH0eHNBxn7ql2NH/kX33OkB3lZ1BNdh7ENeRChHTYsTvWrMubiIAMNS2llXEEgZ1MUOBtXChP3kaFQ==}
@@ -11653,6 +11652,7 @@ packages:
     dependencies:
       buffer-from: 1.1.2
       source-map: 0.6.1
+    dev: true
 
   /source-map-support@0.5.21:
     resolution: {integrity: sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==}
@@ -12113,7 +12113,7 @@ packages:
       '@jridgewell/source-map': 0.3.5
       acorn: 8.10.0
       commander: 2.20.3
-      source-map-support: 0.5.20
+      source-map-support: 0.5.21
 
   /test-exclude@6.0.0:
     resolution: {integrity: sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w==}
@@ -13102,7 +13102,7 @@ packages:
     resolution: {integrity: sha512-drPFnkQJik/O+uPKpqSgr22mpuFHqKdbS835iAQrUC73L2F5WkboIRd63ai/2Yg6I1jzifPFKH2NTK+cfglkIA==}
     engines: {node: '>=4.0.0'}
     dependencies:
-      sax: 1.2.1
+      sax: 1.2.4
       xmlbuilder: 11.0.1
     dev: false
 

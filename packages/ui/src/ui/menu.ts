@@ -19,38 +19,31 @@ export default class MenuBar {
     });*/
 
     this.bar = blessed.listbar({
-      ...position,
-      parent: this.screen,
-      height: 3,
-      mouse: true,
-      keys: true,
-      autoCommandKeys: true,
-      border: 'line',
-      vi: true,
-      style: {
-        position: { width: 19 },
-        border: {
-          fg: ' ',
-        },
-        bg: '#51A9B3',
-        item: {
-          bg: '#185056',
-          hover: {
-            bg: '#0e363b',
-          },
-          //focus: {
-          //  bg: '#185056'
-          //}
-        },
-        prefix: {
-          fg: 'black',
-        },
-        selected: {
-          bg: '#0e363b',
-        },
-      },
-      commands
-    });
+                                 ...position,
+                                 parent: this.screen,
+                                 height: 3,
+                                 mouse: true,
+                                 keys: true,
+                                 autoCommandKeys: true,
+                                 border: 'line',
+                                 vi: true,
+                                 style: {
+                                   position: {width: 19}, border: {
+                                     fg: ' ',
+                                   }, bg: '#51A9B3', item: {
+                                     bg: '#185056', hover: {
+                                       bg: '#0e363b',
+                                     }, //focus: {
+                                     //  bg: '#185056'
+                                     //}
+                                   }, prefix: {
+                                     fg: 'black',
+                                   }, selected: {
+                                     bg: '#0e363b',
+                                   },
+                                 },
+                                 commands
+                               });
 
     this.bar.hide();
     //this.screen.append(this.bar);

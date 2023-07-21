@@ -20,6 +20,48 @@
   line-height: 2.4rem;
 }
 
+.btn-secondary {
+  border: 2px solid #fff;
+  color: #fff;
+}
+.btn-secondary:hover {
+  border: 2px solid var(--dark-aluminium);
+  background: var(--light-gray);
+  color: var(--dark-aluminium);
+}
+
+.btn {
+  font-weight: 500;
+  font-size: 16px;
+  color: #fff;
+  text-align: center;
+  padding: 14px 28px;
+  min-width: 230px;
+  border-radius: 30px;
+  -webkit-border-radius: 30px;
+  transition: all .1s ease-in;
+  -moz-transition: all .1s ease-in;
+  -webkit-transition: all .1s ease-in;
+}
+
+.d-inline-block {
+  display: inline-block;
+}
+
+.buttons-wrapper .btn .fa-github {
+  margin-right: 6px;
+  font-size: 18px;
+  vertical-align: middle;
+}
+.svg-inline--fa {
+  margin-right: 6px;
+  display: inline-block;
+  font-size: inherit;
+  height: 1em;
+  overflow: visible;
+  vertical-align: -0.125em;
+}
+
 .button--compact {
   /* responsive */
 

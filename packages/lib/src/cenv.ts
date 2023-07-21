@@ -13,8 +13,8 @@ import {
   getPolicy,
   getRole,
 } from './aws/iam'
-import {IPackageMeta, Package, PackageCmd,} from './package/package'
-import {createFunction, deleteFunction, getFunction} from './aws/lambda'
+import {Package, PackageCmd,} from './package/package'
+import {deleteFunction, getFunction} from './aws/lambda'
 import {
   createApplication,
   createConfigurationProfile,
@@ -35,12 +35,11 @@ import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
 import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import {createParamsLibrary, exec, execCmd, getMonoRoot, packagePath, search_sync, sleep} from "./utils";
-import {ioAppEnv, ioYesOrNo} from "./stdIo";
+import {getMonoRoot, packagePath, search_sync, sleep} from "./utils";
+import {ioAppEnv} from "./stdIo";
 import {deleteHostedZone} from "./aws/route53";
-import {existsSync, mkdirSync, writeFileSync, openSync, closeSync, readFileSync} from "fs";
+import {existsSync, mkdirSync, readFileSync, writeFileSync} from "fs";
 import * as child from 'child_process';
-
 
 
 interface FlagValidation {
@@ -83,6 +82,7 @@ export interface StackProc {
 export function createMaterializeApi() {
 
 }
+
 export class Cenv {
   static runningProcesses?: { [stackName: string]: StackProc[] } = {};
   static processes?: { [pid: number]: StackProc } = {};
@@ -90,46 +90,20 @@ export class Cenv {
   static cleanTags: (...text: string[]) => string[];
   static dashboardCreator: DashboardCreator;
   static dashboardCreateOptions: DashboardCreateOptions;
+  static materializationPkg = '@stoked-cenv/params';
+  static roleName = 'LambdaConfigRole';
+  static policySsmFullAccessArn = 'arn:aws:iam::aws:policy/AmazonSSMFullAccess';
+  static policyLambdaBasic = 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole';
+  static keyGroupName = 'key-users';
 
   static async init(options: InitCommandOptions) {
 
-    const res = await exec('pnpm m ls --json --depth=-1', true);
-    const pkgs: [] = JSON.parse(res);
-
-    // for now don't include the root
-    pkgs.shift();
-
-    const folderName =  process.cwd().split('/').pop();
-
-    const workspaces = pkgs;
-    const workspaceNames =  workspaces.map((w: any) => w?.name);
-    const workspacePaths = workspaces.map((w: any) => w?.path);
-    const pathCounts: Record<string, number> = {}
-    let mostCommonPath = 'packages';
-    let largestCount = 0;
-    for (let i = 0; i < workspacePaths.length; i++) {
-      const path = workspacePaths[i];
-      const splitPath = path.split('/')
-      splitPath.pop();
-      const thePath = splitPath.join('/');
-      if (!pathCounts[thePath]) {
-        pathCounts[thePath] = 1;
-      } else {
-        pathCounts[thePath]++;
-      }
-      if (pathCounts[thePath] > largestCount) {
-        largestCount = pathCounts[thePath];
-        mostCommonPath = thePath
-      }
-    }
-
+    const {mostCommonPath, metas} = this.getWorkspaceData();
+    const folderName = path.parse(process.cwd()).name;
     const globalsNameNoScope = folderName + '-globals';
     const globalsPath = path.join(mostCommonPath, 'globals');
     if (!existsSync(globalsPath)) {
-      mkdirSync(globalsPath);
-
-
-
+      mkdirSync(globalsPath, {recursive: true});
     }
     const cenvDir = path.join(globalsPath, '.cenv');
     if (!existsSync(cenvDir)) {
@@ -147,8 +121,7 @@ export class Cenv {
 
     const globalsName = options.scope ? `${options.scope}/${globalsNameNoScope}` : globalsNameNoScope;
     const globalMeta = {
-      "name": globalsName,
-      "version": "0.0.1"
+      "name": globalsName, "version": "0.0.1"
     };
 
     writeFileSync(path.join(globalsPath, 'package.json'), JSON.stringify(globalMeta, null, 2) + '\n');
@@ -159,8 +132,7 @@ export class Cenv {
       console.log(' ')
     }
     const cenvConfig: any = {
-      global: globalsNameNoScope,
-      defaultSuite: folderName
+      global: globalsNameNoScope, defaultSuite: folderName
     }
     if (options?.scope) {
       cenvConfig.scope = options.scope;
@@ -168,7 +140,7 @@ export class Cenv {
 
     cenvConfig.suites = {};
     cenvConfig.suites[folderName] = {
-      "packages": workspaceNames.filter((w: string) => !w.endsWith('globals'))
+      "packages": metas.filter((w: { meta: any, path: string }) => !w.meta.name.endsWith('globals'))
     }
 
     const configOutput = JSON.stringify(cenvConfig, null, 2) + '\n';
@@ -179,12 +151,41 @@ export class Cenv {
     }
   }
 
+  static getPackages() {
+    const pkgs: string[] = search_sync(process.cwd(), false, true, 'package.json', {excludedDirs: ['cdk.out', 'node_modules', 'dist']}) as string[];
+    const metas: { meta: any, path: string }[] = pkgs.map(pkgPath => {
+      return {meta: require(pkgPath), path: path.parse(pkgPath).dir};
+    })
+    return metas;
+  }
+
+  static getWorkspaceData() {
+    const metas = this.getPackages().filter(m => m.path !== process.cwd())
+    let mostCommonPath = path.join(process.cwd(), 'packages');
+    let largestCount = 0;
+    const pathCounts: Record<string, number> = {}
+    for (let i = 0; i < metas.length; i++) {
+      const pkg = metas[i];
+      const containingDir = path.parse(pkg.path).dir;
+      if (!pathCounts[containingDir]) {
+        pathCounts[containingDir] = 1;
+      } else {
+        pathCounts[containingDir]++;
+      }
+      if (pathCounts[containingDir] > largestCount) {
+        largestCount = pathCounts[containingDir];
+        mostCommonPath = containingDir
+      }
+    }
+    return {mostCommonPath, metas};
+  }
+
   static async cmdInit(options: any, runningInitCmd = false): Promise<boolean> {
     try {
       if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
         options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
-        const { logLevel }: {logLevel: keyof typeof LogLevel} = options;
-        process.env.CENV_LOG_LEVEL = LogLevel[logLevel] ;
+        const {logLevel}: { logLevel: keyof typeof LogLevel } = options;
+        process.env.CENV_LOG_LEVEL = LogLevel[logLevel];
         CenvLog.logLevel = LogLevel[logLevel];
         CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
       } else {
@@ -192,7 +193,15 @@ export class Cenv {
         CenvLog.logLevel = LogLevel.INFO;
       }
 
-      const monoRoot = getMonoRoot();
+      if (runningInitCmd) {
+        return true;
+      }
+
+      let monoRoot = getMonoRoot();
+      if (!monoRoot) {
+        monoRoot = process.cwd();
+        await this.init({});
+      }
       const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
       if (existsSync(cenvConfigPath)) {
         const cenvConfig = require(cenvConfigPath);
@@ -220,7 +229,7 @@ export class Cenv {
   }
 
   static addSpawnedProcess(stackName: string, cmd: string, proc: child.ChildProcess) {
-    Cenv.processes[proc.pid] =  { stackName, cmd, proc };
+    Cenv.processes[proc.pid] = {stackName, cmd, proc};
 
     if (!Cenv.runningProcesses[stackName]) {
       Cenv.runningProcesses[stackName] = [{cmd, proc}];
@@ -231,16 +240,12 @@ export class Cenv {
 
   static async env(params: string[], options: Record<string, any>) {
     if (!params.length) {
-      CenvLog.info(
-        `current environment: ${infoBold(process.env.ENV)}`,
-      );
+      CenvLog.info(`current environment: ${infoBold(process.env.ENV)}`,);
     }
     if (options.exports) {
       let exports: any = await listExports();
       if (params) {
-        exports = exports.filter((e: Export) =>
-          params.includes(e.Name.replace(`${process.env.ENV}-`, '')),
-        );
+        exports = exports.filter((e: Export) => params.includes(e.Name.replace(`${process.env.ENV}-`, '')),);
         exports = exports.map((e: Export) => e.Value);
         CenvLog.single.stdLog(exports.join(' '));
         return;
@@ -255,26 +260,19 @@ export class Cenv {
     const env = new Environment();
     await env.load();
     CenvLog.info('deployed');
-    env.packages.map((p: Package) =>
-      CenvLog.info(`\t${p.packageName}`),
-    );
+    env.packages.map((p: Package) => CenvLog.info(`\t${p.packageName}`),);
   }
 
   static addParam = async (pkg: Package, params: string[], options: Record<string, any>) => {
     function getAddParam(application: string = undefined) {
-      return `cenv add ${application ? application + ' ' : ''}${
-        options?.app ? '-a' : ''
-      } ${options?.environment ? '-e' : ''} ${options?.global ? '-g' : ''} ${
-        options?.globalEnv ? '-ge' : ''
-      }`;
+      return `cenv add ${application ? application + ' ' : ''}${options?.app ? '-a' : ''} ${options?.environment ? '-e' : ''} ${options?.global ? '-g' : ''} ${options?.globalEnv ? '-ge' : ''}`;
     }
+
     const cmd = pkg.createCmd(getAddParam());
     const type = validateOneType(Object.keys(options));
     if (!type) {
-      cmd.err(
-        `Must contain at least one type flag (${infoBold('--app-type')}, ${infoBold('--environment-type',)}, 
-        ${infoBold('--global-type')}, ${infoBold('--global-env-type')}`,
-      );
+      cmd.err(`Must contain at least one type flag (${infoBold('--app-type')}, ${infoBold('--environment-type',)}, 
+        ${infoBold('--global-type')}, ${infoBold('--global-env-type')}`,);
       cmd.result(2);
       return cmd;
     }
@@ -295,30 +293,16 @@ export class Cenv {
     const ctx: any = await CenvParams.getParamsContext();
     const config = ctx.EnvConfig;
     const key = params[0].toLowerCase().replace(/_/g, '/');
-    const keyPath = CenvParams.GetRootPath(
-      ctx.EnvConfig.ApplicationName,
-      ctx.EnvConfig.EnvironmentName,
-      type,
-    );
+    const keyPath = CenvParams.GetRootPath(ctx.EnvConfig.ApplicationName, ctx.EnvConfig.EnvironmentName, type,);
     const alreadyExistingType = await CenvFiles.KeyExists(key, keyPath, type);
     if (alreadyExistingType) {
-      const error = `Attempted to add key "${errorBold(key)}" as ${
-        type === 'global' ? 'a' : 'an'
-      } "${errorBold(type)}" param type, but this key already exists as ${
-        alreadyExistingType === 'global' ? 'a' : 'an'
-      } "${errorBold(alreadyExistingType)}" param`;
+      const error = `Attempted to add key "${errorBold(key)}" as ${type === 'global' ? 'a' : 'an'} "${errorBold(type)}" param type, but this key already exists as ${alreadyExistingType === 'global' ? 'a' : 'an'} "${errorBold(alreadyExistingType)}" param`;
       cmd.err(error);
       cmd.result(4);
       return cmd;
     }
 
-    const parameter = await CenvFiles.createParameter(
-      config,
-      key,
-      value,
-      type,
-      options.decrypted,
-    );
+    const parameter = await CenvFiles.createParameter(config, key, value, type, options.decrypted,);
     const res = await upsertParameter(config, parameter, type);
     await new Promise((r) => setTimeout(r, 2000));
     if (res !== 'SKIPPED') {
@@ -326,13 +310,7 @@ export class Cenv {
       await CenvParams.pull(false, false, false);
     }
     if (options?.stack) {
-      cmd.out(
-        `deploying ${infoBold(
-          config.ApplicationName,
-        )} configuration to environment ${chalk.blueBright(
-          config.EnvironmentName,
-        )}`,
-      );
+      cmd.out(`deploying ${infoBold(config.ApplicationName,)} configuration to environment ${chalk.blueBright(config.EnvironmentName,)}`,);
       await CenvParams.Materialize();
     }
     cmd.out('success');
@@ -367,174 +345,6 @@ export class Cenv {
     await CenvFiles.SaveEnvConfig(config);
   }
 
-  private static initFlagValidation(options: Record<string, any>, tags: string[]): FlagValidation | undefined {
-    if (options?.environment) {
-      process.env.ENV = options.environment;
-    }
-    if (options?.stack && options?.push) {
-      CenvLog.single.alertLog(
-        'The --push is redundant. It is implied when used with --deploy',
-      );
-    } else if (options?.stack) {
-      options.push = true;
-    }
-
-    const envConfig: EnvConfig = CenvFiles.GetConfig(
-      options?.environment || process.env.ENV,
-    );
-    const { application, environment } = options;
-
-    if (
-      !options?.destroy &&
-      !options?.clean &&
-      envConfig &&
-      envConfig?.ApplicationId &&
-      application &&
-      envConfig.ApplicationName !== application
-    ) {
-      CenvLog.single.errorLog(
-        'Must use --destroy or --clean with an existing config if --application is used',
-      );
-      process.exit(0);
-    }
-
-    // exitWithoutTags(tags);
-    return { application, environment, options, envConfig };
-  }
-
-  private static async processApplicationEnvironmentNames(options: Record<string, any>, application: string, environment: string, envConfig: EnvConfig) {
-    const pkgPath = search_sync(process.cwd(), true) as string[];
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pkg = require(pkgPath[0].toString());
-
-    if (!environment && process.env.ENV) {
-      environment = process.env.ENV;
-    }
-
-    if (!application || !environment || options?.force) {
-      const appEntry = { value: application, defaultValue: pkg.name };
-      const envEntry = { value: environment, defaultValue: 'local' };
-      const ioAppEnvRes = await ioAppEnv(
-        envConfig,
-        appEntry,
-        envEntry,
-        options?.force,
-        options?.defaults,
-      );
-      if (!ioAppEnvRes) {
-        return;
-      }
-      application = ioAppEnvRes.application;
-      environment = ioAppEnvRes.environment;
-    }
-
-    /*if (
-      envConfig?.ApplicationName !== undefined &&
-      application !== undefined &&
-      envConfig?.ApplicationName !== application &&
-      !options?.force
-    ) {
-      //const destroyIt = await ioYesOrNo(
-      //  `The service has previously been configured with the application name ${envConfig?.ApplicationName}. Would you like to destroy the previously configured application, all of it's related resources, as well as the local configuration?`,
-      //);
-      //if (destroyIt) {
-      //  await pkg.params.destroy({}, )
-      //}
-      //return { application, environment };
-    }*/
-    return { application, environment };
-  }
-
-  private static async processApplication(application: string, environment: string) {
-    let createdApp = false;
-    const envConfig: any = {};
-    const appRes = await getApplication(application, true);
-    envConfig.ApplicationName = application;
-    envConfig.EnvironmentName = environment;
-    if (!appRes) {
-      createdApp = true;
-      const app = await createApplication(application);
-      envConfig.ApplicationId = app.Id;
-
-      const parameter = await CenvFiles.createParameter(
-        envConfig,
-        'application/name',
-        application,
-        'app',
-        false,
-      );
-      const res = await upsertParameter(envConfig, parameter, 'app');
-    } else {
-      envConfig.ApplicationId = appRes.ApplicationId;
-    }
-    return { createdApp, envConfig };
-  }
-
-  private static async processEnvironment(envConfig: EnvConfig, application: string, environment: string) {
-    let createdEnv = false;
-    envConfig.EnvironmentName = environment;
-    const existingEnv = await getEnvironment(
-      envConfig.ApplicationId,
-      environment,
-      true,
-    );
-
-    if (!existingEnv) {
-      createdEnv = true;
-      const env = await createEnvironment(envConfig.ApplicationId, environment);
-      envConfig.EnvironmentId = env.Id;
-
-      const parameter = await CenvFiles.createParameter(
-        envConfig,
-        'environment/name',
-        environment,
-        'globalEnv',
-        false,
-      );
-      const res = await upsertParameter(envConfig, parameter, 'globalEnv');
-    } else {
-      envConfig.EnvironmentId = existingEnv.EnvironmentId;
-    }
-    return { createdEnv, envConfig };
-  }
-
-  private static async processConfigurationProfile(envConfig: EnvConfig) {
-    const confProf = await getConfigurationProfile(
-      envConfig.ApplicationId,
-      'config',
-    );
-
-    if (!confProf) {
-      const confProf = await createConfigurationProfile(
-        envConfig.ApplicationId,
-        'config',
-      );
-      envConfig.ConfigurationProfileId = confProf.Id;
-    } else {
-      envConfig.ConfigurationProfileId = confProf.ConfigurationProfileId;
-    }
-    const deploymentStratRes = await getDeploymentStrategy();
-    envConfig.DeploymentStrategyId = deploymentStratRes.DeploymentStrategyId;
-    return envConfig;
-  }
-
-  private static async processInitData(envConfig: EnvConfig, options: Record<string, any>) {
-    CenvLog.info(
-      `${envConfig.ApplicationName}:${envConfig.EnvironmentName} - saving local files`,
-    );
-    CenvFiles.SaveEnvConfig(envConfig);
-
-    if (!options?.push && !options?.stack) {
-      await CenvParams.pull(false, false, true, true);
-    } else {
-
-    }
-
-    if (options?.push) {
-      await CenvParams.push(options?.stack);
-    }
-  }
-
   static async envToParams(envConfig: EnvConfig) {
     const envFile = path.join(process.cwd(), '.env');
     if (existsSync(envFile)) {
@@ -557,34 +367,22 @@ export class Cenv {
   static async initParams(options?: ParamsCommandOptions, tags: string[] = []) {
     try {
       const flagValidateResponse = this.initFlagValidation(options, tags);
-      let { application, environment, envConfig } = flagValidateResponse;
+      let {application, environment, envConfig} = flagValidateResponse;
       options = flagValidateResponse.options;
 
       if (!(await this.verifyCenv())) {
         await this.deployCenv();
       }
 
-      const appEnvNameRes = await this.processApplicationEnvironmentNames(
-        options,
-        application,
-        environment,
-        envConfig,
-      );
+      const appEnvNameRes = await this.processApplicationEnvironmentNames(options, application, environment, envConfig,);
       application = appEnvNameRes.application;
       environment = appEnvNameRes.environment;
 
-      const processAppRes = await this.processApplication(
-        application,
-        environment,
-      );
+      const processAppRes = await this.processApplication(application, environment,);
       envConfig = processAppRes.envConfig;
       const createdApp = processAppRes.createdApp;
 
-      const processEnvRes = await this.processEnvironment(
-        envConfig,
-        application,
-        environment,
-      );
+      const processEnvRes = await this.processEnvironment(envConfig, application, environment,);
       envConfig = processEnvRes.envConfig;
       const createdEnv = processEnvRes.createdEnv;
 
@@ -596,32 +394,14 @@ export class Cenv {
         await this.envToParams(envConfig);
       }
     } catch (err) {
-      CenvLog.single.catchLog(
-        'Cenv.init err: ' + (err.stack ? err.stack : err),
-      );
+      CenvLog.single.catchLog('Cenv.init err: ' + (err.stack ? err.stack : err),);
     }
   }
 
   public static async destroyAppConfig(application: string, options: Record<string, any>) {
-    await deleteCenvData(
-      application,
-      options?.parameters || options?.all,
-      options?.config || options?.all,
-      options?.all || options?.global,
-    );
+    await deleteCenvData(application, options?.parameters || options?.all, options?.config || options?.all, options?.all || options?.global,);
     return true;
   }
-
-
-  static materializationPkg = '@stoked-cenv/params';
-
-  static roleName = 'LambdaConfigRole';
-  static policySsmFullAccessArn = 'arn:aws:iam::aws:policy/AmazonSSMFullAccess';
-  static policyLambdaBasic =
-    'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole';
-  static keyGroupName = 'key-users';
-
-
 
   static async verifyCenv(silent = true) {
     try {
@@ -650,21 +430,12 @@ export class Cenv {
       const materializationExists = await getFunction('cenv-params');
       if (!materializationExists) {
         verified = false;
-        componentsMissing.push([
-          'Materialization Lambda',
-          'cenv-params',
-        ]);
+        componentsMissing.push(['Materialization Lambda', 'cenv-params',]);
       }
       if (!silent) {
         if (!verified) {
-          CenvLog.info(
-              `cenv failed validation with the following missing components:`,
-          );
-          componentsMissing.map((component) =>
-              CenvLog.info(
-                  ` - ${component[0]} (${infoBold(component[1])})`,
-              ),
-          );
+          CenvLog.info(`cenv failed validation with the following missing components:`,);
+          componentsMissing.map((component) => CenvLog.info(` - ${component[0]} (${infoBold(component[1])})`,),);
         } else {
           CenvLog.info('cenv www has been verified');
         }
@@ -697,72 +468,40 @@ export class Cenv {
       }
       const policyExists = await getPolicy(AppConfigGetArn);
       if (!policyExists) {
-        const polRes = await createPolicy(
-          'AppConfigGod',
-          JSON.stringify({
-            Version: '2012-10-17',
-            Statement: [
-              {
-                Action: 'appconfig:*',
-                Resource: '*',
-                Effect: 'Allow',
-              },
-              {
-                Action: 'lambda:*',
-                Resource: '*',
-                Effect: 'Allow',
-              },
-            ],
-          }),
-        );
+        const polRes = await createPolicy('AppConfigGod', JSON.stringify({
+                                                                           Version: '2012-10-17', Statement: [{
+            Action: 'appconfig:*', Resource: '*', Effect: 'Allow',
+          }, {
+            Action: 'lambda:*', Resource: '*', Effect: 'Allow',
+          },],
+                                                                         }),);
       }
 
       const roleExists = await getRole(this.roleName);
       if (!roleExists) {
-        const roleRes = await createRole(
-          this.roleName,
-          JSON.stringify({
-            Version: '2012-10-17',
-            Statement: [
-              {
-                Effect: 'Allow',
-                Principal: {
-                  Service: 'lambda.amazonaws.com',
-                },
-                Action: 'sts:AssumeRole',
-              },
-            ],
-          }),
-        );
+        const roleRes = await createRole(this.roleName, JSON.stringify({
+                                                                         Version: '2012-10-17', Statement: [{
+            Effect: 'Allow', Principal: {
+              Service: 'lambda.amazonaws.com',
+            }, Action: 'sts:AssumeRole',
+          },],
+                                                                       }),);
         if (!roleRes) {
           return;
         }
       }
 
 
-
       if (process.env.KMS_KEY) {
         const KmsPolicyExists = await getPolicy(KmsPolicyArn);
         if (!KmsPolicyExists) {
-          const polRes = await createPolicy(
-            'KmsPolicy',
-            JSON.stringify({
-              Version: '2012-10-17',
-              Statement: [
-                {
-                  Effect: 'Allow',
-                  Action: [
-                    'kms:Encrypt',
-                    'kms:Decrypt',
-                    'kms:ReEncrypt*',
-                    'kms:GenerateDataKey*',
-                    'kms:DescribeKey',
-                  ],
-                  Resource: process.env.KMS_KEY,
-                },
-              ],
-            }),
-          );
+          const polRes = await createPolicy('KmsPolicy', JSON.stringify({
+                                                                          Version: '2012-10-17', Statement: [{
+              Effect: 'Allow',
+              Action: ['kms:Encrypt', 'kms:Decrypt', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:DescribeKey',],
+              Resource: process.env.KMS_KEY,
+            },],
+                                                                        }),);
 
           if (!polRes) {
             return;
@@ -770,15 +509,8 @@ export class Cenv {
         }
 
         const group = await createGroup(this.keyGroupName);
-        const attRes = await attachPolicyToGroup(
-          this.keyGroupName,
-          'KmsPolicy',
-          KmsPolicyArn,
-        );
-        const groupUser = await addUserToGroup(
-          this.keyGroupName,
-          process.env.AWS_ACCOUNT_USER_ARN.split('/')[1],
-        );
+        const attRes = await attachPolicyToGroup(this.keyGroupName, 'KmsPolicy', KmsPolicyArn,);
+        const groupUser = await addUserToGroup(this.keyGroupName, process.env.AWS_ACCOUNT_USER_ARN.split('/')[1],);
 
         const polRes = await attachPolicyToRole(this.roleName, KmsPolicyArn);
         if (!polRes) {
@@ -786,10 +518,7 @@ export class Cenv {
         }
       }
 
-      let polAttRes = await attachPolicyToRole(
-        this.roleName,
-        'arn:aws:iam::aws:policy/AmazonSSMFullAccess',
-      );
+      let polAttRes = await attachPolicyToRole(this.roleName, 'arn:aws:iam::aws:policy/AmazonSSMFullAccess',);
       if (!polAttRes) {
         return;
       }
@@ -799,10 +528,7 @@ export class Cenv {
         return;
       }
 
-      polAttRes = await attachPolicyToRole(
-        this.roleName,
-        'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
-      );
+      polAttRes = await attachPolicyToRole(this.roleName, 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',);
       if (!polAttRes) {
         return;
       }
@@ -819,13 +545,9 @@ export class Cenv {
         //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV },);
       }
     } catch (e) {
-      CenvLog.single.catchLog(
-        'Cenv.deployCenv err: ' + (e.stack ? e.stack : e),
-      );
+      CenvLog.single.catchLog('Cenv.deployCenv err: ' + (e.stack ? e.stack : e),);
     }
   }
-
-
 
   static async destroyCenv(): Promise<boolean> {
     let destroyedAnything = false;
@@ -837,7 +559,9 @@ export class Cenv {
       if (materializationExists) {
         destroyedAnything = true;
         const materializationRes = await deleteFunction('cenv-params');
-        if (!materializationRes) return;
+        if (!materializationRes) {
+          return;
+        }
       }
 
       const roleExists = await getRole(this.roleName);
@@ -856,10 +580,10 @@ export class Cenv {
           await detachPolicyFromRole(this.roleName, AppConfigGetArn);
         }
         if (KmsPolicyExists) {
-          console.log('KmsPolicyExists', JSON.stringify(KmsPolicyExists, null, 2))
+          //console.log('KmsPolicyExists', JSON.stringify(KmsPolicyExists, null, 2))
           await detachPolicyFromRole(this.roleName, KmsPolicyArn);
         }
-        console.log(JSON.stringify(roleExists, null, 2));
+        //console.log(JSON.stringify(roleExists, null, 2));
         const roleRes = await deleteRole(this.roleName);
         if (!roleRes) {
           return;
@@ -888,9 +612,7 @@ export class Cenv {
       }
 
     } catch (e) {
-      CenvLog.single.catchLog(
-        'Cenv.destroyCenv err: ' + (e.stack ? e.stack : e),
-      );
+      CenvLog.single.catchLog('Cenv.destroyCenv err: ' + (e.stack ? e.stack : e),);
     }
     return destroyedAnything;
   }
@@ -898,5 +620,130 @@ export class Cenv {
   static BumpChanged() {
     const packages = Object.values(Package.cache);
     const changed = packages.filter((p: Package) => p.hasChanged());
+  }
+
+  private static initFlagValidation(options: Record<string, any>, tags: string[]): FlagValidation | undefined {
+    if (options?.environment) {
+      process.env.ENV = options.environment;
+    }
+    if (options?.stack && options?.push) {
+      CenvLog.single.alertLog('The --push is redundant. It is implied when used with --deploy',);
+    } else if (options?.stack) {
+      options.push = true;
+    }
+
+    const envConfig: EnvConfig = CenvFiles.GetConfig(options?.environment || process.env.ENV,);
+    const {application, environment} = options;
+
+    if (!options?.destroy && !options?.clean && envConfig && envConfig?.ApplicationId && application && envConfig.ApplicationName !== application) {
+      CenvLog.single.errorLog('Must use --destroy or --clean with an existing config if --application is used',);
+      process.exit(0);
+    }
+
+    // exitWithoutTags(tags);
+    return {application, environment, options, envConfig};
+  }
+
+  private static async processApplicationEnvironmentNames(options: Record<string, any>, application: string, environment: string, envConfig: EnvConfig) {
+    const pkgPath = search_sync(process.cwd(), true) as string[];
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pkg = require(pkgPath[0].toString());
+
+    if (!environment && process.env.ENV) {
+      environment = process.env.ENV;
+    }
+
+    if (!application || !environment || options?.force) {
+      const appEntry = {value: application, defaultValue: pkg.name};
+      const envEntry = {value: environment, defaultValue: 'local'};
+      const ioAppEnvRes = await ioAppEnv(envConfig, appEntry, envEntry, options?.force, options?.defaults,);
+      if (!ioAppEnvRes) {
+        return;
+      }
+      application = ioAppEnvRes.application;
+      environment = ioAppEnvRes.environment;
+    }
+
+    /*if (
+      envConfig?.ApplicationName !== undefined &&
+      application !== undefined &&
+      envConfig?.ApplicationName !== application &&
+      !options?.force
+    ) {
+      //const destroyIt = await ioYesOrNo(
+      //  `The service has previously been configured with the application name ${envConfig?.ApplicationName}. Would you like to destroy the previously configured application, all of it's related resources, as well as the local configuration?`,
+      //);
+      //if (destroyIt) {
+      //  await pkg.params.destroy({}, )
+      //}
+      //return { application, environment };
+    }*/
+    return {application, environment};
+  }
+
+  private static async processApplication(application: string, environment: string) {
+    let createdApp = false;
+    const envConfig: any = {};
+    const appRes = await getApplication(application, true);
+    envConfig.ApplicationName = application;
+    envConfig.EnvironmentName = environment;
+    if (!appRes) {
+      createdApp = true;
+      const app = await createApplication(application);
+      envConfig.ApplicationId = app.Id;
+
+      const parameter = await CenvFiles.createParameter(envConfig, 'application/name', application, 'app', false,);
+      const res = await upsertParameter(envConfig, parameter, 'app');
+    } else {
+      envConfig.ApplicationId = appRes.ApplicationId;
+    }
+    return {createdApp, envConfig};
+  }
+
+  private static async processEnvironment(envConfig: EnvConfig, application: string, environment: string) {
+    let createdEnv = false;
+    envConfig.EnvironmentName = environment;
+    const existingEnv = await getEnvironment(envConfig.ApplicationId, environment, true,);
+
+    if (!existingEnv) {
+      createdEnv = true;
+      const env = await createEnvironment(envConfig.ApplicationId, environment);
+      envConfig.EnvironmentId = env.Id;
+
+      const parameter = await CenvFiles.createParameter(envConfig, 'environment/name', environment, 'globalEnv', false,);
+      const res = await upsertParameter(envConfig, parameter, 'globalEnv');
+    } else {
+      envConfig.EnvironmentId = existingEnv.EnvironmentId;
+    }
+    return {createdEnv, envConfig};
+  }
+
+  private static async processConfigurationProfile(envConfig: EnvConfig) {
+    const confProf = await getConfigurationProfile(envConfig.ApplicationId, 'config',);
+
+    if (!confProf) {
+      const confProf = await createConfigurationProfile(envConfig.ApplicationId, 'config',);
+      envConfig.ConfigurationProfileId = confProf.Id;
+    } else {
+      envConfig.ConfigurationProfileId = confProf.ConfigurationProfileId;
+    }
+    const deploymentStratRes = await getDeploymentStrategy();
+    envConfig.DeploymentStrategyId = deploymentStratRes.DeploymentStrategyId;
+    return envConfig;
+  }
+
+  private static async processInitData(envConfig: EnvConfig, options: Record<string, any>) {
+    CenvLog.info(`${envConfig.ApplicationName}:${envConfig.EnvironmentName} - saving local files`,);
+    CenvFiles.SaveEnvConfig(envConfig);
+
+    if (!options?.push && !options?.stack) {
+      await CenvParams.pull(false, false, true, true);
+    } else {
+
+    }
+
+    if (options?.push) {
+      await CenvParams.push(options?.stack);
+    }
   }
 }

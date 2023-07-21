@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
-import { Commands } from '@stoked-cenv/ui';
-import { CenvLog } from '@stoked-cenv/lib';
+import {Module} from '@nestjs/common';
+import {Commands} from '@stoked-cenv/ui';
+import {CenvLog} from '@stoked-cenv/lib';
 
 const commands = Commands.list();
+
 function getProviders() {
   const providers: any = [];
   commands.map(async (cmd: string[]) => {
@@ -19,8 +20,8 @@ function getProviders() {
 }
 
 @Module({
-  providers: getProviders()
-})
+          providers: getProviders()
+        })
 
 export class CenvModule {
   static providers: any = {};

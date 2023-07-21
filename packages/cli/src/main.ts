@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import * as sms from 'source-map-support';
+import {CommandFactory} from 'nest-commander';
+import {CenvModule} from './cli'
+import {cleanup} from '@stoked-cenv/lib';
+
 sms.install();
 
-import { CommandFactory } from 'nest-commander';
-import { CenvModule } from './cli'
-import { cleanup } from '@stoked-cenv/lib';
-
-[`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`].forEach( async (eventType, ) => {
+[`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`].forEach(async (eventType,) => {
   process.on(eventType, err => {
     cleanup.bind(this, eventType, err, 500)
   });

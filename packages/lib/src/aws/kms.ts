@@ -1,17 +1,17 @@
 import {
-  KMSClient,
-  CreateKeyCommand,
   CreateAliasCommand,
+  CreateKeyCommand,
+  DecryptCommand,
+  EncryptCommand,
+  GetKeyPolicyCommand,
+  KMSClient,
   ListAliasesCommand,
   ListKeysCommand,
   PutKeyPolicyCommand,
-  GetKeyPolicyCommand,
-  EncryptCommand,
-  DecryptCommand,
 } from '@aws-sdk/client-kms';
 
-import { colors, CenvLog } from '../log';
-import { getAccountId } from './sts';
+import {CenvLog, colors} from '../log';
+import {getAccountId} from './sts';
 // import { isArray } from 'aws-cdk/lib/util';
 
 
@@ -22,26 +22,26 @@ function getClient() {
     return _client;
   }
 
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new KMSClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                            region: AWS_REGION, endpoint: AWS_ENDPOINT
+                          });
   return _client;
 }
 
 const aliasName = 'alias/curb-key';
+
 export async function getKey() {
   const listKeysCommand = new ListKeysCommand({});
   const listKeysRes = await getClient().send(listKeysCommand);
   const listAliasesCmd = new ListAliasesCommand({});
   const listAliasesRes = await getClient().send(listAliasesCmd);
-  for (let i = 0; i < listAliasesRes.Aliases.length; i++){
+  for (let i = 0; i < listAliasesRes.Aliases.length; i++) {
     const alias = listAliasesRes.Aliases[i];
     if (alias.AliasName === aliasName) {
 
-      for (let j = 0; j <listKeysRes.Keys.length; j++) {
+      for (let j = 0; j < listKeysRes.Keys.length; j++) {
         const key = listKeysRes.Keys[j];
         if (key.KeyId === alias.TargetKeyId) {
           return key.KeyArn;
@@ -64,7 +64,7 @@ export async function createKey() {
       return;
     }
     const cmd = new CreateKeyCommand({
-      MultiRegion: true/*,
+                                       MultiRegion: true/*,
       Policy: JSON.stringify(`{
       "Version": "2012-10-17",
       "Statement": [
@@ -141,9 +141,9 @@ export async function createKey() {
           }
       ]
     }`)*/
-    });
+                                     });
     const res = await getClient().send(cmd);
-    const aliasCmd = new CreateAliasCommand({TargetKeyId: res.KeyMetadata.KeyId, AliasName: aliasName })
+    const aliasCmd = new CreateAliasCommand({TargetKeyId: res.KeyMetadata.KeyId, AliasName: aliasName})
     const aliasRes = await getClient().send(aliasCmd);
     return res.KeyMetadata.KeyId;
   } catch (e) {
@@ -160,20 +160,20 @@ export async function addKeyAccount(Account: string) {
       return;
     }
 
-    const getKeyPolicy = new GetKeyPolicyCommand({ KeyId: key, PolicyName: 'default'})
+    const getKeyPolicy = new GetKeyPolicyCommand({KeyId: key, PolicyName: 'default'})
     const getKeyRes = await getClient().send(getKeyPolicy);
     const keyAccount = `arn:aws:iam::${Account}:root`;
     let Policy = JSON.parse(getKeyRes.Policy);
     if (Policy.Statement.length === 1) {
       Policy.Statement.push({
-        "Sid" : "Enable other accounts",
-        "Effect" : "Allow",
-        "Principal" : {
-          "AWS" : [keyAccount]
-        },
-        "Action" : [ "kms:Encrypt*", "kms:GenerateDataKey*", "kms:Decrypt*", "kms:DescribeKey*", "kms:ReEncrypt*" ],
-        "Resource" : "*"
-      })
+                              "Sid": "Enable other accounts",
+                              "Effect": "Allow",
+                              "Principal": {
+                                "AWS": [keyAccount]
+                              },
+                              "Action": ["kms:Encrypt*", "kms:GenerateDataKey*", "kms:Decrypt*", "kms:DescribeKey*", "kms:ReEncrypt*"],
+                              "Resource": "*"
+                            })
     } else if (!Array.isArray(Policy.Statement[1].Principal.AWS) && keyAccount != Policy.Statement[1].Principal.AWS) {
       Policy.Statement[1].Principal.AWS = [Policy.Statement[1].Principal.AWS, keyAccount]
     } else {
@@ -181,7 +181,7 @@ export async function addKeyAccount(Account: string) {
     }
     Policy = JSON.stringify(Policy);
 
-    const putPolicyKeyCmd = new PutKeyPolicyCommand({ KeyId: key, Policy, PolicyName: 'default' });
+    const putPolicyKeyCmd = new PutKeyPolicyCommand({KeyId: key, Policy, PolicyName: 'default'});
 
     return await getClient().send(putPolicyKeyCmd);
   } catch (e) {
@@ -190,15 +190,14 @@ export async function addKeyAccount(Account: string) {
   }
 }
 
-export async function encrypt(Plaintext: any){
+export async function encrypt(Plaintext: any) {
   try {
     if (!process.env.KMS_KEY) {
       CenvLog.single.errorLog(`no KMS_KEY configured run ${colors.errorBold('cenv install -k')} to install a key on this account or ${colors.errorBold('cenv config -k')} to configure a key from another account`);
       return;
     }
     const input = {
-      KeyId: process.env.KMS_KEY,
-      Plaintext: Buffer.from(JSON.stringify(Plaintext)),
+      KeyId: process.env.KMS_KEY, Plaintext: Buffer.from(JSON.stringify(Plaintext)),
     };
     const cmd = new EncryptCommand(input);
     const encryptedBlob = await getClient().send(cmd);
@@ -212,11 +211,14 @@ export async function encrypt(Plaintext: any){
 
 export async function decrypt(CiphertextBlob: any) {
   try {
-    const cmd = new DecryptCommand({ KeyId: process.env.KeyId, CiphertextBlob: Uint8Array.from(atob(CiphertextBlob), (v) => v.charCodeAt(0)), });
+    const cmd = new DecryptCommand({
+                                     KeyId: process.env.KeyId,
+                                     CiphertextBlob: Uint8Array.from(atob(CiphertextBlob), (v) => v.charCodeAt(0)),
+                                   });
     const decryptedBinaryData = await getClient().send(cmd);
     const decryptedData = String.fromCharCode.apply(null, new Uint16Array(decryptedBinaryData.Plaintext));
     return decryptedData.replace(/['"]+/g, '');
-  }catch (e) {
+  } catch (e) {
     CenvLog.single.errorLog(`kms decrypt failed: ${colors.errorBold(e.message)}\n${e}`)
   }
 }

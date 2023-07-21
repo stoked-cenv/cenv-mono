@@ -1,8 +1,8 @@
-import { App,Stack } from 'aws-cdk-lib';
+import * as cdk from 'aws-cdk-lib';
+import {App, Stack} from 'aws-cdk-lib';
 import {CenvLog, validateEnvVars} from "@stoked-cenv/lib";
 import {HostedZone} from "aws-cdk-lib/aws-route53";
 import {SiteCertificateStack} from "../stacks/cert/site-certificate-stack.js";
-import * as cdk from "aws-cdk-lib";
 
 const envVars = validateEnvVars(['ENV', 'ROOT_DOMAIN']);
 
@@ -37,7 +37,7 @@ export function ensureValidCerts(domain: string) {
       const assignedParts = nextSub.split('.');
 
       let baseDomain: string = envVars.ROOT_DOMAIN;
-      while(subDomain !== nextSub) {
+      while (subDomain !== nextSub) {
         nextSub = assignedParts.pop() as string;
         new SiteCertificateStack(new cdk.App(), `${envVars.ENV}-${nextSub}-${baseDomain.replace('.', '-')}`, {
           env: {account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION}

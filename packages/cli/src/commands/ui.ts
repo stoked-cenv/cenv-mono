@@ -1,8 +1,8 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvUI } from '@stoked-cenv/ui';
-import { CenvLog, Package, BaseCommandOptions, Suite } from '@stoked-cenv/lib'
+import {Command, Option} from 'nest-commander';
+import {CenvUI} from '@stoked-cenv/ui';
+import {BaseCommandOptions, CenvLog, Package, Suite} from '@stoked-cenv/lib'
 
-import { BaseCommand } from './base';
+import {BaseCommand} from './base';
 
 export interface UICommandOptions extends BaseCommandOptions {
   suite?: string;
@@ -10,12 +10,10 @@ export interface UICommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-  name: 'ui',
-  description: `Launch UI`,
-  aliases: ['s', 'suite'],
+           name: 'ui', description: `Launch UI`, aliases: ['s', 'suite'],
 
 
-})
+         })
 export default class UICommand extends BaseCommand {
 
   constructor() {
@@ -23,29 +21,24 @@ export default class UICommand extends BaseCommand {
     this.allowUI = true;
     this.localPackageAccepted = false;
   }
+
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'suite',
-    flags: '-s, --suite <suite>',
-    description: 'Load a suite into the UI'
-  })
-  parseSuite(val: string): string {
+            name: 'suite', flags: '-s, --suite <suite>', description: 'Load a suite into the UI'
+          }) parseSuite(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'environment',
-    flags: '-e, --environment <environment>',
-    description: 'Load an environment into the UI',
-  })
-  parseEnvironment(val: string): string {
+            name: 'environment',
+            flags: '-e, --environment <environment>',
+            description: 'Load an environment into the UI',
+          }) parseEnvironment(val: string): string {
     return val;
   }
 

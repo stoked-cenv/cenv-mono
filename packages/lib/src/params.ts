@@ -1,37 +1,31 @@
-import { deployConfig } from './aws/appConfig';
+import {deployConfig} from './aws/appConfig';
 import {
   decryptValue,
   deleteParameters,
-  getParameter, getParametersByPath, getVarsByType,
+  envVarToKey,
+  getParameter,
+  getParametersByPath,
+  getParams,
+  getVarsByType,
   isEncrypted,
   putParameter,
-  updateTemplates
-} from './aws/parameterStore';
-import { invoke } from './aws/lambda';
-import {
-  infoAlertBold,
-  infoBold,
-  CenvLog, errorInfo, LogLevel,
-} from './log';
-import {
-  envVarToKey,
-  getParams,
   stripPath,
-  upsertParameter,
+  updateTemplates,
+  upsertParameter
 } from './aws/parameterStore';
+import {invoke, updateLambdas} from './aws/lambda';
+import {CenvLog, errorInfo, infoAlertBold, infoBold,} from './log';
 import chalk from "chalk";
-import { getDeployedVars } from './aws/appConfigData';
+import {getConfigVars} from './aws/appConfigData';
 import {ioReadVarList, readAsync} from './stdIo';
-import {
-  sleep, expandTemplateVars, getMonoRoot, packagePath,
-} from './utils';
-import { AppVarsFile, CenvFiles, EnvConfig, EnvVarsFile, GlobalEnvVarsFile, GlobalVarsFile } from './file';
-import { existsSync, } from 'fs';
-import { Package } from './package/package';
-import { updateLambdas } from './aws/lambda';
+import {expandTemplateVars, sleep,} from './utils';
+import {AppVarsFile, CenvFiles, EnvConfig, EnvVarsFile, GlobalEnvVarsFile, GlobalVarsFile} from './file';
+import {existsSync,} from 'fs';
+import {Package} from './package/package';
 import {Environment} from "./environment";
 import {ProcessMode} from "./package/module";
-export const variableTypes = [ 'app', 'environment', 'global', 'globalEnv' ];
+
+export const variableTypes = ['app', 'environment', 'global', 'globalEnv'];
 
 export function filteredCount(options: string[], types: string[]) {
   const filtered = options.filter(el => {
@@ -84,13 +78,20 @@ export interface DashboardCreateOptions {
   cmd?: ProcessMode
 }
 
-export declare class Dashboard{}
+export declare class Dashboard {
+}
+
 export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => Dashboard;
 
 export class CenvParams {
 
   static async removeParameters(params: any, options: any, types: string[], exitOnFail = true) {
-    const { cenvPackage, paramData, rootPaths, inCenvRoot } = await this.buildDataRemoveLinks(params, options, types, exitOnFail);
+    const {
+      cenvPackage,
+      paramData,
+      rootPaths,
+      inCenvRoot
+    } = await this.buildDataRemoveLinks(params, options, types, exitOnFail);
     await CenvParams.removeParameter(params, options, paramData, rootPaths, inCenvRoot, cenvPackage);
   }
 
@@ -146,9 +147,10 @@ export class CenvParams {
       const paramData = [];
       const varTypes = inCenvRoot ? variableTypes : ['global', 'globalEnv'];
       const vars: any = {};
-      const rootPaths: any = inCenvRoot ?
-        CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName) :
-        {global: `/global/${process.env.ENV}`, globalEnv: `/globalenv/${process.env.ENV}`};
+      const rootPaths: any = inCenvRoot ? CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName) : {
+        global: `/global/${process.env.ENV}`,
+        globalEnv: `/globalenv/${process.env.ENV}`
+      };
 
       if (options?.all) {
         await this.removeAll(varTypes, rootPaths, type, cenvPackage)
@@ -173,12 +175,12 @@ export class CenvParams {
             const typedParam = typedParams[typedParamKey];
             if (typedParam.Name === paramEnvVar) {
               paramData.push({
-                type: varType,
-                root: varTypeRoot,
-                key: envVarToKey(param),
-                path: typedParamKey,
-                envVar: param
-              });
+                               type: varType,
+                               root: varTypeRoot,
+                               key: envVarToKey(param),
+                               path: typedParamKey,
+                               envVar: param
+                             });
 
               if ((varType === 'globalEnv' || varType === 'global') && !options?.kill && !inCenvRoot) {
                 CenvLog.single.errorLog('Must use --kill flag with rm for global and globalEnv variables');
@@ -209,7 +211,7 @@ export class CenvParams {
         }
       }
       return {cenvPackage, paramData, rootPaths, inCenvRoot};
-    } catch(e) {
+    } catch (e) {
       CenvLog.single.catchLog(new Error('buildDataRemoveLinks'))
     }
   }
@@ -295,7 +297,7 @@ export class CenvParams {
       envCtx.pkg = pkg;
       return envCtx;
     }
-    return { pkg };
+    return {pkg};
   }
 
   public static GetRootPath(ApplicationName: string, EnvironmentName: string, type: string) {
@@ -303,7 +305,7 @@ export class CenvParams {
     return paths[type];
   }
 
-  public static GetRootPaths(ApplicationName: string, EnvironmentName: string) : {
+  public static GetRootPaths(ApplicationName: string, EnvironmentName: string): {
     app: string,
     globalLink: string,
     global: string,
@@ -312,32 +314,17 @@ export class CenvParams {
     environment: string,
     generate: string
   } {
-    const app =   stripPath(ApplicationName);
+    const app = stripPath(ApplicationName);
     const env = stripPath(EnvironmentName);
     return {
       app: stripPath(`/service/${app}/app`),
       globalLink: stripPath(`/service/${app}/global`),
       global: stripPath(`/global`),
-      globalEnvLink: stripPath( `/service/${app}/globalenv/${env}`),
+      globalEnvLink: stripPath(`/service/${app}/globalenv/${env}`),
       globalEnv: stripPath(`/globalenv/${env}`),
       environment: stripPath(`/service/${app}/environment/${env}`),
       generate: stripPath(`/service/${app}/generate`)
     };
-  }
-
-  private static async pushType(vars: any, type: string, config: any, updatedCount: number) {
-    if ( vars[type] ) {
-      const rootPath = this.GetRootPath(config.ApplicationName, config.EnvironmentName, type);
-      for (const [key, value] of Object.entries(vars[type])) {
-
-        const parameter = await CenvFiles.decodeParameter(envVarToKey(key), value as string, type, rootPath);
-        const res = await upsertParameter(config, parameter, type);
-        if (res !== 'SKIPPED') {
-          updatedCount += 1;
-        }
-      }
-    }
-    return updatedCount;
   }
 
   static async push(materialize: boolean, decrypted = false): Promise<void> {
@@ -357,12 +344,12 @@ export class CenvParams {
     updatedCount = await this.pushType(data, 'globalEnv', config, updatedCount);
 
     let parametersVerified = false;
-    const condensed =  {...data.app, ...data.environment, ...data.global, ...data.globalEnv};
+    const condensed = {...data.app, ...data.environment, ...data.global, ...data.globalEnv};
     let count = 2;
     while (!parametersVerified || count === 0) {
       const params = await getParams(config, 'all', 'simple', true, false, true)
       let matching = true;
-      const unmatched: any = { existing: { }, updated: {}};
+      const unmatched: any = {existing: {}, updated: {}};
       for (let i = 0; i < Object.keys(params).length; i++) {
         const key = Object.keys(params)[i];
         const param = params[key];
@@ -372,7 +359,7 @@ export class CenvParams {
           console.log('decrypted', decrypted);
           compare = decrypted;
         }
-        if(param !== compare) {
+        if (param !== compare) {
           unmatched.existing[key] = param;
           unmatched.updated[key] = compare
           matching = false;
@@ -431,7 +418,7 @@ export class CenvParams {
     }
 
     if (!fileData) {
-      return { vars, changed: false };
+      return {vars, changed: false};
     }
 
     if (process.env.CENV_PARAMS_EXTRACTION_TEST) {
@@ -445,8 +432,8 @@ export class CenvParams {
     if (JSON.stringify(fileData) != JSON.stringify(vars)) {
       changed = true;
     }
-    vars = {...vars, ...fileData };
-    return { vars, changed };
+    vars = {...vars, ...fileData};
+    return {vars, changed};
   }
 
   static async pull(materialized = false, decrypted = false, silent = false, init = false, push = true, save = true, config: EnvConfig = undefined, allValues = false) {
@@ -467,7 +454,7 @@ export class CenvParams {
         AllValues: allValues ? allValues : undefined
       };
 
-      variables = await getDeployedVars( undefined, silent);
+      variables = await getConfigVars(allValues, silent, 'PULLED DEPLOYED VARS');
     }
 
     // merge app data
@@ -513,7 +500,7 @@ export class CenvParams {
       const res = await this.MaterializeCore(data);
       CenvLog.single.verboseLog('materialization test results:\n' + res);
     } else {
-      const { before, after, error } = await invoke('cenv-params', JSON.stringify(data))
+      const {before, after, error} = await invoke('cenv-params', JSON.stringify(data))
       if (error) {
         CenvLog.single.errorLog(JSON.stringify(error, null, 2));
         return;
@@ -536,12 +523,7 @@ export class CenvParams {
   public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
     try {
       const {
-        ApplicationId,
-        EnvironmentId,
-        ConfigurationProfileId,
-        ApplicationName,
-        EnvironmentName,
-        DeploymentStrategyId
+        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
       } = event;
 
       if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId || !DeploymentStrategyId) {
@@ -555,12 +537,7 @@ export class CenvParams {
       }
 
       const appConfig = {
-        ApplicationId,
-        EnvironmentId,
-        ConfigurationProfileId,
-        ApplicationName,
-        EnvironmentName,
-        DeploymentStrategyId
+        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
       };
       if (process.env.VERBOSE_LOGS) {
         console.log('appConfig', appConfig)
@@ -585,11 +562,26 @@ export class CenvParams {
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);
       await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Package.scopeName, '')}`);
-      return { before, after }
-    } catch(e) {
+      return {before, after}
+    } catch (e) {
       CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))
-      return { error: e };
+      return {error: e};
     }
+  }
+
+  private static async pushType(vars: any, type: string, config: any, updatedCount: number) {
+    if (vars[type]) {
+      const rootPath = this.GetRootPath(config.ApplicationName, config.EnvironmentName, type);
+      for (const [key, value] of Object.entries(vars[type])) {
+
+        const parameter = await CenvFiles.decodeParameter(envVarToKey(key), value as string, type, rootPath);
+        const res = await upsertParameter(config, parameter, type);
+        if (res !== 'SKIPPED') {
+          updatedCount += 1;
+        }
+      }
+    }
+    return updatedCount;
   }
 }
 

@@ -19,7 +19,7 @@ export const HeroBanner: React.FC = () => {
         id="code-sample-link"
         target="_blank"
         rel="noopener noreferrer"
-        href="https://developer.auth0.com/resources/code-samples/spa/react/basic-authentication/typescript-react-router-6"
+        href="https://github.com/stoked-cenv/cenv-mono/tree/master/example"
         className="button button--secondary"
       >
         check out the example code <b className="tiny"><sup>(hint it's this site)</sup></b> →

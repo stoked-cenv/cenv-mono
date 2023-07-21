@@ -1,13 +1,13 @@
-import { App, Duration, Fn, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
+import {App, Duration, Fn, Stack, StackProps} from 'aws-cdk-lib';
+import {Construct} from 'constructs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
-import { IVpc, Vpc } from 'aws-cdk-lib/aws-ec2';
-import { HealthCheck } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { HostedZone, IHostedZone } from 'aws-cdk-lib/aws-route53';
+import {IVpc, Vpc} from 'aws-cdk-lib/aws-ec2';
+import {HealthCheck} from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import {HostedZone, IHostedZone} from 'aws-cdk-lib/aws-route53';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
+import {Certificate} from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import {ensureValidCerts, tagStack} from './utils.js';
@@ -28,11 +28,10 @@ export interface ECSServiceDeploymentParams {
   assignedDomain?: string;
 }
 
-const { ENV, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ASSIGNED_DOMAIN } = process.env;
+const {ENV, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ASSIGNED_DOMAIN} = process.env;
 export const defaultStackProps = {
   env: {
-    account: CDK_DEFAULT_ACCOUNT,
-    region: CDK_DEFAULT_REGION
+    account: CDK_DEFAULT_ACCOUNT, region: CDK_DEFAULT_REGION
   },
 }
 
@@ -45,13 +44,14 @@ if (ASSIGNED_DOMAIN) {
   ensureValidCerts(ASSIGNED_DOMAIN);
 }
 
-export const VPC_NAME = process.env.ENV + '-net';
-const getVPCByName = (construct:Construct, id= process.env.ENV + '-vpc', vpcName=VPC_NAME) => Vpc.fromLookup(construct, id, {
+export const VPC_NAME = `${ENV}-net`;
+const getVPCByName = (construct: Construct, id = process.env.ENV + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
   vpcName
 });
 
-export function useCDKStackOutput(env: string, varName: string,envVariables: Record<string, string>): Record<string, string>{
-  envVariables[varName.toUpperCase().replace(/-/g,'_')] = Fn.importValue(env.toUpperCase() + "-" + varName.toUpperCase());
+
+export function useCDKStackOutput(env: string, varName: string, envVariables: Record<string, string>): Record<string, string> {
+  envVariables[varName.toUpperCase().replace(/-/g, '_')] = Fn.importValue(env.toUpperCase() + "-" + varName.toUpperCase());
   return envVariables;
 }
 
@@ -65,36 +65,32 @@ export class ECSServiceStack extends Stack {
   params: ECSServiceDeploymentParams;
 
   constructor(params: ECSServiceDeploymentParams) {
-    super(
-      new App(),
-      params.id ?? `${params.env}-${params.stackName}`,
-      params.stackProps ?? defaultStackProps
-    );
+    super(new App(), params.id ?? `${params.env}-${params.stackName}`, params.stackProps ?? defaultStackProps);
     const {
       env,
       subdomain,
       ecrRepositoryName,
-      envVariables={},
-      logRetention=logs.RetentionDays.ONE_WEEK,
-      rootDomain=ROOT_DOMAIN,
-      region=CDK_DEFAULT_REGION,
+      envVariables = {},
+      logRetention = logs.RetentionDays.ONE_WEEK,
+      rootDomain = ROOT_DOMAIN,
+      region = CDK_DEFAULT_REGION,
       healthCheck
     } = params;
     this.params = params;
+
     this.vpc = getVPCByName(this);
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
     this.cluster = new ecs.Cluster(this, `${params.env}-${params.stackName}-cluster`, {
-      vpc: this.vpc,
-      clusterName: `${params.env}-${params.stackName}-cluster`
+      vpc: this.vpc, clusterName: `${params.env}-${params.stackName}-cluster`
     });
 
     const subdomainId = subdomain.replace(/\./g, '-');
 
     let subDomain: string = subdomain as string; // i.e. install.dev
     let baseDomain: string = rootDomain as string;
-    let fullDomain =`${subDomain}.${ENV}.${baseDomain}`;
+    let fullDomain = `${subDomain}.${ENV}.${baseDomain}`;
 
     if (ASSIGNED_DOMAIN) {
       const assignedParts = ASSIGNED_DOMAIN.split('.');
@@ -126,13 +122,12 @@ export class ECSServiceStack extends Stack {
     });
 
     const logging = new ecs.AwsLogDriver({
-      streamPrefix: `${env}-${subdomainId}-fargate`,
-      logGroup: this.logGroup
-    });
+                                           streamPrefix: `${env}-${subdomainId}-fargate`, logGroup: this.logGroup
+                                         });
 
     const repository = ecr.Repository.fromRepositoryName(this, ecrRepositoryName.replace('/', '-'), ecrRepositoryName);
     const shortDigest = process.env.CENV_PKG_DIGEST ? process.env.CENV_PKG_DIGEST!.substring(process.env.CENV_PKG_DIGEST!.length - 8) : '';
-    const containerName = `${env}-${subdomainId}-${process.env.CENV_PKG_VERSION}-${shortDigest}`.replace(/\./g,'-');
+    const containerName = `${env}-${subdomainId}-${process.env.CENV_PKG_VERSION}-${shortDigest}`.replace(/\./g, '-');
 
     const image = ecs.ContainerImage.fromEcrRepository(repository, 'latest');
     // Create a load-balanced Fargate service and make it public
@@ -141,7 +136,7 @@ export class ECSServiceStack extends Stack {
     this.loadBalancedFargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(this, `${env}-${subdomainId}-fg`, {
       cluster: this.cluster, // Required
       assignPublicIp: true,
-      loadBalancerName:`${env}-${subdomainId}-lb`,
+      loadBalancerName: `${env}-${subdomainId}-lb`,
       serviceName: `${env}-${subdomainId}-svc`,
       cpu: 256, // Default is 256 // 0.25 CPU
       desiredCount: 1, // Default is 1
@@ -149,55 +144,35 @@ export class ECSServiceStack extends Stack {
       domainName: fullDomain,
       certificate,
       taskImageOptions: {
-        family: `${env}-${subdomainId}`,
-        containerName,
-        image,
-        logDriver: logging,
-        environment: {
-          PORT: '80',
-          ENV: env!,
-          AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!,
-          ...envVariables
-        },
-        ...this.getTaskImageOptions()
+        family: `${env}-${subdomainId}`, containerName, image, logDriver: logging, environment: {
+          PORT: '80', ENV: env!, AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!, ...envVariables
+        }, ...this.getTaskImageOptions()
       },
       memoryLimitMiB: 512, // Default is 512
       publicLoadBalancer: true // Default is false,
     });
 
     // attach inline policy for interacting with AppConfig
-    this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(
-      new iam.Policy(this, `${env}-${subdomainId}-app-config`, {
-        statements: [
-          new iam.PolicyStatement({
-            actions: [
-              'appconfig:StartConfigurationSession',
-              'appconfig:ListApplications',
-              'appconfig:ListDeploymentStrategies',
-              'appconfig:GetLatestConfiguration'
-            ],
-            resources: ['*']
-          })
-        ]
-      })
-    );
+    this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${env}-${subdomainId}-app-config`, {
+      statements: [new iam.PolicyStatement({
+                                             actions: ['appconfig:StartConfigurationSession', 'appconfig:ListApplications', 'appconfig:ListDeploymentStrategies', 'appconfig:GetLatestConfiguration'],
+                                             resources: ['*']
+                                           })]
+    }));
 
     tagStack(this);
 
     // configure health check
     const hChk: HealthCheck = {
-      path: healthCheck.path,
-      interval: Duration.seconds(10),
-      healthyThresholdCount: 2
+      path: healthCheck.path, interval: Duration.seconds(10), healthyThresholdCount: 2
     };
 
     this.loadBalancedFargateService.targetGroup.configureHealthCheck(hChk);
 
     // An attribute representing the minimum and maximum task count for an AutoScalingGroup.
     this.scalableTarget = this.loadBalancedFargateService.service.autoScaleTaskCount({
-      minCapacity: 1,
-      maxCapacity: 5,
-    });
+                                                                                       minCapacity: 1, maxCapacity: 5,
+                                                                                     });
 
     // Scales in or out to achieve a target CPU utilization.
     this.scalableTarget.scaleOnCpuUtilization('CpuScaling', {
@@ -210,29 +185,19 @@ export class ECSServiceStack extends Stack {
     });
 
     new cloudwatch.Metric({
-      metricName: 'CPUUtilization',
-      namespace: 'ECS/ContainerInsights',
-      dimensionsMap: {
-        ServiceName: this.loadBalancedFargateService.service.serviceName,
-        ClusterName: this.cluster.clusterName,
-      },
-      statistic: 'avg',
-      period: Duration.minutes(5),
-    });
+                            metricName: 'CPUUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
+        ServiceName: this.loadBalancedFargateService.service.serviceName, ClusterName: this.cluster.clusterName,
+      }, statistic: 'avg', period: Duration.minutes(5),
+                          });
 
     new cloudwatch.Metric({
-      metricName: 'MemoryUtilization',
-      namespace: 'ECS/ContainerInsights',
-      dimensionsMap: {
-        ServiceName: this.loadBalancedFargateService.service.serviceName,
-        ClusterName: this.cluster.clusterName,
-      },
-      statistic: 'avg',
-      period: Duration.minutes(5),
-    });
+                            metricName: 'MemoryUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
+        ServiceName: this.loadBalancedFargateService.service.serviceName, ClusterName: this.cluster.clusterName,
+      }, statistic: 'avg', period: Duration.minutes(5),
+                          });
   }
 
-  getTaskImageOptions() : Partial<ecs_patterns.ApplicationLoadBalancedTaskImageOptions> {
+  getTaskImageOptions(): Partial<ecs_patterns.ApplicationLoadBalancedTaskImageOptions> {
     return {};
   }
 }

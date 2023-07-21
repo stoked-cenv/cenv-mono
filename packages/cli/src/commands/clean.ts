@@ -1,54 +1,36 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import {
-  CenvLog,
-  execAll,
-  spawnCmd,
-  configDefaults,
-  CenvFiles,
-  CleanCommandOptions,
-  Package
-} from '@stoked-cenv/lib';
-import { BaseCommand } from './base'
+import {Command, Option} from 'nest-commander';
+import {CenvFiles, CenvLog, configDefaults, Package, spawnCmd} from '@stoked-cenv/lib';
+import {BaseCommand} from './base'
 
 @Command({
-  name: 'clean',
-  description: `Clean currently configured local files related to data in the ${configDefaults.appExt} configuration`,
-})
+           name: 'clean',
+           description: `Clean currently configured local files related to data in the ${configDefaults.appExt} configuration`,
+         })
 export default class CleanCommand extends BaseCommand {
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'mode',
-    flags: '-m, --mode [mode]',
-    description: 'either cenv, cdk, or both',
-    defaultValue: 'cenv'
-  })
-  parseMode(val: string): string {
+            name: 'mode', flags: '-m, --mode [mode]', description: 'either cenv, cdk, or both', defaultValue: 'cenv'
+          }) parseMode(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'environment',
-    flags: '-e, --environment <environment>',
-    description: 'clean specific environment only',
-    defaultValue: undefined
-  })
-  parseEnvironment(val: string): string {
+            name: 'environment',
+            flags: '-e, --environment <environment>',
+            description: 'clean specific environment only',
+            defaultValue: undefined
+          }) parseEnvironment(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'globals',
-    flags: '-g, --globals',
-    description: 'Cleans global files',
-  })
-  parseGlobals(val: boolean): boolean {
+            name: 'globals', flags: '-g, --globals', description: 'Cleans global files',
+          }) parseGlobals(val: boolean): boolean {
     return val;
   }
 

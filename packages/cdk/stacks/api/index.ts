@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import 'source-map-support/register.js';
-import { ECSServiceStack } from '../../core/index.js'
+import {ECSServiceStack} from '../../core/index.js'
 import {validateEnvVars} from "@stoked-cenv/lib";
 
 const vars = validateEnvVars(['ENV', 'ROOT_DOMAIN', 'CENV_STACK_NAME', 'CENV_DOCKER_NAME']);
@@ -19,15 +19,13 @@ if (process.env.CENV_SUBDOMAIN) {
   process.env.ASSIGNED_DOMAIN = `${subdomain}.${vars.ENV}.${vars.ROOT_DOMAIN}`;
 }
 
-new ECSServiceStack(
-  {
-    env: vars.ENV,
-    subdomain,
-    stackName: vars.CENV_STACK_NAME,
-    ecrRepositoryName: vars.CENV_DOCKER_NAME,
-    healthCheck: {
-      path: process.env.HEALTH_CHECK_PATH ? process.env.HEALTH_CHECK_PATH : '/',
-    },
-    envVariables
-  }
-);
+new ECSServiceStack({
+                      env: vars.ENV,
+                      subdomain,
+                      stackName: vars.CENV_STACK_NAME,
+                      ecrRepositoryName: vars.CENV_DOCKER_NAME,
+                      healthCheck: {
+                        path: process.env.HEALTH_CHECK_PATH ? process.env.HEALTH_CHECK_PATH : '/',
+                      },
+                      envVariables
+                    });

@@ -1,16 +1,17 @@
-import { CenvLog } from './log';
-import { Package } from './package/package';
-import { listStacks } from './aws/cloudformation'
-import { Suite } from './suite';
-import { StackSummary } from '@aws-sdk/client-cloudformation';
+import {CenvLog} from './log';
+import {Package} from './package/package';
+import {listStacks} from './aws/cloudformation'
+import {Suite} from './suite';
+import {StackSummary} from '@aws-sdk/client-cloudformation';
 
 export class Environments {
-  static cache: { [environmentName: string]: Environment} = {};
+  static cache: { [environmentName: string]: Environment } = {};
+
   static async getEnvironment(environmentName: string) {
     if (this.cache[environmentName]) {
       return this.cache[environmentName];
     }
-    const env = new Environment({ environment: environmentName });
+    const env = new Environment({environment: environmentName});
     await env.getStacks();
     return env;
   }
@@ -22,7 +23,7 @@ export class Environment {
   packages: Package[];
   stacks: StackSummary[];
 
-  constructor(options?: { environment?: string, suite?: Suite}) {
+  constructor(options?: { environment?: string, suite?: Suite }) {
     this.name = options?.environment || process.env.ENV;
     if (!this.name) {
       CenvLog.single.catchLog('environment load failed: no environment specified and no ENV variable present')
@@ -30,6 +31,20 @@ export class Environment {
     }
     this.name = options?.environment || process.env.ENV;
     this.suite = options?.suite;
+  }
+
+  static async fromName(environment: string): Promise<Environment> {
+    const env = new Environment({environment});
+    await env.load();
+    return env;
+  }
+
+  static async getStacks(environment: string): Promise<StackSummary[]> {
+    const existingStacks: any = await listStacks(['CREATE_COMPLETE', 'ROLLBACK_COMPLETE', 'UPDATE_COMPLETE', 'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS', 'DELETE_FAILED', 'UPDATE_ROLLBACK_COMPLETE']);
+
+    return existingStacks.filter((s: any) => {
+      return s.StackName.startsWith(environment + '-');
+    })
   }
 
   async load() {
@@ -52,28 +67,5 @@ export class Environment {
   async getStacks(): Promise<StackSummary[]> {
     this.stacks = (await Environment.getStacks(this.name)).filter(s => s.StackName.startsWith(this.name + '-'));
     return this.stacks;
-  }
-
-  static async fromName(environment: string): Promise<Environment> {
-    const env = new Environment({environment});
-    await env.load();
-    return env;
-  }
-
-  static async getStacks(environment: string): Promise<StackSummary[]> {
-    const existingStacks: any = await listStacks(
-      [
-        'CREATE_COMPLETE',
-        'ROLLBACK_COMPLETE',
-        'UPDATE_COMPLETE',
-        'CREATE_IN_PROGRESS',
-        'DELETE_IN_PROGRESS',
-        'DELETE_FAILED',
-        'UPDATE_ROLLBACK_COMPLETE'
-      ]);
-
-    return existingStacks.filter((s: any) => {
-      return s.StackName.startsWith(environment + '-');
-    })
   }
 }

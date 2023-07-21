@@ -43,6 +43,7 @@
     "node-cron": "^3.0.2",
     "read": "^2.1.0",
     "semver": "^7.5.4",
+    "stoked-cenv-web": "link:/Users/stoked/code/cenv-mono/example",
     "typescript": "^4.9.5",
     "yaml": "^2.3.1"
   },

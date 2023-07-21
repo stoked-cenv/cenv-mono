@@ -1,12 +1,10 @@
-import { CommandRunner, Option, RootCommand } from 'nest-commander';
-import { Cenv, CenvLog, Package, packagePath } from "@stoked-cenv/lib";
-
-import path from "path";
-import { BaseCommand } from "./base";
+import {Option, RootCommand} from 'nest-commander';
+import {Package} from "@stoked-cenv/lib";
+import {BaseCommand} from "./base";
 
 @RootCommand({
-  name: 'cenv',
-})
+               name: 'cenv',
+             })
 export default class CenvCommand extends BaseCommand {
 
   constructor() {
@@ -14,11 +12,8 @@ export default class CenvCommand extends BaseCommand {
   }
 
   @Option({
-    name: 'version',
-    flags: '-v, --version',
-    description: 'Display cenv\'s installed version',
-  })
-  parseVersion(val: boolean): boolean {
+            name: 'version', flags: '-v, --version', description: 'Display cenv\'s installed version',
+          }) parseVersion(val: boolean): boolean {
     return val;
   }
 

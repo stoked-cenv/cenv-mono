@@ -1,131 +1,110 @@
-import { Command, Option } from 'nest-commander';
+import {Command, Option} from 'nest-commander';
 import {
-  errorInfo,
+  Cenv,
+  CenvFiles,
   CenvLog,
+  CenvParams,
+  errorInfo,
+  getConfig,
   getParams,
   Package,
-  CenvParams,
-  CenvFiles,
-  variableTypes, getConfig,
-  Cenv,
-  validateCount, ParamsCommandOptions
+  ParamsCommandOptions,
+  validateCount,
+  variableTypes
 } from '@stoked-cenv/lib'
 
-import { BaseCommand } from './base'
+import {BaseCommand} from './base'
 
 enum ParamCommands {
-  init = 'init',
-  deploy = 'deploy',
-  pull = 'pull',
-  fix = 'fix',
-  materialize = 'materialize'
+  init = 'init', deploy = 'deploy', pull = 'pull', fix = 'fix', materialize = 'materialize'
 }
 
-import path from 'path';
-
 @Command({
-  name: 'params',
-  description: 'Init, deploy, and display package parameters',
-})
+           name: 'params', description: 'Init, deploy, and display package parameters',
+         })
 export default class ParamsCommand extends BaseCommand {
   localPackageAccepted = true;
 
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'app',
-    flags: '-a, --app',
-    description: 'Displays all app parameters. App parameters are the same across all environments and are not used in other applications.',
-  })
-  parseConfig(val: string): string {
+            name: 'app',
+            flags: '-a, --app',
+            description: 'Displays all app parameters. App parameters are the same across all environments and are not used in other applications.',
+          }) parseConfig(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'environment',
-    flags: '-e, --environment',
-    description: 'Displays environment parameters. Environment parameters are unique to each environment and are not used in other applications.',
-  })
-  parseEnvironment(val: string): string {
+            name: 'environment',
+            flags: '-e, --environment',
+            description: 'Displays environment parameters. Environment parameters are unique to each environment and are not used in other applications.',
+          }) parseEnvironment(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'global',
-    flags: '-g, --global',
-    description: 'Displays global parameters. Global parameters are available to all applications in all environments.',
-  })
-  parseGlobal(val: string): string {
+            name: 'global',
+            flags: '-g, --global',
+            description: 'Displays global parameters. Global parameters are available to all applications in all environments.',
+          }) parseGlobal(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'globalEnv',
-    flags: '-ge, --global-env',
-    description: 'Displays global environment parameters. Global environment parameters are available to all applications in a specific environment.',
-  })
-  parseGlobalEnv(val: string): string {
+            name: 'globalEnv',
+            flags: '-ge, --global-env',
+            description: 'Displays global environment parameters. Global environment parameters are available to all applications in a specific environment.',
+          }) parseGlobalEnv(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'detail',
-    flags: '-d, --detail',
-    description: 'Print all the variable meta data including path, value, and type.',
-  })
-  parseDetail(val: boolean): boolean {
+            name: 'detail',
+            flags: '-d, --detail',
+            description: 'Print all the variable meta data including path, value, and type.',
+          }) parseDetail(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'simple',
-    flags: '-s, --simple',
-    description: 'Print only environment variable and value.',
-    defaultValue: true
-  })
-  parseSimple(val: boolean): boolean {
+            name: 'simple',
+            flags: '-s, --simple',
+            description: 'Print only environment variable and value.',
+            defaultValue: true
+          }) parseSimple(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'envToParams',
-    flags: '-ep, --env-to-params',
-    description: 'Import .env file as system parameters on init.',
-  })
-  parseEnvToParams(val: boolean): boolean {
+            name: 'envToParams',
+            flags: '-ep, --env-to-params',
+            description: 'Import .env file as system parameters on init.',
+          }) parseEnvToParams(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'decrypted',
-    flags: '-de, --decrypted',
-    description: 'Display decrypted values on SecureString blessed.',
-  })
-  parseEncrypted(val: boolean): boolean {
+            name: 'decrypted',
+            flags: '-de, --decrypted',
+            description: 'Display decrypted values on SecureString blessed.',
+          }) parseEncrypted(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'deployed',
-    flags: '-D, --deployed',
-    description: 'Print variable data that has been deployed.',
-  })
-  parseDeployed(val: boolean): boolean {
+            name: 'deployed', flags: '-D, --deployed', description: 'Print variable data that has been deployed.',
+          }) parseDeployed(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    flags: '--profile, <profile>',
-    description: `Environment profile to use on init.`,
-    defaultValue: 'default',
-  })
-  parseProfile(val: string): string {
+            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+          }) parseProfile(val: string): string {
     return val;
   }
 
@@ -166,7 +145,7 @@ export default class ParamsCommand extends BaseCommand {
         params = Array.from(commandSet)
         const commandOrder = Object.values(ParamCommands);
         params = params.sort((a: string, b: string) => {
-          return commandOrder.indexOf( Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf( Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)])
+          return commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)])
         });
 
         if (params.length > 3) {
@@ -193,8 +172,7 @@ export default class ParamsCommand extends BaseCommand {
               } else if (param === ParamCommands.pull) {
                 const depRes = await getConfig(p.params.name);
                 if (depRes) {
-                  await CenvParams.pull(true, false, true,false,
-                    false,false,depRes.config,true);
+                  await CenvParams.pull(true, false, true, false, false, false, depRes.config, true);
                 }
 
               } else if (param === ParamCommands.materialize) {
@@ -211,7 +189,7 @@ export default class ParamsCommand extends BaseCommand {
           type = 'all';
         }
 
-        const opts = { ...options, pkgCount: packages.length };
+        const opts = {...options, pkgCount: packages.length};
         for (let i = 0; i < packages.length; i++) {
           if (packages[i].chDir()) {
             await this.callBase(opts, type, packages[i]);
@@ -220,7 +198,7 @@ export default class ParamsCommand extends BaseCommand {
       }
 
     } catch (e) {
-      console.log(errorInfo(e) + '\n' + e.stack );
+      console.log(errorInfo(e) + '\n' + e.stack);
     }
   }
 }

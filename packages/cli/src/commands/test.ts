@@ -1,28 +1,16 @@
-import { Command, Option } from 'nest-commander';
-import {
-  CenvLog,
-  BaseCommandOptions,
-  Package,
-  getMonoRoot,
-  Suite,
-  EnvironmentStatus,
-  execCmd,
-  spawn
-} from "@stoked-cenv/lib";
-import { BaseCommand } from './base'
+import {Command, Option} from 'nest-commander';
+import {BaseCommandOptions, CenvLog, EnvironmentStatus, getMonoRoot, Package, spawn, Suite} from "@stoked-cenv/lib";
+import {BaseCommand} from './base'
 import path from "path";
 
 
 @Command({
-  name: 'test',
-  description: 'Build and push docker containers to ecr'
-})
+           name: 'test', description: 'Build and push docker containers to ecr'
+         })
 export default class TestCommand extends BaseCommand {
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 

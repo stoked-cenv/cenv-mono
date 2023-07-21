@@ -1,19 +1,19 @@
 import {configDefaults,} from "./configDefaults";
-import path, {join, relative} from "path";
-const { appExt } = configDefaults;
+import {join, relative} from "path";
 import yaml from 'js-yaml';
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
-import { errorBold, errorDim, errorInfo, infoAlertBold, infoBold, CenvLog} from "./log";
+import {existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync} from 'fs';
+import {CenvLog, errorBold, errorDim, errorInfo, infoAlertBold, infoBold} from "./log";
 import Ajv from "ajv";
-const ajv = new Ajv({allErrors: true, verbose: true});
-
 import {prettyPrint} from "@base2/pretty-print-object";
-import { fromDir } from './utils';
-import {CenvParams, BaseCommandOptions} from "./params";
-import { envVarToKey, pathToEnvVarKey } from './aws/parameterStore';
-import { encrypt } from './aws/kms';
-import {Package} from "./package/package";
+import {fromDir} from './utils';
+import {BaseCommandOptions, CenvParams} from "./params";
+import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
+import {encrypt} from './aws/kms';
 import {getConfig} from "./aws/appConfig";
+
+const {appExt} = configDefaults;
+
+const ajv = new Ajv({allErrors: true, verbose: true});
 
 export const cenvRoot = './.cenv/';
 
@@ -39,11 +39,8 @@ type ReservedNames = "newGlobal" | "global"
 type ValidVarKey = Exclude<string, ReservedNames>;
 export type VarList = { [key: string]: CenvValue }
 export type AppVars = VarList | VarList & { global?: [string], globalEnv?: [string] };
-export type CenvVars =  {
-  app: AppVars;
-  environment: VarList;
-  global: VarList;
-  globalEnv: VarList
+export type CenvVars = {
+  app: AppVars; environment: VarList; global: VarList; globalEnv: VarList
 }
 
 
@@ -66,15 +63,26 @@ interface ParameterSet {
 }
 
 export class File {
-  public static get PATH(): string { return join(CenvFiles.PATH, this.NAME); }
-  public static get NAME(): string { return `.invalid.file`; }
-  public static get DESCRIPTION(): string { return 'invalid description' }
-  public static get SCHEMA(): any { return {}; }
-
   public static notReserved: object = {anyOf: [{required: ['newGlobal']}, {required: ['global']}]};
 
+  public static get PATH(): string {
+    return join(CenvFiles.PATH, this.NAME);
+  }
+
+  public static get NAME(): string {
+    return `.invalid.file`;
+  }
+
+  public static get DESCRIPTION(): string {
+    return 'invalid description'
+  }
+
+  public static get SCHEMA(): any {
+    return {};
+  }
+
   public static read(name: string, schema: any, silent = false): any {
-    let  path = name;
+    let path = name;
     if (name.startsWith('/')) {
       path = name;
     }
@@ -139,8 +147,9 @@ export class File {
     for (let i = 0; i < errors.length; i++) {
       const error: any = errors[i];
       let pretty = prettyPrint(error, {
-        transform: (obj, prop, originalResult) => {  return prop === Object(prop) ? JSON.stringify(prop) : originalResult; },
-        singleQuotes: false
+        transform: (obj, prop, originalResult) => {
+          return prop === Object(prop) ? JSON.stringify(prop) : originalResult;
+        }, singleQuotes: false
       });
       pretty = pretty.split('\n').join('\n\t\t');
       log += `\t\t${errorBold(error.message)}\n`;
@@ -155,17 +164,19 @@ export class File {
 }
 
 export class SettingsFile extends File {
-  public static get NAME(): string { return `${appExt}.settings`; }
-  public static get DESCRIPTION(): string { return 'local settings' }
+  public static get NAME(): string {
+    return `${appExt}.settings`;
+  }
+
+  public static get DESCRIPTION(): string {
+    return 'local settings'
+  }
+
   public static get SCHEMA(): any {
     return {
-      type: 'object',
-      properties: {
-        ApplicationName: {type: 'string'},
-        EnvironmentName: {type: 'string'},
-      },
-      required: ['ApplicationName', 'EnvironmentName'],
-      additionalProperties: false,
+      type: 'object', properties: {
+        ApplicationName: {type: 'string'}, EnvironmentName: {type: 'string'},
+      }, required: ['ApplicationName', 'EnvironmentName'], additionalProperties: false,
     }
   }
 }
@@ -178,55 +189,50 @@ export class EnvConfigFile extends File {
     }
     return name;
   }
-  public static get DESCRIPTION(): string { return 'environment config' }
+
+  public static get DESCRIPTION(): string {
+    return 'environment config'
+  }
+
   public static get SCHEMA(): any {
     return {
-      type: 'object',
-      properties: {
-        ApplicationName: {type: 'string'},
-        EnvironmentName: {type: 'string'},
-      },
-      required: ['ApplicationName', 'EnvironmentName'],
-      additionalProperties: false,
+      type: 'object', properties: {
+        ApplicationName: {type: 'string'}, EnvironmentName: {type: 'string'},
+      }, required: ['ApplicationName', 'EnvironmentName'], additionalProperties: false,
     }
   }
 }
 
 export class AppVarsFile extends File {
-  public static get NAME(): string { return `${appExt}`; }
-  public static get DESCRIPTION(): string { return 'variables file' }
+  public static get NAME(): string {
+    return `${appExt}`;
+  }
+
+  public static get DESCRIPTION(): string {
+    return 'variables file'
+  }
+
   public static get SCHEMA(): any {
     return {
-      type: 'object',
-      additionalProperties: {
+      type: 'object', additionalProperties: {
         type: 'string'
-      },
-      properties: {
+      }, properties: {
         newGlobal: {
-          type: 'object',
-          additionalProperties: {
+          type: 'object', additionalProperties: {
             type: 'string',
+          }, not: File.notReserved,
+        }, global: {
+          type: 'array', items: {
+            type: 'string', // TODO: this is broken!!!
+            //not: this.notReserved,
           },
-          not: File.notReserved,
-        },
-        global: {
-          type: 'array',
-          items: {
-            type: 'string',
-            // TODO: this is broken!!!
+        }, globalEnv: {
+          type: 'array', items: {
+            type: 'string', // TODO: this is broken!!!
             //not: this.notReserved,
           },
         },
-        globalEnv: {
-          type: 'array',
-          items: {
-            type: 'string',
-            // TODO: this is broken!!!
-            //not: this.notReserved,
-          },
-        },
-      },
-      title: 'config'
+      }, title: 'config'
     }
   }
 }
@@ -239,18 +245,26 @@ export class EnvVarsFile extends File {
     }
     return name;
   }
-  public static get DESCRIPTION(): string { return 'environment variables file' }
+
+  public static get DESCRIPTION(): string {
+    return 'environment variables file'
+  }
+
   public static get SCHEMA(): any {
     return {
-      type: "object",
-      not: File.notReserved,
-      additionalProperties: {
+      type: "object", not: File.notReserved, additionalProperties: {
         type: "string"
       },
     }
   }
-  public static get TEMPLATE_PATH(): string { return join(CenvFiles.PATH, this.TEMPLATE); }
-  public static get TEMPLATE(): string { return `${appExt}.env.template`; }
+
+  public static get TEMPLATE_PATH(): string {
+    return join(CenvFiles.PATH, this.TEMPLATE);
+  }
+
+  public static get TEMPLATE(): string {
+    return `${appExt}.env.template`;
+  }
 }
 
 export class GlobalVarsFile extends File {
@@ -258,13 +272,18 @@ export class GlobalVarsFile extends File {
     const p = join(CenvFiles.GlobalPath as string, this.NAME as string);
     return p.toString();
   }
-  public static get NAME(): string { return `${appExt}.globals`; }
-  public static get DESCRIPTION(): string { return 'global variables file' }
-  public static get SCHEMA(): any  {
+
+  public static get NAME(): string {
+    return `${appExt}.globals`;
+  }
+
+  public static get DESCRIPTION(): string {
+    return 'global variables file'
+  }
+
+  public static get SCHEMA(): any {
     return {
-      type: "object",
-      not: File.notReserved,
-      additionalProperties: {
+      type: "object", not: File.notReserved, additionalProperties: {
         type: "string"
       },
     }
@@ -289,27 +308,37 @@ export class GlobalEnvVarsFile extends File {
     const p = join(CenvFiles.GlobalPath as string, this.NAME as string);
     return p.toString();
   }
+
   public static get NAME(): string {
     const name = `${appExt}.[--env--]-[--accountId--].globals`;
     return name.replace('[--env--]', CenvFiles.ENVIRONMENT).replace('[--accountId--]', CenvFiles.AWS_ACCOUNT_ID);
   }
-  public static get DESCRIPTION(): string { return 'environment specific global variables file' }
 
-  public static get SCHEMA(): any  {
+  public static get DESCRIPTION(): string {
+    return 'environment specific global variables file'
+  }
+
+  public static get SCHEMA(): any {
     return {
-      type: "object",
-      not: File.notReserved,
-      additionalProperties: {
+      type: "object", not: File.notReserved, additionalProperties: {
         type: "string"
       },
     }
+  }
+
+  public static get TEMPLATE_PATH(): string {
+    return join(CenvFiles.GlobalPath, this.TEMPLATE);
+  }
+
+  public static get TEMPLATE(): string {
+    return `${appExt}.env.globals.template`
   }
 
   public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
     let merged = data;
     if (existsSync(this.PATH)) {
       const globalData = super.read(this.PATH, this.SCHEMA, false);
-      merged = { ...globalData, ...data };
+      merged = {...globalData, ...data};
     }
 
     if (!silent) {
@@ -318,8 +347,6 @@ export class GlobalEnvVarsFile extends File {
     const sortedObject: any = this.sortObjectKeys(merged);
     writeFileSync(join(path, name), yaml.dump(sortedObject));
   }
-  public static get TEMPLATE_PATH(): string { return join(CenvFiles.GlobalPath, this.TEMPLATE); }
-  public static get TEMPLATE(): string { return `${appExt}.env.globals.template` }
 }
 
 
@@ -329,18 +356,27 @@ export interface CleanCommandOptions extends BaseCommandOptions {
   globals?: boolean;
   environment?: string;
 }
+
 if (!process.env.HOME) {
   process.env.HOME = './';
 }
 
 
 export class CenvFiles {
+  public static readonly ENVIRONMENT_TEMPLATE_TOKEN = '[--env--]';
+  public static Settings: Settings;
+  public static EnvConfig: EnvConfig;
+  public static AppVars: AppVars;
+  public static EnvVars: VarList;
+  public static GlobalVars: VarList;
+  public static GlobalEnvVars: VarList;
+  public static GlobalPath: string = undefined;
+  public static ProfilePath: string = join(process.env.HOME, './.cenv');
   private static path = './.cenv/'
+  private static environment: string;
 
   public static get SESSION_PARAMS(): {
-    ApplicationIdentifier: string,
-    EnvironmentIdentifier: string,
-    ConfigurationProfileIdentifier: string
+    ApplicationIdentifier: string, EnvironmentIdentifier: string, ConfigurationProfileIdentifier: string
   } {
     if (this.EnvConfig.ApplicationId === undefined || this.EnvConfig.EnvironmentId === undefined || this.EnvConfig.ConfigurationProfileId === undefined) {
       CenvLog.single.catchLog(['SESSION_PARAMS error', 'No config found']);
@@ -353,82 +389,24 @@ export class CenvFiles {
     }
   }
 
-  public static get PATH(): any { return this.path; }
-  public static set PATH(path: string ) { this.path = path; }
-
-  private static environment: string;
-  public static get ENVIRONMENT(): any { return this.environment; }
-  public static set ENVIRONMENT(environment: string ) { this.environment = environment; }
-
-  public static get AWS_ACCOUNT_ID(): any { return process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID || 'local' }
-
-
-  public static readonly ENVIRONMENT_TEMPLATE_TOKEN = '[--env--]';
-
-  public static Settings: Settings;
-  public static EnvConfig: EnvConfig;
-  public static AppVars: AppVars;
-  public static EnvVars: VarList;
-  public static GlobalVars: VarList;
-  public static GlobalEnvVars: VarList;
-
-
-  private static Load(): void {
-    this.LoadEnvConfig();
-    this.LoadVars();
+  public static get PATH(): any {
+    return this.path;
   }
 
-  private static setEnvironment(environment: string) {
-    if (!environment) {
-      CenvLog.single.errorLog('no environment specified');
-      process.exit(3);
-    }
-    this.ENVIRONMENT = environment;
-  }
-  private static LoadEnvironment(environment: string): void {
-    this.setEnvironment(environment);
-    this.Load();
+  public static set PATH(path: string) {
+    this.path = path;
   }
 
-  private static async LoadVars(decrypted = true) {
-    const appData = File.read(AppVarsFile.PATH, AppVarsFile.SCHEMA, true) as AppVars;
-    const envVarTemplate = File.read(EnvVarsFile.TEMPLATE_PATH, EnvVarsFile.SCHEMA, true) as VarList;
-    this.EnvVars = File.read(EnvVarsFile.PATH, EnvVarsFile.SCHEMA, true) as VarList;
-    this.EnvVars = { ...envVarTemplate, ...this.EnvVars };
-    const allGlobals = File.read(GlobalVarsFile.PATH, GlobalVarsFile.SCHEMA, true) as VarList;
-    const allGlobalEnvVars = File.read(GlobalEnvVarsFile.PATH, GlobalEnvVarsFile.SCHEMA, true) as VarList;
-    const globals: any = {};
+  public static get ENVIRONMENT(): any {
+    return this.environment;
+  }
 
-    if (appData?.global) {
-      for (let i = 0; i < appData.global?.length; i++) {
-        const globalVar = appData.global[i];
-        if (allGlobals && allGlobals[globalVar]) {
-          globals[globalVar] = allGlobals[globalVar];
-        }
-      }
-      delete appData.global;
-    }
+  public static set ENVIRONMENT(environment: string) {
+    this.environment = environment;
+  }
 
-    const globalEnvs: any = {};
-    if (appData?.globalEnv) {
-      for (let i = 0; i < appData.globalEnv?.length; i++) {
-        const globalEnvVar = appData.globalEnv[i];
-        if (allGlobalEnvVars && allGlobalEnvVars[globalEnvVar]) {
-          globalEnvs[globalEnvVar] = allGlobalEnvVars[globalEnvVar];
-        }
-      }
-      delete appData.globalEnv;
-    }
-    this.GlobalVars = globals;
-    this.GlobalEnvVars = globalEnvs;
-    this.AppVars = appData;
-    if (decrypted) {
-      const roots = CenvParams.GetRootPaths(this.EnvConfig.ApplicationName, this.EnvConfig.EnvironmentName);
-      this.GlobalVars = await this.DecryptVarsBase(roots.global, this.GlobalVars);
-      this.GlobalEnvVars = await this.DecryptVarsBase(roots.globalEnv, this.GlobalEnvVars);
-      this.EnvVars = await this.DecryptVarsBase(roots.environment, this.EnvVars);
-      this.AppVars =  await this.DecryptVarsBase(roots.app, this.AppVars);
-    }
+  public static get AWS_ACCOUNT_ID(): any {
+    return process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID || 'local'
   }
 
   // load the environment config
@@ -436,17 +414,6 @@ export class CenvFiles {
     this.ENVIRONMENT = environment;
     this.EnvConfig = File.read(EnvConfigFile.PATH, EnvConfigFile.SCHEMA, true) as EnvConfig;
     return this.EnvConfig;
-  }
-
-  private static async DecryptVarsBase(rootPath: string, vars: any) {
-    if (!vars) return undefined;
-    const newVars: VarList = {};
-    for (const [key, value] of Object.entries<string>(vars)) {
-      const newKey = envVarToKey(key);
-
-      newVars[key] = value;
-    }
-    return newVars;
   }
 
   public static GetConfig(environment?: string) {
@@ -472,26 +439,22 @@ export class CenvFiles {
     }
     await this.LoadVars(decrypted);
     const ret: any = {
-      app: this.AppVars,
-      environment: this.EnvVars,
-      global: this.GlobalVars,
-      globalEnv: this.GlobalEnvVars
+      app: this.AppVars, environment: this.EnvVars, global: this.GlobalVars, globalEnv: this.GlobalEnvVars
     };
     if (typed) {
       return ret;
     }
-    return { ...ret.app, ...ret.environment, ...ret.global, ...ret.globalEnv};
+    return {...ret.app, ...ret.environment, ...ret.global, ...ret.globalEnv};
   }
 
   public static async GetData() {
     this.LoadEnvConfig();
     await this.LoadVars(true);
-    return { EnvConfig: this.EnvConfig, Vars: {
-        app: this.AppVars,
-        environment: this.EnvVars,
-        global: this.GlobalVars,
-        globalEnv: this.GlobalEnvVars
-      }}
+    return {
+      EnvConfig: this.EnvConfig, Vars: {
+        app: this.AppVars, environment: this.EnvVars, global: this.GlobalVars, globalEnv: this.GlobalEnvVars
+      }
+    }
   }
 
   public static async KeyExists(key: string, path: string, type: string) {
@@ -522,8 +485,7 @@ export class CenvFiles {
   public static SaveEnvConfig(config: EnvConfig) {
     this.EnvConfig = config;
     this.Settings = {
-      ApplicationName: config.ApplicationName,
-      EnvironmentName: config.EnvironmentName,
+      ApplicationName: config.ApplicationName, EnvironmentName: config.EnvironmentName,
     };
     CenvFiles.ENVIRONMENT = config.EnvironmentName;
     //SettingsFile.save(this.Settings);
@@ -561,41 +523,12 @@ export class CenvFiles {
     }
   }
 
-  private static deleteLocalFile(path: string) {
-    if (existsSync(path)) {
-      CenvLog.info( ` - deleting ${infoBold(relative(cenvRoot, path))}`)
-      unlinkSync(path);
-    }
-  }
-
-  private static getLocalCenvFiles(startPath: string = cenvRoot, environment: string = undefined) {
-
-    const config = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})\.config$`) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, null);
-    const envVars = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})$`) : /^\.cenv\.[a-zA-Z0-9]*$/, null);
-    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(`\.cenv\.(${environment})\.globals$`) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, null);
-    if (environment) {
-      return {config, envVars, globalEnvVars };
-    }
-
-    const envVarTemplate = existsSync(EnvVarsFile.TEMPLATE_PATH.toString());
-    const vars = existsSync(AppVarsFile.PATH.toString());
-    const globalVars = existsSync(GlobalVarsFile.PATH.toString());
-    const globalEnvVarTemplate = existsSync(GlobalEnvVarsFile.TEMPLATE_PATH.toString());
-    return { vars, config, envVars, globalVars, envVarTemplate, globalEnvVars, globalEnvVarTemplate }
-  }
-
-  private static deleteFiles(files: string[]) {
-    files.forEach(file => {
-      this.deleteLocalFile(file);
-    });
-  }
-
   public static Clean(startPath: string = cenvRoot, options?: CleanCommandOptions) {
     const cenvFiles = this.getLocalCenvFiles(undefined, options?.environment);
-    const { vars, config, envVars, globalVars, envVarTemplate, globalEnvVars, globalEnvVarTemplate } = cenvFiles;
+    const {vars, config, envVars, globalVars, envVarTemplate, globalEnvVars, globalEnvVarTemplate} = cenvFiles;
 
     if (vars && !config && !envVars && (!options?.globals || (options?.globals && !globalVars))) {
-      CenvLog.single.errorLog( `project is already clean`);
+      CenvLog.single.errorLog(`project is already clean`);
       return;
     }
 
@@ -628,24 +561,138 @@ export class CenvFiles {
     }
   }
 
-  private static encodeParameter(parameter: IParameter) {
-    return parameter.Value ? parameter.Value : parameter
-  }
-
-  public static async createParameter(config: any, key: string, value: string, type: string, encrypted: boolean): Promise<{[x: string]: IParameter}> {
+  public static async createParameter(config: any, key: string, value: string, type: string, encrypted: boolean): Promise<{
+    [x: string]: IParameter
+  }> {
     const rootPath = CenvParams.GetRootPath(config.ApplicationName, config.EnvironmentName, type);
     if (encrypted) {
       value = await encrypt(value)
       value = `--ENC=${value}`
     }
-    const param: IParameter = { Value: value, Type: 'String', ParamType: type, Name: key.toLowerCase() };
-    return { [`${rootPath}/${key}`]: param };
+    const param: IParameter = {Value: value, Type: 'String', ParamType: type, Name: key.toLowerCase()};
+    return {[`${rootPath}/${key}`]: param};
   }
 
-  public static async decodeParameter(paramName: string, paramValue: string, paramType: string, rootPath: string): Promise<{[x: string]: IParameter}> {
+  public static async decodeParameter(paramName: string, paramValue: string, paramType: string, rootPath: string): Promise<{
+    [x: string]: IParameter
+  }> {
 
-    const param: IParameter = { Value: paramValue, Type: 'String', ParamType: paramType, Name: paramName };
-    return { [`${rootPath}/${paramName}`]: param };
+    const param: IParameter = {Value: paramValue, Type: 'String', ParamType: paramType, Name: paramName};
+    return {[`${rootPath}/${paramName}`]: param};
+  }
+
+  public static AllTyped(paramSet: ParameterSet) {
+    return {
+      app: (this.encodeParameters(paramSet.app)),
+      environment: (this.encodeParameters(paramSet.environment)),
+      global: (this.encodeParameters(paramSet.global)),
+      globalEnv: (this.encodeParameters(paramSet.globalEnv))
+    };
+  }
+
+  private static Load(): void {
+    this.LoadEnvConfig();
+    this.LoadVars();
+  }
+
+  private static setEnvironment(environment: string) {
+    if (!environment) {
+      CenvLog.single.errorLog('no environment specified');
+      process.exit(3);
+    }
+    this.ENVIRONMENT = environment;
+  }
+
+  private static LoadEnvironment(environment: string): void {
+    this.setEnvironment(environment);
+    this.Load();
+  }
+
+  private static async LoadVars(decrypted = true) {
+    const appData = File.read(AppVarsFile.PATH, AppVarsFile.SCHEMA, true) as AppVars;
+    const envVarTemplate = File.read(EnvVarsFile.TEMPLATE_PATH, EnvVarsFile.SCHEMA, true) as VarList;
+    this.EnvVars = File.read(EnvVarsFile.PATH, EnvVarsFile.SCHEMA, true) as VarList;
+    this.EnvVars = {...envVarTemplate, ...this.EnvVars};
+    const allGlobals = File.read(GlobalVarsFile.PATH, GlobalVarsFile.SCHEMA, true) as VarList;
+    const allGlobalEnvVars = File.read(GlobalEnvVarsFile.PATH, GlobalEnvVarsFile.SCHEMA, true) as VarList;
+    const globals: any = {};
+
+    if (appData?.global) {
+      for (let i = 0; i < appData.global?.length; i++) {
+        const globalVar = appData.global[i];
+        if (allGlobals && allGlobals[globalVar]) {
+          globals[globalVar] = allGlobals[globalVar];
+        }
+      }
+      delete appData.global;
+    }
+
+    const globalEnvs: any = {};
+    if (appData?.globalEnv) {
+      for (let i = 0; i < appData.globalEnv?.length; i++) {
+        const globalEnvVar = appData.globalEnv[i];
+        if (allGlobalEnvVars && allGlobalEnvVars[globalEnvVar]) {
+          globalEnvs[globalEnvVar] = allGlobalEnvVars[globalEnvVar];
+        }
+      }
+      delete appData.globalEnv;
+    }
+    this.GlobalVars = globals;
+    this.GlobalEnvVars = globalEnvs;
+    this.AppVars = appData;
+    if (decrypted) {
+      const roots = CenvParams.GetRootPaths(this.EnvConfig.ApplicationName, this.EnvConfig.EnvironmentName);
+      this.GlobalVars = await this.DecryptVarsBase(roots.global, this.GlobalVars);
+      this.GlobalEnvVars = await this.DecryptVarsBase(roots.globalEnv, this.GlobalEnvVars);
+      this.EnvVars = await this.DecryptVarsBase(roots.environment, this.EnvVars);
+      this.AppVars = await this.DecryptVarsBase(roots.app, this.AppVars);
+    }
+  }
+
+  private static async DecryptVarsBase(rootPath: string, vars: any) {
+    if (!vars) {
+      return undefined;
+    }
+    const newVars: VarList = {};
+    for (const [key, value] of Object.entries<string>(vars)) {
+      const newKey = envVarToKey(key);
+
+      newVars[key] = value;
+    }
+    return newVars;
+  }
+
+  private static deleteLocalFile(path: string) {
+    if (existsSync(path)) {
+      CenvLog.info(` - deleting ${infoBold(relative(cenvRoot, path))}`)
+      unlinkSync(path);
+    }
+  }
+
+  private static getLocalCenvFiles(startPath: string = cenvRoot, environment: string = undefined) {
+
+    const config = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})\.config$`) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, null);
+    const envVars = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})$`) : /^\.cenv\.[a-zA-Z0-9]*$/, null);
+    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(`\.cenv\.(${environment})\.globals$`) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, null);
+    if (environment) {
+      return {config, envVars, globalEnvVars};
+    }
+
+    const envVarTemplate = existsSync(EnvVarsFile.TEMPLATE_PATH.toString());
+    const vars = existsSync(AppVarsFile.PATH.toString());
+    const globalVars = existsSync(GlobalVarsFile.PATH.toString());
+    const globalEnvVarTemplate = existsSync(GlobalEnvVarsFile.TEMPLATE_PATH.toString());
+    return {vars, config, envVars, globalVars, envVarTemplate, globalEnvVars, globalEnvVarTemplate}
+  }
+
+  private static deleteFiles(files: string[]) {
+    files.forEach(file => {
+      this.deleteLocalFile(file);
+    });
+  }
+
+  private static encodeParameter(parameter: IParameter) {
+    return parameter.Value ? parameter.Value : parameter
   }
 
   private static encodeParameters(parameters: Parameters) {
@@ -658,16 +705,4 @@ export class CenvFiles {
     }
     return undefined;
   }
-
-  public static AllTyped(paramSet: ParameterSet) {
-    return {
-      app: (this.encodeParameters(paramSet.app)),
-      environment: (this.encodeParameters(paramSet.environment)),
-      global: (this.encodeParameters(paramSet.global)),
-      globalEnv: (this.encodeParameters(paramSet.globalEnv))
-    };
-  }
-
-  public static GlobalPath: string = undefined;
-  public static ProfilePath: string = join(process.env.HOME, './.cenv');
 }

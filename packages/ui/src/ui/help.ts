@@ -1,21 +1,19 @@
-import { blessed, contrib } from './blessed';
-import { Commands } from '../commands';
-import {
-  Package,
-  CenvLog,
-  PackageStatus, CenvParams, readFiles,
-} from '@stoked-cenv/lib';
+import {blessed, contrib} from './blessed';
+import {Commands} from '../commands';
+import {CenvLog,} from '@stoked-cenv/lib';
 import StatusPanel from './statusPanel';
 import chalk from 'chalk';
-import { readFileSync, existsSync } from "fs";
-import { join } from "path"
+import {existsSync, readFileSync} from "fs";
+import {join} from "path"
 
 enum MenuType {
-  TOPICS = 'topics',
-  COMMANDS = 'commands'
+  TOPICS = 'topics', COMMANDS = 'commands'
 }
 
 export class HelpUI {
+  static commandName = 'intro';
+  static instance: HelpUI = undefined;
+  static shiftKeyDown = false;
   screen: any;
   initialized = false;
   commands;
@@ -28,8 +26,6 @@ export class HelpUI {
   focusedBox;
   titleBox;
   tableWidth: number;
-  static commandName = 'intro';
-  static instance: HelpUI = undefined;
   statusBar;
   dependencies: string;
   cmdOptions: any;
@@ -51,7 +47,6 @@ export class HelpUI {
   topicList: any = {};
   currentMenuType = MenuType.TOPICS;
 
-  static shiftKeyDown = false;
   constructor(startingCmd?: string) {
     try {
 
@@ -65,48 +60,29 @@ export class HelpUI {
       HelpUI.instance = this;
 
       this.titleBox = this.grid.set(0, 1, 1, 2, blessed.element, {
-        mouse: true,
-        keys: true,
-        interactive: true,
-        fg: 'white',
-        label: 'docs',
-        style: {
-          fg: 'white',
-          bg: 'black',
-          bold: true,
-          border: { fg: 'black' },
-          label: { bold: true },
-        },
-        border: false,
-        transparent: true,
-        height: 1,
-        hideBorder: true,
+        mouse: true, keys: true, interactive: true, fg: 'white', label: 'docs', style: {
+          fg: 'white', bg: 'black', bold: true, border: {fg: 'black'}, label: {bold: true},
+        }, border: false, transparent: true, height: 1, hideBorder: true,
       });
 
       this.statusBar = this.grid.set(5, 0, 1, 2, blessed.box, {
-        fg: 'white',
-        label: '',
-        style: {
-          fg: 'white',
-          bg: 'black',
-          label: {},
-        },
-        height: 1,
-        hideBorder: true,
+        fg: 'white', label: '', style: {
+          fg: 'white', bg: 'black', label: {},
+        }, height: 1, hideBorder: true,
       });
 
       const tableRender =
 
-      // border focus: [24, 242, 24]
+        // border focus: [24, 242, 24]
 
-      this.topics = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('topics'));
-      this.topics.render = function() {
-        if(this.screen.focused === this.rows) {
+        this.topics = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('topics'));
+      this.topics.render = function () {
+        if (this.screen.focused === this.rows) {
           this.rows.focus();
         }
 
-        this.rows.width = this.width-3;
-        this.rows.height = this.rows?.length+2;
+        this.rows.width = this.width - 3;
+        this.rows.height = this.rows?.length + 2;
         blessed.Box.prototype.render.call(this);
       }.bind(this.topics);
 
@@ -117,49 +93,34 @@ export class HelpUI {
         mouse: true,
         keys: true,
         style: {
-          text: 'red',
-          border: { fg: 'gray' },
-          label: { side: 'right' },
+          text: 'red', border: {fg: 'gray'}, label: {side: 'right'},
         },
         scrollable: true,
         scrollbar: {
-          ch: ' ',
-          inverse: true,
+          ch: ' ', inverse: true,
         },
         autoScroll: false,
-        template: { lines: true },
+        template: {lines: true},
         columnWidth: [10, 10],
-        padding: { left: 2, right: 2, top: 0, bottom: 0 },
+        padding: {left: 2, right: 2, top: 0, bottom: 0},
       });
 
-     this.setCmdInfo();
+      this.setCmdInfo();
 
       this.cmdMain = this.grid.set(2, 1, 4, 3, contrib.markdown, {
-          vi: true,
-          fg: 'white',
-          tags: true,
-          keys: true,
-          mouse: true,
-          scrollable: true,
-          scrollbar: {
-            ch: ' ',
-            inverse: true,
-          },
-          style: {
-            fg: 'white',
-            bg: 'black',
-            border: { fg: 'gray' },
-          },
-          padding: { left: 2, right: 2, top: 0, bottom: 0 },
-          autoScroll: false,
-        });
+        vi: true, fg: 'white', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
+          ch: ' ', inverse: true,
+        }, style: {
+          fg: 'white', bg: 'black', border: {fg: 'gray'},
+        }, padding: {left: 2, right: 2, top: 0, bottom: 0}, autoScroll: false,
+      });
 
       const data: any = [];
       Object.values(Commands.module.providers).map((cm: any) => {
         data.push([cm.meta.name])
       });
 
-      this.commands.setData({ headers: [''], data})
+      this.commands.setData({headers: [''], data})
       this.commands.name = 'packages';
       this.commands.rows.padding.bottom = 0;
       this.commands.rows.name = 'packageRows';
@@ -168,9 +129,8 @@ export class HelpUI {
       this.packageHover = false;
 
       this.titleBox.on('element mouseout', function mouseout() {
-          this.packageHover = false;
-        }.bind(this),
-      );
+        this.packageHover = false;
+      }.bind(this),);
 
       this.columnWidth = this.defaultColumnWidth;
       this.maxColumnWidth = this.defaultColumnWidth.reduce(function (a, b) {
@@ -190,8 +150,8 @@ export class HelpUI {
       }.bind(this));
 
       this.commands.on('action', async function action() {
-          //this.selectCommand();
-        }.bind(this));
+        //this.selectCommand();
+      }.bind(this));
 
       this.topics.rows.on('select item', function () {
         this.selectCommand(MenuType.TOPICS);
@@ -210,36 +170,40 @@ export class HelpUI {
       this.screen.key(['tab'], function (ch: any, key: any) {
         this.loadTopics();
         this.selectCommand(MenuType.TOPICS)
-        }.bind(this),
-      );
+      }.bind(this),);
 
       this.screen.key(['S-tab'], function (ch: any, key: any) {
-          //console.log('S-tab derp derp');
-          //const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
-          //this.setFocusIndex(newIndex);
-        }.bind(this),
-      );
+        //console.log('S-tab derp derp');
+        //const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
+        //this.setFocusIndex(newIndex);
+      }.bind(this),);
 
 
       this.screen.on('resize', function () {
-          //this.resizeWidgets();
-          //this.checkWideView();
-        }.bind(this),
-      );
+        //this.resizeWidgets();
+        //this.checkWideView();
+      }.bind(this),);
 
       this.commands.focus();
 
       this.loadTopics();
 
-      setInterval(
-        async function mainLoop() {
-          await this.update();
-        }.bind(this), 50);
+      setInterval(async function mainLoop() {
+        await this.update();
+      }.bind(this), 50);
 
       this.selectCommand(MenuType.TOPICS)
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+  }
+
+  get columnPriority() {
+    return [0];
+  }
+
+  get defaultColumnWidth() {
+    return [15];
   }
 
   loadTopics() {
@@ -249,7 +213,7 @@ export class HelpUI {
 
     topicNames.forEach((name: string) => {
       const content = readFileSync(join(__dirname, `../../../cli/docs/onlineHelp/topics/${name.replace(/ /g, '_')}.md`), 'utf-8')
-      this.topicList[name] = { name, content };
+      this.topicList[name] = {name, content};
     })
 
     const data = Object.keys(this.topicList).map(k => [k]);
@@ -269,15 +233,11 @@ export class HelpUI {
       columnSpacing: this.columnSpacing,
       columnWidth: this.defaultColumnWidth,
       style: {
-        border: { fg: 'grey' },
-        selected: { bg: 'blue' },
-        item: {
-          hover: { bg: 'red' },
-          focus: { bg: 'green' }
-        },
-        label: { fg: 'grey' }
+        border: {fg: 'grey'}, selected: {bg: 'blue'}, item: {
+          hover: {bg: 'red'}, focus: {bg: 'green'}
+        }, label: {fg: 'grey'}
       },
-      padding: { bottom: 0, top: 0}
+      padding: {bottom: 0, top: 0}
     };
   }
 
@@ -292,7 +252,7 @@ export class HelpUI {
         items.push(`aliases: ${this.currentProvider.meta.aliases.join(', ')}`);
       }
       this.cmdInfo.setItems(items)
-    } catch(e) {
+    } catch (e) {
       CenvLog.single.catchLog(e);
     }
   }
@@ -314,35 +274,20 @@ export class HelpUI {
     }
   }
 
-  get columnPriority() {
-    return [0];
-  }
-
-  get defaultColumnWidth() {
-    return [15];
-  }
-
   createBaseWidgets() {
     try {
       const title = this.getTitle();
       const screen = blessed.screen({
-        smartCSR: true,
-        autoPadding: true,
-        warnings: true,
-        title: title,
-        cursor: {
-          artificial: true,
-          shape: 'line',
-          blink: true,
-          color: null, // null for default
+                                      smartCSR: true, autoPadding: true, warnings: true, title: title, cursor: {
+          artificial: true, shape: 'line', blink: true, color: null, // null for default
         },
-      });
+                                    });
 
       this.screen = screen;
 
       //create layout and widgets
-      this.grid = new contrib.grid({ rows: 6, cols: 5, screen: this.screen });
-    } catch(e) {
+      this.grid = new contrib.grid({rows: 6, cols: 5, screen: this.screen});
+    } catch (e) {
       CenvLog.single.catchLog(e);
     }
   }
@@ -354,7 +299,7 @@ export class HelpUI {
       if (index > -1 && itemsLength && index < itemsLength) {
         return items[index].content.split(' ')[0];
       }
-    } catch(e) {
+    } catch (e) {
       CenvLog.single.catchLog(e);
     }
   }
@@ -406,8 +351,9 @@ export class HelpUI {
 
   async update() {
     try {
-      if (!this.initialized)
+      if (!this.initialized) {
         return;
+      }
 
       this.resizeWidgets();
       this.render();

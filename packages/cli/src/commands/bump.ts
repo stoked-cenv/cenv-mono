@@ -1,17 +1,14 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, Package, BaseCommandOptions, Version } from '@stoked-cenv/lib'
-import { BaseCommand } from './base'
+import {Command, Option} from 'nest-commander';
+import {BaseCommandOptions, CenvLog, Package, Version} from '@stoked-cenv/lib'
+import {BaseCommand} from './base'
 
 @Command({
-  name: 'bump',
-  description: `Bump packages`,
-})
+           name: 'bump', description: `Bump packages`,
+         })
 export default class BumpCommand extends BaseCommand {
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 

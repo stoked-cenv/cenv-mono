@@ -1,7 +1,9 @@
-import { Command, Option } from 'nest-commander';
-import { CenvLog, CenvParams, getEnvironment, errorInfo, BaseCommandOptions, CenvFiles, configure } from '@stoked-cenv/lib'
+import {Command, Option} from 'nest-commander';
+import {
+  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, configure, errorInfo, getEnvironment
+} from '@stoked-cenv/lib'
 
-import { BaseCommand } from './base'
+import {BaseCommand} from './base'
 import chalk from 'chalk';
 
 
@@ -12,52 +14,40 @@ interface PullCommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-  name: 'pull',
-  description: 'Pull the latest application configuration',
-  arguments: '[options]',
-})
+           name: 'pull', description: 'Pull the latest application configuration', arguments: '[options]',
+         })
 export default class PullCommand extends BaseCommand {
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    name: 'deployed',
-    flags: '-d, --deployed',
-    description: 'Pull the most up to date variables that have been deployed.',
-  })
-  parseDeployed(val: boolean): boolean {
+            name: 'deployed',
+            flags: '-d, --deployed',
+            description: 'Pull the most up to date variables that have been deployed.',
+          }) parseDeployed(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'decrypted',
-    flags: '-D, --decrypted',
-    description: 'Decrypt the variables before pulling them.',
-  })
-  parseDecrypted(val: boolean): boolean {
+            name: 'decrypted', flags: '-D, --decrypted', description: 'Decrypt the variables before pulling them.',
+          }) parseDecrypted(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    name: 'environment',
-    flags: '-e, --environment <string>',
-    description: 'Supply a different environment than your current environment to update your local stack\'s config to use that environments app config variables.',
-  })
-  parseEnvironment(val: string): string {
+            name: 'environment',
+            flags: '-e, --environment <string>',
+            description: 'Supply a different environment than your current environment to update your local stack\'s config to use that environments app config variables.',
+          }) parseEnvironment(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '--profile, <profile>',
-    description: `Environment profile to use on init.`,
-    defaultValue: 'default',
-  })
-  parseProfile(val: string): string {
+            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+          }) parseProfile(val: string): string {
     return val;
   }
 

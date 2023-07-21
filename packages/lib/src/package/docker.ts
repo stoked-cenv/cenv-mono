@@ -1,21 +1,18 @@
-import { IPackageModule, PackageModule, PackageModuleType } from './module';
+import {IPackageModule, PackageModule, PackageModuleType} from './module';
 import {
-  createRepository,
-  deleteRepository,
-  describeRepositories,
-  getRepository,
-  hasTag,
-  listImages,
-  repositoryExists
+  createRepository, deleteRepository, describeRepositories, getRepository, hasTag, listImages, repositoryExists
 } from '../aws/ecr';
-import { ImageIdentifier, Repository } from '@aws-sdk/client-ecr';
+import {ImageIdentifier, Repository} from '@aws-sdk/client-ecr';
 import semver from 'semver';
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 import {StackModule} from "./stack";
-import {execCmd, sleep, spawnCmd} from "../utils";
+import {execCmd, runScripts, sleep, spawnCmd} from "../utils";
+import {Package, PackageCmd} from './package';
 
 
 export class DockerModule extends PackageModule {
+  static build: { [key: string]: number } = {};
+  static ecrAuthHelperInstalled = false;
   digest?: string;
   images?: ImageIdentifier[];
   latestImage?: ImageIdentifier;
@@ -26,7 +23,7 @@ export class DockerModule extends PackageModule {
   containerStatus = 'container not deployed';
   repoContainsLatest = false;
   dockerName: string;
-  envVars = { DOCKER_BUILDKIT: 1 }
+  envVars = {DOCKER_BUILDKIT: 1}
   doNotPush: false;
   dockerBaseImage: string;
 
@@ -46,25 +43,49 @@ export class DockerModule extends PackageModule {
   public static get digestRegex(): RegExp {
     return new RegExp(/^|latest|: digest: (sha256:[0-9a-f]*) size: [0-9]*$/, 'gim')
   }
-  static build: { [key: string]: number } = {};
-  static ecrAuthHelperInstalled = false;
 
-  private async verifyDigest() {
-    let digestFound = false;
-    let attempts = 0;
-    const maxAttempts = 5;
-    const attemptWaitSeconds = 2;
-    while (!digestFound) {
-      attempts++;
-      await sleep(attemptWaitSeconds);
-      if (await hasTag(this.dockerName, this.pkg.rollupVersion.toString(), this.digest)) {
-        digestFound = true;
-        this.info(`digest (${this.digest}) push verified`);
-      }
-      if (!digestFound && attempts < maxAttempts) {
-        throw new Error(`docker push - failed: the digest ${this.digest} could not be found for ${this.dockerName}:${this.pkg.rollupVersion} after ${maxAttempts * attemptWaitSeconds} seconds`)
-      }
+  get anythingDeployed(): boolean {
+    return !!this.repoUri || !!this.latestImage || this.images?.length > 0;
+  }
+
+  get latestDigest(): string {
+    return this.latestImage?.imageDigest
+  }
+
+  get latestDigestShort(): string | false {
+    const digest = this.latestDigest;
+    if (!digest) {
+      return false;
     }
+    return digest.substring(digest.length - 8);
+  }
+
+  get moduleStrings(): string[] {
+    const items = super.moduleBaseStrings;
+    if (this.latestImage?.imageTag) {
+      items.push(`latest tag: ${this.latestImage?.imageTag}`);
+    }
+    if (this.latestImage?.imageDigest) {
+      items.push(`latest digest: ${this.latestImage?.imageDigest}`);
+    }
+    if (this.images) {
+      items.push(`pushed tags: ${this.images?.map(t => t.imageTag).join(", ")}`);
+    }
+    return items;
+  }
+
+  static async destroyAll() {
+    const repositories = await describeRepositories();
+    if (!repositories || !repositories?.length) {
+      CenvLog.info(` - no ecr repos / images to destroy`);
+      return;
+    }
+
+    await Promise.all(repositories.map(async (r) => await deleteRepository(r.repositoryName, true),),);
+  }
+
+  static fromModule(module: PackageModule) {
+    return new DockerModule(module);
   }
 
   async getDigest(pkgCmd: PackageCmd) {
@@ -95,11 +116,11 @@ export class DockerModule extends PackageModule {
       }
     }
 
-    await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, { commandEvents });
+    await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, {commandEvents});
   }
 
-  async build(args: any, cmdOptions: any = { build: true, push: true, dependencies: false}): Promise<number> {
-    const { build, push, dependencies } = cmdOptions;
+  async build(args: any, cmdOptions: any = {build: true, push: true, dependencies: false}): Promise<number> {
+    const {build, push, dependencies} = cmdOptions;
 
     if (dependencies) {
       if (this.pkg?.meta?.data.deployDependencies) {
@@ -134,14 +155,17 @@ export class DockerModule extends PackageModule {
       }
 
       const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest ${context}${file}`;
-      const buildOptions = { redirectStdErrToStdOut: true, envVars: this.envVars, packageModule: this, failOnError: true };
+      const buildOptions = {
+        redirectStdErrToStdOut: true,
+        envVars: this.envVars,
+        packageModule: this,
+        failOnError: true
+      };
       await this.pkg.pkgCmd(buildCmd, buildOptions)
     }
 
     if (push) {
-      console.log('pushing: ' + this.dockerName + ' to ' + DockerModule.ecrUrl);
       await this.push(DockerModule.ecrUrl);
-      console.log('pushed: ' + this.dockerName + ' to ' + DockerModule.ecrUrl);
     }
   }
 
@@ -167,30 +191,16 @@ export class DockerModule extends PackageModule {
 
     if (pull) {
       const pullCmd = `docker pull ${this.dockerBaseImage}`;
-      await spawnCmd(this.pkg.docker.path, pullCmd, pullCmd, { envVars: this.envVars }, this.pkg);
+      await spawnCmd(this.pkg.docker.path, pullCmd, pullCmd, {envVars: this.envVars}, this.pkg);
     }
     if (push) {
 
       let cmd = `docker tag ${this.dockerBaseImage} ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
-      await spawnCmd(this.pkg.docker.path, cmd, cmd,{ returnOutput: true }, this.pkg);
+      await spawnCmd(this.pkg.docker.path, cmd, cmd, {returnOutput: true}, this.pkg);
 
       cmd = `docker push ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
-      await spawnCmd(this.pkg.docker.path, cmd, cmd,{ redirectStdErrToStdOut: true }, this.pkg);
+      await spawnCmd(this.pkg.docker.path, cmd, cmd, {redirectStdErrToStdOut: true}, this.pkg);
     }
-  }
-
-  static async destroyAll() {
-    const repositories = await describeRepositories();
-    if (!repositories || !repositories?.length) {
-      CenvLog.info(` - no ecr repos / images to destroy`);
-      return;
-    }
-
-    await Promise.all(
-      repositories.map(
-        async (r) => await deleteRepository(r.repositoryName, true),
-      ),
-    );
   }
 
   async destroy() {
@@ -220,19 +230,18 @@ export class DockerModule extends PackageModule {
       }
     }
 
-    if (this.pkg?.meta?.data.preBuildScripts) {
-      for (let i= 0; i < this.pkg.meta.data.preBuildScripts.length; i++) {
-        const script = this.pkg.meta.data.preBuildScripts[i];
-        await spawnCmd(this.pkg.params.path, script, script,{ ...options,      redirectStdErrToStdOut: true }, this.pkg);
+    // run pre build scripts defined in meta
+    await runScripts(this, this.pkg.meta.data.preBuildScripts);
 
-      }
-    }
     if (this.dockerBaseImage) {
       await this.pushBaseImage();
     }
 
-    await this.build(options.cenvVars || {},{ build: true, push: true, dependencies: false, ...options });
-    options.cenvVars = { CENV_PKG_DIGEST: this.digest || this.pkg.stack?.deployedDigest };
+    await this.build(options.cenvVars || {}, {build: true, push: true, dependencies: false, ...options});
+    options.cenvVars = {CENV_PKG_DIGEST: this.digest || this.pkg.stack?.deployedDigest};
+
+    // run post build scripts defined in meta
+    await runScripts(this, this.pkg.meta.data.postBuildScripts);
   }
 
   upToDate(): boolean {
@@ -245,33 +254,17 @@ export class DockerModule extends PackageModule {
 
   getDetails() {
     if (this.imageUpToDate()) {
-      this.status.deployed.push(this.statusLine(
-        'up to date',
-        `latest image [${this.pkg.rollupVersion}] deployed`,
-        false,
-      ));
+      this.status.deployed.push(this.statusLine('up to date', `latest image [${this.pkg.rollupVersion}] deployed`, false,));
       return;
     }
 
     if (!this.repoUri) {
-      this.status.incomplete.push( this.statusLine(
-        "repo doesn't exist",
-        `the repository [${this.dockerName}] doesn't exist`,
-        true,
-      ));
+      this.status.incomplete.push(this.statusLine("repo doesn't exist", `the repository [${this.dockerName}] doesn't exist`, true,));
     } else if (!this.images?.length) {
-      this.status.incomplete.push( this.statusLine(
-        'repo empty',
-        `the repo [${this.dockerName}] has no images`,
-        true,
-      ));
+      this.status.incomplete.push(this.statusLine('repo empty', `the repo [${this.dockerName}] has no images`, true,));
     } else {
       this.status.incomplete.push(this.versionMismatch(this.latestImage?.imageTag));
     }
-  }
-
-  get anythingDeployed(): boolean {
-    return !!this.repoUri || !!this.latestImage || this.images?.length > 0;
   }
 
   reset() {
@@ -281,7 +274,7 @@ export class DockerModule extends PackageModule {
     this.tags = undefined;
     this.repoContainsLatest = false;
     this.checked = false;
-    this.status = { needsFix: [], deployed: [], incomplete: [] };
+    this.status = {needsFix: [], deployed: [], incomplete: []};
   }
 
   statusIssues() {
@@ -296,7 +289,7 @@ export class DockerModule extends PackageModule {
     if (this.latestImage) {
       this.info(JSON.stringify(this.latestImage, null, 2), 'latest image');
     }
-    if(this.tags?.length) {
+    if (this.tags?.length) {
       this.info(this.tags?.join(', '), 'pushed tags');
     }
     this.checked = true;
@@ -329,7 +322,7 @@ export class DockerModule extends PackageModule {
         const bSemver = semver.parse(bVers);
         const compare = aSemver.compare(bSemver);
         if (!compare) {
-         return aSemver.comparePre(bSemver);
+          return aSemver.comparePre(bSemver);
         }
         return compare;
       } else if (aVers) {
@@ -350,10 +343,7 @@ export class DockerModule extends PackageModule {
     let latest: any = this.images.filter((i) => i.imageTag === 'latest');
     if (latest.length) {
       latest = latest[0];
-      latest = this.images.filter(
-        (i) =>
-          i.imageDigest === latest.imageDigest && i.imageTag !== 'latest',
-      );
+      latest = this.images.filter((i) => i.imageDigest === latest.imageDigest && i.imageTag !== 'latest',);
       if (latest) {
         this.latestImage = latest[0];
       }
@@ -364,49 +354,31 @@ export class DockerModule extends PackageModule {
 
     if (this.latestImage) {
       const latestImageUpToDate = this.imageUpToDate();
-      this.repoStatus = latestImageUpToDate
-        ? 'up to date'
-        : `needs update: current version [${this.pkg.rollupVersion}] latest pushed version [${this.latestImage?.imageTag}]`;
-      this.pkg.links.push(
-        `ECR (latest image) https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}e/_/image/${this.latestImage.imageDigest}/details?region=${AWS_REGION}`,
-      );
+      this.repoStatus = latestImageUpToDate ? 'up to date' : `needs update: current version [${this.pkg.rollupVersion}] latest pushed version [${this.latestImage?.imageTag}]`;
+      this.pkg.links.push(`ECR (latest image) https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}e/_/image/${this.latestImage.imageDigest}/details?region=${AWS_REGION}`,);
     }
 
-    this.pkg.links.push(
-      `ECR (repo): https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}?region=${process.env.AWS_REGION}`,
-    );
+    this.pkg.links.push(`ECR (repo): https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}?region=${process.env.AWS_REGION}`,);
     this.digest = this.pkg.stack?.deployedDigest ? this.pkg.stack.deployedDigest : undefined;
     this.printCheckStatusComplete();
   }
 
-  static fromModule(module: PackageModule) {
-    return new DockerModule(module);
-  }
-
-  get latestDigest(): string {
-    return this.latestImage?.imageDigest
-  }
-
-  get latestDigestShort(): string | false{
-    const digest = this.latestDigest;
-    if (!digest) {
-      return false;
+  private async verifyDigest() {
+    let digestFound = false;
+    let attempts = 0;
+    const maxAttempts = 5;
+    const attemptWaitSeconds = 2;
+    while (!digestFound) {
+      attempts++;
+      await sleep(attemptWaitSeconds);
+      if (await hasTag(this.dockerName, this.pkg.rollupVersion.toString(), this.digest)) {
+        digestFound = true;
+        this.info(`digest (${this.digest}) push verified`);
+      }
+      if (!digestFound && attempts < maxAttempts) {
+        throw new Error(`docker push - failed: the digest ${this.digest} could not be found for ${this.dockerName}:${this.pkg.rollupVersion} after ${maxAttempts * attemptWaitSeconds} seconds`)
+      }
     }
-    return digest.substring(digest.length - 8);
-  }
-
-  get moduleStrings(): string[] {
-    const items = super.moduleBaseStrings;
-    if (this.latestImage?.imageTag) {
-      items.push(`latest tag: ${this.latestImage?.imageTag}`);
-    }
-    if (this.latestImage?.imageDigest) {
-      items.push(`latest digest: ${this.latestImage?.imageDigest}`);
-    }
-    if (this.images) {
-      items.push(`pushed tags: ${this.images?.map(t => t.imageTag).join(", ")}`);
-    }
-    return items;
   }
 }
-import {Package, PackageCmd} from './package';
+

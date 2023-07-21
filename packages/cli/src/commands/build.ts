@@ -1,40 +1,32 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog, Package, LibModule, Suite } from '@stoked-cenv/lib'
-import { BaseCommand } from './base'
+import {Command, Option} from 'nest-commander';
+import {CenvLog, LibModule, Package, Suite} from '@stoked-cenv/lib'
+import {BaseCommand} from './base'
 
 @Command({
-  name: 'build',
-  description: `Build packages`,
-})
+           name: 'build', description: `Build packages`,
+         })
 export default class BuildCommand extends BaseCommand {
   @Option({
-    flags: '-ll, --log-level, <logLevel>',
-    description: `Logging mode`,
-  })
-  parseLogLevel(val: string): string {
-    return val;
-  }
-  @Option({
-    flags: '-f, --force',
-    description: `Force build by skipping cached builds`,
-  })
-  parseForce(val: boolean): boolean {
+            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
+          }) parseLogLevel(val: string): string {
     return val;
   }
 
   @Option({
-    flags: '-i, --install',
-    description: `Run yarn install before build`,
-  })
-  parseInstall(val: boolean): boolean {
+            flags: '-f, --force', description: `Force build by skipping cached builds`,
+          }) parseForce(val: boolean): boolean {
     return val;
   }
 
   @Option({
-    flags: '-p, --parallel, <concurrency>',
-    description: `Maximum concurrency`,
-  })
-  parseParallel(val: string): string {
+            flags: '-i, --install', description: `Run yarn install before build`,
+          }) parseInstall(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+            flags: '-p, --parallel, <concurrency>', description: `Maximum concurrency`,
+          }) parseParallel(val: string): string {
     return val;
   }
 

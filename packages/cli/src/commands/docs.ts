@@ -1,6 +1,6 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { HelpUI } from '@stoked-cenv/ui';
-import { CenvLog } from '@stoked-cenv/lib';
+import {Command, CommandRunner} from 'nest-commander';
+import {HelpUI} from '@stoked-cenv/ui';
+import {CenvLog} from '@stoked-cenv/lib';
 
 
 interface DocsCommandOptions {
@@ -8,10 +8,8 @@ interface DocsCommandOptions {
 }
 
 @Command({
-  name: 'docs',
-  arguments: '[command]',
-  description: 'Display help UI'
-})
+           name: 'docs', arguments: '[command]', description: 'Display help UI'
+         })
 export default class DocsCommand extends CommandRunner {
   async run(params: string[], options?: DocsCommandOptions): Promise<void> {
     try {

@@ -1,10 +1,10 @@
-import { TestingModule } from "@nestjs/testing";
+import {TestingModule} from "@nestjs/testing";
 import DeployCommand from '../../commands/deploy';
 import DestroyCommand from '../../commands/destroy';
 import AddCommand from '../../commands/add';
 import ParamsCommand from '../../commands/params'
-import { CommandTestFactory } from 'nest-commander-testing';
-import { EnvironmentStatus, Package } from '@stoked-cenv/lib';
+import {CommandTestFactory} from 'nest-commander-testing';
+import {EnvironmentStatus, Package} from '@stoked-cenv/lib';
 
 describe('package - deploy/view/verify/destroy/verify', () => {
   let commandInstance: TestingModule;
@@ -12,12 +12,8 @@ describe('package - deploy/view/verify/destroy/verify', () => {
 
   beforeAll(async () => {
     commandInstance = await CommandTestFactory.createTestingCommand({
-      imports: [
-        DeployCommand,
-        DestroyCommand,
-        AddCommand,
-        ParamsCommand
-      ] }).compile()
+                                                                      imports: [DeployCommand, DestroyCommand, AddCommand, ParamsCommand]
+                                                                    }).compile()
   });
 
 

@@ -1,25 +1,27 @@
 import {
+  AddUserToGroupCommand,
+  AttachGroupPolicyCommand,
+  AttachRolePolicyCommand,
+  CreateGroupCommand,
   CreatePolicyCommand,
   CreateRoleCommand,
-  DeleteRoleCommand,
+  DeleteGroupCommand,
   DeletePolicyCommand,
+  DeletePolicyVersionCommand,
+  DeleteRoleCommand,
+  DetachGroupPolicyCommand,
+  DetachRolePolicyCommand,
+  GetGroupCommand,
   GetPolicyCommand,
   GetRoleCommand,
-  AttachRolePolicyCommand,
-  DetachRolePolicyCommand,
-  CreateGroupCommand,
-  ListGroupsCommand,
-  GetGroupCommand,
   IAMClient,
-  AttachGroupPolicyCommand,
   ListAttachedGroupPoliciesCommand,
-  AddUserToGroupCommand,
-  DeleteGroupCommand,
+  ListGroupsCommand,
   ListPolicyVersionsCommand,
-  DeletePolicyVersionCommand,
-  RemoveUserFromGroupCommand, User, DetachGroupPolicyCommand,
+  RemoveUserFromGroupCommand,
+  User,
 } from '@aws-sdk/client-iam';
-import { CenvLog, errorBold } from '../log';
+import {CenvLog, errorBold} from '../log';
 
 let _client: IAMClient = null;
 
@@ -27,12 +29,11 @@ function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new IAMClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                            region: AWS_REGION, endpoint: AWS_ENDPOINT
+                          });
   return _client;
 }
 
@@ -71,7 +72,7 @@ export async function deletePolicy(PolicyArn: string) {
     for (let i = 0; i < listPolicyVersionsRes.Versions.length; i++) {
       const version = listPolicyVersionsRes.Versions[i];
       if (!version.IsDefaultVersion) {
-        const deleteCmd = new DeletePolicyVersionCommand({ PolicyArn, VersionId: version.VersionId })
+        const deleteCmd = new DeletePolicyVersionCommand({PolicyArn, VersionId: version.VersionId})
         const deleteRes = await getClient().send(deleteCmd);
       }
     }
@@ -101,7 +102,7 @@ export async function attachPolicyToRole(RoleName: string, PolicyArn: string) {
 
 export async function attachPolicyToGroup(GroupName: string, PolicyName: string, PolicyArn: string) {
   try {
-    const listGroupPolicyCmd = new ListAttachedGroupPoliciesCommand( {GroupName});
+    const listGroupPolicyCmd = new ListAttachedGroupPoliciesCommand({GroupName});
     const listGroupPolicyRes = await getClient().send(listGroupPolicyCmd);
     for (let i = 0; i < listGroupPolicyRes.AttachedPolicies.length; i++) {
       const policy = listGroupPolicyRes.AttachedPolicies[i];
@@ -111,12 +112,12 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
       }
     }
 
-    const cmd = new AttachGroupPolicyCommand({ GroupName, PolicyArn})
+    const cmd = new AttachGroupPolicyCommand({GroupName, PolicyArn})
     const res = await getClient().send(cmd);
     if (res) {
       return res;
     }
-  } catch(e) {
+  } catch (e) {
     CenvLog.single.errorLog(`attach policy to group error: ${errorBold(e.message)}`);
   }
 }
@@ -147,9 +148,9 @@ export async function deleteGroup(GroupName: string, silent = true) {
 
     try {
       const rmvPolCmd = new DetachGroupPolicyCommand({
-        GroupName,
-        PolicyArn: `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`
-      });
+                                                       GroupName,
+                                                       PolicyArn: `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`
+                                                     });
       const rmvPolRes = await getClient().send(rmvPolCmd);
     } catch (e) {
       if (!silent) {
@@ -201,7 +202,7 @@ export async function addUserToGroup(GroupName: string, UserName: string) {
     if (res) {
       return res;
     }
-  } catch(e) {
+  } catch (e) {
     CenvLog.single.errorLog(`attach user to group error: ${errorBold(e.message)}`);
   }
 }

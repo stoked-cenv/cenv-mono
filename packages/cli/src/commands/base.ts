@@ -1,18 +1,15 @@
-import { CommandRunner, Option } from 'nest-commander';
-import { Dashboard } from '@stoked-cenv/ui';
+import {CommandRunner} from 'nest-commander';
+import {Dashboard} from '@stoked-cenv/ui';
 import {
-  ConfigureCommandOptions,
   BaseCommandOptions,
+  Cenv,
   configure,
-  ProcessMode,
-  Package,
-  CenvParams,
-  Version,
-  DashboardCreateOptions,
-  CenvLog,
+  ConfigureCommandOptions,
   Deployment,
+  Package,
   parseCmdParams,
-  Cenv
+  ProcessMode,
+  Version
 } from '@stoked-cenv/lib';
 
 export abstract class BaseCommand extends CommandRunner {
@@ -24,7 +21,7 @@ export abstract class BaseCommand extends CommandRunner {
   meta: any;
 
   async run(passedParams: string[], options?: any) {
-    const pkg = Package.global;
+    const pkg: Package = Package.global;
     if (this.allowUI) {
       pkg.createCmd('clean this up');
     }
@@ -55,17 +52,23 @@ export abstract class BaseCommand extends CommandRunner {
       options.cli = true;
     }
     options.localPackageAccepted = this.localPackageAccepted;
-    const passThru = { skipBuild: options.skipBuild };
+    const passThru = {skipBuild: options.skipBuild};
 
-    const { packages, parsedParams, validatedOptions } = await parseCmdParams(passedParams, options, this.deploymentMode);
-    const deployCreateOptions = { packages, suite: validatedOptions.suite, environment: validatedOptions.environment, cmd: this.deploymentMode, options: validatedOptions }
+    const {packages, parsedParams, validatedOptions} = await parseCmdParams(passedParams, options, this.deploymentMode);
+    const deployCreateOptions = {
+      packages,
+      suite: validatedOptions.suite,
+      environment: validatedOptions.environment,
+      cmd: this.deploymentMode,
+      options: validatedOptions
+    }
     if (options?.userInterface && !process.env.CENV_SPAWNED) {
       if (!Cenv.dashboard) {
         Cenv.dashboard = new Dashboard(deployCreateOptions);
       }
       process.env.CENV_DEFAULTS = 'true';
     }
-    await this.runCommand(parsedParams, { ...validatedOptions, ...passThru }, packages);
+    await this.runCommand(parsedParams, {...validatedOptions, ...passThru}, packages);
   }
 
   protected abstract runCommand(passedParam: string[], options?: BaseCommandOptions, packages?: Package[]): Promise<void>;

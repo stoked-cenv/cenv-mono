@@ -7,18 +7,16 @@ import fs, {existsSync, readFileSync, rmSync} from 'fs';
 import * as os from 'os';
 import {hostname} from 'os';
 import {CenvParams, DashboardCreateOptions} from './params';
-import {Package, PackageCmd, ProcessStatus, CommandEvents} from './package/package';
-import chalk from 'chalk';
+import {CommandEvents, Package, PackageCmd, ProcessStatus} from './package/package';
 import * as fsp from 'fs/promises';
 import {createHash} from 'crypto';
-import {ProcessMode} from "./package/module";
+import {PackageModule, ProcessMode} from "./package/module";
 import {CenvFiles} from "./file";
 import {deleteCenvData} from "./aws/appConfig";
 import {Suite} from "./suite";
 import {Environment} from "./environment";
-import {Cenv, StackProc} from "./cenv"
+import {Cenv} from "./cenv"
 import {cancelUpdateStack, deleteStack, describeStacks} from "./aws/cloudformation";
-import { ioYesOrNo } from "./stdIo";
 import {Stack} from "@aws-sdk/client-cloudformation";
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
@@ -29,7 +27,9 @@ export function inputArgsToEnvVars(inputArgs: any) {
   let args = '';
   if (inputArgs) {
     for (const [key, value] of Object.entries(inputArgs)) {
-      if (value) args += `${key}=${value} `;
+      if (value) {
+        args += `${key}=${value} `;
+      }
     }
   }
   return args.trim();
@@ -53,7 +53,7 @@ export function stackPath(codifiedName: string): string {
     return;
   }
 
-  const compResults = search_sync(result, true, true, pkgComp.component, {excludedDirs: ['cdk.out', 'node_modules', 'dist']})  as string[];
+  const compResults = search_sync(result, true, true, pkgComp.component, {excludedDirs: ['cdk.out', 'node_modules', 'dist']}) as string[];
   if (!compResults || !compResults.length) {
     CenvLog.alert(`found the package ${pkgComp.package} could not find the related files for the codified package name ${codifiedName} `);
     return;
@@ -65,13 +65,14 @@ export function packagePath(packageName: string, workingDirectory?: string, useC
   if (packageName === 'GLOBAL') {
     return getMonoRoot(workingDirectory, useCache);
   }
-  if (useCache && packagePaths[packageName])
+  if (useCache && packagePaths[packageName]) {
     return packagePaths[packageName];
+  }
 
   const cwd = getMonoRoot(workingDirectory, workingDirectory ? false : useCache);
   const packages = search_sync(cwd, false, true, 'package.json', {
     excludedDirs: ['cdk.out', 'node_modules'],
-  })  as string[];
+  }) as string[];
 
   for (let i = 0; i < packages.length; i++) {
     let packagePath: any = packages[i].split('/');
@@ -83,15 +84,13 @@ export function packagePath(packageName: string, workingDirectory?: string, useC
     }
   }
 
-  if (packagePaths[packageName]) return packagePaths[packageName];
+  if (packagePaths[packageName]) {
+    return packagePaths[packageName];
+  }
   return undefined;
 }
 
-export async function execAll(
-  shell: string,
-  configure = false,
-  sequential = false,
-) {
+export async function execAll(shell: string, configure = false, sequential = false,) {
   if (configure && process.env.CENV_CONFIGURE) {
     shell = `${process.env.CENV_CONFIGURE} ${shell}`;
   }
@@ -99,12 +98,12 @@ export async function execAll(
   if (sequential) {
     concurrency = '--concurrency 1 ';
   }
-  return await execCmd('./',`/Users/stoked/.npm-packages/bin/lerna exec ${concurrency} -- ${shell}`);
+  return await execCmd('./', `/Users/stoked/.npm-packages/bin/lerna exec ${concurrency} -- ${shell}`);
 }
 
 export async function isLocalStackRunning() {
   try {
-    let status: any = await execCmd('./','localstack status docker --format json', 'localstack status');
+    let status: any = await execCmd('./', 'localstack status docker --format json', 'localstack status');
     status = JSON.parse(status);
     return status.running;
   } catch (e) {
@@ -119,20 +118,14 @@ export function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O):
 function printIfExists(color = true, envVar: string) {
   if (process.env[envVar]) {
     let isClear = true;
-    if (
-      ['pass', 'key', 'secret'].some((v) => envVar.toLowerCase().includes(v))
-    ) {
+    if (['pass', 'key', 'secret'].some((v) => envVar.toLowerCase().includes(v))) {
       isClear = false;
     }
 
     if (color) {
-      CenvLog.single.infoLog(
-        `export ${envVar}=${infoBold(isClear ? process.env[envVar] : '****')}`,
-      );
+      CenvLog.single.infoLog(`export ${envVar}=${infoBold(isClear ? process.env[envVar] : '****')}`,);
     } else {
-      console.log(
-        `export ${envVar}=${infoBold(isClear ? process.env[envVar] : '****')}`,
-      );
+      console.log(`export ${envVar}=${infoBold(isClear ? process.env[envVar] : '****')}`,);
     }
   }
 }
@@ -154,14 +147,8 @@ export function printApp(cmd: string, envVars: Record<string, string>, cenvVars:
   let envVarDisplay;
   if (envVars && Object.keys(envVars).length) {
     envVarDisplay = inputArgsToEnvVars(envVars);
-    envVarDisplay = envVarDisplay.replace(
-      /AWS_ACCESS_KEY_ID=(\S*)/,
-      'AWS_ACCESS_KEY_ID=[***]',
-    );
-    envVarDisplay = envVarDisplay.replace(
-      /AWS_SECRET_ACCESS_KEY=(\S*)/,
-      'AWS_SECRET_ACCESS_KEY=[***]',
-    );
+    envVarDisplay = envVarDisplay.replace(/AWS_ACCESS_KEY_ID=(\S*)/, 'AWS_ACCESS_KEY_ID=[***]',);
+    envVarDisplay = envVarDisplay.replace(/AWS_SECRET_ACCESS_KEY=(\S*)/, 'AWS_SECRET_ACCESS_KEY=[***]',);
     envVarDisplay = ' ' + envVarDisplay;
   } else {
     printConfigurationExports();
@@ -170,28 +157,20 @@ export function printApp(cmd: string, envVars: Record<string, string>, cenvVars:
   const consoleFolder = process.cwd().split('/').pop();
   const cons = `${hostname()}:${consoleFolder} ${process.env.USER}$`;
   if (envVarDisplay && envVarDisplay.trim().length > 0) {
-    CenvLog.single.infoLog(
-      envVarDisplay
-        ? envVarDisplay
-            .split(' ')
-            .join(info(`\n`) + `export `)
-            .replace('\n', '')
-        : '',
-    );
+    CenvLog.single.infoLog(envVarDisplay ? envVarDisplay
+    .split(' ')
+    .join(info(`\n`) + `export `)
+    .replace('\n', '') : '',);
   }
 
   if (Object.keys(cenvVars).length) {
     let configVarDisplay = inputArgsToEnvVars(cenvVars);
     configVarDisplay = ' ' + configVarDisplay;
     CenvLog.single.infoLog('# cenv config vars');
-    CenvLog.single.infoLog(
-      configVarDisplay
-        ? configVarDisplay
-            .split(' ')
-            .join(info(`\n`) + `export `)
-            .replace('\n', '')
-        : '',
-    );
+    CenvLog.single.infoLog(configVarDisplay ? configVarDisplay
+    .split(' ')
+    .join(info(`\n`) + `export `)
+    .replace('\n', '') : '',);
   }
 
   console.log(`${info(`${cons} `)}${infoBold(cmd)}`);
@@ -216,12 +195,26 @@ export interface ICmdOptions {
   commandEvents?: CommandEvents;
 }
 
+export async function runScripts(pkgModule: PackageModule, scripts: (string | { exec: string, options: object })[]) {
+  if (scripts) {
+    for (let i = 0; i < scripts.length; i++) {
+      const script: any = scripts[i];
+      if (typeof script === "string") {
+        await spawnCmd(pkgModule.path, script as string, script as string, {}, pkgModule.pkg);
+      } else {
+        const metaScript = script as { exec: string, options: object };
+        await spawnCmd(pkgModule.path, metaScript.exec, metaScript.exec, metaScript.options, pkgModule.pkg);
+      }
+    }
+  }
+}
+
 function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
   // match cdk status output
   // stackName | cloudformation sequence number | time | cf status | aws object | aws type (stack id) cf event
   // (.*?) \|.*([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} (?>AM)|(?>PM)) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:]*) *\| ([a-z_A-Z_\:\/-]*) \((.*)\)]? ?(.*)?$
   if (options.returnOutput) {
-      output += chunk;
+    output += chunk;
   } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
     CenvLog.single.tempLog('t: ' + chunk, pkg?.stackName);
   } else {
@@ -257,7 +250,7 @@ function err(errors: string[], options: any, cmdLog: PackageCmd, packageInfo: Pa
   } else if (!options.silent) {
     CenvLog.single.errorLog(text)
   }
-  return { errors };
+  return {errors};
 }
 
 function spawnErr(options: any, cmdLog: PackageCmd, chunk: string, output: string, pkg: Package, errors: string[]) {
@@ -266,10 +259,10 @@ function spawnErr(options: any, cmdLog: PackageCmd, chunk: string, output: strin
     if (!actualErrors) {
       spawnInfo(options, chunk, output, pkg);
     } else {
-      err( errors, options, cmdLog, pkg, chunk)
+      err(errors, options, cmdLog, pkg, chunk)
     }
   } else {
-    err( errors, options, cmdLog, pkg, chunk)
+    err(errors, options, cmdLog, pkg, chunk)
   }
 }
 
@@ -281,40 +274,31 @@ function handleErrors(errors: string[], packageInfo: Package) {
   }
 }
 
-export async function spawnCmd(
-  folder: string,
-  cmd: string,
-  name: string = undefined,
-  options: ICmdOptions = {
-    envVars: {},
-    cenvVars: {},
-    detached: false,
-    waitSeconds: 0,
-    waitForOutput: undefined,
-    stdio: 'inherit',
-    getCenvVars: false,
-    stdin: undefined,
-    failOnError: true,
-    returnOutput: false,
-    redirectStdErrToStdOut: false,
-    pipedOutput: false,
-    commandEvents: undefined
-  },
-  packageInfo: Package = undefined,
-): Promise<any> {
+export async function spawnCmd(folder: string, cmd: string, name: string = undefined, options: ICmdOptions = {
+  envVars: {},
+  cenvVars: {},
+  detached: false,
+  waitSeconds: 0,
+  waitForOutput: undefined,
+  stdio: 'inherit',
+  getCenvVars: false,
+  stdin: undefined,
+  failOnError: true,
+  returnOutput: false,
+  redirectStdErrToStdOut: false,
+  pipedOutput: false,
+  commandEvents: undefined
+}, packageInfo: Package = undefined,): Promise<any> {
   let cmdLog: PackageCmd = options.pkgCmd;
   if (packageInfo && !cmdLog && !options.silent) {
     cmdLog = packageInfo.createCmd(cmd);
   }
 
-    //packageInfo.alert('options', JSON.stringify(options, null, 2))
+  //packageInfo.alert('options', JSON.stringify(options, null, 2))
 
 
   const errors: any = [];
   try {
-
-
-
     if (options.commandEvents?.preCommandFunc) {
       await options.commandEvents.preCommandFunc();
     }
@@ -346,30 +330,20 @@ export async function spawnCmd(
         process.chdir('./deploy');
       }
     }
-    return new Promise( (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       let envVarDisplay;
       if (!packageInfo) {
         if (options?.envVars && Object.keys(options?.envVars).length) {
           envVarDisplay = inputArgsToEnvVars(options?.envVars);
-          envVarDisplay = envVarDisplay.replace(
-            /AWS_ACCESS_KEY_ID=(\S*)/,
-            'AWS_ACCESS_KEY_ID=[***]',
-          );
-          envVarDisplay = envVarDisplay.replace(
-            /AWS_SECRET_ACCESS_KEY=(\S*)/,
-            'AWS_SECRET_ACCESS_KEY=[***]',
-          );
+          envVarDisplay = envVarDisplay.replace(/AWS_ACCESS_KEY_ID=(\S*)/, 'AWS_ACCESS_KEY_ID=[***]',);
+          envVarDisplay = envVarDisplay.replace(/AWS_SECRET_ACCESS_KEY=(\S*)/, 'AWS_SECRET_ACCESS_KEY=[***]',);
           envVarDisplay = ' ' + envVarDisplay;
         } else {
           printConfigurationExports();
         }
       }
       options.envVars = {
-        ...options.envVars,
-        ...configVars,
-        ...process.env,
-        ...options.cenvVars,
-        FORCE_COLOR: 1,
+        ...options.envVars, ...configVars, ...process.env, ...options.cenvVars, FORCE_COLOR: 1,
       };
 
       process.env.FORCE_COLOR = '1';
@@ -377,13 +351,13 @@ export async function spawnCmd(
       const cons = `${hostname()}:${consoleFolder} ${process.env.USER}$`;
       if (!packageInfo) {
         if (envVarDisplay && envVarDisplay.trim().length > 0) {
-          log(options, cmdLog, packageInfo,envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo, envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
         }
         if (configVarDisplay && configVarDisplay.trim().length > 0) {
-          log(options, cmdLog, packageInfo,'# cenv config vars');
-          log(options, cmdLog, packageInfo,configVarDisplay ? configVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo, '# cenv config vars');
+          log(options, cmdLog, packageInfo, configVarDisplay ? configVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
         }
-        log(options, cmdLog, packageInfo,`${info(`${cons} `)}${infoBold(cmd)}`)
+        log(options, cmdLog, packageInfo, `${info(`${cons} `)}${infoBold(cmd)}`)
       }
 
       const spawnArgs = cmd.split(' ');
@@ -392,12 +366,7 @@ export async function spawnCmd(
       let stdio: child.StdioOptions = 'inherit';
 
       let pipedOutput = false;
-      if (
-        packageInfo ||
-        options?.returnOutput ||
-        options?.pipedOutput ||
-        options?.redirectStdErrToStdOut
-      ) {
+      if (packageInfo || options?.returnOutput || options?.pipedOutput || options?.redirectStdErrToStdOut) {
         const stdin = options?.stdin ? 'overlapped' : 'ignore';
         stdio = [stdin, 'overlapped', 'overlapped'];
         pipedOutput = true;
@@ -406,9 +375,7 @@ export async function spawnCmd(
       }
 
       const opt: any = {
-        detached: options?.detached,
-        stdio: stdio,
-        env: options.envVars,
+        detached: options?.detached, stdio: stdio, env: options.envVars,
       };
       opt.env.CENV_SPAWNED = 'true';
       const output: any = '';
@@ -449,9 +416,9 @@ export async function spawnCmd(
         }
 
         if (options.returnOutput) {
-          const returnOutput = { stdout: output, result: code };
+          const returnOutput = {stdout: output, result: code};
           if (cmdLog) {
-            if(!cmdLog.result(code)) {
+            if (!cmdLog.result(code)) {
               reject(returnOutput)
             } else {
               resolve(returnOutput);
@@ -467,7 +434,7 @@ export async function spawnCmd(
             }
           }
         } else if (cmdLog) {
-          if(!cmdLog.result(code)) {
+          if (!cmdLog.result(code)) {
             reject(code)
           } else {
             resolve(code);
@@ -500,18 +467,10 @@ export async function spawnCmd(
 }
 
 export async function exec(cmd: string, silent = false) {
-  return await execCmd('./', cmd, cmd,{}, false, silent);
+  return await execCmd('./', cmd, cmd, {}, false, silent);
 }
 
-export function execCmd(
-  folder: string,
-  cmd: string,
-  name: string = undefined,
-  envVars: object = {},
-  rejectOnStdErr = false,
-  silent = false,
-  pkg: Package = undefined,
-): Promise<string> {
+export function execCmd(folder: string, cmd: string, name: string = undefined, envVars: object = {}, rejectOnStdErr = false, silent = false, pkg: Package = undefined,): Promise<string> {
 
   function log(...text: string[]) {
 
@@ -526,7 +485,7 @@ export function execCmd(
     //if (!silent && packageInfo) {
     //  packageInfo.err(...text);
     //} else if (!silent) {
-      CenvLog.single.errorLog(text, pkg?.stackName, true);
+    CenvLog.single.errorLog(text, pkg?.stackName, true);
     //}
   }
 
@@ -534,14 +493,8 @@ export function execCmd(
   if (Object.values(envVars).length) {
     envVarFinal = inputArgsToEnvVars(envVars);
     envVarDisplay = envVarFinal;
-    envVarDisplay = envVarDisplay.replace(
-      /AWS_ACCESS_KEY_ID=(\S*)/,
-      'AWS_ACCESS_KEY_ID=[***]',
-    );
-    envVarDisplay = envVarDisplay.replace(
-      /AWS_SECRET_ACCESS_KEY=(\S*)/,
-      'AWS_SECRET_ACCESS_KEY=[***]',
-    );
+    envVarDisplay = envVarDisplay.replace(/AWS_ACCESS_KEY_ID=(\S*)/, 'AWS_ACCESS_KEY_ID=[***]',);
+    envVarDisplay = envVarDisplay.replace(/AWS_SECRET_ACCESS_KEY=(\S*)/, 'AWS_SECRET_ACCESS_KEY=[***]',);
     envVarDisplay = ' ' + envVarDisplay;
     envVarFinal += ' ';
   }
@@ -560,7 +513,7 @@ export function execCmd(
         log(envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '')
         CenvLog.single.infoLog(`${info(cons)} ${cmd}`, pkg?.stackName);
       }
-    } catch(e) {
+    } catch (e) {
       err(e);
     }
     //console.log(`changing working directory from: ${originalDir} to ${newCwd}`)
@@ -649,27 +602,36 @@ function parsedRet(retVal: searchSyncFallbackResults, res: searchSyncFallbackRes
   }
 }
 
-export function search_sync(
-  dir: string,
-  first = false,
-  searchDown = true,
-  searchFile: string | RegExp = 'package.json',
-  options: {
-    startsWith?: boolean;
-    endsWith?: boolean;
-    excludedDirs?: string[];
-    includedDirs?: string[];
-    regex?: boolean;
-    fallBack?: string;
-  } = {
-    startsWith: false,
-    endsWith: false,
-    excludedDirs: [],
-    includedDirs: [],
-    regex: false,
-  },
-): searchSyncFallbackResults | string[] {
-  const retVal: searchSyncFallbackResults = { results: [], fallbacks: [] };
+export function search_sync(dir: string, first = false, searchDown = true, searchFile: string | RegExp = 'package.json', options: {
+  startsWith?: boolean;
+  endsWith?: boolean;
+  excludedDirs?: string[];
+  includedDirs?: string[];
+  regex?: boolean;
+  fallBack?: string;
+  depth?: number
+} = {
+  startsWith: false, endsWith: false, excludedDirs: [], includedDirs: [], regex: false, depth: -1
+}): searchSyncFallbackResults | string[] {
+  return search_sync_depth(dir, first, searchDown, searchFile, options, 1);
+}
+
+
+function search_sync_depth(dir: string, first = false, searchDown = true, searchFile: string | RegExp = 'package.json', options: {
+  startsWith?: boolean;
+  endsWith?: boolean;
+  excludedDirs?: string[];
+  includedDirs?: string[];
+  regex?: boolean;
+  fallBack?: string;
+  depth?: number
+} = {
+  startsWith: false, endsWith: false, excludedDirs: [], includedDirs: [], regex: false, depth: -1
+}, currentDepth = 0): searchSyncFallbackResults | string[] {
+  if (!options?.depth) {
+    options.depth = -1;
+  }
+  const retVal: searchSyncFallbackResults = {results: [], fallbacks: []};
   const list = fs.readdirSync(dir);
   const directories = [];
   for (let i = 0; i < list.length; i++) {
@@ -681,9 +643,7 @@ export function search_sync(
     if (stat && stat.isDirectory() && searchDown) {
       let addDir = true;
       if (options?.excludedDirs?.length) {
-        const excludedMatches = options?.excludedDirs.filter((ed) =>
-          file.endsWith('/' + ed),
-        );
+        const excludedMatches = options?.excludedDirs.filter((ed) => file.endsWith('/' + ed),);
         addDir = !excludedMatches.length;
       }
       const folder = file.split('/').pop();
@@ -695,9 +655,7 @@ export function search_sync(
 
     } else {
       if (options?.includedDirs?.length) {
-        const includedMatches = options?.includedDirs?.filter((id) =>
-          dir.endsWith('/' + id),
-        );
+        const includedMatches = options?.includedDirs?.filter((id) => dir.endsWith('/' + id),);
         if (!includedMatches.length) {
           continue;
         }
@@ -728,7 +686,7 @@ export function search_sync(
       if (foundFile) {
         if (first) {
           if (options.fallBack) {
-            return { results: [filename], fallbacks: [] };
+            return {results: [filename], fallbacks: []};
           } else {
             return [filename];
           }
@@ -739,19 +697,28 @@ export function search_sync(
     }
   }
 
+  if (options.depth > 0 && currentDepth >= options.depth) {
+    if (options.fallBack) {
+      return retVal as searchSyncFallbackResults;
+    } else {
+      return retVal.results as string[];
+    }
+  }
+
   if (searchDown) {
     for (let i = 0; i < directories.length; i++) {
       const dirPath = directories[i];
-      const res = search_sync(dirPath, first, searchDown, searchFile, options);
+      const res = search_sync_depth(dirPath, first, searchDown, searchFile, options, currentDepth + 1);
       parsedRet(retVal, res, options?.fallBack !== undefined);
     }
   } else {
     const numSlashes = path.resolve(dir).split('/').length - 1;
     if (numSlashes > 1) {
-      const res = search_sync(join(dir, '../'), first, searchDown, searchFile, options);
+      const res = search_sync_depth(join(dir, '../'), first, searchDown, searchFile, options, currentDepth + 1);
       parsedRet(retVal, res, options?.fallBack !== undefined);
     }
   }
+
   if (options.fallBack) {
     return retVal as searchSyncFallbackResults;
   } else {
@@ -780,7 +747,7 @@ export function getMonoRoot(workingDirectory = './', useCache = true) {
   if (useCache && packagePaths['root']) {
     return packagePaths['root'];
   }
-  const searchResults = search_sync(workingDirectory, true, false, 'cenv.json', { fallBack: 'package.json' }) as searchSyncFallbackResults;
+  const searchResults = search_sync(workingDirectory, true, false, 'cenv.json', {fallBack: 'package.json'}) as searchSyncFallbackResults;
   if (!searchResults?.results.length && !searchResults.fallbacks.length) {
     return false;
   }
@@ -836,6 +803,15 @@ export class Timer {
   silent: boolean;
   running = false;
 
+  constructor(note: string, format: string, start = false, silent = true) {
+    this.format = format;
+    this.note = note;
+    this.silent = silent;
+    if (start) {
+      this.start();
+    }
+  }
+
   get elapsed() {
     if (this.running) {
       return elapsedBase(this.startTime, this.format, this.note, this.silent) + this.format[0];
@@ -846,21 +822,9 @@ export class Timer {
     }
   }
 
-  constructor(note: string, format: string, start = false, silent = true) {
-    this.format = format;
-    this.note = note;
-    this.silent = silent;
-    if (start) {
-      this.start();
-    }
-  }
-
   state() {
     const res: any = {
-      elapsed: undefined,
-      format: this.format,
-      note: this.note,
-      final: this.final,
+      elapsed: undefined, format: this.format, note: this.note, final: this.final,
     };
 
     res.elapsed = this.elapsed;
@@ -889,6 +853,7 @@ export class Timer {
     this.running = false;
   }
 }
+
 /*
 export class TimerModules {
   private static timerList = [];
@@ -918,8 +883,7 @@ export class TimerModules {
   }
 }*/
 
-export const sleep = (seconds: number) =>
-  new Promise((r) => setTimeout(r, seconds * 1000));
+export const sleep = (seconds: number) => new Promise((r) => setTimeout(r, seconds * 1000));
 
 export function simplify(yamlData: any, printPkg?: string) {
   const result: any = {};
@@ -963,6 +927,7 @@ export function expandTemplateVars(baseVars: any) {
       });
     }
   });
+
   function processTree(tree: any) {
     const dependencies = new Set<string>();
     Object.keys(tree).map((key) => {
@@ -972,6 +937,7 @@ export function expandTemplateVars(baseVars: any) {
     });
     return dependencies;
   }
+
   const dependencies = processTree(dependencyTree);
   const size = dependencies.size;
   let iteration = 0;
@@ -1005,13 +971,7 @@ export function expandTemplateVars(baseVars: any) {
 export async function deleteFiles(search: string | RegExp, options: any) {
   console.log(search, options);
   const monoRoot = getMonoRoot();
-  const results = search_sync(
-    path.resolve(monoRoot),
-    false,
-    true,
-    search,
-    options,
-  ) as string[];
+  const results = search_sync(path.resolve(monoRoot), false, true, search, options,) as string[];
   for (let i = 0; i < results.length; i++) {
     const file = results[i];
 
@@ -1039,9 +999,7 @@ export async function showPkgCmdsResult(cmds: PackageCmd[]) {
     f ? CenvLog.single.infoLog(`${f?.cmd} exit(${f?.code})\n`, f?.stackName) : ''
   });
   if (failures?.length) {
-    failures.map((f) =>
-      f ? CenvLog.single.errorLog(`${f?.cmd} ${f?.code}\n`, f?.stackName) : ''
-    );
+    failures.map((f) => f ? CenvLog.single.errorLog(`${f?.cmd} ${f?.code}\n`, f?.stackName) : '');
     process.exit(9);
   }
 }
@@ -1053,7 +1011,7 @@ export function clamp(number: number, min: number, max: number) {
 const killedStackCmds: Record<string, string[]> = {};
 
 export async function killStackProcesses(StackName: string) {
-  for (const  [pid, stackProc] of Object.entries(Cenv.processes)) {
+  for (const [pid, stackProc] of Object.entries(Cenv.processes)) {
     if (stackProc.stackName === StackName) {
       CenvLog.alert(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
       const killSuccess = stackProc.proc.kill();
@@ -1061,7 +1019,7 @@ export async function killStackProcesses(StackName: string) {
       if (stackProc.cmd.startsWith('cdk deploy')) {
         const stacks: Stack[] = await describeStacks(StackName);
         const status = stacks[0].StackStatus;
-        CenvLog.single.alertLog(`the current status is ${status}` , 'killed cdk deploy process')
+        CenvLog.single.alertLog(`the current status is ${status}`, 'killed cdk deploy process')
         if (status === "UPDATE_IN_PROGRESS") {
           CenvLog.single.alertLog(`now attempting to cancel the cloudformation update`, 'killed cdk deploy process')
           await cancelUpdateStack(StackName)
@@ -1081,9 +1039,9 @@ export async function killStackProcesses(StackName: string) {
 }
 
 export function killRunningProcesses() {
-  for (const  [pid, stackProc] of Object.entries(Cenv.processes)) {
+  for (const [pid, stackProc] of Object.entries(Cenv.processes)) {
     CenvLog.err(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
-    const killSuccess= stackProc.proc.kill();
+    const killSuccess = stackProc.proc.kill();
     if (killSuccess) {
       if (!killedStackCmds[stackProc.stackName]) {
         killedStackCmds[stackProc.stackName] = [];
@@ -1111,9 +1069,10 @@ export function destroyUI() {
 }
 
 let throwStackAtEnd = true;
+
 export function cleanup(eventType: string, error?: Error, exitCode?: number) {
   destroyUI();
-  if (throwStackAtEnd) {
+  if (throwStackAtEnd && process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     console.log('cleanup', new Error().stack);
     throwStackAtEnd = false;
   }
@@ -1125,47 +1084,47 @@ export function cleanup(eventType: string, error?: Error, exitCode?: number) {
   }
 
   //killRunningProcesses();
-/*
-  if (error) {
-    console.error(error);
-  }
+  /*
+    if (error) {
+      console.error(error);
+    }
 
-  if (eventType !== 'exit') {
-    const killedCmds = Object.values(killedStackCmds);
-    const killedCdkCommands: string[] = [];
-    if (killedCmds.length) {
-      for (const cmd in killedCmds.flat(1)) {
-        if (cmd.indexOf('cdk ') !== -1) {
-          killedCdkCommands.push(cmd);
+    if (eventType !== 'exit') {
+      const killedCmds = Object.values(killedStackCmds);
+      const killedCdkCommands: string[] = [];
+      if (killedCmds.length) {
+        for (const cmd in killedCmds.flat(1)) {
+          if (cmd.indexOf('cdk ') !== -1) {
+            killedCdkCommands.push(cmd);
+          }
         }
       }
-    }
-    if (killedCdkCommands.length) {
-      let question = 'process.exit() called while the following cdk child processes were running: \n';
-      for (const cmd in killedCdkCommands) {
-        question += '\t - ' + cmd + '\n';
+      if (killedCdkCommands.length) {
+        let question = 'process.exit() called while the following cdk child processes were running: \n';
+        for (const cmd in killedCdkCommands) {
+          question += '\t - ' + cmd + '\n';
+        }
+        question += '\nWould you like to cancel these stacks?';
+        Promise.resolve(ioYesOrNo(question))
+          .then( (shouldCancelStacks: boolean) => {
+            if (shouldCancelStacks) {
+              Promise.resolve(Promise.all(Object.keys(killedStackCmds).map((stackName) => cancelUpdateStack(stackName))))
+                .catch((ex)=>{
+                  console.error('error while canceling cdk stack', ex)
+                })
+                .then(() => {
+                  process.exit(exitCode);
+                });
+            }
+          })
+          .catch((ex) => {
+            console.error('error on yes or no input', ex)
+          })
+      } else if (exitCode) {
+        process.exit(exitCode);
       }
-      question += '\nWould you like to cancel these stacks?';
-      Promise.resolve(ioYesOrNo(question))
-        .then( (shouldCancelStacks: boolean) => {
-          if (shouldCancelStacks) {
-            Promise.resolve(Promise.all(Object.keys(killedStackCmds).map((stackName) => cancelUpdateStack(stackName))))
-              .catch((ex)=>{
-                console.error('error while canceling cdk stack', ex)
-              })
-              .then(() => {
-                process.exit(exitCode);
-              });
-          }
-        })
-        .catch((ex) => {
-          console.error('error on yes or no input', ex)
-        })
-    } else if (exitCode) {
-      process.exit(exitCode);
     }
-  }
-  */
+    */
 }
 
 // -----------------------------------------------------
@@ -1190,13 +1149,11 @@ export async function computeMetaHash(pkg: Package, input: string, inputHash: an
   const hash = inputHash ? inputHash : createHash('sha256');
   let fileInfo;
   if (fs.lstatSync(input).isDirectory()) {
-    const info = await fsp.readdir(input, { withFileTypes: true });
+    const info = await fsp.readdir(input, {withFileTypes: true});
 
     // construct a string from the modification date, the filename and the filesize
     for (const item of info) {
-      if (
-        ['cdk.out', 'cdk.context.json', 'node_modules'].indexOf(item.name) > -1
-      ) {
+      if (['cdk.out', 'cdk.context.json', 'node_modules'].indexOf(item.name) > -1) {
         continue;
       }
       const fullPath = path.join(input, item.name);
@@ -1234,8 +1191,12 @@ export async function computeMetaHash(pkg: Package, input: string, inputHash: an
 
 export function deepClone(obj: any, hash = new WeakMap()): any {
   // Do not try to clone primitives or functions
-  if (Object(obj) !== obj || obj instanceof Function) return obj;
-  if (hash.has(obj)) return hash.get(obj); // Cyclic reference
+  if (Object(obj) !== obj || obj instanceof Function) {
+    return obj;
+  }
+  if (hash.has(obj)) {
+    return hash.get(obj);
+  } // Cyclic reference
   let result: any;
   try {
     // Try to run constructor (without arguments, as we don't know them)
@@ -1245,19 +1206,15 @@ export function deepClone(obj: any, hash = new WeakMap()): any {
     result = Object.create(Object.getPrototypeOf(obj));
   }
   // Optional: support for some standard constructors (extend as desired)
-  if (obj instanceof Map)
-    Array.from(obj, ([key, val]) =>
-      result.set(deepClone(key, hash), deepClone(val, hash)),
-    );
-  else if (obj instanceof Set)
+  if (obj instanceof Map) {
+    Array.from(obj, ([key, val]) => result.set(deepClone(key, hash), deepClone(val, hash)),);
+  } else if (obj instanceof Set) {
     Array.from(obj, (key) => result.add(deepClone(key, hash)));
+  }
   // Register in hash
   hash.set(obj, result);
   // Clone and assign enumerable own properties recursively
-  return Object.assign(
-    result,
-    ...Object.keys(obj).map((key) => ({ [key]: deepClone(obj[key], hash) })),
-  );
+  return Object.assign(result, ...Object.keys(obj).map((key) => ({[key]: deepClone(obj[key], hash)})),);
 }
 
 export function readFiles(dirname: string, onFileContent: (dirname: string, filename: string) => void) {
@@ -1277,10 +1234,12 @@ export function readFiles(dirname: string, onFileContent: (dirname: string, file
 }
 
 export enum PkgContextType {
-  COMPLETE,
-  PROCESSING,
+  COMPLETE, PROCESSING,
 }
-export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true): { packages: Package[] } | false{
+
+export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true): {
+  packages: Package[]
+} | false {
   let packages;
   const invalidStatePackages = [];
   if (selectedPkg?.stackName === 'GLOBAL') {
@@ -1291,7 +1250,7 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
 
   packages = packages.filter((p: Package) => {
     if (type === PkgContextType.PROCESSING) {
-      switch(p.processStatus) {
+      switch (p.processStatus) {
         case ProcessStatus.READY:
         case ProcessStatus.HAS_PREREQS:
         case ProcessStatus.PROCESSING:
@@ -1303,7 +1262,7 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
           return false;
       }
     } else if (type === PkgContextType.COMPLETE) {
-      switch(p.processStatus) {
+      switch (p.processStatus) {
         case ProcessStatus.FAILED:
         case ProcessStatus.CANCELLED:
         case ProcessStatus.COMPLETED:
@@ -1324,7 +1283,7 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
     return false;
   }
 
-  return { packages };
+  return {packages};
 }
 
 export function isOsSupported() {
@@ -1338,7 +1297,7 @@ export function isOsSupported() {
 }
 
 export function getOs() {
-  return { platform: os.platform(),  arch: os.arch(), version: os.version(), release: os.release(), type: os.type() }
+  return {platform: os.platform(), arch: os.arch(), version: os.version(), release: os.release(), type: os.type()}
 }
 
 
@@ -1348,49 +1307,51 @@ function parseSuiteParam(params: any, options: any): { suite?: Suite, nonSuitePa
     if (Suite.isSuite(params[0])) {
       options.suite = params.shift();
       const suite = new Suite(options.suite);
-      const { packages, nonPackageParams } = parsePackageParams(params);
+      const {packages, nonPackageParams} = parsePackageParams(params);
       if (packages.length) {
         CenvLog.single.catchLog(`can not include package params and suite flag`);
       }
-      return { suite: suite, nonSuiteParams: nonPackageParams }
+      return {suite: suite, nonSuiteParams: nonPackageParams}
     }
   }
-  return { nonSuiteParams: params };
+  return {nonSuiteParams: params};
 }
 
 
 // environment param must be first and must match existing environment variable "ENV"
-async function parseEnvironmentParam(params: string[], options: any): Promise<{ environment?: Environment, nonEnvironmentParams: string[] }> {
+async function parseEnvironmentParam(params: string[], options: any): Promise<{
+  environment?: Environment, nonEnvironmentParams: string[]
+}> {
   if (params?.length) {
     if (params[0] === process.env.ENV) {
       options.environment = params.shift();
-      const { packages } = parsePackageParams(params);
+      const {packages} = parsePackageParams(params);
       if (packages.length) {
         CenvLog.single.catchLog(`can not include package params and suite flag`);
       }
 
-      return { environment: await Environment.fromName(options.environment), nonEnvironmentParams: params }
+      return {environment: await Environment.fromName(options.environment), nonEnvironmentParams: params}
     }
   }
-  return { nonEnvironmentParams: params };
+  return {nonEnvironmentParams: params};
 }
 
-function parsePackageParams(params: string[]): { packages: Package[], nonPackageParams: string[] }  {
+function parsePackageParams(params: string[]): { packages: Package[], nonPackageParams: string[] } {
   const packageNames: string[] = [];
   const newParams: string[] = [];
-  while(params.length) {
+  while (params.length) {
     if (params[0].startsWith(`${Package.scopeName}/`) || Package.getRootPackageName() === params[0]) {
       packageNames.push(params.shift());
     } else {
       newParams.push(params.shift())
     }
   }
-  return { packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams }
+  return {packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams}
 }
 
 export function validateBaseOptions(deployCreateOptions: DashboardCreateOptions) {
   try {
-    const { suite, environment, options, cmd  } = deployCreateOptions;
+    const {suite, environment, options, cmd} = deployCreateOptions;
     const packages = deployCreateOptions.packages;
     if (options?.suite || options?.environment) {
       if (options?.userInterface === undefined && options?.cli === undefined) {
@@ -1424,13 +1385,13 @@ export function validateBaseOptions(deployCreateOptions: DashboardCreateOptions)
 export async function processEnvFile(envFile: string, envName: string) {
   const result = envFile.match(/^(.*)\/(\.cenv\.?([a-zA-Z0-9-\._]*)\.?(globals)?)$/);
   if (result?.length === 5) {
-    const [ , servicePath, , configEnvironment ] = result;
+    const [, servicePath, , configEnvironment] = result;
     if (configEnvironment === envName || configEnvironment === "" || configEnvironment === 'globals') {
       CenvLog.info(infoBold(servicePath), 'service path');
       return {valid: true, servicePath, environment: envName};
     }
   }
-  return { valid: false }
+  return {valid: false}
 }
 
 async function execEnvironment(environment: string, fileList: string[] = [], func: (application: string, environment: string) => Promise<void>) {
@@ -1442,32 +1403,33 @@ async function execEnvironment(environment: string, fileList: string[] = [], fun
   }
   const servicePaths = new Set<string>();
   processList.map((envFile: any) => {
-    if (envFile.valid)
+    if (envFile.valid) {
       servicePaths.add(envFile.servicePath)
+    }
   });
-  const paths : string[] = Array.from(servicePaths);
+  const paths: string[] = Array.from(servicePaths);
   const lernaPath = await execCmd('./', `git rev-parse --show-toplevel`, undefined) as string;
 
   for (let i = 0; i < paths.length; i++) {
     const servicePath = paths[i].toString();
-    console.log('change to service dir', path.join('./',servicePath))
+    console.log('change to service dir', path.join('./', servicePath))
     process.chdir(path.join('./', servicePath));
 
     // at this point we have to figure out which application we are updating
     // we know the environment because of the branch but we don't know the application
     // and there is no settings file to tell us
     // so we have to look at the package.json and see if there is a cdk application
-    if(existsSync('package.json')) {
+    if (existsSync('package.json')) {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
       if (!pkg?.cenv?.ApplicationName) {
-        pkg.cenv = { ApplicationName: pkg.name, GlobalPath: CenvFiles.GlobalPath}
+        pkg.cenv = {ApplicationName: pkg.name, GlobalPath: CenvFiles.GlobalPath}
       }
       await func(pkg.cenv.ApplicationName, environment);
     } else {
       CenvLog.single.errorLog(`No package.json for ${path}`);
     }
 
-    console.log('change to lerna', )
+    console.log('change to lerna',)
     process.chdir(lernaPath)
   }
 }
@@ -1482,19 +1444,16 @@ export async function processEnvFiles(environment: string, added: string[], chan
   }
   if (deleted) {
     async function execDestroy(application: string) {
-      await deleteCenvData(
-        application,
-        false,
-        true,
-      );
+      await deleteCenvData(application, false, true,);
     }
 
     await execEnvironment(environment, deleted, execDestroy);
   }
 }
 
-export async function parseCmdParams(params: string[], options: any, cmd?: ProcessMode):
-  Promise<{ parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment }> {
+export async function parseCmdParams(params: string[], options: any, cmd?: ProcessMode): Promise<{
+  parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment
+}> {
 
   // suite based command as parameter
   if (params.length && Suite.isSuite(params[0])) {
@@ -1508,11 +1467,11 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
 
   // application based command as parameter
   const paramCount = params.length;
-  const { packages, nonPackageParams } = parsePackageParams(params);
+  const {packages, nonPackageParams} = parsePackageParams(params);
 
   if (packages.length) {
-    validateBaseOptions({ packages, options, cmd } );
-    return { packages, parsedParams: nonPackageParams, validatedOptions: options}
+    validateBaseOptions({packages, options, cmd});
+    return {packages, parsedParams: nonPackageParams, validatedOptions: options}
   } else if (nonPackageParams.length !== paramCount) {
     CenvLog.single.catchLog(`a param passed in looks like a package but was not loaded`);
   }
@@ -1535,7 +1494,7 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
       const suite = new Suite(options.suite);
       options.suite = suite.name;
       pkgs = suite.packages;
-      validateBaseOptions({ suite: suite.name, options, cmd } );
+      validateBaseOptions({suite: suite.name, options, cmd});
     } else {
       CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
       process.exit(0);
@@ -1543,14 +1502,14 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
   } else {
     validateBaseOptions({packages: pkgs, options, cmd});
   }
-  return { packages: pkgs, parsedParams: nonPackageParams, validatedOptions: options };
+  return {packages: pkgs, parsedParams: nonPackageParams, validatedOptions: options};
 }
 
 
 export async function parseParamsExec(params: string[], options: any, asyncExecFunc: (ctx: any, params: any, options: any) => Promise<PackageCmd>): Promise<PackageCmd[]> {
   try {
 
-    const { packages, parsedParams, validatedOptions } = await parseCmdParams(params, options);
+    const {packages, parsedParams, validatedOptions} = await parseCmdParams(params, options);
     const result: PackageCmd[] = [];
     if (packages?.length) {
       for (let i = 0; i < packages?.length;) {
@@ -1567,7 +1526,7 @@ export async function parseParamsExec(params: string[], options: any, asyncExecF
       return result;
     }
 
-  } catch(e) {
+  } catch (e) {
     CenvLog.single.errorLog(e.stack);
   }
 }
@@ -1577,6 +1536,7 @@ export function pbcopy(data: any) {
   proc.stdin.write(data);
   proc.stdin.end();
 }
+
 export async function createParamsLibrary(pkgPath: string) {
 
   if (!fs.existsSync(pkgPath)) {
@@ -1585,7 +1545,7 @@ export async function createParamsLibrary(pkgPath: string) {
 
   const libPathModule = pkgPath + '/node_modules/@stoked-cenv/lib'
   if (!fs.existsSync(libPathModule)) {
-    fs.mkdirSync(libPathModule, { recursive: true });
+    fs.mkdirSync(libPathModule, {recursive: true});
   }
 
   const libPath = path.join(__dirname, '../');
@@ -1593,19 +1553,19 @@ export async function createParamsLibrary(pkgPath: string) {
   const tsconfig = '/tsconfig.json';
   const index = '/index.ts'
 
-  fs.cpSync(libPath + 'dist', libPathModule, { recursive: true });
-  fs.copyFileSync(libPath + tsconfig, libPathModule + tsconfig );
+  fs.cpSync(libPath + 'dist', libPathModule, {recursive: true});
+  fs.copyFileSync(libPath + tsconfig, libPathModule + tsconfig);
   const pkgMeta = require(libPath + 'package.json');
   delete pkgMeta.dependencies['stoked-cenv'];
   fs.writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
   const paramsPath = path.join(__dirname, '../params');
   fs.copyFileSync(paramsPath + pkg + '.build', pkgPath + pkg);
-  fs.copyFileSync(paramsPath + tsconfig + '.build', pkgPath + tsconfig );
-  fs.copyFileSync(paramsPath + index + '.build', pkgPath + index );
+  fs.copyFileSync(paramsPath + tsconfig + '.build', pkgPath + tsconfig);
+  fs.copyFileSync(paramsPath + index + '.build', pkgPath + index);
 
   await execCmd(libPathModule, 'npm i');
-  await execCmd(pkgPath , 'npm i');
-  await execCmd(pkgPath , 'tsc');
+  await execCmd(pkgPath, 'npm i');
+  await execCmd(pkgPath, 'tsc');
 
   await execCmd(pkgPath, `zip -r materializationLambda.zip * > zip.log`);
   return path.join(pkgPath, `materializationLambda.zip`)
@@ -1628,4 +1588,13 @@ export function validateEnvVars(envVars: string[]): Record<string, string> | nev
     process.exit(-33);
   }
   return validatedEnvVars;
+}
+
+export function onlyUnique(value, index, array) {
+  return array.indexOf(value) === index;
+}
+
+export async function execExists(exec: string) {
+  const execPath = await execCmd('./', 'which ' + exec);
+  return execPath.length > 0;
 }

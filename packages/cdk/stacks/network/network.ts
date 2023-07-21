@@ -1,7 +1,7 @@
 import {Stack, StackProps} from 'aws-cdk-lib';
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import {Construct} from 'constructs';
-import { tagStack } from '../../core/index.js';
+import {tagStack} from '../../core/index.js';
 
 const {
   ENV,
@@ -40,12 +40,10 @@ export class NetworkStack extends Stack {
     // https://docs.aws.amazon.com/cdk/api/v1/docs/@aws-cdk_aws-ec2.Vpc.html
     const cidr = generateAwsCidr();
     const vpc = new ec2.Vpc(this, `${ENV}-net`, {
-      vpcName: `${ENV}-net`,
-      gatewayEndpoints: {
-        S3: { service: ec2.GatewayVpcEndpointAwsService.S3 },
-        DYNAMODB: { service: ec2.GatewayVpcEndpointAwsService.DYNAMODB },
-      },
-      cidr
+      vpcName: `${ENV}-net`, gatewayEndpoints: {
+        S3: {service: ec2.GatewayVpcEndpointAwsService.S3},
+        DYNAMODB: {service: ec2.GatewayVpcEndpointAwsService.DYNAMODB},
+      }, cidr
     });
 
     vpc.addInterfaceEndpoint(`${ENV}-erc-docker-ep`, {
@@ -60,7 +58,7 @@ export class NetworkStack extends Stack {
       name: `${ENV}-cidr`,
     })
 
-    this.exportValue(vpc.vpcDefaultSecurityGroup,  {
+    this.exportValue(vpc.vpcDefaultSecurityGroup, {
       name: `${environment}-vpc-sg`,
     });
 

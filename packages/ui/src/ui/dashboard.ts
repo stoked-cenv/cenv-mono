@@ -6,29 +6,28 @@ import {
   CenvLog,
   CenvParams,
   clamp,
+  Cmd,
   colors,
+  DashboardCreateOptions,
+  deleteStack,
+  Deployment,
   EnvironmentStatus,
-  Package,
-  ProcessStatus,
+  execCmd,
   getPkgContext,
   killRunningProcesses,
-  ProcessMode,
-  Suite,
-  DashboardCreateOptions,
-  pbcopy,
-  Deployment,
-  PkgContextType,
-  validateBaseOptions,
   killStackProcesses,
-  Cenv,
-  Cmd,
+  Package,
   PackageCmd,
-  sleep, execCmd, Queue, deleteStack
+  pbcopy,
+  PkgContextType,
+  ProcessMode,
+  ProcessStatus,
+  validateBaseOptions
 } from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import chalk, {ChalkFunction} from 'chalk';
-import { isFunction } from "lodash";
+import {isFunction} from "lodash";
 import {HelpUI} from "./help";
 import Groups from "./group";
 
@@ -43,11 +42,7 @@ interface PkgInfo {
 }
 
 export enum ModuleDeployMode {
-  ALL,
-  PARAMETERS,
-  STACK,
-  DOCKER,
-  NONE
+  ALL, PARAMETERS, STACK, DOCKER, NONE
 }
 
 export enum DashboardMode {
@@ -59,9 +54,21 @@ export enum DashboardMode {
 }
 
 
-export interface Click {ts: number, x: number, y: number }
+export interface Click {
+  ts: number,
+  x: number,
+  y: number
+}
 
 export class Dashboard {
+  static toggleDebug = false;
+  static instance: Dashboard = undefined;
+  static stackName = '';
+  static moduleToggle = true;
+  static dependencyToggle = true;
+  static paramsToggle = false;
+  static horizontalSplitterUserCtrl = false;
+  static enableMenuCommands = true;
   screen: any;
   screenRenderOriginal: any;
   initialized = false;
@@ -89,10 +96,7 @@ export class Dashboard {
   suite: string;
   environment;
   packageBox;
-  static toggleDebug = false;
-  static instance: Dashboard = undefined;
   statusBar;
-  static stackName = '';
   packageTs: number;
   mode: DashboardMode = DashboardMode.MIXED;
   modeLastWide: DashboardMode = DashboardMode.WIDE_CMD_FIRST;
@@ -129,21 +133,17 @@ export class Dashboard {
   hidden = false;
   processOptions;
   debounceFlags: Record<string, any> = {};
+  //clickQueue: Queue<Click> = new Queue<Click>();
   clearLabelTimeout: NodeJS.Timeout = null;
   deploying = false;
   statusOptions: Menu;
   clickQueue: Click[] = [];
   moduleDeployMode = ModuleDeployMode.ALL;
-  //clickQueue: Queue<Click> = new Queue<Click>();
-
-
-  static moduleToggle = true;
-  static dependencyToggle = true;
-  static paramsToggle = false;
-  static horizontalSplitterUserCtrl = false;
-
-  static enableMenuCommands = true;
   titleContext: Package[];
+  lastSelectedFully = false;
+  maxProcessOptionsHeight = 34;
+  autoHidePanelHeight = true;
+  minimizeStatusPanel = false;
 
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
@@ -169,36 +169,20 @@ export class Dashboard {
     try {
       this.global();
       this.packageBox = this.grid.set(0, 0, 1, 2, blessed.element, {
-        mouse: true,
-        keys: true,
-        interactive: true,
-        fg: 'white',
-        label: 'package',
-        style: {
-          fg: 'white',
-          bg: 'black',
-          bold: true,
-          border: {fg: 'black'},
-          label: {bold: true},
-        },
-        border: false,
-        transparent: true,
-        height: 1,
-        hideBorder: true,
+        mouse: true, keys: true, interactive: true, fg: 'white', label: 'package', style: {
+          fg: 'white', bg: 'black', bold: true, border: {fg: 'black'}, label: {bold: true},
+        }, border: false, transparent: true, height: 1, hideBorder: true,
       });
 
       const pkgButtons = {
         deploy: {
-          keys: ['d'],
-          callback: async function () {
+          keys: ['d'], callback: async function () {
             this.debounceCallback('deploy', async () => {
               await this.launchDeployment(ProcessMode.DEPLOY);
             });
           }.bind(this),
-        },
-        synth: {
-          keys: ['s'],
-          callback: async function () {
+        }, synth: {
+          keys: ['s'], callback: async function () {
             this.debounceCallback('synth', async () => {
               const pkgs = this.getContext();
               if (!pkgs) {
@@ -207,29 +191,22 @@ export class Dashboard {
               await Promise.all(pkgs.map(async (p: Package) => await p.stack.synth()));
             });
           }.bind(this),
-        },
-        destroy: {
-          keys: ['y'],
-          callback: async function () {
+        }, destroy: {
+          keys: ['y'], callback: async function () {
             this.debounceCallback('destroy', async () => {
               const pkgs = this.getContext();
               if (!pkgs) {
                 return;
               }
-              const packages =
-                pkgs.length > 1
-                  ? `${pkgs.length} packages`
-                  : `${pkgs[0].packageName}`;
-              this.setStatusBar('launchDestroy', this.statusText(`destroy`, packages),
-              );
+              const packages = pkgs.length > 1 ? `${pkgs.length} packages` : `${pkgs[0].packageName}`;
+              this.setStatusBar('launchDestroy', this.statusText(`destroy`, packages),);
               await this.launchDeployment(ProcessMode.DESTROY);
             });
           }.bind(this),
         },
 
         build: {
-          keys: ['b'],
-          callback: async function () {
+          keys: ['b'], callback: async function () {
             this.debounceCallback('build', async () => {
               const ctx = this.getContext(PkgContextType.COMPLETE, false);
               if (!ctx || !ctx.length) {
@@ -240,23 +217,18 @@ export class Dashboard {
               await Promise.all(ctx?.map(async (p: Package) => await p?.lib?.build(false, true)));
             });
           }.bind(this),
-        },
-        "status": {
-          keys: ['enter'],
-          callback: async function () {
+        }, "status": {
+          keys: ['enter'], callback: async function () {
             const ctx = this.getContext(PkgContextType.COMPLETE, false);
             if (!ctx?.length) {
               return;
             }
             const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
-            this.setStatusBar('checkStatus', this.statusText('status check', `check deployment status of ${packages}`),
-            );
+            this.setStatusBar('checkStatus', this.statusText('status check', `check deployment status of ${packages}`),);
             ctx.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
           }.bind(this),
-        },
-        cancel: {
-          keys: ['c'],
-          callback: function () {
+        }, cancel: {
+          keys: ['c'], callback: function () {
             const ctx = this.getContext(PkgContextType.PROCESSING, false);
             if (!ctx) {
               return;
@@ -286,10 +258,8 @@ export class Dashboard {
               this.setStatusBar('cancel deploy', `cancel ${ctx.length === 1 ? ctx[0].packageName : ctx.length + ' packages (does not cancel cloudformation)'}`);
             });
           }.bind(this),
-        },
-        "kill hard": {
-          keys: ['C-k'],
-          callback: async function () {
+        }, "kill hard": {
+          keys: ['C-k'], callback: async function () {
             this.debounceCallback('hard kill', async () => {
               const ctx = this.getContext();
               if (!ctx) {
@@ -300,14 +270,13 @@ export class Dashboard {
                 return;
               }
 
-              Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack.detail.StackStatus}. Are you sure you want to destroy this stack?`,
-                async function (killIt: boolean) {
+              Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack.detail.StackStatus}. Are you sure you want to destroy this stack?`, async function (killIt: boolean) {
                 const service = ctx[0].stackName;
-                  if (killIt) {
-                    Dashboard.instance.setStatusBar('kill hard', this.statusText('kill hard', service));
-                    await deleteStack(ctx[0].stackName);
-                  }
-                }.bind(this));
+                if (killIt) {
+                  Dashboard.instance.setStatusBar('kill hard', this.statusText('kill hard', service));
+                  await deleteStack(ctx[0].stackName);
+                }
+              }.bind(this));
 
             });
           }.bind(this),
@@ -316,15 +285,9 @@ export class Dashboard {
 
       this.processOptions = new Menu(this.screen, pkgButtons, {top: 0, left: 0, right: 0});
       this.statusBar = this.grid.set(5, 0, 1, 2, blessed.box, {
-        fg: 'white',
-        label: '',
-        style: {
-          fg: 'white',
-          bg: 'pink',
-          label: {},
-        },
-        height: 1,
-        hideBorder: true,
+        fg: 'white', label: '', style: {
+          fg: 'white', bg: 'pink', label: {},
+        }, height: 1, hideBorder: true,
       });
 
 
@@ -339,7 +302,7 @@ export class Dashboard {
             if (this.clickQueue[0]) {
               CenvLog.info(`click.ts: ${click.ts}, ${this.clickQueue[0].ts}, ${this.clickQueue.length}`)
             }
-//          CenvLog.info(`${Math.abs(click.ts - this.clickQueue[0].ts)}`)
+            //          CenvLog.info(`${Math.abs(click.ts - this.clickQueue[0].ts)}`)
             if (Math.abs(click.ts - this.clickQueue[0].ts) < 300) {
               CenvLog.info(`statusBar::click() - ${JSON.stringify(click, null, 2)}`);
               this.debounceCallback('deploy', async () => {
@@ -375,45 +338,44 @@ export class Dashboard {
 
       this.packageHover = false;
 
-      this.packages.on('element mouseover',
-        async function mouseover(el: any) {
-          try {
-            if (el.parent?.name !== 'packageRows') {
-              return;
-            }
-
-            const stackNameVis = blessed.cleanTags(el.content).split(' ')[0];
-            if (!stackNameVis) {
-              return;
-            }
-
-            const pkg = Package.getPackageFromVis(stackNameVis);
-            if (pkg) {
-              this.setStatusBar(pkg.getConsoleUrl())
-            }
-            if (this.packages.rows.items[this.selectedRowIndex] === el) {
-              this.hoverRowIndex = this.selectedRowIndex;
-            } else {
-              this.hoverRowIndex = this.packages.rows.getItemIndex(el);
-            }
-
-            await this.update();
-          } catch(ex) {
-            console.log('################', ex)
+      this.packages.on('element mouseover', async function mouseover(el: any) {
+        try {
+          if (el.parent?.name !== 'packageRows') {
+            return;
           }
-        }.bind(this),
-      );
+
+          const stackNameVis = blessed.cleanTags(el.content).split(' ')[0];
+          if (!stackNameVis) {
+            return;
+          }
+
+          const pkg = Package.getPackageFromVis(stackNameVis);
+          if (pkg) {
+            this.setStatusBar(pkg.getConsoleUrl())
+          }
+          if (this.packages.rows.items[this.selectedRowIndex] === el) {
+            this.hoverRowIndex = this.selectedRowIndex;
+          } else {
+            this.hoverRowIndex = this.packages.rows.getItemIndex(el);
+          }
+
+          await this.update();
+        } catch (ex) {
+          console.log('################', ex)
+        }
+      }.bind(this),);
 
       this.packages.on('element mouseout', function mouseout(el: any) {
 
-          if (el.parent?.name !== 'packageRows') return;
+        if (el.parent?.name !== 'packageRows') {
+          return;
+        }
 
-          delete this.hoverRowIndex;
-          el.render();
+        delete this.hoverRowIndex;
+        el.render();
 
 
-        }.bind(this),
-      );
+      }.bind(this),);
 
       this.columnWidth = this.defaultColumnWidth;
       this.maxColumnWidth = this.defaultColumnWidth.reduce(function (a, b) {
@@ -429,43 +391,61 @@ export class Dashboard {
       this.focusedBox = this.packages;
       const debugPackageEvents = process.env.CENV_DEBUG_PACKAGE_EVENTS;
       this.packages.rows.on('move', async function move(item: any, index: number) {
-        if (debugPackageEvents) Dashboard.debug('move', index.toString());
+        if (debugPackageEvents) {
+          Dashboard.debug('move', index.toString());
+        }
       }.bind(this));
 
       this.packages.rows.on('action', async function action(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('rows action', var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('rows action', var2);
+        }
         if (var2 !== undefined) {
           this.selectedFully = true;
         }
       }.bind(this));
 
       this.packages.on('element click', async function elementClick(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('packages element click', var1, var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('packages element click', var1, var2);
+        }
         await this.selectPackage();
       }.bind(this));
 
       this.packages.on('click', async function packagesClick(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('packages click', var1, var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('packages click', var1, var2);
+        }
       });
 
       this.packages.on('click select', async function clickSelect(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('package click select', var1, var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('package click select', var1, var2);
+        }
       });
 
       this.packages.on('select item', async function packageSelectItem(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('package select item', var1, var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('package select item', var1, var2);
+        }
       });
 
       this.packages.rows.on('click', async function rowClick(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('rows click', var1, var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('rows click', var1, var2);
+        }
       });
 
       this.packages.rows.on('click select', async function clickSelect(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug('rows click select', var1, var2);
+        if (debugPackageEvents) {
+          Dashboard.debug('rows click select', var1, var2);
+        }
       });
 
       this.packages.rows.on('select item', async function packageSelectItem(var1: any, var2: any) {
-        if (debugPackageEvents) Dashboard.debug(`select item - selected index: ${var2}, selectedRowIndex: ${this.selectedRowIndex}, full: ${this.selectedFully}`);
+        if (debugPackageEvents) {
+          Dashboard.debug(`select item - selected index: ${var2}, selectedRowIndex: ${this.selectedRowIndex}, full: ${this.selectedFully}`);
+        }
         await this.selectPackage();
       }.bind(this));
 
@@ -479,38 +459,21 @@ export class Dashboard {
         mouse: true,
         scrollable: true,
         scrollbar: {
-          ch: ' ',
-          inverse: true,
+          ch: ' ', inverse: true,
         },
         style: {
-          fg: 'white',
-          bg: 'black',
-          border: {fg: 'gray'},
+          fg: 'white', bg: 'black', border: {fg: 'gray'},
         },
         autoScroll: true,
       });
       this.debugLog.setContent('');
 
       this.status = this.grid.set(5, 0, 1, 2, blessed.text, {
-        vi: true,
-        fg: 'white',
-        label: 'stdout',
-        tags: true,
-        keys: true,
-        mouse: true,
-        scrollable: true,
-        scrollbar: {
-          ch: ' ',
-          inverse: true,
-        },
-        style: {
-          fg: 'white',
-          bg: 'black',
-          border: {fg: 'gray'},
-          label: {fg: 'gray'}
-        },
-        autoScroll: false,
-        padding: {left: 2, right: 2, top: 0, bottom: 0}
+        vi: true, fg: 'white', label: 'stdout', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
+          ch: ' ', inverse: true,
+        }, style: {
+          fg: 'white', bg: 'black', border: {fg: 'gray'}, label: {fg: 'gray'}
+        }, autoScroll: false, padding: {left: 2, right: 2, top: 0, bottom: 0}
       });
 
       this.status.enableDrag = () => {
@@ -540,7 +503,6 @@ export class Dashboard {
         if (this.focusedBox.name !== 'globalEnv') {
           vars.globalEnv = typedVars['globalEnv'];
         }
-        Package.global.info(JSON.stringify(vars, null, 2), 'vars')
         CenvFiles.SaveVars(vars, process.env.ENV, false);
         await CenvParams.removeParameters([this.statusPanel.selectedParamKey], {}, [this.focusedBox.name]);
         this.statusPanel.updateParams(pkg);
@@ -567,30 +529,19 @@ export class Dashboard {
         }
       }.bind(this))
 
-      this.screen.key(
-        ['ç'],
-        function () {
-          if (this.focusIndex === 0) {
-            let text = Dashboard.stackName + ':\n';
-            text += Package.fromPackageName(Dashboard.stackName).cmds.map((cmd: PackageCmd) =>
-              this.printCmd(cmd),
-            );
-            pbcopy(blessed.cleanTags(text));
-          } else if (this.focusIndex === 1) {
-            pbcopy(
-              blessed.cleanTags(this.printCmd(
-                Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected],
-              ))
-            );
-          } else if (this.focusIndex === 2) {
-            pbcopy(
-              blessed.cleanTags(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected].stdout)
-            );
-          } else if (this.focusIndex === 3) {
-            pbcopy(blessed.cleanTags(this.cmdPanel.dependencies.getText()));
-          }
-        }.bind(this),
-      );
+      this.screen.key(['ç'], function () {
+        if (this.focusIndex === 0) {
+          let text = Dashboard.stackName + ':\n';
+          text += Package.fromPackageName(Dashboard.stackName).cmds.map((cmd: PackageCmd) => this.printCmd(cmd),);
+          pbcopy(blessed.cleanTags(text));
+        } else if (this.focusIndex === 1) {
+          pbcopy(blessed.cleanTags(this.printCmd(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected],)));
+        } else if (this.focusIndex === 2) {
+          pbcopy(blessed.cleanTags(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected].stdout));
+        } else if (this.focusIndex === 3) {
+          pbcopy(blessed.cleanTags(this.cmdPanel.dependencies.getText()));
+        }
+      }.bind(this),);
 
       /*this.screen.key(
         ['C-s'],
@@ -607,41 +558,36 @@ export class Dashboard {
       );*/
 
       this.screen.key(['tab'], function (ch: any, key: any) {
-          const isLastIndex = this.focusIndex + 1 > this.focusPool().length - 1;
-          const newIndex = isLastIndex ? 0 : this.focusIndex + 1;
-          this.setFocusIndex(newIndex);
-        }.bind(this),
-      );
+        const isLastIndex = this.focusIndex + 1 > this.focusPool().length - 1;
+        const newIndex = isLastIndex ? 0 : this.focusIndex + 1;
+        this.setFocusIndex(newIndex);
+      }.bind(this),);
 
       this.screen.key(['S-tab'], function (ch: any, key: any) {
-          const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
-          this.setFocusIndex(newIndex);
-        }.bind(this),
-      );
+        const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
+        this.setFocusIndex(newIndex);
+      }.bind(this),);
 
       this.screen.key(['+'], async function () {
-          Groups.toggleFullscreen();
-        }.bind(this),
-      );
+        Groups.toggleFullscreen();
+      }.bind(this),);
 
       this.splitter = blessed.box({
-        parent: this.screen,
-        left: 'center',
-        top: 'center',
-        width: 1,
-        position: {left: this.maxColumnWidth - 1, width: 1},
-        height: '100%',
-        style: {
-          bg: [50, 50, 50],
-          //transparent: true,
-        },
-        draggable: true,
-      });
+                                    parent: this.screen,
+                                    left: 'center',
+                                    top: 'center',
+                                    width: 1,
+                                    position: {left: this.maxColumnWidth - 1, width: 1},
+                                    height: '100%',
+                                    style: {
+                                      bg: [50, 50, 50], //transparent: true,
+                                    },
+                                    draggable: true,
+                                  });
 
       this.screen.on('resize', function () {
-          this.updateVis();
-        }.bind(this),
-      );
+        this.updateVis();
+      }.bind(this),);
 
       const commandButtons = {
         /*
@@ -765,25 +711,18 @@ export class Dashboard {
                 },
                 */
         help: {
-          keys: ['h'],
-          callback: function () {
+          keys: ['h'], callback: function () {
             Dashboard.instance.hide();
             new HelpUI();
           }.bind(this),
-        },
-        debug: {
-          keys: ['x'],
-          callback: async function () {
+        }, debug: {
+          keys: ['x'], callback: async function () {
             this.debounceCallback('toggle debug', async () => {
               Dashboard.toggleDebug = !Dashboard.toggleDebug;
-              this.setStatusBar('toggleDebug',
-                this.statusText(
-                  Dashboard.toggleDebug ? `toggle debug view` : `toggle status view`,
-                  Dashboard.toggleDebug ? `debug view enabled` : `status view enabled`));
+              this.setStatusBar('toggleDebug', this.statusText(Dashboard.toggleDebug ? `toggle debug view` : `toggle status view`, Dashboard.toggleDebug ? `debug view enabled` : `status view enabled`));
             });
           }.bind(this),
-        },
-        /*
+        }, /*
         "save dump": {
           keys: ['s'],
           callback: function () {
@@ -823,26 +762,16 @@ export class Dashboard {
           }.bind(this),
         },*/
         "strict versions": {
-          keys: ['S-v'],
-          callback: function () {
+          keys: ['S-v'], callback: function () {
             this.debounceCallback('strictVersions', async () => {
               if (Deployment?.options) {
-                Deployment.options.strictVersions =
-                  !Deployment.options?.strictVersions;
-                this.setStatusBar(
-                  'toggleView',
-                  this.statusText(
-                    'strict versions mode',
-                    Deployment.options.strictVersions ? 'enabled' : 'disabled',
-                  ),
-                );
+                Deployment.options.strictVersions = !Deployment.options?.strictVersions;
+                this.setStatusBar('toggleView', this.statusText('strict versions mode', Deployment.options.strictVersions ? 'enabled' : 'disabled',),);
               }
             });
           }.bind(this),
-        },
-        "clear logs": {
-          keys: ['l'],
-          callback: function () {
+        }, "clear logs": {
+          keys: ['l'], callback: function () {
             this.debounceCallback('clear logs', async () => {
               const ctx = this.getContext();
               if (!ctx) {
@@ -864,10 +793,8 @@ export class Dashboard {
               this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName));
             });
           }.bind(this),
-        },
-        "clear debug": {
-          keys: ['C-d'],
-          callback: function () {
+        }, "clear debug": {
+          keys: ['C-d'], callback: function () {
             this.debounceCallback('clearVersions', async () => {
               if (this.focusedBox === this.cmdPanel.stdout) {
                 this.cmdPanel.stdout.setContent('');
@@ -881,16 +808,14 @@ export class Dashboard {
               }
             });
           }.bind(this),
-        },
-        "cycle module deploy mode": {
-          keys: ['S-m'],
-          callback: function () {
+        }, "cycle module deploy mode": {
+          keys: ['S-m'], callback: function () {
             this.debounceCallback('clearVersions', async () => {
-             this.moduleDeployMode++;
+              this.moduleDeployMode++;
               if (this.moduleDeployMode > 4) {
                 this.moduleDeployMode = 0;
               }
-              switch(this.moduleDeployMode) {
+              switch (this.moduleDeployMode) {
                 case ModuleDeployMode.ALL:
                   Deployment.options.parameters = Deployment.options.stack = Deployment.options.docker = true;
                   break
@@ -911,13 +836,11 @@ export class Dashboard {
                   Deployment.options.parameters = Deployment.options.stack = Deployment.options.docker = false;
                   break;
               }
-              this.setStatusBar('cycle module deploy mode', this.statusText('cycle module deploy mode', Object.values(ModuleDeployMode)[this.moduleDeployMode].toString().toLowerCase() + ' mode'));
+              this.setStatusBar('cycle module deploy mode', this.statusText('cycle module deploy mode', Object.values(ModuleDeployMode)[this.moduleDeployMode].toString().toLowerCase() + ' mode'), 1000, 1000);
             });
           }.bind(this),
-        },
-        force: {
-          keys: ['S-f'],
-          callback: function () {
+        }, force: {
+          keys: ['S-f'], callback: function () {
             this.debounceCallback('forceMode', async () => {
               Deployment.options.force = !Deployment.options.force;
               this.setStatusBar('toggle force mode', this.statusText('toggle force mode', 'force mode ' + (Deployment.options.force ? 'enabled' : 'disabled')));
@@ -930,8 +853,7 @@ export class Dashboard {
 
       const statusButtons = {
         modules: {
-          keys: ['m'],
-          callback: async function () {
+          keys: ['m'], callback: async function () {
             this.debounceCallback('modules', async () => {
               Dashboard.moduleToggle = !Dashboard.moduleToggle;
               if (this.screen.height < this.maxProcessOptionsHeight) {
@@ -941,10 +863,8 @@ export class Dashboard {
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'module info'));
             });
           }.bind(this),
-        },
-        dependencies: {
-          keys: ['e'],
-          callback: async function () {
+        }, dependencies: {
+          keys: ['e'], callback: async function () {
             this.debounceCallback('toggle dependencies', async () => {
               Dashboard.dependencyToggle = !Dashboard.dependencyToggle;
               if (this.screen.height < this.maxProcessOptionsHeight) {
@@ -954,10 +874,8 @@ export class Dashboard {
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'dependencies'));
             });
           }.bind(this),
-        },
-        params: {
-          keys: ['p'],
-          callback: async function () {
+        }, params: {
+          keys: ['p'], callback: async function () {
             this.debounceCallback('toggle params', async () => {
               Dashboard.paramsToggle = !Dashboard.paramsToggle;
               if (this.screen.height < this.maxProcessOptionsHeight) {
@@ -978,23 +896,18 @@ export class Dashboard {
 
       this.setMode(this.mode);
 
-      setInterval(
-        async function mainLoop() {
-          await this.update();
-          //const item =
-          //this.packages?.rows?.items[this.packages?.rows?.selected];
-          //if (!Dashboard.stackName && item) {
-          //await selectIt(item);
-          //}
-        }.bind(this),
-        25,
-      );
+      setInterval(async function mainLoop() {
+        await this.update();
+        //const item =
+        //this.packages?.rows?.items[this.packages?.rows?.selected];
+        //if (!Dashboard.stackName && item) {
+        //await selectIt(item);
+        //}
+      }.bind(this), 25,);
       if (!this.cmd) {
-        setTimeout(
-          async function init() {
-            await Package.checkStatus(ProcessMode.DEPLOY.toString(), ProcessStatus.COMPLETED);
-          }.bind(this),
-        );
+        setTimeout(async function init() {
+          await Package.checkStatus(ProcessMode.DEPLOY.toString(), ProcessStatus.COMPLETED);
+        }.bind(this),);
       }
       Dashboard.instance = this;
       this.initialized = true;
@@ -1009,6 +922,58 @@ export class Dashboard {
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+  }
+
+  get tableHeaders() {
+    return [' name', ' ver.', ' type', ' environment', ' process', ' time'];
+  }
+
+  get columnPriority() {
+    return [0, 5, 4, 1, 2, 3];
+  }
+
+  get defaultColumnWidth() {
+    return [Package.maxVisibleLength + 1, 12, 10, 13, 13, 10];
+  }
+
+  static debug(...text: string[]) {
+    if (text.join() === '') {
+      return;
+    }
+    if (Dashboard.instance) {
+      Dashboard.instance?.debug(...text);
+    } else {
+      CenvLog.single.infoLog(colors.alert('DEBUG DATA -> ') + text.join(' '));
+    }
+  }
+
+  static debugSet(...text: string[]) {
+    if (text.join() === '') {
+      return;
+    }
+
+    if (Dashboard.instance) {
+      Dashboard.instance?.debugLog.setContent(text.join())
+    }
+  }
+
+  static log(stackName: string, ...text: string[]) {
+    Dashboard.instance?.log(stackName, ...text);
+  }
+
+  static logErr(stackName: string, ...text: string[]) {
+    Dashboard.instance?.logErr(stackName, ...text);
+  }
+
+  static cleanTags(...text: string[]) {
+    for (let i = 0; i < text.length; i++) {
+      text[i] = blessed.cleanTags(text[i]);
+    }
+    return text;
+  }
+
+  static getFocusWidget() {
+    return Dashboard.instance.focusPool()[Dashboard.instance.focusIndex];
   }
 
   statusText(titleText: string, descriptionText: string) {
@@ -1046,7 +1011,8 @@ export class Dashboard {
 
       this.titleContext = packages;
       const pkgText = packages.length === 1 ? `${packages[0].packageName}` : `${packages.length} packages`;
-      const deploymentOptions: any = {};
+      const {parameters, stack, docker, none} = Deployment.options;
+      const deploymentOptions: any = {parameters, stack, docker, none};
       if (Dashboard.enableMenuCommands) {
         //packages.map((p: Package) => p.processStatus = ProcessStatus.INITIALIZING)
         if (mode === ProcessMode.DESTROY) {
@@ -1133,38 +1099,6 @@ export class Dashboard {
     return nextMode;
   }
 
-  private debug(...text: string[]) {
-    if (!this.debugLog) {
-      return;
-    }
-    const scroll = this.debugLog.getScrollPerc();
-    this.debugLog.insertBottom(chalk.green(text.join(' ')));
-    if (scroll > 90) {
-      this.debugLog.setScrollPerc(100);
-    }
-  }
-
-  static debug(...text: string[]) {
-    if (text.join() === '') {
-      return;
-    }
-    if (Dashboard.instance) {
-      Dashboard.instance?.debug(...text);
-    } else {
-      CenvLog.single.infoLog(colors.alert('DEBUG DATA -> ') + text.join(' '));
-    }
-  }
-
-  static debugSet(...text: string[]) {
-    if (text.join() === '') {
-      return;
-    }
-
-    if (Dashboard.instance) {
-      Dashboard.instance?.debugLog.setContent(text.join())
-    }
-  }
-
   logTemp(stackName: string, ...text: string[]) {
     if (process.env.CENV_STDTEMP) {
       stackName = blessed.cleanTags(stackName);
@@ -1199,10 +1133,6 @@ export class Dashboard {
     //}
   }
 
-  static log(stackName: string, ...text: string[]) {
-    Dashboard.instance?.log(stackName, ...text);
-  }
-
   logErr(stackName: string, ...text: string[]) {
     stackName = blessed.cleanTags(stackName);
     //const finalMsg = text.map((t) => (t.endsWith('\n') ? t : t + '\n'))
@@ -1216,34 +1146,15 @@ export class Dashboard {
     this?.cmdPanel?.err(stackName, finalMsg);
   }
 
-  static logErr(stackName: string, ...text: string[]) {
-    Dashboard.instance?.logErr(stackName, ...text);
-  }
-
-  static cleanTags(...text: string[]) {
-    for (let i = 0; i < text.length; i++) {
-      text[i] = blessed.cleanTags(text[i]);
-    }
-    return text;
-  }
-
   createBaseWidgets() {
     const title = this.getTitle();
     const screen = blessed.screen({
-      smartCSR: true,
-      autoPadding: true,
-      warnings: true,
-      title: title,
-      cursor: {
-        artificial: true,
-        shape: 'line',
-        blink: true,
-        color: null, // null for default
-      },
-      label: {
+                                    smartCSR: true, autoPadding: true, warnings: true, title: title, cursor: {
+        artificial: true, shape: 'line', blink: true, color: null, // null for default
+      }, label: {
         padding: {left: 50}
       }
-    });
+                                  });
 
     this.screen = screen;
 
@@ -1344,10 +1255,6 @@ export class Dashboard {
     return ctrls;
   }
 
-  static getFocusWidget() {
-    return Dashboard.instance.focusPool()[Dashboard.instance.focusIndex];
-  }
-
   setFocusIndex(index: number) {
     if (this.focusIndex === index) {
       return;
@@ -1373,7 +1280,7 @@ export class Dashboard {
         this.focusedBox.style.label.fg = this.focusedBox.style.label.oldFg;
       }
       if (this.focusedBox.type === 'params') {
-          this.focusedBox.rows.selected = -1;
+        this.focusedBox.rows.selected = -1;
         this.statusPanel.selectedParamKey = undefined;
         const textIndex = this.focusPool().indexOf(Dashboard.instance.statusPanel.paramTextbox)
 
@@ -1427,6 +1334,7 @@ export class Dashboard {
       this.storeLogBase(cmd, 'stdtemp', msg);
     }
   }
+
   storeLog(stackName: string, message: string, type: string) {
     if (!message) {
       return;
@@ -1451,8 +1359,6 @@ export class Dashboard {
     const finalMsg = message.endsWith('\n') ? message : message + '\n';
     this.storeLogBase(cmd, type, finalMsg);
   }
-
-  lastSelectedFully = false;
 
   async selectPackage() {
     try {
@@ -1491,17 +1397,12 @@ export class Dashboard {
 
       this.packageTs = Date.now();
 
-      const color = this.getStatusColor(
-        this.selectedPackage.environmentStatusReal,
-        true,
-      ) as ChalkFunction;
+      const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as ChalkFunction;
       let env = '';
       let envQuote = '';
       if (this.selectedPackage.packageName !== 'GLOBAL') {
         env = ` [${color(this.selectedPackage.environmentStatusReal)}]`;
-        envQuote = this.packageHover
-          ? ` - (${color(this.selectedPackage.getEnvironmentStatusDescription())})`
-          : '';
+        envQuote = this.packageHover ? ` - (${color(this.selectedPackage.getEnvironmentStatusDescription())})` : '';
       }
 
       this.packageBox.setLabel(`${this.selectedPackage.packageName}${env}${envQuote}\n\n`);
@@ -1563,40 +1464,38 @@ export class Dashboard {
     }
 
     let packages: PkgInfo[] = realPkgs
-      .filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
-      .map((p: Package) => {
-        if (p.isGlobal) {
-          return {
-            stackName: p.stackNameVis,
-            version: '-----',
-            type: '-----',
-            environmentStatus: envStatus,
-            processStatus: processStatus,
-            timer: p.timer.elapsed,
-          }
-        }
-
+    .filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
+    .map((p: Package) => {
+      if (p.isGlobal) {
         return {
           stackName: p.stackNameVis,
-          version: `${p.meta.data.version}`,
-          type: p.type,
-          environmentStatus: p.environmentStatus,
-          processStatus: p.processStatus,
+          version: '-----',
+          type: '-----',
+          environmentStatus: envStatus,
+          processStatus: processStatus,
           timer: p.timer.elapsed,
-          statusTime: p.statusTime,
-        };
-      });
+        }
+      }
+
+      return {
+        stackName: p.stackNameVis,
+        version: `${p.meta.data.version}`,
+        type: p.type,
+        environmentStatus: p.environmentStatus,
+        processStatus: p.processStatus,
+        timer: p.timer.elapsed,
+        statusTime: p.statusTime,
+      };
+    });
 
     const environmentOrder = Object.values(EnvironmentStatus);
     const deploymentOrder = Object.values(ProcessStatus);
     const global = packages.filter((p: PkgInfo) => p.stackName === 'GLOBAL')[0];
     packages = packages
-      .filter((p: PkgInfo) => p.stackName !== 'GLOBAL')
-      .sort((a: PkgInfo, b: PkgInfo) => (a?.statusTime < b?.statusTime ? 1 : -1))
-      .sort((a: PkgInfo, b: PkgInfo) =>
-          environmentOrder.indexOf(a.environmentStatus) - environmentOrder.indexOf(b.environmentStatus))
-      .sort((a: PkgInfo, b: PkgInfo) =>
-          deploymentOrder.indexOf(a.processStatus) - deploymentOrder.indexOf(b.processStatus));
+    .filter((p: PkgInfo) => p.stackName !== 'GLOBAL')
+    .sort((a: PkgInfo, b: PkgInfo) => (a?.statusTime < b?.statusTime ? 1 : -1))
+    .sort((a: PkgInfo, b: PkgInfo) => environmentOrder.indexOf(a.environmentStatus) - environmentOrder.indexOf(b.environmentStatus))
+    .sort((a: PkgInfo, b: PkgInfo) => deploymentOrder.indexOf(a.processStatus) - deploymentOrder.indexOf(b.processStatus));
     packages.unshift(global)
     return packages;
   }
@@ -1609,30 +1508,18 @@ export class Dashboard {
       const tableCalcs = this.calcTableInfo();
       const headers: any[] = [tableCalcs.columns];
       const data = [];
-      const selectedColor = chalk.rgb(
-        this.selectedPackageFg[0],
-        this.selectedPackageFg[1],
-        this.selectedPackageFg[2],
-      );
-      const selectedHoverColor = chalk.rgb(
-        this.selectedPackageFgHover[0],
-        this.selectedPackageFgHover[1],
-        this.selectedPackageFgHover[2],
-      );
+      const selectedColor = chalk.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
+      const selectedHoverColor = chalk.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
 
       const currentlySelected = {stackName: '', index: -1};
       for (let i = 0; i < packages.length; i++) {
         if (i === 0) {
           for (let j = 0; j < tableCalcs.columns; j++) {
-            headers[this.columnPriority[j]] =
-              this.tableHeaders[this.columnPriority[j]];
+            headers[this.columnPriority[j]] = this.tableHeaders[this.columnPriority[j]];
           }
         }
         const pkg: PkgInfo = packages[i];
-        if (
-          pkg.stackName === Dashboard.stackName &&
-          this.selectedRowIndex !== i
-        ) {
+        if (pkg.stackName === Dashboard.stackName && this.selectedRowIndex !== i) {
           selectedPos = i;
         }
         const global = pkg.stackName === 'GLOBAL';
@@ -1697,24 +1584,8 @@ export class Dashboard {
     }
   }
 
-  get tableHeaders() {
-    return [' name', ' ver.', ' type', ' environment', ' process', ' time'];
-  }
-
-  get columnPriority() {
-    return [0, 5, 4, 1, 2, 3];
-  }
-
-  get defaultColumnWidth() {
-    return [Package.maxVisibleLength + 1, 12, 10, 13, 13, 10];
-  }
-
   mod(digit: number, mod: number) {
-    return clamp(
-      Math.abs(255 - digit) < Math.abs(0 - digit) ? digit - mod : digit + mod,
-      0,
-      255,
-    );
+    return clamp(Math.abs(255 - digit) < Math.abs(0 - digit) ? digit - mod : digit + mod, 0, 255,);
   }
 
   getChalkColor(colorRgb: number[], hover: boolean, sub: number, rgb: boolean) {
@@ -1727,9 +1598,19 @@ export class Dashboard {
       return [r, g, b];
     }
     const color = chalk.rgb(r, g, b);
-    if (!hover) return color.dim;
+    if (!hover) {
+      return color.dim;
+    }
     return color.bold;
   }
+
+  /*
+    static tabSpaces(text:) {
+      const regex = /[\t]/g;
+      return text.match(regex)?.length;
+    }
+
+   */
 
   getStatusColor(status: ProcessStatus | EnvironmentStatus, hover: boolean, rgb = false) {
     switch (status) {
@@ -1785,13 +1666,6 @@ export class Dashboard {
       this.dependencies = '';
     }
   }
-/*
-  static tabSpaces(text:) {
-    const regex = /[\t]/g;
-    return text.match(regex)?.length;
-  }
-
- */
 
   createBox(ctrl: any, title: string, lines: string[], bgColor: any, fgColor: any, topPadding = 1, sidePadding = 2) {
     const statWidth = ctrl.width - 3;
@@ -1806,7 +1680,7 @@ export class Dashboard {
     }
 
     function spaceLeft(line: string) {
-      return statWidth - line.length - leftPadding - rightPadding - tab.length ;
+      return statWidth - line.length - leftPadding - rightPadding - tab.length;
     }
 
     try {
@@ -1842,16 +1716,16 @@ export class Dashboard {
         boxText += boxLine();
       }
       return boxText.replace(/----/g, '    ').replace(/0000/g, '    ') + '\n';
-    } catch(e) {
+    } catch (e) {
       Package.global.err(e.stack);
     }
   }
 
-  statusMetric (num: number, type: string, longestNumberLength: number) {
+  statusMetric(num: number, type: string, longestNumberLength: number) {
     return `\t${chalk.bold(num.toString().padStart(longestNumberLength))} ${type}\n`
   }
 
-  packageStatus (packages: Package[], environmentStatus: EnvironmentStatus) {
+  packageStatus(packages: Package[], environmentStatus: EnvironmentStatus) {
     const color = Dashboard.instance.getStatusColor(environmentStatus, true) as ChalkFunction;
     const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
     return `[${color(environmentStatus)}]: ${chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
@@ -1898,10 +1772,9 @@ export class Dashboard {
       const cenvMaterializedPackages = packages.filter((p: Package) => p.params?.materializedVarsVersion)
       slices['cenvMaterializedPackages'] = cenvMaterializedPackages;
 
-      const longestNumber: string = Object.values(slices).reduce(
-        function (a: string, b: string) {
-          return a.length > b.length ? a : b;
-        }) as string;
+      const longestNumber: string = Object.values(slices).reduce(function (a: string, b: string) {
+        return a.length > b.length ? a : b;
+      }) as string;
 
       const longestNumberLength = longestNumber.length.toString().length;
 
@@ -1910,7 +1783,7 @@ export class Dashboard {
         status += this.statusMetric(skipped.length, 'hidden packages (dependencies disabled)', longestNumberLength);
       }
       status += this.statusMetric(cenvPackages.length, 'packages w/ cenv vars', longestNumberLength);
-      status += this.statusMetric(cenvDeployedPackages.length, 'packages w/ deployed vars', longestNumberLength );
+      status += this.statusMetric(cenvDeployedPackages.length, 'packages w/ deployed vars', longestNumberLength);
       status += this.statusMetric(cenvMaterializedPackages.length, 'packages w/ materialized vars\n\n', longestNumberLength);
 
 
@@ -1924,10 +1797,9 @@ export class Dashboard {
       }
     } else {
       if (validStatus) {
-        const color = this.getStatusColor(selectedPackage.environmentStatus,true) as ChalkFunction;
-        const colorDark = this.getStatusColor(selectedPackage.environmentStatus,false) as ChalkFunction;
-        const env =
-          selectedPackage.packageName !== 'GLOBAL' ? `[${color(selectedPackage.environmentStatus)}] ` : '';
+        const color = this.getStatusColor(selectedPackage.environmentStatus, true) as ChalkFunction;
+        const colorDark = this.getStatusColor(selectedPackage.environmentStatus, false) as ChalkFunction;
+        const env = selectedPackage.packageName !== 'GLOBAL' ? `[${color(selectedPackage.environmentStatus)}] ` : '';
         const envComment = selectedPackage.getEnvironmentStatusDescription();
         this.status.setLabel(`${chalk.bold(selectedPackage.packageName)} ${env}`);
         this.splitter.setFront();
@@ -1982,7 +1854,9 @@ export class Dashboard {
 
   async update() {
     try {
-      if (!this.initialized && !this.statusPanel.initialized) return;
+      if (!this.initialized && !this.statusPanel.initialized) {
+        return;
+      }
 
       if (Dashboard.stackName === '') {
         this.packages.rows.select(0);
@@ -1992,7 +1866,7 @@ export class Dashboard {
       this.updatePackageVisuals();
 
       const packages = this.getUpdatePackages();
-      const { data, complete, headers, tableCalcs } = await this.getUpdateData(packages);
+      const {data, complete, headers, tableCalcs} = await this.getUpdateData(packages);
 
       if (complete) {
         this.complete = true;
@@ -2001,9 +1875,8 @@ export class Dashboard {
       if (Package.getPackages(true).length) {
         this.packages.rows.interactive = false;
         this.packages.setData({
-          headers: headers,
-          data: data,
-        });
+                                headers: headers, data: data,
+                              });
         this.packages.rows.interactive = true;
         if (this.packages?.headers) {
           this.packages.headers.name = 'headers';
@@ -2015,20 +1888,17 @@ export class Dashboard {
         this.packages.rows.items.map((i: any, index: number) => {
           if (!i.initalized) {
             i.initalized = true;
-            i.on(
-              'click',
-              async function () {
-                this.packages.rows.focus();
-                if (this.packages.rows.items[this.selectedRowIndex] === i) {
-                  this.packages.rows.emit('action', i, i.selected);
-                  this.packages.rows.emit('select', i, i.selected);
-                  return;
-                }
+            i.on('click', async function () {
+              this.packages.rows.focus();
+              if (this.packages.rows.items[this.selectedRowIndex] === i) {
+                this.packages.rows.emit('action', i, i.selected);
+                this.packages.rows.emit('select', i, i.selected);
+                return;
+              }
 
-                this.packages.rows.screen.render();
-                this.packages.rows.emit('click select', i, index);
-              }.bind(this),
-            );
+              this.packages.rows.screen.render();
+              this.packages.rows.emit('click select', i, index);
+            }.bind(this),);
           }
         });
       }
@@ -2065,7 +1935,7 @@ export class Dashboard {
     this.resizeWidgets(this.calcTableInfo());
   }
 
-  render(tableCalcs: {tableWidth: number, columns: number}) {
+  render(tableCalcs: { tableWidth: number, columns: number }) {
     if (this.hidden) {
       return;
     }
@@ -2132,21 +2002,18 @@ export class Dashboard {
     }
   }
 
-  resizeMode(tableCalcs: {tableWidth: number, columns: number} = undefined, bottomOffset = 0) {
+  resizeMode(tableCalcs: { tableWidth: number, columns: number } = undefined, bottomOffset = 0) {
     const screenHeight = this.screen.height - bottomOffset;
     const top = 2;
     const panelWidth = this.screen.width - tableCalcs.tableWidth - 2;
 
-    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions.bar.top + ( this.statusOptions.active ? 3 : 0), screenHeight);
+    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions.bar.top + (this.statusOptions.active ? 3 : 0), screenHeight);
     this.cmdPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusPanel.bottom, screenHeight);
 
     this.splitter.height = this.screen.height - 2 - bottomOffset;
   }
 
-  maxProcessOptionsHeight = 34;
-  autoHidePanelHeight = true;
-  minimizeStatusPanel = false;
-  resizeWidgets(tableCalcs: {tableWidth: number, columns: number} = undefined) {
+  resizeWidgets(tableCalcs: { tableWidth: number, columns: number } = undefined) {
     if (!tableCalcs) {
       tableCalcs = this.calcTableInfo();
     }
@@ -2239,17 +2106,15 @@ export class Dashboard {
     } else {
       columns = 1;
       let stopGrowing = false;
-      const nextWidth = this.priorityColumnWidth.reduce(
-        function (a: number, b: number) {
-          const nextValue = a + b + this.columnSpacing / 2;
-          if (nextValue > this.splitter.left || stopGrowing) {
-            stopGrowing = true;
-            return a;
-          }
-          columns++;
-          return nextValue;
-        }.bind(this),
-      );
+      const nextWidth = this.priorityColumnWidth.reduce(function (a: number, b: number) {
+        const nextValue = a + b + this.columnSpacing / 2;
+        if (nextValue > this.splitter.left || stopGrowing) {
+          stopGrowing = true;
+          return a;
+        }
+        columns++;
+        return nextValue;
+      }.bind(this),);
       if (!this.blessedDeps.splitterOverride) {
         tableWidth = nextWidth;
       }
@@ -2261,7 +2126,7 @@ export class Dashboard {
 
     this.tableWidth = tableWidth;
 
-    return { tableWidth, columns };
+    return {tableWidth, columns};
   }
 
   destroy() {
@@ -2291,5 +2156,16 @@ export class Dashboard {
     this.statusBar.show();
     this.cmdPanel.show();
     this.statusPanel.show();
+  }
+
+  private debug(...text: string[]) {
+    if (!this.debugLog) {
+      return;
+    }
+    const scroll = this.debugLog.getScrollPerc();
+    this.debugLog.insertBottom(chalk.green(text.join(' ')));
+    if (scroll > 90) {
+      this.debugLog.setScrollPerc(100);
+    }
   }
 }

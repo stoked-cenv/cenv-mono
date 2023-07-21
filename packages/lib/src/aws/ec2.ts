@@ -1,8 +1,5 @@
-import {
-  DescribeVpcsCommand,
-  EC2Client
-} from '@aws-sdk/client-ec2';
-import { CenvLog, errorBold } from '../log';
+import {DescribeVpcsCommand, EC2Client} from '@aws-sdk/client-ec2';
+import {CenvLog, errorBold} from '../log';
 import {Cenv} from "../cenv";
 
 let _client: EC2Client = null;
@@ -11,12 +8,11 @@ function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new EC2Client({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                            region: AWS_REGION, endpoint: AWS_ENDPOINT
+                          });
   return _client;
 }
 
@@ -25,13 +21,9 @@ export async function getVpcId(name: string) {
     const input = { // DescribeVpcsRequest
       Filters: [ // FilterList
         { // Filter
-          Name: "tag:Name",
-          Values: [ // ValueStringList
-            name,
-          ],
-        },
-      ],
-      MaxResults: 5,
+          Name: "tag:Name", Values: [ // ValueStringList
+            name,],
+        },], MaxResults: 5,
     };
     Cenv.dashboard.debug('vpcId filter: ' + input);
     const cmd = new DescribeVpcsCommand(input);

@@ -19,6 +19,9 @@
   line-height: 2.4rem;
 }
 
+.product {
+  font-size: 18px;
+}
 .page-footer-grid {
   display: grid;
   grid-template-rows: auto auto;

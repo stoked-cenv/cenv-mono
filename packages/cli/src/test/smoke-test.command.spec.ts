@@ -1,11 +1,10 @@
-import { TestingModule } from "@nestjs/testing";
+import {TestingModule} from "@nestjs/testing";
 import DeployCommand from '../commands/deploy';
 import DestroyCommand from '../commands/destroy';
 import AddCommand from '../commands/add';
 import ParamsCommand from '../commands/params'
-import { CommandTestFactory } from 'nest-commander-testing';
-import { CenvFiles, EnvironmentStatus, getMonoRoot, Package, packagePath, Suite } from "@stoked-cenv/lib";
-import { expect, it, jest, test } from '@jest/globals';
+import {CommandTestFactory} from 'nest-commander-testing';
+import {CenvFiles, getMonoRoot, packagePath} from "@stoked-cenv/lib";
 import path from "path";
 
 describe('Init Command', () => {
@@ -14,12 +13,8 @@ describe('Init Command', () => {
 
   beforeAll(async () => {
     commandInstance = await CommandTestFactory.createTestingCommand({
-      imports: [
-        DeployCommand,
-        DestroyCommand,
-        AddCommand,
-        ParamsCommand
-      ] }).compile()
+                                                                      imports: [DeployCommand, DestroyCommand, AddCommand, ParamsCommand]
+                                                                    }).compile()
   });
 
 

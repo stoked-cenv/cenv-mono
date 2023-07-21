@@ -10,6 +10,11 @@ import { NotFoundPage } from "./pages/not-found-page";
 import { ProfilePage } from "./pages/profile-page";
 import { ProtectedPage } from "./pages/protected-page";
 import { PublicPage } from "./pages/public-page";
+import {GettingStartedPage} from "./pages/getting-started-page";
+import {DockerPage} from "./pages/docker-page";
+import {ParamsPage} from "./pages/params-page";
+import {StackPage} from "./pages/stack-page";
+import {PackagesPage} from "./pages/packages-page";
 
 export const App: React.FC = () => {
   const { isLoading } = useAuth0();
@@ -24,11 +29,15 @@ export const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/getting-started" element={<GettingStartedPage/>}/>
+      <Route path="/params" element={<ParamsPage/>}/>
+      <Route path="/docker" element={<DockerPage/>}/>
+      <Route path="/stack" element={<StackPage/>}/>
+      <Route path="/packages" element={<PackagesPage />} />
       <Route
         path="/profile"
         element={<AuthenticationGuard component={ProfilePage} />}
       />
-      <Route path="/public" element={<PublicPage />} />
       <Route
         path="/protected"
         element={<AuthenticationGuard component={ProtectedPage} />}

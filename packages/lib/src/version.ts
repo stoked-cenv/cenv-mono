@@ -1,11 +1,11 @@
-import path, { join } from 'path';
+import path, {join} from 'path';
 import {CenvLog, info, infoAlertBold, infoBold} from './log';
-import { Package } from './package/package';
-import semver, {SemVer, RangeOptions } from "semver";
+import {Package} from './package/package';
+import semver, {RangeOptions, SemVer} from "semver";
 import fs, {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
-import { getProfiles, ProfileData,  } from "./stdIo";
-import { getMonoRoot, search_sync } from "./utils";
-import { CenvFiles } from "./file";
+import {getProfiles, ProfileData,} from "./stdIo";
+import {getMonoRoot, search_sync} from "./utils";
+import {CenvFiles} from "./file";
 
 export enum BumpMode {
   DISABLED = 'DISABLED',
@@ -21,14 +21,11 @@ export interface IVersionFile {
   version: semver.SemVer | string;
   upgradedTs?: number;
   lastTs: number;
-  upgrades?: {ts: number, v: string }[];
+  upgrades?: { ts: number, v: string }[];
 }
 
 export enum BumpType {
-  DISABLED = 'DISABLED',
-  BUMP = 'BUMP',
-  DECREMENT = 'DECREMENT',
-  FINALIZE_PRERELEASE = 'FINALIZE_PRERELEASE'
+  DISABLED = 'DISABLED', BUMP = 'BUMP', DECREMENT = 'DECREMENT', FINALIZE_PRERELEASE = 'FINALIZE_PRERELEASE'
 }
 
 export const bumpTypeID = 'CENV_BUMP_TYPE';
@@ -37,23 +34,14 @@ export const bumpStateID = 'CENV_BUMP_STATE';
 
 export class Version {
   static gitIgnoreFile: string = join(`./.gitignore`);
-  private static modeKey = 0;
-  private static typeKey = 0;
-
   static lastVersion: SemVer;
   static currentVersion: SemVer;
   static installedVersion: SemVer;
   static nextIncrementVersion: SemVer;
   static versionFileData: IVersionFile;
-  static opt: RangeOptions = { includePrerelease: true };
-
-  static setBumpType(bumpType: BumpType) {
-    process.env[bumpTypeID] = bumpType;
-  }
-
-  static setBumpMode(bumpMode: BumpMode) {
-    process.env[bumpModeID] = bumpMode;
-  }
+  static opt: RangeOptions = {includePrerelease: true};
+  private static modeKey = 0;
+  private static typeKey = 0;
 
   static get bumpType() {
     const keys: string[] = Object.keys(BumpType)
@@ -77,10 +65,6 @@ export class Version {
     return this.textOutput(this.bumpMode);
   }
 
-  private static textOutput(inputUpperCaseUnderLineSeperated: string) {
-    return inputUpperCaseUnderLineSeperated.replace(/_/g, ' ').toLowerCase();
-  }
-
   static get bumpState() {
     process.env[bumpStateID] = `${this.bumpType}_${this.bumpMode}`;
     return process.env[bumpStateID];
@@ -91,8 +75,9 @@ export class Version {
   }
 
   static get nextBumpType() {
-    if (this.bumpMode === BumpMode.DISABLED)
+    if (this.bumpMode === BumpMode.DISABLED) {
       return BumpType.DISABLED;
+    }
 
     const typeKeys = Object.keys(BumpType);
     this.typeKey = this.typeKey + 1 === typeKeys.length ? 1 : this.typeKey + 1;
@@ -112,10 +97,18 @@ export class Version {
       this.modeKey = 0;
       next = BumpMode[modeKeys[this.modeKey] as BumpMode];
     }
-    if(this.bumpType === BumpType.DISABLED) {
+    if (this.bumpType === BumpType.DISABLED) {
       this.setBumpType(BumpType.BUMP);
     }
     return this.textOutput(next);
+  }
+
+  static setBumpType(bumpType: BumpType) {
+    process.env[bumpTypeID] = bumpType;
+  }
+
+  static setBumpMode(bumpMode: BumpMode) {
+    process.env[bumpModeID] = bumpMode;
   }
 
   static async Bump(packages: any, type: string) {
@@ -149,11 +142,10 @@ export class Version {
       pkgPath = path.join(pkgPath, '../', libraryId);
     }
     this.currentVersion = require(path.join(pkgPath, './package.json')).version;
-    this.currentVersion =  semver.parse(this.currentVersion, this.opt);
+    this.currentVersion = semver.parse(this.currentVersion, this.opt);
     const versionFile = path.join(pkgPath, './.version.json');
     this.versionFileData = {
-      version: '0.1.0',
-      lastTs: Date.now(),
+      version: '0.1.0', lastTs: Date.now(),
     };
 
     if (existsSync(versionFile)) {
@@ -181,7 +173,7 @@ export class Version {
 
       // migrate the .cenv config file names from [profile] to [profile]-[env]
       await this.UpgradeIncrement('1.9.0', this.Upgrade_1_9_0);
-    } catch (e){
+    } catch (e) {
       CenvLog.single.catchLog(new Error(`FAILED: upgrading from ${this.installedVersion.toString()} to ${this.currentVersion.toString()}\n\n
       error: ${e}`))
     }
@@ -195,7 +187,7 @@ export class Version {
     if (!this.versionFileData.upgrades) {
       this.versionFileData.upgrades = [];
     }
-    this.versionFileData.upgrades.push({ ts: this.versionFileData.upgradedTs, v: this.versionFileData.version });
+    this.versionFileData.upgrades.push({ts: this.versionFileData.upgradedTs, v: this.versionFileData.version});
   }
 
   static async UpgradeIncrement(incrementVersion: string, upgradeIncrementFunc: () => Promise<void>) {
@@ -215,11 +207,10 @@ export class Version {
     }
   }
 
-  static async Upgrade_1_0_0 () {
+  static async Upgrade_1_0_0() {
     const monoRoot = getMonoRoot();
     const search = search_sync(path.resolve(monoRoot), false, true, '.cenv', {
-      excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
-      startsWith: true,
+      excludedDirs: ['node_modules', 'cdk.out', '.cenv'], startsWith: true,
     }) as string[];
 
     const newDirs: any = {};
@@ -251,8 +242,7 @@ export class Version {
       const newPath = root.dir + '/.cenv';
       if (existsSync(newPath)) {
         const cenvSearch = search_sync(dir, false, true, '.cenv', {
-          excludedDirs: ['node_modules', 'cdk.out', '.cenv'],
-          startsWith: true,
+          excludedDirs: ['node_modules', 'cdk.out', '.cenv'], startsWith: true,
         }) as string[];
         if (Array.isArray(cenvSearch)) {
           cenvSearch.forEach((f) => {
@@ -266,24 +256,13 @@ export class Version {
       }
     }
     const searchF = '.cenv.' + process.env.ENV;
-    const cenvEnvSearch = search_sync(
-      path.resolve(monoRoot),
-      false,
-      true,
-      searchF,
-      { excludedDirs: ['node_modules', 'cdk.out'], startsWith: true },
-    ) as string[];
+    const cenvEnvSearch = search_sync(path.resolve(monoRoot), false, true, searchF, {
+      excludedDirs: ['node_modules', 'cdk.out'], startsWith: true
+    },) as string[];
     for (let i = 0; i < cenvEnvSearch.length; i++) {
       const file = cenvEnvSearch[i];
-      const newFile = file.replace(
-        process.env.ENV,
-        process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
-      );
-      if (
-        file.indexOf(
-          '.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,
-        ) > -1
-      ) {
+      const newFile = file.replace(process.env.ENV, process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,);
+      if (file.indexOf('.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,) > -1) {
         CenvLog.single.infoLog(`the file ${file} has already been upgraded`);
         continue;
       }
@@ -291,11 +270,7 @@ export class Version {
         if (process.env.KILL_IT_WITH_FIRE) {
           rmSync(file);
         } else {
-          CenvLog.single.alertLog(
-            `attempting to upgrade file ${infoAlertBold(
-              file,
-            )} but the file ${infoAlertBold(newFile)} already exists`,
-          );
+          CenvLog.single.alertLog(`attempting to upgrade file ${infoAlertBold(file,)} but the file ${infoAlertBold(newFile)} already exists`,);
         }
         continue;
       }
@@ -303,11 +278,15 @@ export class Version {
     }
   }
 
-  static async Upgrade_1_9_0 () {
-    const profileFileData = await getProfiles( false);
-    profileFileData.forEach((profileData: ProfileData ) => {
+  static async Upgrade_1_9_0() {
+    const profileFileData = await getProfiles(false);
+    profileFileData.forEach((profileData: ProfileData) => {
       fs.renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig.AWS_PROFILE}↔${profileData.envConfig.ENV}`));
     });
 
+  }
+
+  private static textOutput(inputUpperCaseUnderLineSeperated: string) {
+    return inputUpperCaseUnderLineSeperated.replace(/_/g, ' ').toLowerCase();
   }
 }

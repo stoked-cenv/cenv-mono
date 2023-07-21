@@ -5,5 +5,5 @@ export * from './ui/ui'
 export * from './test'
 export * from './commands'
 
-export { toUtf8 } from '@aws-sdk/util-utf8-node';
+export {toUtf8} from '@aws-sdk/util-utf8-node';
 

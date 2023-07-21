@@ -1,6 +1,6 @@
 import path from 'path';
-import { existsSync, readFileSync } from 'fs';
-import { Environment } from './environment';
+import {existsSync, readFileSync} from 'fs';
+import {Environment} from './environment';
 import {EnvironmentStatus, Package, ProcessStatus} from "./package/package";
 import {getMonoRoot} from "./utils";
 
@@ -8,7 +8,7 @@ export class Suites {
   static data: any;
   static cache: Suite[] = [];
 
-  static hasPackage(packageName: string) : string[] {
+  static hasPackage(packageName: string): string[] {
     const suitesJson = Suite.readSuites();
     if (Object.keys(suitesJson)?.length) {
       const suites = Object.keys(suitesJson).filter(k => {
@@ -36,6 +36,7 @@ export class Suite {
       });
     }
   }
+
   static load(name: any) {
     if (Suites.cache[name]) {
       return Suites.cache[name]
@@ -45,35 +46,15 @@ export class Suite {
     return suite;
   }
 
-  async getDeployment() {
-    this.environment = new Environment();
-    await this.environment.getStacks();
-    const deployed: Package[] = [];
-    const undeployed: Package[] = []
-    this.packages = this.packages.map((p: Package) => {
-      const stack = this.environment?.stacks.filter(s => s?.StackName === p?.stackName);
-      if (stack?.length === 1) {
-        p.stack.detail = stack[0];
-        p.environmentStatus = EnvironmentStatus.UP_TO_DATE;
-        p.processStatus = ProcessStatus.COMPLETED;
-        return p;
-      } else {
-        p.environmentStatus = EnvironmentStatus.NOT_DEPLOYED;
-        p.createCmd(`package not deployed`, 0);
-        return p;
-      }
-    })
-    return { deployed, undeployed };
-  }
-
   static isSuite(suite: string) {
     return !!this.getSuite(suite);
   }
 
   static getSuite(suite: string): any {
     Suites.data = Package.suites;
-    if (Suites.data)
+    if (Suites.data) {
       return Suites.data[suite];
+    }
     Suite.readSuites();
 
     if (Suites?.data && Suites.data[suite]) {
@@ -100,5 +81,28 @@ export class Suite {
     }
     Suites.data = JSON.parse(suites);
     return Suites.data;
+  }
+
+  async getDeployment() {
+    this.environment = new Environment();
+    await this.environment.getStacks();
+    const deployed: Package[] = [];
+    const undeployed: Package[] = []
+    this.packages = this.packages.map((p: Package) => {
+      const stack = this.environment?.stacks.filter(s => s?.StackName === p?.stackName);
+      if (stack?.length === 1) {
+        p.stack.detail = stack[0];
+        p.environmentStatus = EnvironmentStatus.UP_TO_DATE;
+        p.processStatus = ProcessStatus.COMPLETED;
+        return p;
+      } else {
+        p.environmentStatus = EnvironmentStatus.NOT_DEPLOYED;
+        const root = getMonoRoot();
+        const relativePath = path.relative(root, p.path);
+        p.createCmd(`package not deployed`, relativePath, 0);
+        return p;
+      }
+    })
+    return {deployed, undeployed};
   }
 }

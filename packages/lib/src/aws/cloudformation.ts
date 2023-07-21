@@ -1,18 +1,16 @@
 import {
+  CancelUpdateStackCommand,
   CloudFormationClient,
-  ListStacksCommand,
+  DeleteStackCommand,
   DescribeStacksCommand,
   ListExportsCommand,
-  CancelUpdateStackCommand,
-  DeleteStackCommand,
+  ListStacksCommand,
   waitUntilStackDeleteComplete,
-
 } from '@aws-sdk/client-cloudformation';
 
-import { CenvLog, errorBold } from '../log';
+import {CenvLog, errorBold} from '../log';
 import {Package} from "../package/package";
-import {checkExceptions, WaiterConfiguration, WaiterState} from '@aws-sdk/util-waiter'
-import {WaiterResult} from "@aws-sdk/util-waiter/dist-types/waiter";
+import {checkExceptions} from '@aws-sdk/util-waiter'
 
 let _client: CloudFormationClient = null;
 
@@ -20,23 +18,23 @@ function getClient() {
   if (_client) {
     return _client;
   }
-  const { AWS_REGION, AWS_ENDPOINT } = process.env;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
   _client = new CloudFormationClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-  });
+                                       region: AWS_REGION, endpoint: AWS_ENDPOINT
+                                     });
   return _client;
 }
 
 const aliasName = 'alias/curb-key';
+
 export async function listStacks(StackStatusFilter: string[]) {
   try {
     let cmd = new ListStacksCommand({StackStatusFilter: StackStatusFilter});
     let res = await getClient().send(cmd);
     let stacks = res.StackSummaries;
     while (res.NextToken) {
-      cmd = new ListStacksCommand({ NextToken: res.NextToken });
+      cmd = new ListStacksCommand({NextToken: res.NextToken});
       res = await getClient().send(cmd);
       stacks = stacks.concat(res.StackSummaries);
     }
@@ -52,7 +50,7 @@ export async function describeStacks(stackName: string, silent = false) {
     let res = await getClient().send(cmd);
     let stacks = res.Stacks;
     while (res.NextToken) {
-      cmd = new DescribeStacksCommand({ NextToken: res.NextToken });
+      cmd = new DescribeStacksCommand({NextToken: res.NextToken});
       res = await getClient().send(cmd);
       stacks = stacks.concat(res.Stacks);
     }
@@ -70,7 +68,7 @@ export async function listExports() {
     let res = await getClient().send(cmd);
     let exports = res.Exports;
     while (res.NextToken) {
-      cmd = new ListExportsCommand({ NextToken: res.NextToken });
+      cmd = new ListExportsCommand({NextToken: res.NextToken});
       res = await getClient().send(cmd);
       exports = exports.concat(res.Exports);
     }
@@ -82,10 +80,10 @@ export async function listExports() {
 
 export async function deleteStack(StackName: string, waitForIt = true, errorOnFailure = false): Promise<boolean> {
   try {
-    const cmd = new DeleteStackCommand({ StackName });
-    const res= await getClient().send(cmd);
+    const cmd = new DeleteStackCommand({StackName});
+    const res = await getClient().send(cmd);
     if (waitForIt) {
-      const waiter = await waitUntilStackDeleteComplete({client: getClient(), maxWaitTime: 2000}, { StackName})
+      const waiter = await waitUntilStackDeleteComplete({client: getClient(), maxWaitTime: 2000}, {StackName})
       checkExceptions(waiter);
     }
     return true;
@@ -103,8 +101,8 @@ export async function deleteStack(StackName: string, waitForIt = true, errorOnFa
 
 export async function cancelUpdateStack(StackName: string) {
   try {
-    const cmd = new CancelUpdateStackCommand({ StackName });
-    const res= await getClient().send(cmd);
+    const cmd = new CancelUpdateStackCommand({StackName});
+    const res = await getClient().send(cmd);
     Package.fromStackName(StackName)?.info(JSON.stringify(res.$metadata));
   } catch (e) {
     CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`);
