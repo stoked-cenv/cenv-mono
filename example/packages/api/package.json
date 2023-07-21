@@ -1,5 +1,5 @@
 {
-  "name": "@stoked-cenv-web/api",
+  "name": "@stoked-cenv/web-api",
   "version": "2.0.0-a.38",
   "scripts": {
     "build": "which nest; nest build",

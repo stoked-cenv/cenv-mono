@@ -1,5 +1,5 @@
 {
-  "name": "@stoked-cenv-web/spa",
+  "name": "@stoked-cenv/web-spa",
   "version": "2.0.0-a.38",
   "dependencies": {
     "@auth0/auth0-react": "^2.0.0",
