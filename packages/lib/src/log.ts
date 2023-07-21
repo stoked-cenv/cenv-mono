@@ -300,7 +300,7 @@ export class CenvLog {
     this.logBase(message, chalk.white, 'stdout', stackName, replicateToGlobal);
   }
 
-  catchLog(error: any) {
+  catchLog(error: any): never {
 
     cleanup('catchLog');
 

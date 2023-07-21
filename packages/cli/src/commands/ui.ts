@@ -1,6 +1,6 @@
 import {Command, Option} from 'nest-commander';
 import {CenvUI} from '@stoked-cenv/ui';
-import {BaseCommandOptions, CenvLog, Package, Suite} from '@stoked-cenv/lib'
+import {BaseCommandOptions, Cenv, CenvLog, Package, Suite} from '@stoked-cenv/lib'
 
 import {BaseCommand} from './base';
 
@@ -46,8 +46,8 @@ export default class UICommand extends BaseCommand {
     try {
       if (!packages.length) {
         if (!options.suite) {
-          if (Package.defaultSuite) {
-            options.suite = Package.defaultSuite;
+          if (Cenv.defaultSuite) {
+            options.suite = Cenv.defaultSuite;
           } else {
             CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
             process.exit(0);

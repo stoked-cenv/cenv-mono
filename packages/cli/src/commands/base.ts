@@ -21,15 +21,11 @@ export abstract class BaseCommand extends CommandRunner {
   meta: any;
 
   async run(passedParams: string[], options?: any) {
-    const pkg: Package = Package.global;
-    if (this.allowUI) {
-      pkg.createCmd('clean this up');
-    }
     Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
     Cenv.cleanTags = (...text: string[]) => {
       return Dashboard.cleanTags(...text);
     }
-    const runningInit = this.command.name() === 'init';
+    const runningInit = this.command.name() === 'init' || this.command.name() === 'new';
     await Cenv.cmdInit(options, runningInit);
 
     if (!process.env.CENV_VERSION) {

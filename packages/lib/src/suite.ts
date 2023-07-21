@@ -3,6 +3,7 @@ import {existsSync, readFileSync} from 'fs';
 import {Environment} from './environment';
 import {EnvironmentStatus, Package, ProcessStatus} from "./package/package";
 import {getMonoRoot} from "./utils";
+import {Cenv} from "./cenv";
 
 export class Suites {
   static data: any;
@@ -51,7 +52,7 @@ export class Suite {
   }
 
   static getSuite(suite: string): any {
-    Suites.data = Package.suites;
+    Suites.data = Cenv.suites;
     if (Suites.data) {
       return Suites.data[suite];
     }

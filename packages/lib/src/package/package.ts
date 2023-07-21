@@ -1,4 +1,4 @@
-import {execCmd, getMonoRoot, packagePath, spawnCmd, Timer} from '../utils';
+import {execCmd, getMonoRoot, packagePath, removeScope, spawnCmd, Timer} from '../utils';
 import {existsSync, readFileSync} from "fs";
 import path from 'path';
 import {PackageModule, PackageModuleType, PackageStatus} from './module'
@@ -296,7 +296,6 @@ export class PackageMeta implements IPackageMeta {
 
 export class PackageMetaConsolidated extends PackageMeta {
 
-
   // used to reference modules to metas
   // Record<moduleType, packagePath>
   modules: Record<string, string> = {};
@@ -382,11 +381,9 @@ export class Package implements IPackage {
   static loading = true;
   static deployment: any;
   static callbacks: any = {};
-  static suites: any = {};
-  static defaultSuite: string;
   public static maxVisibleLength = 29;
   public static cache: { [stackName: string]: Package } = {};
-  static scopeName: string = undefined;
+
   name: string;
   fullType: string;
   stackName: string;
@@ -574,16 +571,12 @@ export class Package implements IPackage {
     if (packageName === 'GLOBAL' || packageName === 'root') {
       return packageName;
     }
-    if (this.scopeName) {
-      packageName = this.packageNameNoScope(packageName);
+    if (Cenv.scopeName) {
+      packageName = removeScope(packageName);
     }
     return `${process.env.ENV}-${packageName.replace(/-(deploy)$/, '')}`;
   }
 
-  static packageNameNoScope(packageName: string) {
-    const regex = /\@.*?\//m;
-    return packageName.replace(regex, '');
-  }
 
   static realPackagesLoaded() {
     let pkgs = Package.getPackages();
@@ -604,7 +597,7 @@ export class Package implements IPackage {
     } else if (stackName.substring(stackPrefix.length) === Package.getRootPackageName()) {
       stackName = stackName.substring(stackPrefix.length);
     } else {
-      stackName = `${this.scopeName}/${stackName.substring(stackPrefix.length)}`;
+      stackName = `${Cenv.scopeName}/${stackName.substring(stackPrefix.length)}`;
     }
     return stackName;
   }
@@ -710,7 +703,6 @@ export class Package implements IPackage {
       this.component = packageComponent.component;
       this.instance = packageComponent.instance;
       this.stackName = Package.packageNameToStackName(packageName);
-
 
       if (!noCache) {
         const pkg = Package.cache[this.stackName];

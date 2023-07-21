@@ -1,5 +1,5 @@
 import {Command, Option} from 'nest-commander';
-import {CenvLog, LibModule, Package, Suite} from '@stoked-cenv/lib'
+import {Cenv, CenvLog, LibModule, Package, Suite} from '@stoked-cenv/lib'
 import {BaseCommand} from './base'
 
 @Command({
@@ -34,7 +34,7 @@ export default class BuildCommand extends BaseCommand {
     try {
 
       if ((params?.length === 1 && params[0] === 'all') || packages[0].root) {
-        new Suite(Package.defaultSuite);
+        new Suite(Cenv.defaultSuite);
         await LibModule.build(options);
       } else if (packages.length) {
         await Promise.all(packages.map(async (p: Package) => p.lib?.build(options.force, true)));

@@ -35,12 +35,13 @@ import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
 import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import {getMonoRoot, packagePath, search_sync, sleep} from "./utils";
+import {execCmd, getMonoRoot, packagePath, search_sync, sleep} from "./utils";
 import {ioAppEnv} from "./stdIo";
 import {deleteHostedZone} from "./aws/route53";
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from "fs";
 import * as child from 'child_process';
-
+import {PackageModule} from "./package/module";
+import {Template} from "./templates";
 
 interface FlagValidation {
   application: string;
@@ -69,6 +70,12 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   envToParams?: boolean;
 }
 
+export interface NewCommandOptions extends BaseCommandOptions {
+  template?: string
+  packagePaths?: string[]
+  force?: boolean
+}
+
 export interface InitCommandOptions extends BaseCommandOptions {
   scope?: string
 }
@@ -77,10 +84,6 @@ export interface StackProc {
   cmd: string,
   proc: child.ChildProcess
   stackName?: string
-}
-
-export function createMaterializeApi() {
-
 }
 
 export class Cenv {
@@ -96,12 +99,46 @@ export class Cenv {
   static policyLambdaBasic = 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole';
   static keyGroupName = 'key-users';
 
+  // from cenv.json
+  static suites: any = {};
+  static scopeName: string = undefined;
+  static defaultSuite: string;
+  static globalPackage: string;
+  static primaryPackagePath: string;
+
   static async init(options: InitCommandOptions) {
 
-    const {mostCommonPath, metas} = this.getWorkspaceData();
+    const {primaryPackagePath, metas} = this.getWorkspaceData();
     const folderName = path.parse(process.cwd()).name;
-    const globalsNameNoScope = folderName + '-globals';
-    const globalsPath = path.join(mostCommonPath, 'globals');
+
+    const globalPackage = this.createGlobalsPackage(folderName, primaryPackagePath, options?.scope);
+
+    const cenvConfig: any = {
+      globalPackage, defaultSuite: folderName, primaryPackagePath: path.relative(process.cwd(), primaryPackagePath)
+    }
+    if (options?.scope) {
+      cenvConfig.scope = options.scope;
+    }
+
+    cenvConfig.suites = {};
+    cenvConfig.suites[folderName] = {
+      "packages": metas.filter((w: { meta: any, path: string }) => !w.meta.name.endsWith('globals'))
+    }
+
+    const configOutput = JSON.stringify(cenvConfig, null, 2) + '\n';
+    writeFileSync(path.join(process.cwd(), 'cenv.json'), configOutput);
+    console.log(`${info('generated')} ${infoBold('cenv.json')}`)
+    if (CenvLog.logLevel === LogLevel.VERBOSE) {
+      console.log(info(JSON.stringify(cenvConfig, null, 2)))
+    }
+
+    await this.execCmd(`npm init -y`, {silent: true});
+    await this.cmdInit({logLevel: process.env.CENV_LOG_LEVEL}, false);
+  }
+
+  static createGlobalsPackage(projectName, primaryPackagePath, scope?: string) {
+    const globalsNameNoScope = projectName + '-globals';
+    const globalsPath = path.join(primaryPackagePath, 'globals');
     if (!existsSync(globalsPath)) {
       mkdirSync(globalsPath, {recursive: true});
     }
@@ -119,7 +156,7 @@ export class Cenv {
       writeFileSync(globalsCenvEnvTemplatePath, '');
     }
 
-    const globalsName = options.scope ? `${options.scope}/${globalsNameNoScope}` : globalsNameNoScope;
+    const globalsName = scope ? `${scope}/${globalsNameNoScope}` : globalsNameNoScope;
     const globalMeta = {
       "name": globalsName, "version": "0.0.1"
     };
@@ -131,24 +168,7 @@ export class Cenv {
       console.log(info(JSON.stringify(globalMeta, null, 2)))
       console.log(' ')
     }
-    const cenvConfig: any = {
-      global: globalsNameNoScope, defaultSuite: folderName
-    }
-    if (options?.scope) {
-      cenvConfig.scope = options.scope;
-    }
-
-    cenvConfig.suites = {};
-    cenvConfig.suites[folderName] = {
-      "packages": metas.filter((w: { meta: any, path: string }) => !w.meta.name.endsWith('globals'))
-    }
-
-    const configOutput = JSON.stringify(cenvConfig, null, 2) + '\n';
-    writeFileSync(path.join(process.cwd(), 'cenv.json'), configOutput);
-    console.log(`${info('generated')} ${infoBold('cenv.json')}`)
-    if (CenvLog.logLevel === LogLevel.VERBOSE) {
-      console.log(info(JSON.stringify(cenvConfig, null, 2)))
-    }
+    return globalsName;
   }
 
   static getPackages() {
@@ -161,7 +181,7 @@ export class Cenv {
 
   static getWorkspaceData() {
     const metas = this.getPackages().filter(m => m.path !== process.cwd())
-    let mostCommonPath = path.join(process.cwd(), 'packages');
+    let primaryPackagePath = path.join(process.cwd(), 'packages');
     let largestCount = 0;
     const pathCounts: Record<string, number> = {}
     for (let i = 0; i < metas.length; i++) {
@@ -174,10 +194,24 @@ export class Cenv {
       }
       if (pathCounts[containingDir] > largestCount) {
         largestCount = pathCounts[containingDir];
-        mostCommonPath = containingDir
+        primaryPackagePath = containingDir
       }
     }
-    return {mostCommonPath, metas};
+    const globalPackage = metas.find(m => m.meta.cenv?.globals);
+    return {primaryPackagePath, metas, globalPackage};
+  }
+
+  static async new(name: string, options: NewCommandOptions) {
+    const projectPath = path.join(process.cwd(), name);
+    if (existsSync(projectPath) && !options?.force) {
+      throw new Error(`the directory ${name} already exists`)
+    }
+    mkdirSync(path.join(projectPath, 'packages'), {recursive: true});
+    process.chdir(projectPath);
+    console.log(process.cwd());
+    await this.init({});
+
+    await Template.newWeb()
   }
 
   static async cmdInit(options: any, runningInitCmd = false): Promise<boolean> {
@@ -205,9 +239,11 @@ export class Cenv {
       const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
       if (existsSync(cenvConfigPath)) {
         const cenvConfig = require(cenvConfigPath);
-        Package.defaultSuite = cenvConfig.defaultSuite;
-        Package.scopeName = cenvConfig.scope;
-        Package.suites = cenvConfig.suites;
+        Cenv.defaultSuite = cenvConfig.defaultSuite;
+        Cenv.scopeName = cenvConfig.scope;
+        Cenv.suites = cenvConfig.suites;
+        Cenv.globalPackage = cenvConfig.globalPackage;
+        Cenv.primaryPackagePath = cenvConfig.primaryPackagePath
         if (cenvConfig.globalPackage) {
           const packageGlobalPath = packagePath(cenvConfig.globalPackage);
           if (!existsSync(packageGlobalPath)) {
@@ -491,7 +527,6 @@ export class Cenv {
         }
       }
 
-
       if (process.env.KMS_KEY) {
         const KmsPolicyExists = await getPolicy(KmsPolicyArn);
         if (!KmsPolicyExists) {
@@ -569,7 +604,6 @@ export class Cenv {
       const policyExists = await getPolicy(AppConfigGetArn);
       const ssmPolicyExists = await getPolicy(this.policySsmFullAccessArn);
 
-
       if (roleExists) {
         destroyedAnything = true;
         await detachPolicyFromRole(this.roleName, this.policyLambdaBasic);
@@ -620,6 +654,35 @@ export class Cenv {
   static BumpChanged() {
     const packages = Object.values(Package.cache);
     const changed = packages.filter((p: Package) => p.hasChanged());
+  }
+
+  static async execCmd(cmd: string, options: {
+    envVars?: any;
+    cenvVars?: any;
+    pkgCmd?: PackageCmd;
+    redirectStdErrToStdOut?: boolean;
+    failOnError?: boolean;
+    packageModule?: PackageModule;
+    output?: boolean;
+    silent?: boolean
+  } = {
+    envVars: {}, cenvVars: {}, redirectStdErrToStdOut: false, output: false, silent: false
+  }) {
+    try {
+
+      const pkgPath = options?.packageModule ? options.packageModule.path : process.cwd();
+      if (!options.failOnError) {
+        options.failOnError = false;
+      }
+      const out = await execCmd(pkgPath, cmd, cmd, options.envVars, false, options?.silent);
+      if (options?.silent !== false) {
+        CenvLog.single.infoLog(out);
+      }
+      return out;
+    } catch (e) {
+      CenvLog.single.errorLog('cenv execCmd error: \n' + e.stack);
+      return e;
+    }
   }
 
   private static initFlagValidation(options: Record<string, any>, tags: string[]): FlagValidation | undefined {

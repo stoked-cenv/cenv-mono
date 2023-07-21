@@ -24,6 +24,7 @@ import {existsSync,} from 'fs';
 import {Package} from './package/package';
 import {Environment} from "./environment";
 import {ProcessMode} from "./package/module";
+import {Cenv} from "./cenv";
 
 export const variableTypes = ['app', 'environment', 'global', 'globalEnv'];
 
@@ -561,7 +562,7 @@ export class CenvParams {
 
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);
-      await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Package.scopeName, '')}`);
+      await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Cenv.scopeName, '')}`);
       return {before, after}
     } catch (e) {
       CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))

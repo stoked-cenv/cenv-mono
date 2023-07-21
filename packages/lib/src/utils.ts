@@ -1340,7 +1340,7 @@ function parsePackageParams(params: string[]): { packages: Package[], nonPackage
   const packageNames: string[] = [];
   const newParams: string[] = [];
   while (params.length) {
-    if (params[0].startsWith(`${Package.scopeName}/`) || Package.getRootPackageName() === params[0]) {
+    if (params[0].startsWith(`${Cenv.scopeName}/`) || Package.getRootPackageName() === params[0]) {
       packageNames.push(params.shift());
     } else {
       newParams.push(params.shift())
@@ -1489,8 +1489,8 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
   }
 
   if (!pkgs.length) {
-    if (Package.defaultSuite) {
-      options.suite = Package.defaultSuite;
+    if (Cenv.defaultSuite) {
+      options.suite = Cenv.defaultSuite;
       const suite = new Suite(options.suite);
       options.suite = suite.name;
       pkgs = suite.packages;
@@ -1597,4 +1597,9 @@ export function onlyUnique(value, index, array) {
 export async function execExists(exec: string) {
   const execPath = await execCmd('./', 'which ' + exec);
   return execPath.length > 0;
+}
+
+export function removeScope(packageName: string) {
+  const regex = /\@.*?\//m;
+  return packageName.replace(regex, '');
 }

@@ -3,7 +3,7 @@ import {Stack, StackSummary} from '@aws-sdk/client-cloudformation';
 import {deleteStack, describeStacks} from '../aws/cloudformation';
 import semver, {SemVer} from 'semver';
 import {CenvLog, colors} from '../log';
-import {getMonoRoot, runScripts, spawnCmd, stackPath} from "../utils";
+import {getMonoRoot, removeScope, runScripts, spawnCmd, stackPath} from "../utils";
 import {CommandEvents, Package, PackageCmd} from "./package";
 import path from "path";
 
@@ -197,7 +197,7 @@ export class StackModule extends PackageModule {
       }
 
       const pkgVars = {
-        CENV_PKG_VERSION: this.pkg.rollupVersion, CENV_STACK_NAME: Package.packageNameNoScope(this.pkg.packageName)
+        CENV_PKG_VERSION: this.pkg.rollupVersion, CENV_STACK_NAME: removeScope(this.pkg.packageName)
       }
       opt.cenvVars = {...opt.cenvVars, ...pkgVars};
       if (this.pkg.docker) {
@@ -445,7 +445,7 @@ export class StackModule extends PackageModule {
 
   getEcsUrls() {
     const cluster: NameReplacer = {
-      name: `${process.env.ENV}-${Package.packageNameNoScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g
+      name: `${process.env.ENV}-${removeScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g
     }
     const service: NameReplacer = {
       name: `${process.env.ENV}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : ''}svc`,

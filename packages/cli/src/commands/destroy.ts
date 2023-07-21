@@ -178,7 +178,7 @@ export default class DestroyCommand extends BaseCommand {
 
       if ((!options?.allParameters && !options?.allDocker) && options?.suite || options?.environment || packages?.length > 0 || options?.all) {
         if (options.all) {
-          const suite = new Suite(Package.defaultSuite);
+          const suite = new Suite(Cenv.defaultSuite);
           packages = suite.packages;
         }
         options = Deployment.deployDestroyOptions(options);
