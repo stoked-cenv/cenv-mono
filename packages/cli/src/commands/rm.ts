@@ -111,6 +111,10 @@ export default class RemoveCommand extends BaseCommand {
         return;
       }
 
+      if (!options) {
+        return;
+      }
+
       const types = filteredCount(Object.keys(options), variableTypes);
       if (types.length > 1) {
         CenvLog.single.errorLog('You must specify zero or one parameter blessed: --app, --global, --global-env or --environment');
@@ -120,7 +124,7 @@ export default class RemoveCommand extends BaseCommand {
       if (packages?.length) {
         for (let i = 0; i < packages?.length;) {
           const app = packages.shift();
-          if (app.chDir()) {
+          if (app && app.chDir()) {
             await CenvParams.removeParameters(params, options, types);
           }
         }
@@ -129,7 +133,7 @@ export default class RemoveCommand extends BaseCommand {
 
       await CenvParams.removeParameters(params, options, types);
     } catch (e) {
-      CenvLog.single.errorLog(e + ' \n' + e.stack);
+      CenvLog.single.errorLog(e as string);
     }
   }
 

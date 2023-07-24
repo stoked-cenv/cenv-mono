@@ -7,11 +7,12 @@ import {
   LambdaClient,
   ListFunctionsCommand,
   UpdateFunctionConfigurationCommand,
+  FunctionConfiguration
 } from '@aws-sdk/client-lambda';
 import {fromUtf8, toUtf8} from '@aws-sdk/util-utf8-node';
 import {CenvLog, errorBold} from '../log';
 
-let _client: LambdaClient = null;
+let _client: LambdaClient;
 
 function getClient() {
   if (_client) {
@@ -54,7 +55,7 @@ export async function createFunction(name: string, functionCode: FunctionCode, l
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`createFunction [${name}] error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`createFunction [${name}] error: ${errorBold(e as string)}`);
   }
   return false
 }
@@ -68,7 +69,7 @@ export async function deleteFunction(FunctionName: string) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`deleteFunction error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`deleteFunction error: ${errorBold(e as string)}`);
   }
   return false
 }
@@ -85,7 +86,7 @@ export async function invoke(FunctionName: string, PayloadString: string) {
       return parsedPayload;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`invoke ${FunctionName} error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`invoke ${FunctionName} error: ${errorBold(e as string)}`);
   }
   return false
 }
@@ -99,7 +100,7 @@ export async function getFunction(FunctionName: string, silent = true) {
     }
   } catch (e) {
     if (!silent) {
-      CenvLog.single.errorLog(`get function error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`get function error: ${errorBold(e as string)}`);
     }
   }
   return false
@@ -111,42 +112,47 @@ export async function listFunctions(tags = {}, silent = true) {
     let res = await getClient().send(cmd);
     if (res) {
       let functions = res.Functions;
+      if (!functions) {
+        return []
+      }
       while (res.NextMarker) {
         cmd = new ListFunctionsCommand({MaxItems: 50, Marker: res.NextMarker})
         res = await getClient().send(cmd);
+        if (!res.Functions) {
+          return functions;
+        }
         functions = functions.concat(res.Functions);
       }
       return functions;
     }
-    return false;
+    return [];
   } catch (e) {
     if (!silent) {
-      CenvLog.single.errorLog(`list functions error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`list functions error: ${errorBold(e as string)}`);
     }
   }
-  return false
+  return []
 }
 
 export async function updateLambdas(environmentVariables: any, functionName: string) {
 
   const functions = await listFunctions(false)
   if (!functions) {
-    return;
+    return [];
   }
 
-  const matchingFunctions = [];
+  const matchingFunctions: FunctionConfiguration[] = [];
   for (let i = 0; i < functions.length; i++) {
     const func = functions[i];
-    if (func.Description.startsWith(functionName)) {
+    if (func.Description?.startsWith(functionName)) {
       matchingFunctions.push(func);
     }
   }
-  console.log(matchingFunctions, 'matchingFunctions', matchingFunctions)
 
   let resp = ''
   for (let i = 0; i < matchingFunctions.length; i++) {
     const func = matchingFunctions[i];
-    resp += await updateConfiguration(func.FunctionName, environmentVariables);
+    resp += await updateConfiguration(func.FunctionName as string, environmentVariables);
   }
   return resp;
 }

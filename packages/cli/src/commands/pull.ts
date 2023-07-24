@@ -4,7 +4,7 @@ import {
 } from '@stoked-cenv/lib'
 
 import {BaseCommand} from './base'
-import chalk from 'chalk';
+import * as chalk from "chalk";
 
 
 interface PullCommandOptions extends BaseCommandOptions {

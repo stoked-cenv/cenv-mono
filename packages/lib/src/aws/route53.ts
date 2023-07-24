@@ -3,7 +3,7 @@ import {
 } from '@aws-sdk/client-route-53';
 import {CenvLog, errorBold, infoBold} from '../log';
 
-let _client: Route53Client = null;
+let _client: Route53Client;
 
 function getClient() {
   if (_client) {
@@ -22,12 +22,13 @@ export async function createHostedZone(Name: string) {
 
     const cmd = new CreateHostedZoneCommand({Name, CallerReference: Date.now().toString()});
     const res = await getClient().send(cmd);
-    if (res) {
+    if (res && res.HostedZone) {
       CenvLog.info(`hosted zone ${infoBold(res.HostedZone.Name)} created`)
       return res.HostedZone.Id;
     }
+    return false;
   } catch (e) {
-    CenvLog.single.errorLog(`createHostedZone error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`createHostedZone error: ${errorBold(e as string)}`);
   }
   return false
 }
@@ -45,7 +46,7 @@ export async function deleteHostedZone(Name: string) {
     }
     return true;
   } catch (e) {
-    CenvLog.single.errorLog(`createHostedZone error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`createHostedZone error: ${errorBold(e as string)}`);
   }
   return false
 }
@@ -56,22 +57,22 @@ export async function listHostedZones() {
 
     const cmd = new ListHostedZonesByNameCommand({});
     const res = await getClient().send(cmd);
-    if (res) {
-      return res;
+    if (res && res.HostedZones && res.HostedZones.length) {
+      return res.HostedZones;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`listHostedZone error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`listHostedZone error: ${errorBold(e as string)}`);
   }
   return false
 }
 
 export async function hostedZoneExists(Name: string) {
-  const listResponse = await listHostedZones();
-  if (!listResponse) {
+  const hostedZones = await listHostedZones();
+  if (!hostedZones) {
     return false;
   }
-  for (let i = 0; i < listResponse.HostedZones.length; i++) {
-    const zone = listResponse.HostedZones[i];
+  for (let i = 0; i < hostedZones.length; i++) {
+    const zone = hostedZones[i];
     if (zone.Name === Name + '.') {
       CenvLog.info(`hosted zone ${infoBold(zone.Name)} found`)
       return zone.Id;

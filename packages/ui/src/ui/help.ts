@@ -12,7 +12,7 @@ enum MenuType {
 
 export class HelpUI {
   static commandName = 'intro';
-  static instance: HelpUI = undefined;
+  static instance: HelpUI | undefined = undefined;
   static shiftKeyDown = false;
   screen: any;
   initialized = false;
@@ -25,9 +25,7 @@ export class HelpUI {
   focusIndex = -1;
   focusedBox;
   titleBox;
-  tableWidth: number;
   statusBar;
-  dependencies: string;
   cmdOptions: any;
   selectedCommandFg = [255, 255, 255];
   selectedCommandBg = [30, 30, 30];
@@ -38,7 +36,7 @@ export class HelpUI {
   yellow = [225, 225, 0];
   white = [255, 255, 255];
   green = [0, 255, 0];
-  packageHover: boolean = null;
+  packageHover: boolean = false;
   providers;
   currentProvider: any;
   cmdInfo;
@@ -51,7 +49,8 @@ export class HelpUI {
     try {
 
       if (HelpUI.instance) {
-        return;
+        CenvLog.single.catchLog('tried to initialize HelpUI twice');
+        process.exit(344);
       }
 
       // Cenv.dashboard = this;
@@ -59,7 +58,7 @@ export class HelpUI {
       this.createBaseWidgets();
       HelpUI.instance = this;
 
-      this.titleBox = this.grid.set(0, 1, 1, 2, blessed.element, {
+      this.titleBox = this.grid.set(0, 1, 1, 2, blessed.widget.Element, {
         mouse: true, keys: true, interactive: true, fg: 'white', label: 'docs', style: {
           fg: 'white', bg: 'black', bold: true, border: {fg: 'black'}, label: {bold: true},
         }, border: false, transparent: true, height: 1, hideBorder: true,
@@ -71,20 +70,16 @@ export class HelpUI {
         }, height: 1, hideBorder: true,
       });
 
-      const tableRender =
-
-        // border focus: [24, 242, 24]
-
-        this.topics = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('topics'));
-      this.topics.render = function () {
-        if (this.screen.focused === this.rows) {
-          this.rows.focus();
+      const tableRender = this.topics = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('topics'));
+      this.topics.render = () => {
+        if (this.screen.focused === this.topics.rows) {
+          this.topics.rows.focus();
         }
 
-        this.rows.width = this.width - 3;
-        this.rows.height = this.rows?.length + 2;
-        blessed.Box.prototype.render.call(this);
-      }.bind(this.topics);
+        this.topics.rows.width = this.topics.width - 3;
+        this.topics.rows.height = this.topics.rows?.length + 2;
+        blessed.widget.Box.prototype.render.call(this);
+      };
 
       this.commands = this.grid.set(0, 0, 5, 2, contrib.table, this.getMenuOptions('commands'));
       this.commands.render = tableRender.bind(this.commands);
@@ -128,9 +123,9 @@ export class HelpUI {
       this.commands.rows.selected = -1;
       this.packageHover = false;
 
-      this.titleBox.on('element mouseout', function mouseout() {
+      this.titleBox.on('element mouseout', ()=> {
         this.packageHover = false;
-      }.bind(this),);
+      });
 
       this.columnWidth = this.defaultColumnWidth;
       this.maxColumnWidth = this.defaultColumnWidth.reduce(function (a, b) {
@@ -147,50 +142,50 @@ export class HelpUI {
       this.commands.on('move', function move(offset: number) {
         console.log('offset', offset);
         //CenvLog.single.catchLog('offset: ' + offset);
-      }.bind(this));
+      });
 
       this.commands.on('action', async function action() {
         //this.selectCommand();
-      }.bind(this));
+      });
 
-      this.topics.rows.on('select item', function () {
+      this.topics.rows.on('select item',() => {
         this.selectCommand(MenuType.TOPICS);
-      }.bind(this));
+      });
 
-      this.commands.rows.on('select item', function () {
+      this.commands.rows.on('select item',() => {
         this.selectCommand(MenuType.COMMANDS);
-      }.bind(this));
+      });
 
-      this.screen.key(['escape', 'q', 'C-c'], function () {
+      this.screen.key(['escape', 'q', 'C-c'],() => {
         this.screen.destroy();
         process.exit(0);
-      }.bind(this));
+      });
 
 
-      this.screen.key(['tab'], function (ch: any, key: any) {
+      this.screen.key(['tab'], (ch: any, key: any) => {
         this.loadTopics();
         this.selectCommand(MenuType.TOPICS)
-      }.bind(this),);
+      },);
 
-      this.screen.key(['S-tab'], function (ch: any, key: any) {
+      this.screen.key(['S-tab'], (ch: any, key: any) => {
         //console.log('S-tab derp derp');
         //const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
         //this.setFocusIndex(newIndex);
-      }.bind(this),);
+      },);
 
 
-      this.screen.on('resize', function () {
+      this.screen.on('resize',() => {
         //this.resizeWidgets();
         //this.checkWideView();
-      }.bind(this),);
+      },);
 
       this.commands.focus();
 
       this.loadTopics();
 
-      setInterval(async function mainLoop() {
+      setInterval(async () => {
         await this.update();
-      }.bind(this), 50);
+      }, 50);
 
       this.selectCommand(MenuType.TOPICS)
     } catch (e) {
@@ -243,7 +238,7 @@ export class HelpUI {
 
   setCmdInfo() {
     try {
-      const items = [];
+      const items: string[] = [];
       if (this.currentProvider?.meta?.description) {
         items.push(this.currentProvider.meta.description);
       }
@@ -284,7 +279,6 @@ export class HelpUI {
                                     });
 
       this.screen = screen;
-
       //create layout and widgets
       this.grid = new contrib.grid({rows: 6, cols: 5, screen: this.screen});
     } catch (e) {

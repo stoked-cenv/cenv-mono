@@ -1,4 +1,7 @@
-import blessed from 'blessed';
+import {Text} from 'blessed/lib/widgets/text';
+import {List} from 'blessed/lib/widgets/list';
+import {Box} from 'blessed/lib/widgets/box';
+
 import colors from 'colors/safe';
 import {Dashboard} from './dashboard';
 import {CenvPanel} from './panel';
@@ -8,11 +11,10 @@ import {CenvLog, Cmd, PackageCmd} from '@stoked-cenv/lib';
 export default class CmdPanel extends CenvPanel {
   grid: any;
   cmdList: any;
-  stdout: any;
+  stdout: Text;
   stderr: any;
   selectedCmdIndex = -1;
   debugStr: any;
-  dashboard: Dashboard;
 
   constructor(dashboard: Dashboard) {
     super(dashboard);
@@ -20,7 +22,7 @@ export default class CmdPanel extends CenvPanel {
 
   init() {
     try {
-      this.cmdList = this.addGridWidget(blessed.list, {
+      this.cmdList = this.addGridWidget(List, {
         keys: true, mouse: true, interactive: true, style: {
           text: 'red', selected: {
             bold: true, fg: [24, 242, 24], bg: 'black',
@@ -31,7 +33,7 @@ export default class CmdPanel extends CenvPanel {
       }, [0, 2, 1, 3], true,);
       this.cmdList.name = 'tasks';
 
-      this.stdout = this.addGridWidget(blessed.text, {
+      this.stdout = this.addGridWidget(Text, {
         vi: true, fg: 'white', label: 'stdout', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
           ch: ' ', inverse: true,
         }, style: {
@@ -40,26 +42,28 @@ export default class CmdPanel extends CenvPanel {
       }, [1, 2, 3, 3], true,);
       this.stdout.name = 'stdout'
 
-      this.stdout.on('wheeldown', function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stdout);
+      this.stdout.on('wheeldown',  () => {
+        const index = this.focusPool.indexOf(this.stdout);
         this.setFocus(index);
         this.stdout.scroll((this.stdout.height / 2) | 0 || 1);
         this.stdout.screen.render();
-      }.bind(this),);
-      this.stdout.on('wheelup', function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stdout);
+      });
+
+      this.stdout.on('wheelup', () => {
+        const index = this.focusPool.indexOf(this.stdout);
         this.setFocus(index);
         this.stdout.scroll(-((this.stdout.height / 2) | 0) || -1);
         this.stderr.screen.render();
-      }.bind(this),);
-      this.stdout.on('click', function () {
-        const index = Dashboard.instance.focusPool()?.indexOf(this.stdout);
+      });
+
+      this.stdout.on('click', () => {
+        const index = this.focusPool?.indexOf(this.stdout);
         if (index !== undefined) {
           this.setFocus(index);
         }
-      }.bind(this),);
+      });
 
-      this.stderr = this.addGridWidget(blessed.box, {
+      this.stderr = this.addGridWidget(Box, {
         fg: 'brightRed', label: 'stderr', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
           ch: ' ', inverse: true,
         }, style: {
@@ -69,42 +73,32 @@ export default class CmdPanel extends CenvPanel {
       this.stderr.name = 'stderr'
       this.stderr.setLabel(chalk.gray(`stderr`));
 
-      this.stderr.on('click', function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stderr);
+      this.stderr.on('click', () => {
+        const index = this.focusPool.indexOf(this.stderr);
         this.setFocus(index);
-      }.bind(this),);
+      });
 
-      this.stderr.on('wheeldown', function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stderr);
+      this.stderr.on('wheeldown', () => {
+        const index = this.focusPool.indexOf(this.stderr);
         this.setFocus(index);
         this.stderr.scroll((this.stderr.height / 2) | 0 || 1);
         this.stderr.screen.render();
-      }.bind(this),);
+      });
 
-      this.stderr.on('wheelup', function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.stderr);
+      this.stderr.on('wheelup', () => {
+        const index = this.focusPool.indexOf(this.stderr);
         this.setFocus(index);
         this.stderr.scroll(-((this.stderr.height / 2) | 0) || -1);
         this.stderr.screen.render();
-      }.bind(this),);
+      });
 
-      this.cmdList.on('click', function () {
-        const index = Dashboard.instance.focusPool().indexOf(this.cmdList);
+      this.cmdList.on('click', ()=> {
+        const index = this.focusPool.indexOf(this.cmdList);
         this.setFocus(index);
-      }.bind(this),);
-
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      this.cmdList.on('action', function () {
-      }.bind(this));
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      this.cmdList.on('select', function () {
-      }.bind(this));
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      this.cmdList.on('move', function () {
-      }.bind(this));
+      });
 
 
-      this.cmdList.on('select item', function (item: any, index: number) {
+      this.cmdList.on('select item', (item: any, index: number) => {
         if (this.selectedCmdIndex === index) {
           return;
         }
@@ -123,7 +117,7 @@ export default class CmdPanel extends CenvPanel {
         this.selectedCmdIndex = index;
         this.stderr.setScrollPerc(0);
         this.stdout.setScrollPerc(0);
-      }.bind(this),);
+      });
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
@@ -143,7 +137,7 @@ export default class CmdPanel extends CenvPanel {
     }
     const colorFunc = colors[color as keyof typeof colors];
     if (colorFunc !== false && colorFunc !== true) {
-      return colorFunc(cmd.cmd);
+      return colorFunc(cmd.cmd!);
     }
     return cmd.cmd;
   }
@@ -157,12 +151,6 @@ export default class CmdPanel extends CenvPanel {
 
       const cmds = this.getPkgCmds();
       const cmdText = cmds.map((c: PackageCmd, i: number) => {
-        if (process.env.CENV_STDTEMP) {
-          if (c.code && c.code === 0 && c.stdtemp) {
-            delete c.stdtemp;
-          }
-        }
-
         return this.getCmdText(i, c) as string;
       });
 
@@ -170,11 +158,11 @@ export default class CmdPanel extends CenvPanel {
         this.cmdList.setItems(cmdText);
         this.cmdList?.children?.map((c: any, i: number) => {
           if (!c.hasClicker) {
-            c.on('click', function () {
+            c.on('click', () => {
               this.getPkg().activeCmdIndex = i;
-              const index = Dashboard.instance.focusPool().indexOf(this.cmdList);
+              const index = this.focusPool.indexOf(this.cmdList);
               this.dashboard.setFocusIndex(index);
-            }.bind(this),);
+            });
             c.hasClicker = true;
           }
         });
@@ -232,7 +220,7 @@ export default class CmdPanel extends CenvPanel {
 
   processCmd(cmdIndex: number) {
     const pkgCmds = this.getPkgCmds();
-    if (cmdIndex === undefined || cmdIndex === -1) {
+    if (cmdIndex === -1) {
       if (!pkgCmds.length) {
         return -1;
       }
@@ -281,9 +269,8 @@ export default class CmdPanel extends CenvPanel {
       } else {
         //this.stderr.setContent('');
       }
-      if (pkgCmds[cmdIndex].stdtemp && process.env.CENV_STDTEMP) {
-        //this.stdout.setContent(pkgCmds[cmdIndex].stdtemp);
-      } else if (pkgCmds[cmdIndex].stdout) {
+
+      if (pkgCmds[cmdIndex].stdout) {
         this.stdout.setContent(pkgCmds[cmdIndex].stdout);
       } else {
         //this.stdout.setContent(' - ');
@@ -344,7 +331,7 @@ export default class CmdPanel extends CenvPanel {
       this.stderr.hide();
     }
 
-    if (!cmds[this.selectedCmdIndex]?.stderr || (cmds[this.selectedCmdIndex]?.stdout || (cmds[this.selectedCmdIndex]?.stdtemp && process.env.CENV_STDTEMP)) && !Dashboard.toggleDebug) {
+    if (!cmds[this.selectedCmdIndex]?.stderr || (cmds[this.selectedCmdIndex]?.stdout) && !Dashboard.toggleDebug) {
       this.stdout.show();
     } else {
       this.stdout.hide();
@@ -379,7 +366,7 @@ export default class CmdPanel extends CenvPanel {
       if (!this.active || stackName !== Dashboard.stackName) {
         return;
       }
-      const cmdIndex = this.processCmd(undefined);
+      const cmdIndex = this.processCmd(-1);
       if (!this.isCmdActive(cmdIndex)) {
         return;
       }
@@ -388,7 +375,7 @@ export default class CmdPanel extends CenvPanel {
         this.stdout.insertBottom(message);
       }
       const pkgCmd = this.getPkgCmd(cmdIndex);
-      if (!pkgCmd.alwaysScroll) {
+      if (pkgCmd && !pkgCmd.alwaysScroll) {
         const value = this.stdout.getScrollPerc();
         if (value > 85) {
           this.stdout.setScrollPerc(100);
@@ -406,14 +393,14 @@ export default class CmdPanel extends CenvPanel {
       if (!this.active || stackName !== Dashboard.stackName) {
         return;
       }
-      const cmdIndex = this.processCmd(undefined);
+      const cmdIndex = this.processCmd(-1);
       if (!this.isCmdActive(cmdIndex)) {
         return;
       }
 
       this.stderr.insertBottom(colors.red(message));
       const pkgCmd = this.getPkgCmd(cmdIndex);
-      if (!pkgCmd.alwaysScroll) {
+      if (pkgCmd && !pkgCmd.alwaysScroll) {
         const value = this.stderr.getScrollPerc();
         if (value > 85) {
           this.stderr.setScrollPerc(100);

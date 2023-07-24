@@ -1,4 +1,4 @@
-import chalk, {Chalk} from 'chalk';
+import * as chalk from 'chalk';
 import {Cenv} from './cenv';
 import {cleanup} from "./utils";
 
@@ -160,7 +160,7 @@ export class CenvLog {
     return {color: set[0], dim: set[1], bold: set[2]}
   }
 
-  static actionLine(description: string, title: string = undefined, noun: string = undefined, colorSet: ColorSet = ColorSet.INFO) {
+  static actionLine(description: string, title?: string, noun?: string, colorSet: ColorSet = ColorSet.INFO) {
     const set = this.getColorSet(colorSet);
     const regex = /\[(.*?)\]/gm;
     let m;
@@ -210,7 +210,7 @@ export class CenvLog {
     return Array.isArray(strArray) ? strArray.join(' ') : strArray;
   }
 
-  logBase(message: string | string[], logColor: Chalk, logType: string, stackName: string = undefined, replicateToGlobal = false) {
+  logBase(message: string | string[], logColor: chalk.Chalk, logType: string, stackName?: string, replicateToGlobal = false) {
     message = this.joinArray(message) as string;
     if (message === '' || !message) {
       return;
@@ -260,40 +260,32 @@ export class CenvLog {
     }
   }
 
-  verboseLog(message: string | string[], stackName: string = undefined, replicateToGlobal = false): void {
+  verboseLog(message: string | string[], stackName?: string, replicateToGlobal = false): void {
     if (!CenvLog.isVerbose) {
       return
     }
     this.logBase(message, verbose, 'stdout', stackName, replicateToGlobal);
   }
 
-  infoLog(message: string | string[], stackName: string = undefined, replicateToGlobal = false): void {
+  infoLog(message: string | string[], stackName?: string, replicateToGlobal = false): void {
     if (!CenvLog.isInfo) {
       return;
     }
     this.logBase(message, info, 'stdout', stackName, replicateToGlobal);
   }
 
-  tempLog(message: string | string[], stackName: string = undefined, replicateToGlobal = false): void {
-    if (!CenvLog.isInfo && process.env.CENV_STDTEMP) {
-      this.logBase(message, undefined, 'stdtemp', stackName, replicateToGlobal);
-    } else {
-      this.infoLog(message, stackName, replicateToGlobal);
-    }
-  }
-
-  errorLog(message: string | string[], stackName: string = undefined, replicateToGlobal = false): void {
+  errorLog(message: string | string[], stackName?: string, replicateToGlobal = false): void {
     this.logBase(message, errorInfo, 'stderr', stackName, replicateToGlobal);
   }
 
-  alertLog(message: string | string[], stackName: string = undefined, replicateToGlobal = false): void {
+  alertLog(message: string | string[], stackName?: string, replicateToGlobal = false): void {
     if (!CenvLog.isAlert) {
       return;
     }
     this.logBase(message, infoAlert, 'stdout', stackName, replicateToGlobal);
   }
 
-  stdLog(message: string | string[], stackName: string = undefined, replicateToGlobal = false): void {
+  stdLog(message: string | string[], stackName?: string, replicateToGlobal = false): void {
     if (!CenvLog.isStdout) {
       return;
     }
@@ -307,7 +299,7 @@ export class CenvLog {
     this.errorLog(error);
 
     if (!error || !error.stack) {
-      this.errorLog(new Error().stack)
+      this.errorLog(new Error().stack as string)
     } else {
       this.errorLog(error.stack)
     }
@@ -320,7 +312,7 @@ export class Mouth {
   noun: string;
   stackName: string;
 
-  constructor(noun: string, stackName: string = undefined) {
+  constructor(noun: string, stackName: string) {
     this.noun = noun;
     this.stackName = stackName;
   }
@@ -328,7 +320,7 @@ export class Mouth {
   getAction(...text: string[]): string {
     if (text.length > 1) {
       const parts = {title: text.pop(), description: text.join(' ')};
-      return CenvLog.actionLine(parts.description, parts.title, this.noun || this.stackName, ColorSet.INFO)
+      return CenvLog.actionLine(parts.description, parts.title as string, this.noun || this.stackName, ColorSet.INFO)
     }
     return CenvLog.actionLine(text[0], this.noun || this.stackName, undefined, ColorSet.INFO)
   }

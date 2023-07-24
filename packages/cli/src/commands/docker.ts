@@ -46,8 +46,10 @@ export default class DockerCommand extends BaseCommand {
 
   async runCommand(param: string[], options?: DockerCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      for (let i = 0; i < packages.length; i++) {
-        await packages[i]?.docker?.build(this.args, options);
+      if (packages) {
+        for (let i = 0; i < packages.length; i++) {
+          await packages[i]?.docker?.build(this.args, options);
+        }
       }
     } catch (e) {
       CenvLog.single.catchLog(e);

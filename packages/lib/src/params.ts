@@ -15,7 +15,7 @@ import {
 } from './aws/parameterStore';
 import {invoke, updateLambdas} from './aws/lambda';
 import {CenvLog, errorInfo, infoAlertBold, infoBold,} from './log';
-import chalk from "chalk";
+import * as chalk from "chalk";
 import {getConfigVars} from './aws/appConfigData';
 import {ioReadVarList, readAsync} from './stdIo';
 import {expandTemplateVars, sleep,} from './utils';
@@ -87,13 +87,10 @@ export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => 
 export class CenvParams {
 
   static async removeParameters(params: any, options: any, types: string[], exitOnFail = true) {
-    const {
-      cenvPackage,
-      paramData,
-      rootPaths,
-      inCenvRoot
-    } = await this.buildDataRemoveLinks(params, options, types, exitOnFail);
-    await CenvParams.removeParameter(params, options, paramData, rootPaths, inCenvRoot, cenvPackage);
+    const resLinks = await this.buildDataRemoveLinks(params, options, types, exitOnFail);
+    if (resLinks) {
+      await CenvParams.removeParameter(params, options, resLinks.paramData, resLinks.rootPaths, resLinks.inCenvRoot, resLinks.cenvPackage);
+    }
   }
 
   static async removeAll(varTypes: any, rootPaths: string[], type: string, pkg: Package) {
@@ -145,7 +142,7 @@ export class CenvParams {
       }
       const type = types[0];
 
-      const paramData = [];
+      const paramData: {type: string, root: string, key: string, path: string, envVar: any}[] = [];
       const varTypes = inCenvRoot ? variableTypes : ['global', 'globalEnv'];
       const vars: any = {};
       const rootPaths: any = inCenvRoot ? CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName) : {
@@ -218,10 +215,10 @@ export class CenvParams {
   }
 
 
-  static async removeParameter(params: any, options: any, paramData: any, rootPaths: any, inCenvRoot: boolean, cenvPackage: string) {
-    const linksUpdated: any = [];
-    const linksAttempted = []
-    const paramsUpdated = [];
+  static async removeParameter(params: string[], options: any, paramData: any, rootPaths: any, inCenvRoot: boolean, cenvPackage: string) {
+    const linksUpdated: string[] = [];
+    const linksAttempted: string[] = []
+    const paramsUpdated: string[] = [];
 
     if (options?.kill) {
       const killItWithFire = await readAsync('The --kill flag removes the global parameter entirely. Any services that depend on it will be broken. Are you sure you want to delete the global parameter? (y/n): ', 'n');
@@ -238,7 +235,7 @@ export class CenvParams {
         const rootLink = rootPaths[pdata.type + 'Link'];
         const linkVars = await getParameter(rootLink, true);
         if (linkVars) {
-          const newLinkVarPaths = [];
+          const newLinkVarPaths: string[] = [];
           const linkVarPaths = linkVars[rootLink].Value.split(',');
           for (let j = 0; j < linkVarPaths.length; j++) {
             const linkVarPath = linkVarPaths[j];
@@ -392,7 +389,7 @@ export class CenvParams {
 
   static async mergeDataType(file: any, vars: any, type: string) {
 
-    let fileData = null;
+    let fileData: Record<string, string> = {};
     let changed = false;
 
     if (!process.env.CENV_PARAMS_EXTRACTION_TEST && existsSync(file.PATH)) {
@@ -413,7 +410,7 @@ export class CenvParams {
           fileData = await ioReadVarList(fileData, true);
         }
         if (type === 'globalEnvTemplate') {
-          fileData['ENVIRONMENT_NAME'] = process.env.ENV;
+          fileData['ENVIRONMENT_NAME'] = process.env.ENV!;
         }
       }
     }
@@ -437,7 +434,7 @@ export class CenvParams {
     return {vars, changed};
   }
 
-  static async pull(materialized = false, decrypted = false, silent = false, init = false, push = true, save = true, config: EnvConfig = undefined, allValues = false) {
+  static async pull(materialized = false, decrypted = false, silent = false, init = false, push = true, save = true, config?: EnvConfig, allValues = false) {
     let data = config;
     if (!data) {
       data = await CenvFiles.GetConfig();
@@ -565,8 +562,8 @@ export class CenvParams {
       await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Cenv.scopeName, '')}`);
       return {before, after}
     } catch (e) {
-      CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + (e.stack ? e.stack : e))
-      return {error: e};
+      CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + e as string)
+      return {error: e as Error};
     }
   }
 

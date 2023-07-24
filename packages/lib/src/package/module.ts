@@ -1,7 +1,7 @@
 import {Package, TPackageMeta} from './package';
-import semver, {SemVer} from 'semver';
+import {parse, SemVer} from 'semver';
 import {writeFileSync} from 'fs';
-import path from 'path';
+import * as path from 'path';
 import {CenvLog, Mouth,} from '../log';
 
 export enum PackageModuleType {
@@ -9,9 +9,9 @@ export enum PackageModuleType {
 }
 
 export interface IPackageModule {
-  name?: string;
+  name: string;
   path: string;
-  version?: SemVer;
+  version: SemVer;
   buildVersion?: SemVer;
   currentVersion?: SemVer;
   versionHash?: string;
@@ -50,33 +50,33 @@ export abstract class PackageModule implements IPackageModule {
   cleanDeps = false;
   fixedDeps = false;
   removedDeps: any[] = [];
-  depCheckReport: string = null;
+  depCheckReport: string = '';
   mouth: Mouth;
   status: PackageStatus = {needsFix: [], deployed: [], incomplete: []};
   meta: TPackageMeta;
 
   readonly _type: PackageModuleType;
 
-  protected constructor(module: IPackageModule, moduleType: PackageModuleType) {
-    this.path = module.path;
-    this.pkg = module.pkg;
+  protected constructor(pkg: Package, path: string, meta: TPackageMeta, moduleType: PackageModuleType) {
+    this.path = path;
+    this.pkg = pkg;
 
     module = {...module, ...this.pkg.meta.metas[this.path]};
 
-    this.name = module.name;
-    this.version = module.version;
-    this.buildVersion = module.buildVersion;
-    this.currentVersion = module.currentVersion;
+    this.name = meta.name;
+    this.version = meta.version;
+    this.buildVersion = meta.buildVersion;
+    this.currentVersion = meta.currentVersion;
 
-    this.versionHash = module.versionHash;
-    this.buildHash = module.buildHash;
-    this.currentHash = module.currentHash;
+    this.versionHash = meta.versionHash;
+    this.buildHash = meta.buildHash;
+    this.currentHash = meta.currentHash;
     this.checked = false;
     this._type = moduleType;
 
     this.meta = this.pkg.meta.metas[this.path];
     this.pkg.meta.addModule(this, this.path);
-    this.createMouth(moduleType, this.pkg.stackName);
+    this.mouth = new Mouth(moduleType, this.pkg.stackName);
   }
 
   abstract get moduleStrings(): string[];
@@ -86,6 +86,10 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   abstract get anythingDeployed(): boolean;
+
+  static fromData(pkg: Package, path: string, meta: TPackageMeta) {
+    return {pkg, path, name: meta.name, version: meta.version, buildVersion: meta.buildVersion, currentVersion: meta.currentVersion}
+  }
 
   get statusDetail(): string {
     if (this.fixedDeps) {
@@ -100,7 +104,7 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   get moduleBaseStrings(): string[] {
-    const items = [];
+    const items: string[] = [];
     items.push(`version: v${this.version}`);
     if (this.buildVersion) {
       items.push(`build version: v${this.buildVersion}`);
@@ -109,7 +113,7 @@ export abstract class PackageModule implements IPackageModule {
       items.push(`current version: v${this.currentVersion}`);
     }
 
-    if (this.pkg?.stackVersion && this.version !== semver.parse(this.pkg.stackVersion)) {
+    if (this.pkg?.stackVersion && this.version !== parse(this.pkg.stackVersion)) {
       items.push(`deployed version: v${this.pkg.stackVersion}`);
     }
     return items;
@@ -206,11 +210,16 @@ export abstract class PackageModule implements IPackageModule {
 
   versionMismatch(compareVersion: string) {
     const versionMismatch = `the latest deployed version is [${compareVersion}] your local build is at version [${this.pkg.rollupVersion}]`;
-    if (semver.parse(compareVersion) < this.pkg.rollupVersion) {
+    const parsed = parse(compareVersion);
+    if (!parsed) {
+      return this.statusLine('version invalid', versionMismatch, true);
+    }
+    if (parsed < this.pkg.rollupVersion) {
       return this.statusLine('old version deployed', versionMismatch, true);
-    } else if (semver.parse(compareVersion) > this.pkg.rollupVersion) {
+    } else if (parsed > this.pkg.rollupVersion) {
       return this.statusLine('newer version deployed', versionMismatch, true);
     }
+    return this.statusLine('version up to date', versionMismatch, false);
   }
 
   async depCheck() {

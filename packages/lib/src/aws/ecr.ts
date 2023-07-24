@@ -9,7 +9,7 @@ import {
 } from '@aws-sdk/client-ecr';
 import {CenvLog, errorBold, infoBold} from '../log';
 
-let _client: ECRClient = null;
+let _client: ECRClient;
 
 function getClient() {
   if (_client) {
@@ -31,7 +31,7 @@ export async function createRepository(repositoryName: string) {
       return res.repository;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`createRepository error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`createRepository error: ${errorBold(e as string)}`);
   }
   return false;
 }
@@ -44,7 +44,7 @@ export async function listImages(repositoryName: string) {
       return res.imageIds;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`listImages error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`listImages error: ${errorBold(e as string)}`);
   }
   return false;
 }
@@ -62,7 +62,7 @@ export async function deleteImages(repositoryName: string, imageIds: any = undef
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`deleteImages from ${repositoryName} error : ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`deleteImages from ${repositoryName} error : ${errorBold(e as string)}`);
   }
   return false;
 }
@@ -88,7 +88,7 @@ export async function deleteRepository(repositoryName: string, images = false) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`deleteRepository ${repositoryName} error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`deleteRepository ${repositoryName} error: ${errorBold(e as string)}`);
   }
   return false;
 }
@@ -101,7 +101,7 @@ export async function describeRepositories(): Promise<Repository[] | false> {
       return res.repositories;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`describeRepositories error: ${errorBold(e.message)}\n${JSON.stringify(e)}`);
+    CenvLog.single.errorLog(`describeRepositories error: ${errorBold(e as string)}\n${JSON.stringify(e)}`);
   }
   return false;
 }

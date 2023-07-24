@@ -1,17 +1,16 @@
-import blessed from 'blessed';
-import contrib from 'blessed-contrib';
+import * as blessed from 'blessed';
+import * as contrib from 'blessed-contrib';
 import {Dashboard} from './dashboard';
 
-
-const blessedDeps: { dashboard: Dashboard, splitterOverride: any } = {dashboard: undefined, splitterOverride: null};
-let colorTimeout: NodeJS.Timeout;
+const blessedDeps: { dashboard?: Dashboard, splitterOverride: any } = {dashboard: undefined, splitterOverride: null};
+let colorTimeout: NodeJS.Timeout | undefined;
 const widgetSpacing = 0;
 
 function getBlessedDeps() {
   return blessedDeps;
 }
 
-blessed.List.prototype.move = async function (offset: number) {
+blessed.widget.List.prototype.move = async function (offset: number) {
   this.select(this.selected + offset);
 };
 
@@ -45,18 +44,23 @@ contrib.grid.prototype.set = function (row: number, col: number, rowSpan: number
     throw ('Error: A Grid is not allowed to be nested inside another grid.\r\n' + 'Note: Release 2.0.0 has breaking changes. Please refer to the README or to https://github.com/yaronn/blessed-contrib/issues/39');
   }
 
-  const top = row * this.cellHeight + this.options.dashboardMargin;
-  const left = col * this.cellWidth + this.options.dashboardMargin;
+  // @ts-ignore
+  const top = row * this.options.cellHeight + this.options.dashboardMargin;
+  // @ts-ignore
+  const left = col * this.options.cellWidth + this.options.dashboardMargin;
 
   //var options = JSON.parse(JSON.stringify(opts));
   let options: any = {};
   options = MergeRecursive(options, opts);
   options.top = top + '%';
   options.left = left + '%';
+  // @ts-ignore
   options.width = this.cellWidth * colSpan - widgetSpacing + '%';
+  // @ts-ignore
   options.height = this.cellHeight * rowSpan - widgetSpacing + '%';
   if (!options.hideBorder) {
-    options.border = {type: 'line', fg: this.options.color || 'cyan'};
+    // @ts-ignore
+    options.border = {type: 'line', fg: this.options?.color || 'cyan'};
   }
 
   const instance = obj(options);
@@ -64,7 +68,7 @@ contrib.grid.prototype.set = function (row: number, col: number, rowSpan: number
   return instance;
 };
 
-blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean) {
+blessed.widget.Box.prototype.enableDrag = function (verify: (data: any) => boolean) {
   // eslint-disable-next-line @typescript-eslint/no-this-alias
   const self = this;
 
@@ -120,24 +124,28 @@ blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean)
     }
     Dashboard.horizontalSplitterUserCtrl = true;
     colorTimeout = setTimeout(() => {
-      blessedDeps.dashboard.splitter.style.bg = blessedDeps.dashboard.splitter.style.oldBg;
-      blessedDeps.dashboard.splitter.style.transparent = false;
-      colorTimeout = undefined;
-      blessedDeps.dashboard.redraw();
+      if (blessedDeps.dashboard) {
+        blessedDeps.dashboard.splitter.style.bg = blessedDeps.dashboard.splitter.style.oldBg;
+        blessedDeps.dashboard.splitter.style.transparent = false;
+        colorTimeout = undefined;
+        blessedDeps.dashboard.redraw();
+      }
     }, 50);
 
-    if (!blessedDeps.dashboard.splitter.style.oldBg) {
-      blessedDeps.dashboard.splitter.style.oldBg = blessedDeps.dashboard.splitter.style.bg;
-    }
+    if (blessedDeps.dashboard) {
+      if (!blessedDeps.dashboard?.splitter?.style?.oldBg) {
+        blessedDeps.dashboard.splitter.style.oldBg = blessedDeps.dashboard.splitter.style.bg;
+      }
 
-    if (data.x > blessedDeps.dashboard.maxColumnWidth) {
-      blessedDeps.dashboard.splitter.style.bg = 'red';
-      blessedDeps.dashboard.splitter.style.transparent = true;
-    } else {
-      blessedDeps.dashboard.splitter.style.bg = [80, 80, 80];
-    }
+      if (blessedDeps?.dashboard?.maxColumnWidth && data.x > blessedDeps?.dashboard?.maxColumnWidth) {
+        blessedDeps.dashboard.splitter.style.bg = 'red';
+        blessedDeps.dashboard.splitter.style.transparent = true;
+      } else {
+        blessedDeps.dashboard.splitter.style.bg = [80, 80, 80];
+      }
 
-    blessedDeps.dashboard.resizeWidgets();
+      blessedDeps.dashboard?.resizeWidgets(blessedDeps.dashboard?.calcTableInfo());
+    }
     // blessedDeps.dashboard.render();
 
     const ox = self._drag.x, px = self.parent.aleft, x = data.x - px - ox;
@@ -158,6 +166,5 @@ blessed.Element.prototype.enableDrag = function (verify: (data: any) => boolean)
 
   return (this._draggable = true);
 };
-
-export {blessed, getBlessedDeps};
-export {contrib};
+blessed.widget.Element
+export {blessed, getBlessedDeps, contrib};

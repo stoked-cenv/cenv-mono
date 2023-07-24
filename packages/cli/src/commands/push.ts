@@ -45,7 +45,7 @@ export default class PushCommand extends BaseCommand {
     return val;
   }
 
-  async runCommand(param: string[], options?: PushCommandOptions): Promise<void> {
+  async runCommand(param: string[], options: PushCommandOptions): Promise<void> {
     try {
       await configure(options);
       const config = CenvFiles.GetConfig();
@@ -67,7 +67,9 @@ export default class PushCommand extends BaseCommand {
         }
         config.EnvironmentName = options.environment;
       }
-      await CenvParams.push(options?.deploy)
+      if (options.deploy) {
+        await CenvParams.push(options.deploy)
+      }
     } catch (e) {
       console.log(errorInfo(e));
     }

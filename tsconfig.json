@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "typeRoots": [
+      "node_modules/@types",
+      "packages/ui/src/blessed.d.ts",
+      "packages/lib/src/read.d.ts"
+    ],
+    "noImplicitAny": false,
+    "esModuleInterop": true
+  },
+  "paths": {
+  }
+}

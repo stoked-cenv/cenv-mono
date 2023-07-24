@@ -177,7 +177,7 @@ export default class DeployCommand extends BaseCommand {
         return;
       }
 
-      if (packages?.length > 0 || (packages?.length === 1 && packages[0].local)) {
+      if ((packages && packages?.length > 0) || (packages?.length === 1 && packages[0].local)) {
         Package.loading = false;
         await Deployment.Deploy(packages, options);
       } else if (!options?.verify) {

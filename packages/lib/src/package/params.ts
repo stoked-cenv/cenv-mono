@@ -1,36 +1,40 @@
 import {IPackageModule, PackageModule, PackageModuleType} from './module';
 import {AppVars, AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList} from '../file';
-import path, {join} from 'path';
+import * as path from 'path';
+import {join} from 'path';
 import {existsSync} from 'fs';
 import {destroyAppConfig, destroyRemainingConfigs, getConfig} from '../aws/appConfig';
 import {CenvParams} from '../params';
 import {CenvLog, colors} from '../log';
-import {expandTemplateVars, simplify} from '../utils';
+import {expandTemplateVars, simplify, validateEnvVars} from '../utils';
 import {decryptValue, deleteParametersByPath, isEncrypted, stripPath} from '../aws/parameterStore';
 import {Semaphore} from 'async-mutex';
 import {getConfigVars} from "../aws/appConfigData";
+import {Package, TPackageMeta} from "./package";
 
-export interface CenvVarsCount {
-  app: number;
-  environment: number;
-  globalEnv: number;
-  global: number;
+//
+
+export class CenvVarsCount {
+  app = 0;
+  environment = 0;
+  globalEnv = 0;
+  global = 0;
 }
 
 export class ParamsModule extends PackageModule {
   static semaphore = new Semaphore(2);
   static showDuplicateParams = false;
-  localConfig?: EnvConfig;
-  deployedConfig?: EnvConfig;
+  localConfig: EnvConfig = new EnvConfig()
+  deployedConfig: EnvConfig = new EnvConfig()
   pushedVarsTyped?: CenvVars;
   pushedVars?: VarList;
   localVars?: VarList;
-  localVarsTyped?: CenvVars;
-  materializedVars?: VarList;
+  localVarsTyped = new CenvVars();
+  materializedVars: VarList = {};
   materializedVarsVersion?: number;
-  hasCenvVars = false;
-  hasLocalConfig = false;
-  varsUpToDateFlag: boolean;
+  hasCenvVars: boolean = false;
+  hasLocalConfig: boolean= false;
+  varsUpToDateFlag: boolean = false;
   processStatus = '[PARAMS] needs update: vars not deployed';
   materializationStatus = '[PARAMS] needs update: vars not materialized';
   // not found in parameter store and has not been materialized
@@ -50,23 +54,23 @@ export class ParamsModule extends PackageModule {
   needsDeploy = false;
   needsMaterialization = false;
   unmatchedValues = false;
-  localCounts: CenvVarsCount;
-  pushedCounts: CenvVarsCount;
-  materializedTotal: number;
-  pushedTotal: number;
-  localTotal: number;
-  totalsMatch: boolean;
-  appValid: boolean;
-  envValid: boolean;
-  geValid: boolean;
-  gValid: boolean;
+  localCounts = new CenvVarsCount();
+  pushedCounts = new CenvVarsCount();
+  materializedTotal = 0;
+  pushedTotal = 0;
+  localTotal = 0;
+  totalsMatch = false;
+  appValid = false;
+  envValid = false;
+  geValid = false;
+  gValid = false;
   varsLoaded = false;
   cenvVars: any = {};
   duplicates: { key: string; types: string[] }[] = [];
 
-  constructor(module: IPackageModule) {
-    super(module, PackageModuleType.PARAMS);
-    CenvFiles.ENVIRONMENT = process.env.ENV;
+  constructor(pkg: Package, path: string, meta: TPackageMeta) {
+    super(pkg, path, meta, PackageModuleType.PARAMS);
+    CenvFiles.ENVIRONMENT = process.env.ENV!;
     this.hasCenvVars = existsSync(join(this.path, CenvFiles.PATH, AppVarsFile.NAME));
     this.hasLocalConfig = existsSync(join(this.path, CenvFiles.PATH, EnvConfigFile.NAME));
     if (this.hasLocalConfig) {
@@ -78,7 +82,7 @@ export class ParamsModule extends PackageModule {
   }
 
   get anythingDeployed(): boolean {
-    return (this.hasCenvVars && (this.varsUpToDateFlag || !!this.materializedVarsVersion || !!this.deployedConfig || (this.pushedVars && Object.keys(this.pushedVars).length > 0) || (this.materializedVars && Object.keys(this.materializedVars).length > 0)));
+    return (this.hasCenvVars && (this.varsUpToDateFlag || !!this.materializedVarsVersion || !!this.deployedConfig || (this.pushedVars && Object.keys(this.pushedVars).length > 0) || !!(this.materializedVars && Object.keys(this.materializedVars).length > 0)));
   }
 
   public get localConfigValid() {
@@ -135,7 +139,7 @@ export class ParamsModule extends PackageModule {
   }
 
   static async getApplications(deployOptions: any, application: string) {
-    let applications = [];
+    let applications: string[] = [];
     if (application) {
       applications.push(application);
     } else if (deployOptions?.applications) {
@@ -163,7 +167,7 @@ export class ParamsModule extends PackageModule {
   }
 
   static fromModule(module: PackageModule) {
-    return new ParamsModule(module);
+    return new ParamsModule(module.pkg, module.path, module.meta);
   }
 
   async destroy(parameterStore = true, appConfig = true) {
@@ -197,7 +201,7 @@ export class ParamsModule extends PackageModule {
 
     if (CenvLog.isVerbose && process.env.CENV_ENV_VARS_VERBOSE) {
       this.pkg.stdPlain('# env vars')
-      this.pkg.printEnvVars(process.env)
+      this.pkg.printEnvVars(process.env as Record<string, string>)
     }
     this.varsLoaded = true;
   }
@@ -327,6 +331,7 @@ export class ParamsModule extends PackageModule {
       return this.varsUpToDateFlag;
     } catch (err) {
       CenvLog.single.catchLog(err);
+      process.exit(83);
     }
   }
 
@@ -426,18 +431,18 @@ export class ParamsModule extends PackageModule {
 
   reset() {
     this.checked = false;
-    this.varsUpToDateFlag = undefined;
-    this.localVarsTyped = undefined;
+    this.varsUpToDateFlag = false;
+    this.localVarsTyped = new CenvVars();
     this.localVars = undefined;
     this.pushedVars = undefined;
     this.pushedVarsTyped = undefined;
-    this.materializedVars = undefined;
-    this.localCounts = undefined;
-    this.pushedCounts = undefined;
-    this.materializedTotal = undefined;
+    this.materializedVars = {};
+    this.localCounts = new CenvVarsCount();
+    this.pushedCounts = new CenvVarsCount();
+    this.materializedTotal = 0;
     this.duplicates = [];
     this.materializedVarsVersion = undefined;
-    this.deployedConfig = undefined;
+    this.deployedConfig = new EnvConfig()
     this.status = {needsFix: [], deployed: [], incomplete: []};
   }
 
@@ -495,7 +500,7 @@ export class ParamsModule extends PackageModule {
 
         if (depRes) {
           CenvFiles.EnvConfig = this.deployedConfig;
-          const relative = path.relative(process.cwd(), this.pkg.params.path);
+          const relative = path.relative(process.cwd(), this.path);
           if (relative !== '') {
             process.chdir(relative);
           }

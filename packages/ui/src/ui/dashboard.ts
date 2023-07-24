@@ -1,4 +1,5 @@
 import {blessed, contrib, getBlessedDeps} from './blessed';
+import {Screen} from 'blessed/lib/widgets/screen';
 import Dialogs from './dialogs';
 import Menu from './menu';
 import {
@@ -22,24 +23,16 @@ import {
   PkgContextType,
   ProcessMode,
   ProcessStatus,
-  validateBaseOptions
+  validateBaseOptions,
+  PkgSummary
 } from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
-import chalk, {ChalkFunction} from 'chalk';
+import {ChalkFunction} from 'chalk';
+import * as chalk from 'chalk'
 import {isFunction} from "lodash";
 import {HelpUI} from "./help";
 import Groups from "./group";
-
-interface PkgInfo {
-  stackName: string,
-  processStatus: ProcessStatus;
-  environmentStatus: EnvironmentStatus;
-  timer: string;
-  type: string;
-  version: string;
-  statusTime?: number;
-}
 
 export enum ModuleDeployMode {
   ALL, PARAMETERS, STACK, DOCKER, NONE
@@ -61,16 +54,24 @@ export interface Click {
 }
 
 export class Dashboard {
+
+  // static state
   static toggleDebug = false;
-  static instance: Dashboard = undefined;
+  static instance?: Dashboard = undefined;
   static stackName = '';
   static moduleToggle = true;
   static dependencyToggle = true;
   static paramsToggle = false;
   static horizontalSplitterUserCtrl = false;
   static enableMenuCommands = true;
-  screen: any;
-  screenRenderOriginal: any;
+
+  // widgets
+  screen: Screen;
+  statusOptions?: Menu;
+  cmdPanel?: CmdPanel;
+  statusPanel?: StatusPanel;
+  menu?: Menu;
+
   initialized = false;
   debugLog;
   status;
@@ -79,32 +80,28 @@ export class Dashboard {
   complete = false;
   packages;
   grid: any;
-  cmd: ProcessMode = undefined;
+  cmd?: ProcessMode = undefined;
   focusIndex = -1;
   focusedBox;
-  cmdPanel: CmdPanel;
-  statusPanel: StatusPanel;
-  globalPkg: Package;
-  menu: Menu;
   priorityColumnWidth: any = [];
   columnWidth;
   columnSpacing = 2;
   maxColumnWidth;
   minColumnWidth = 12;
-  tableWidth: number;
+  tableWidth: number = 0;
   splitter: any;
-  suite: string;
+  suite: string | undefined;
   environment;
   packageBox;
   statusBar;
-  packageTs: number;
+  packageTs: number | undefined;
   mode: DashboardMode = DashboardMode.MIXED;
   modeLastWide: DashboardMode = DashboardMode.WIDE_CMD_FIRST;
   modeLast: DashboardMode = DashboardMode.MIXED;
-  dependencies: string;
+  dependencies: string = '';
   cmdOptions: any;
-  selectedPackage: Package;
-  selectedRowFg: number[] = undefined;
+  selectedPackage?: Package;
+  selectedRowFg?: number[] = undefined;
   selectedPackageFg = [14, 221, 14];
   selectedFullPackageFg = [40, 40, 40];
   selectedPackageFgHover = [20, 20, 20];
@@ -113,8 +110,8 @@ export class Dashboard {
   selectedPackageBgHover = [24, 255, 24];
   selectedFullPackageBgHover = [24, 255, 24];
   packageBgHover = [15, 40, 15];
-  hoverRowIndex: number = undefined;
-  selectedRowIndex: number = undefined;
+  hoverRowIndex: number = -1;
+  selectedRowIndex: number = -1;
   selectedFully = false;
   blue = chalk.blue;
   blueBright = [0, 150, 255];
@@ -126,7 +123,7 @@ export class Dashboard {
   lightGray = [220, 220, 220];
   green = [0, 255, 0];
   statusBarInUse = false;
-  packageHover: boolean = null;
+  packageHover: boolean = false;
   view = 'mixed';
   blessedDeps;
   fullScreenCtrl: any;
@@ -134,12 +131,12 @@ export class Dashboard {
   processOptions;
   debounceFlags: Record<string, any> = {};
   //clickQueue: Queue<Click> = new Queue<Click>();
-  clearLabelTimeout: NodeJS.Timeout = null;
+  clearLabelTimeout?: NodeJS.Timeout = undefined;
   deploying = false;
-  statusOptions: Menu;
+
   clickQueue: Click[] = [];
   moduleDeployMode = ModuleDeployMode.ALL;
-  titleContext: Package[];
+  titleContext: Package[] = [];
   lastSelectedFully = false;
   maxProcessOptionsHeight = 34;
   autoHidePanelHeight = true;
@@ -147,8 +144,10 @@ export class Dashboard {
 
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
+      this.cmdPanel = new CmdPanel(this);
       if (Dashboard.instance) {
-        return Dashboard.instance;
+        CenvLog.single.catchLog('attempted to initialize the dashboard twice');
+        process.exit(349);
       }
 
       this.cmdOptions = dashboardOptions.options;
@@ -156,8 +155,8 @@ export class Dashboard {
       this.blessedDeps.dashboard = this;
       this.createBaseWidgets();
       this.statusPanel = new StatusPanel(this);
-      this.cmdPanel = new CmdPanel(this);
-      this.suite = dashboardOptions?.suite;
+
+      this.suite = dashboardOptions?.suite ? dashboardOptions?.suite : undefined;
       this.environment = dashboardOptions?.environment;
       this.cmd = dashboardOptions?.cmd;
 
@@ -167,8 +166,8 @@ export class Dashboard {
     }
 
     try {
-      this.global();
-      this.packageBox = this.grid.set(0, 0, 1, 2, blessed.element, {
+      //this.global();
+      this.packageBox = this.grid.set(0, 0, 1, 2, blessed.widget.Box, {
         mouse: true, keys: true, interactive: true, fg: 'white', label: 'package', style: {
           fg: 'white', bg: 'black', bold: true, border: {fg: 'black'}, label: {bold: true},
         }, border: false, transparent: true, height: 1, hideBorder: true,
@@ -176,23 +175,23 @@ export class Dashboard {
 
       const pkgButtons = {
         deploy: {
-          keys: ['d'], callback: async function () {
+          keys: ['d'], callback: () => {
             this.debounceCallback('deploy', async () => {
               await this.launchDeployment(ProcessMode.DEPLOY);
             });
-          }.bind(this),
+          }
         }, synth: {
-          keys: ['s'], callback: async function () {
+          keys: ['s'], callback: () => {
             this.debounceCallback('synth', async () => {
               const pkgs = this.getContext();
               if (!pkgs) {
                 return;
               }
-              await Promise.all(pkgs.map(async (p: Package) => await p.stack.synth()));
+              await Promise.all(pkgs.map(async (p: Package) => await p.stack?.synth()));
             });
-          }.bind(this),
+          }
         }, destroy: {
-          keys: ['y'], callback: async function () {
+          keys: ['y'], callback: () => {
             this.debounceCallback('destroy', async () => {
               const pkgs = this.getContext();
               if (!pkgs) {
@@ -202,11 +201,11 @@ export class Dashboard {
               this.setStatusBar('launchDestroy', this.statusText(`destroy`, packages),);
               await this.launchDeployment(ProcessMode.DESTROY);
             });
-          }.bind(this),
+          }
         },
 
         build: {
-          keys: ['b'], callback: async function () {
+          keys: ['b'], callback: () => {
             this.debounceCallback('build', async () => {
               const ctx = this.getContext(PkgContextType.COMPLETE, false);
               if (!ctx || !ctx.length) {
@@ -216,9 +215,9 @@ export class Dashboard {
               this.setStatusBar(name, this.statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName));
               await Promise.all(ctx?.map(async (p: Package) => await p?.lib?.build(false, true)));
             });
-          }.bind(this),
+          }
         }, "status": {
-          keys: ['enter'], callback: async function () {
+          keys: ['enter'], callback: () => {
             const ctx = this.getContext(PkgContextType.COMPLETE, false);
             if (!ctx?.length) {
               return;
@@ -226,20 +225,20 @@ export class Dashboard {
             const packages = ctx.length > 1 ? `${ctx.length} packages` : `${ctx[0]?.packageName?.toUpperCase()}`;
             this.setStatusBar('checkStatus', this.statusText('status check', `check deployment status of ${packages}`),);
             ctx.filter((p: Package) => !p.isGlobal).map(async (p: Package) => await p.checkStatus(Deployment?.mode()?.toString(), ProcessStatus.COMPLETED));
-          }.bind(this),
+          }
         }, cancel: {
-          keys: ['c'], callback: function () {
+          keys: ['c'], callback: () => {
             const ctx = this.getContext(PkgContextType.PROCESSING, false);
             if (!ctx) {
               return;
             }
             this.debounceCallback('cancel', async () => {
               await Promise.allSettled(ctx.map(async (p: Package) => {
-                CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', Dashboard.instance.cmdPanel.stdout), p.stackName);
+                CenvLog.single.stdLog(Deployment.logStatusOutput('current deployment test', this.cmdPanel?.stdout), p.stackName);
 
                 const complete = await Deployment.packageComplete(p);
                 if (complete) {
-                  Package.global.timer.stop();
+                  Package.global.timer?.stop();
                 }
 
                 if (Deployment.dependencies) {
@@ -257,9 +256,9 @@ export class Dashboard {
 
               this.setStatusBar('cancel deploy', `cancel ${ctx.length === 1 ? ctx[0].packageName : ctx.length + ' packages (does not cancel cloudformation)'}`);
             });
-          }.bind(this),
+          }
         }, "kill hard": {
-          keys: ['C-k'], callback: async function () {
+          keys: ['C-k'], callback: () => {
             this.debounceCallback('hard kill', async () => {
               const ctx = this.getContext();
               if (!ctx) {
@@ -270,16 +269,16 @@ export class Dashboard {
                 return;
               }
 
-              Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack.detail.StackStatus}. Are you sure you want to destroy this stack?`, async function (killIt: boolean) {
+              Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack?.detail?.StackStatus}. Are you sure you want to destroy this stack?`,  async (killIt: boolean) => {
                 const service = ctx[0].stackName;
                 if (killIt) {
-                  Dashboard.instance.setStatusBar('kill hard', this.statusText('kill hard', service));
+                  this.setStatusBar('kill hard', this.statusText('kill hard', service));
                   await deleteStack(ctx[0].stackName);
                 }
-              }.bind(this));
+              });
 
             });
-          }.bind(this),
+          }
         },
       }
 
@@ -291,7 +290,7 @@ export class Dashboard {
       });
 
 
-      this.statusBar.on('click', async function (data: any) {
+      this.statusBar.on('click', (data: any) => {
         if (!process.env.DEBUG_MODE) {
           const click: Click = {ts: Date.now(), x: data.x, y: data.y};
           this.clickQueue.unshift(click);
@@ -311,12 +310,12 @@ export class Dashboard {
             }
           }
         }
-      }.bind(this));
+      });
 
-      this.statusBar.on('render', function () {
+      this.statusBar.on('render', () => {
         Dialogs.setFront();
         Dialogs.render();
-      }.bind(this));
+      });
 
       this.packages = this.grid.set(0, 0, 5, 2, contrib.table, {
         mouse: true,
@@ -338,13 +337,13 @@ export class Dashboard {
 
       this.packageHover = false;
 
-      this.packages.on('element mouseover', async function mouseover(el: any) {
+      this.packages.on('element mouseover', async (el: any) => {
         try {
           if (el.parent?.name !== 'packageRows') {
             return;
           }
 
-          const stackNameVis = blessed.cleanTags(el.content).split(' ')[0];
+          const stackNameVis = blessed.helpers.cleanTags(el.content).split(' ')[0];
           if (!stackNameVis) {
             return;
           }
@@ -363,19 +362,15 @@ export class Dashboard {
         } catch (ex) {
           console.log('################', ex)
         }
-      }.bind(this),);
+      });
 
-      this.packages.on('element mouseout', function mouseout(el: any) {
-
+      this.packages.on('element mouseout', (el: any) => {
         if (el.parent?.name !== 'packageRows') {
           return;
         }
 
-        delete this.hoverRowIndex;
         el.render();
-
-
-      }.bind(this),);
+      });
 
       this.columnWidth = this.defaultColumnWidth;
       this.maxColumnWidth = this.defaultColumnWidth.reduce(function (a, b) {
@@ -394,60 +389,60 @@ export class Dashboard {
         if (debugPackageEvents) {
           Dashboard.debug('move', index.toString());
         }
-      }.bind(this));
+      });
 
-      this.packages.rows.on('action', async function action(var1: any, var2: any) {
+      this.packages.rows.on('action', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug('rows action', var2);
         }
         if (var2 !== undefined) {
           this.selectedFully = true;
         }
-      }.bind(this));
+      });
 
-      this.packages.on('element click', async function elementClick(var1: any, var2: any) {
+      this.packages.on('element click', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug('packages element click', var1, var2);
         }
         await this.selectPackage();
-      }.bind(this));
+      });
 
-      this.packages.on('click', async function packagesClick(var1: any, var2: any) {
+      this.packages.on('click', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug('packages click', var1, var2);
         }
       });
 
-      this.packages.on('click select', async function clickSelect(var1: any, var2: any) {
+      this.packages.on('click select', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug('package click select', var1, var2);
         }
       });
 
-      this.packages.on('select item', async function packageSelectItem(var1: any, var2: any) {
+      this.packages.on('select item', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug('package select item', var1, var2);
         }
       });
 
-      this.packages.rows.on('click', async function rowClick(var1: any, var2: any) {
+      this.packages.rows.on('click', async (var1: any, var2: any)=> {
         if (debugPackageEvents) {
           Dashboard.debug('rows click', var1, var2);
         }
       });
 
-      this.packages.rows.on('click select', async function clickSelect(var1: any, var2: any) {
+      this.packages.rows.on('click select', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug('rows click select', var1, var2);
         }
       });
 
-      this.packages.rows.on('select item', async function packageSelectItem(var1: any, var2: any) {
+      this.packages.rows.on('select item', async (var1: any, var2: any) => {
         if (debugPackageEvents) {
           Dashboard.debug(`select item - selected index: ${var2}, selectedRowIndex: ${this.selectedRowIndex}, full: ${this.selectedFully}`);
         }
         await this.selectPackage();
-      }.bind(this));
+      });
 
       this.debugLog = this.grid.set(5, 0, 1, 2, blessed.text, {
         fg: 'white',
@@ -482,34 +477,36 @@ export class Dashboard {
 
       this.status.setContent('');
 
-      this.screen.key('backspace', async function (ch: any, key: any) {
+      this.screen.key('backspace', async(ch: any, key: any) => {
         if (!this.statusPanel?.enableSelection || this.focusedBox.type !== 'params') {
           return;
         }
         const pkg = this.getPkg();
         const typedVars = pkg.params?.localVarsTyped;
-        delete typedVars[this.focusedBox.name][this.statusPanel.selectedParamKey];
-        const vars: any = {};
-        vars[this.focusedBox.name] = typedVars[this.focusedBox.name];
-        if (this.focusedBox.name !== 'app') {
-          vars.app = typedVars['app'];
+        if (typedVars) {
+          delete typedVars[this.focusedBox.name][this.statusPanel.selectedParamKey];
+          const vars: any = {};
+          vars[this.focusedBox.name] = typedVars[this.focusedBox.name];
+          if (this.focusedBox.name !== 'app') {
+            vars.app = typedVars['app'];
+          }
+          if (this.focusedBox.name !== 'environment') {
+            vars.environment = typedVars['environment'];
+          }
+          if (this.focusedBox.name !== 'global') {
+            vars.global = typedVars['global'];
+          }
+          if (this.focusedBox.name !== 'globalEnv') {
+            vars.globalEnv = typedVars['globalEnv'];
+          }
+          CenvFiles.SaveVars(vars, process.env.ENV!, false);
         }
-        if (this.focusedBox.name !== 'environment') {
-          vars.environment = typedVars['environment'];
-        }
-        if (this.focusedBox.name !== 'global') {
-          vars.global = typedVars['global'];
-        }
-        if (this.focusedBox.name !== 'globalEnv') {
-          vars.globalEnv = typedVars['globalEnv'];
-        }
-        CenvFiles.SaveVars(vars, process.env.ENV, false);
+
         await CenvParams.removeParameters([this.statusPanel.selectedParamKey], {}, [this.focusedBox.name]);
-        this.statusPanel.updateParams(pkg);
+        await this.statusPanel.updateParams(pkg);
+      });
 
-      }.bind(this));
-
-      this.screen.key(['escape', 'q', 'C-c'], function (ch: any, key: any) {
+      this.screen.key(['escape', 'q', 'C-c'], (ch: any, key: any) => {
         if (Dialogs.open()) {
           Dialogs.close();
         } else if (HelpUI.instance) {
@@ -521,63 +518,63 @@ export class Dashboard {
         }
       });
 
-      this.screen.key(['f'], function (ch: any, key: any) {
+      this.screen.key(['f'],(ch: any, key: any) => {
         if (!this.fullScreenCtrl) {
-          this.fullScreenCtrl = this.focusPool()[this.focusIndex];
+          this.fullScreenCtrl = this.focusPool[this.focusIndex];
         } else {
           this.fullScreenCtrl = undefined;
         }
-      }.bind(this))
+      })
 
-      this.screen.key(['ç'], function () {
+      this.screen.key(['ç'], () => {
         if (this.focusIndex === 0) {
           let text = Dashboard.stackName + ':\n';
           text += Package.fromPackageName(Dashboard.stackName).cmds.map((cmd: PackageCmd) => this.printCmd(cmd),);
-          pbcopy(blessed.cleanTags(text));
+          pbcopy(blessed.helpers.cleanTags(text));
         } else if (this.focusIndex === 1) {
-          pbcopy(blessed.cleanTags(this.printCmd(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected],)));
+          pbcopy(blessed.helpers.cleanTags(this.printCmd(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel?.cmdList.selected],)));
         } else if (this.focusIndex === 2) {
-          pbcopy(blessed.cleanTags(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel.cmdList.selected].stdout));
+          pbcopy(blessed.helpers.cleanTags(Package.fromPackageName(Dashboard.stackName).cmds[this.cmdPanel?.cmdList.selected].stdout));
         } else if (this.focusIndex === 3) {
-          pbcopy(blessed.cleanTags(this.cmdPanel.dependencies.getText()));
+          pbcopy(blessed.helpers.cleanTags(this.statusPanel?.dependencies.getText()));
         }
-      }.bind(this),);
+      });
 
       /*this.screen.key(
         ['C-s'],
-        async function (ch: any, key: any) {
+        async(ch: any, key: any) => {
           Dialogs.saveSuiteDialog(this.screen);
-        }.bind(this),
+        }
       );
 
       this.screen.key(
         ['C-d'],
-        async function (ch: any, key: any) {
+        async(ch: any, key: any) => {
           //Dialogs.saveDump(this.screen);
-        }.bind(this),
+        }
       );*/
 
-      this.screen.key(['tab'], function (ch: any, key: any) {
-        const isLastIndex = this.focusIndex + 1 > this.focusPool().length - 1;
+      this.screen.key(['tab'],(ch: any, key: any) => {
+        const isLastIndex = this.focusIndex + 1 > this.focusPool.length - 1;
         const newIndex = isLastIndex ? 0 : this.focusIndex + 1;
         this.setFocusIndex(newIndex);
-      }.bind(this),);
+      });
 
-      this.screen.key(['S-tab'], function (ch: any, key: any) {
-        const newIndex = this.focusIndex - 1 < 0 ? this.focusPool().length - 1 : this.focusIndex - 1;
+      this.screen.key(['S-tab'],(ch: any, key: any) => {
+        const newIndex = this.focusIndex - 1 < 0 ? this.focusPool.length - 1 : this.focusIndex - 1;
         this.setFocusIndex(newIndex);
-      }.bind(this),);
+      });
 
-      this.screen.key(['+'], async function () {
+      this.screen.key(['+'], () => {
         Groups.toggleFullscreen();
-      }.bind(this),);
+      });
 
       this.splitter = blessed.box({
                                     parent: this.screen,
                                     left: 'center',
                                     top: 'center',
                                     width: 1,
-                                    position: {left: this.maxColumnWidth - 1, width: 1},
+                                    // position: {left: this.maxColumnWidth - 1},
                                     height: '100%',
                                     style: {
                                       bg: [50, 50, 50], //transparent: true,
@@ -585,16 +582,16 @@ export class Dashboard {
                                     draggable: true,
                                   });
 
-      this.screen.on('resize', function () {
+      this.screen.on('resize', () => {
         this.updateVis();
-      }.bind(this),);
+      });
 
       const commandButtons = {
         /*
 
                 bump: {
                   keys: ['b'],
-                  callback: function () {
+                  callback: () => {
                     debounceCallback('bump', async () => {
                       function getBumpText() {
                         const bumpType = Version.bumpTypeText;
@@ -633,11 +630,11 @@ export class Dashboard {
 
                       dashboard.setStatusBar('bumpAction', getBumpText());
                     });
-                  }.bind(this),
+                  }
                 },
                 'next bump mode': {
                   keys: ['C-b'],
-                  callback: function () {
+                  callback: () => {
                     debounceCallback('nextBumpMode', async () => {
                       const nextMode = Version.nextBumpMode;
                       dashboard.setStatusBar(
@@ -645,11 +642,11 @@ export class Dashboard {
                         this.statusText(`cycle bump mode`, `${nextMode} enabled`),
                       );
                     });
-                  }.bind(this),
+                  }
                 },
                 'next bump type': {
                   keys: ['S-b'],
-                  callback: function () {
+                  callback: () => {
                     debounceCallback('nextBumpType', async () => {
                       const nextType = Version.nextBumpType;
                       dashboard.setStatusBar(
@@ -657,7 +654,7 @@ export class Dashboard {
                         this.statusText(`cycle bump type`, `${nextType}`),
                       );
                     });
-                  }.bind(this),
+                  }
                 },
                 'next color': {
                   keys: ['n'],
@@ -691,7 +688,7 @@ export class Dashboard {
                 },
                 'clear versions': {
                   keys: ['o'],
-                  callback: function () {
+                  callback: () => {
                     debounceCallback('clearVersions', async () => {
                       const ctx = getPkgCompleteContext();
                       const packages =
@@ -707,25 +704,25 @@ export class Dashboard {
                       );
                       await Version.Bump(ctx.packages, 'reset');
                     });
-                  }.bind(this),
+                  }
                 },
                 */
         help: {
-          keys: ['h'], callback: function () {
-            Dashboard.instance.hide();
+          keys: ['h'], callback: () => {
+            this.hide();
             new HelpUI();
-          }.bind(this),
+          }
         }, debug: {
-          keys: ['x'], callback: async function () {
+          keys: ['x'], callback: () => {
             this.debounceCallback('toggle debug', async () => {
               Dashboard.toggleDebug = !Dashboard.toggleDebug;
               this.setStatusBar('toggleDebug', this.statusText(Dashboard.toggleDebug ? `toggle debug view` : `toggle status view`, Dashboard.toggleDebug ? `debug view enabled` : `status view enabled`));
             });
-          }.bind(this),
+          }
         }, /*
         "save dump": {
           keys: ['s'],
-          callback: function () {
+          callback: () => {
             this.debounceCallback('create dump', async () => {
               this.setStatusBar(
                 'createDump',
@@ -737,12 +734,12 @@ export class Dashboard {
               Dialogs.saveDump(this.screen);
               this.screen.render();
             });
-          }.bind(this),
+          }
         },
 
         "fix dupes": {
           keys: ['u'],
-          callback: async function () {
+          callback: () => {
             try {
               const name = 'fix param dupes';
               this.debounceCallback(name, async () => {
@@ -759,19 +756,19 @@ export class Dashboard {
             } catch (e) {
               CenvLog.single.catchLog(e);
             }
-          }.bind(this),
+          }
         },*/
         "strict versions": {
-          keys: ['S-v'], callback: function () {
+          keys: ['S-v'], callback: () => {
             this.debounceCallback('strictVersions', async () => {
               if (Deployment?.options) {
                 Deployment.options.strictVersions = !Deployment.options?.strictVersions;
                 this.setStatusBar('toggleView', this.statusText('strict versions mode', Deployment.options.strictVersions ? 'enabled' : 'disabled',),);
               }
             });
-          }.bind(this),
+          }
         }, "clear logs": {
-          keys: ['l'], callback: function () {
+          keys: ['l'], callback: () => {
             this.debounceCallback('clear logs', async () => {
               const ctx = this.getContext();
               if (!ctx) {
@@ -781,35 +778,35 @@ export class Dashboard {
                 ctx.push(Package.global)
               }
               ctx.map((p: Package) => {
-                delete p.cmds;
+                p.cmds = [];
               })
               Dashboard.dependencyToggle = true;
               Dashboard.paramsToggle = true;
               Dashboard.moduleToggle = true;
-              this.cmdPanel.stdout.setContent('');
-              this.cmdPanel.stderr.setContent('');
-              this.cmdPanel.cmdPanel.setItems([]);
+              this.cmdPanel?.stdout.setContent('');
+              this.cmdPanel?.stderr.setContent('');
+              this.cmdPanel?.cmdList.setItems([]);
               CenvLog.single.infoLog('clear all logs');
               this.setStatusBar('clear logs', this.statusText('clear logs', ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName));
             });
-          }.bind(this),
+          }
         }, "clear debug": {
-          keys: ['C-d'], callback: function () {
+          keys: ['C-d'], callback: () => {
             this.debounceCallback('clearVersions', async () => {
-              if (this.focusedBox === this.cmdPanel.stdout) {
-                this.cmdPanel.stdout.setContent('');
+              if (this.focusedBox === this.cmdPanel?.stdout) {
+                this.cmdPanel?.stdout.setContent('');
                 this.setStatusBar('clearStdout', this.statusText('clear', 'stdout panel'));
-              } else if (this.focusedBox === this.cmdPanel.stderr) {
-                this.cmdPanel.stderr.setContent('');
+              } else if (this.focusedBox === this.cmdPanel?.stderr) {
+                this.cmdPanel?.stderr.setContent('');
                 this.setStatusBar('clearStderr', this.statusText('clear', 'stderr panel'));
               } else {
                 this.debugLog.setContent('');
                 this.setStatusBar('clearDebug', this.statusText('clear', 'debug log'));
               }
             });
-          }.bind(this),
+          }
         }, "cycle module deploy mode": {
-          keys: ['S-m'], callback: function () {
+          keys: ['S-m'], callback: () => {
             this.debounceCallback('clearVersions', async () => {
               this.moduleDeployMode++;
               if (this.moduleDeployMode > 4) {
@@ -838,14 +835,14 @@ export class Dashboard {
               }
               this.setStatusBar('cycle module deploy mode', this.statusText('cycle module deploy mode', Object.values(ModuleDeployMode)[this.moduleDeployMode].toString().toLowerCase() + ' mode'), 1000, 1000);
             });
-          }.bind(this),
+          }
         }, force: {
-          keys: ['S-f'], callback: function () {
+          keys: ['S-f'], callback: () => {
             this.debounceCallback('forceMode', async () => {
               Deployment.options.force = !Deployment.options.force;
               this.setStatusBar('toggle force mode', this.statusText('toggle force mode', 'force mode ' + (Deployment.options.force ? 'enabled' : 'disabled')));
             });
-          }.bind(this),
+          }
         },
       }
 
@@ -853,62 +850,60 @@ export class Dashboard {
 
       const statusButtons = {
         modules: {
-          keys: ['m'], callback: async function () {
+          keys: ['m'], callback: () => {
             this.debounceCallback('modules', async () => {
               Dashboard.moduleToggle = !Dashboard.moduleToggle;
               if (this.screen.height < this.maxProcessOptionsHeight) {
                 this.autoHidePanelHeight = false;
               }
-              this.statusPanel.updateVis();
+              this.statusPanel?.updateVis();
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'module info'));
             });
-          }.bind(this),
+          }
         }, dependencies: {
-          keys: ['e'], callback: async function () {
+          keys: ['e'], callback: () => {
             this.debounceCallback('toggle dependencies', async () => {
               Dashboard.dependencyToggle = !Dashboard.dependencyToggle;
               if (this.screen.height < this.maxProcessOptionsHeight) {
                 this.autoHidePanelHeight = false;
               }
-              this.statusPanel.updateVis();
+              this.statusPanel?.updateVis();
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'dependencies'));
             });
-          }.bind(this),
+          }
         }, params: {
-          keys: ['p'], callback: async function () {
+          keys: ['p'], callback: () => {
             this.debounceCallback('toggle params', async () => {
               Dashboard.paramsToggle = !Dashboard.paramsToggle;
               if (this.screen.height < this.maxProcessOptionsHeight) {
                 this.autoHidePanelHeight = false;
               }
               this.resizeWidgets(this.calcTableInfo());
-              await this.statusPanel.updatePackage();
+              await this.statusPanel?.updatePackage();
               this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'params'));
             });
-          }.bind(this),
+          }
         },
       }
 
-      this.statusOptions = new Menu(this.statusPanel.screen, statusButtons, {top: 0, left: 0, right: 0});
+      this.statusOptions = new Menu(this.statusPanel?.screen, statusButtons, {top: 0, left: 0, right: 0});
       this.packages.focus();
-      this.statusPanel.init();
-      this.cmdPanel.init();
+      this.statusPanel?.init();
+      this.cmdPanel?.init();
 
       this.setMode(this.mode);
 
-      setInterval(async function mainLoop() {
+      // main dashboard upload loop
+      setInterval(async ()=> {
         await this.update();
-        //const item =
-        //this.packages?.rows?.items[this.packages?.rows?.selected];
-        //if (!Dashboard.stackName && item) {
-        //await selectIt(item);
-        //}
-      }.bind(this), 25,);
+      }, 25);
+
       if (!this.cmd) {
         setTimeout(async function init() {
           await Package.checkStatus(ProcessMode.DEPLOY.toString(), ProcessStatus.COMPLETED);
-        }.bind(this),);
+        });
       }
+
       Dashboard.instance = this;
       this.initialized = true;
 
@@ -967,13 +962,13 @@ export class Dashboard {
 
   static cleanTags(...text: string[]) {
     for (let i = 0; i < text.length; i++) {
-      text[i] = blessed.cleanTags(text[i]);
+      text[i] = blessed.helpers.cleanTags(text[i]);
     }
     return text;
   }
 
   static getFocusWidget() {
-    return Dashboard.instance.focusPool()[Dashboard.instance.focusIndex];
+    return this.instance?.focusPool[this.instance.focusIndex];
   }
 
   statusText(titleText: string, descriptionText: string) {
@@ -1025,9 +1020,9 @@ export class Dashboard {
           await Deployment.Deploy(packages, {...Deployment.options, ...deploymentOptions});
         }
       } else {
-        setTimeout(function () {
+        setTimeout(() => {
           this.launchComplete()
-        }.bind(this), 10 * 1000)
+        }, 10 * 1000)
         return;
       }
       this.launchComplete();
@@ -1037,13 +1032,13 @@ export class Dashboard {
   }
 
   launchComplete() {
-    this.titleContext = undefined;
-    Dashboard.instance.cmd = undefined;
+    this.titleContext = [];
+    this.cmd = undefined;
     this.deploying = false;
   }
 
   getContext(type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true) {
-    const selectedPkg = Dashboard.instance.getPkg();
+    const selectedPkg = this.getPkg();
     const ctx = getPkgContext(selectedPkg, type, failOnInvalid);
     if (!ctx) {
       this.setStatusBar('invalid state', 'at least one package is in an invalid state');
@@ -1085,9 +1080,6 @@ export class Dashboard {
     return [DashboardMode.WIDE_CMD_FIRST, DashboardMode.WIDE_STATUS_FIRST, DashboardMode.MIXED].indexOf(this.mode) > -1
   }
 
-  global(): Package {
-    return this.globalPkg;
-  }
 
   getSelectedPackageRow() {
     return this.packages.rows.items[this.selectedRowIndex];
@@ -1101,7 +1093,7 @@ export class Dashboard {
 
   logTemp(stackName: string, ...text: string[]) {
     if (process.env.CENV_STDTEMP) {
-      stackName = blessed.cleanTags(stackName);
+      stackName = blessed.helpers.cleanTags(stackName);
 
       const finalMsg = text.join(' ');
       this.storeLog(stackName, finalMsg, 'stdtemp');
@@ -1119,7 +1111,7 @@ export class Dashboard {
   }
 
   log(stackName: string, ...text: string[]) {
-    stackName = blessed.cleanTags(stackName);
+    stackName = blessed.helpers.cleanTags(stackName);
 
     const finalMsg = text.join(' ');
     this.storeLog(stackName, finalMsg, 'stdout');
@@ -1134,7 +1126,7 @@ export class Dashboard {
   }
 
   logErr(stackName: string, ...text: string[]) {
-    stackName = blessed.cleanTags(stackName);
+    stackName = blessed.helpers.cleanTags(stackName);
     //const finalMsg = text.map((t) => (t.endsWith('\n') ? t : t + '\n'))
     //.join(' ');
     const finalMsg = text.join(' ');
@@ -1150,9 +1142,7 @@ export class Dashboard {
     const title = this.getTitle();
     const screen = blessed.screen({
                                     smartCSR: true, autoPadding: true, warnings: true, title: title, cursor: {
-        artificial: true, shape: 'line', blink: true, color: null, // null for default
-      }, label: {
-        padding: {left: 50}
+        shape: 'line', artificial: true, blink: true, color: null, // null for default
       }
                                   });
 
@@ -1193,11 +1183,11 @@ export class Dashboard {
   }
 
   setPanels(mode: DashboardMode = this.mode) {
-    this.cmdPanel.updateVis();
+    this.cmdPanel?.updateVis();
     if (mode === DashboardMode.CMD) {
-      this.statusPanel.hide();
+      this.statusPanel?.hide();
     } else {
-      this.statusPanel.updateVis();
+      this.statusPanel?.updateVis();
     }
   }
 
@@ -1224,10 +1214,10 @@ export class Dashboard {
 
   }
 
-  focusPool() {
+  get focusPool() {
     let ctrls = [this.packages];
-    const statusPool = this.statusPanel.focusPool
-    const cmdPool = this.cmdPanel.focusPool
+    const statusPool = this.statusPanel?.focusPool
+    const cmdPool = this.cmdPanel?.focusPool
 
     if ([DashboardMode.MIXED, DashboardMode.WIDE_STATUS_FIRST].indexOf(this.mode) > -1) {
       if (this.statusPanel?.focusPool) {
@@ -1260,7 +1250,7 @@ export class Dashboard {
       return;
     }
 
-    const focusItems = this.focusPool();
+    const focusItems = this.focusPool;
     if (!focusItems) {
       return;
     }
@@ -1279,10 +1269,10 @@ export class Dashboard {
       if (this.focusedBox?.style?.label?.oldFg) {
         this.focusedBox.style.label.fg = this.focusedBox.style.label.oldFg;
       }
-      if (this.focusedBox.type === 'params') {
+      if (this.focusedBox.type === 'params' && this.statusPanel) {
         this.focusedBox.rows.selected = -1;
         this.statusPanel.selectedParamKey = undefined;
-        const textIndex = this.focusPool().indexOf(Dashboard.instance.statusPanel.paramTextbox)
+        const textIndex = this.focusPool.indexOf(this.statusPanel.paramTextbox)
 
         if (textIndex > -1) {
           this.statusPanel.focusPool.pop();
@@ -1341,7 +1331,7 @@ export class Dashboard {
     }
     const pkg = this.getPkg(stackName);
     if (!pkg) {
-      Dashboard.debug('stackName not found: ' + stackName + ' - ' + message, new Error().stack);
+      Dashboard.debug('stackName not found: ' + stackName + ' - ' + message, new Error().stack as string);
       return;
     }
 
@@ -1363,7 +1353,7 @@ export class Dashboard {
   async selectPackage() {
     try {
 
-      const stackNameVis = blessed.cleanTags(this.getPackageRowName());
+      const stackNameVis = blessed.helpers.cleanTags(this.getPackageRowName());
       if (stackNameVis === '') {
         return;
       }
@@ -1372,12 +1362,12 @@ export class Dashboard {
         this.setFocusIndex(0);
       }
 
-      if (!this.statusPanel?.initialized) {
+      if (this.statusPanel && !this.statusPanel?.initialized) {
         this.statusPanel.initialized = true;
       }
 
       if (this.selectedRowIndex === this.packages.rows.selected) {
-        if (this.lastSelectedFully) {
+        if (this.menu && this.lastSelectedFully) {
           this.menu.show();
         }
 
@@ -1385,31 +1375,31 @@ export class Dashboard {
         return;
       }
       this.selectedPackage = Package.getPackageFromVis(stackNameVis);
-      Dashboard.stackName = this.selectedPackage.stackName;
+      Dashboard.stackName = this.selectedPackage?.stackName!;
 
       this.lastSelectedFully = false;
       this.selectedRowIndex = this.packages.rows.selected;
       this.selectedFully = false;
 
       //Dialogs.close(this.menu);
-      this.menu.hide();
+      this.menu?.hide();
       this.setPanels(this.mode);
 
       this.packageTs = Date.now();
 
-      const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as ChalkFunction;
+      const color = this.getStatusColor(this.selectedPackage?.environmentStatusReal!, true,) as ChalkFunction;
       let env = '';
       let envQuote = '';
-      if (this.selectedPackage.packageName !== 'GLOBAL') {
-        env = ` [${color(this.selectedPackage.environmentStatusReal)}]`;
-        envQuote = this.packageHover ? ` - (${color(this.selectedPackage.getEnvironmentStatusDescription())})` : '';
+      if (this.selectedPackage?.packageName !== 'GLOBAL') {
+        env = ` [${color(this.selectedPackage?.environmentStatusReal)}]`;
+        envQuote = this.packageHover ? ` - (${color(this.selectedPackage?.getEnvironmentStatusDescription())})` : '';
       }
 
-      this.packageBox.setLabel(`${this.selectedPackage.packageName}${env}${envQuote}\n\n`);
+      this.packageBox.setLabel(`${this.selectedPackage?.packageName}${env}${envQuote}\n\n`);
 
       setTimeout(async () => {
-        await this.statusPanel.updatePackage();
-        await this.cmdPanel.updatePackage();
+        await this.statusPanel?.updatePackage();
+        await this.cmdPanel?.updatePackage();
       }, 50);
 
       this.redraw();
@@ -1419,23 +1409,23 @@ export class Dashboard {
     }
   }
 
-  setStatusBar(name: string, msg: string, exclusive = 3000, active = 5000) {
+  setStatusBar(name: string, msg?: string, exclusive = 3000, active = 5000) {
 
     if (!msg) {
       return;
     }
-    Dashboard.instance.statusBarInUse = true;
+    this.statusBarInUse = true;
     this.statusBar?.setLabel(msg);
 
     setTimeout(() => {
-      Dashboard.instance.statusBarInUse = false;
+      this.statusBarInUse = false;
     }, exclusive);
 
     if (this.clearLabelTimeout) {
       clearTimeout(this.clearLabelTimeout);
     }
     this.clearLabelTimeout = setTimeout(() => {
-      Dashboard.instance.statusBar.setLabel('');
+      this.statusBar.setLabel('');
     }, active);
   }
 
@@ -1463,51 +1453,35 @@ export class Dashboard {
       processStatus = ProcessStatus.STATUS_CHK;
     }
 
-    let packages: PkgInfo[] = realPkgs
-    .filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
-    .map((p: Package) => {
+    let packages: PkgSummary[] = realPkgs.filter((p: Package) => !p.skipUI || Deployment.toggleDependencies)
+      .map((p: Package) => {
       if (p.isGlobal) {
-        return {
-          stackName: p.stackNameVis,
-          version: '-----',
-          type: '-----',
-          environmentStatus: envStatus,
-          processStatus: processStatus,
-          timer: p.timer.elapsed,
-        }
+        return { ...p.summary, ...{ environmentStatus: envStatus, processStatus: processStatus } }
       }
 
-      return {
-        stackName: p.stackNameVis,
-        version: `${p.meta.data.version}`,
-        type: p.type,
-        environmentStatus: p.environmentStatus,
-        processStatus: p.processStatus,
-        timer: p.timer.elapsed,
-        statusTime: p.statusTime,
-      };
+      return p.summary
     });
 
     const environmentOrder = Object.values(EnvironmentStatus);
     const deploymentOrder = Object.values(ProcessStatus);
-    const global = packages.filter((p: PkgInfo) => p.stackName === 'GLOBAL')[0];
+    const global = packages.filter((p: PkgSummary) => p.stackName === 'GLOBAL')[0];
     packages = packages
-    .filter((p: PkgInfo) => p.stackName !== 'GLOBAL')
-    .sort((a: PkgInfo, b: PkgInfo) => (a?.statusTime < b?.statusTime ? 1 : -1))
-    .sort((a: PkgInfo, b: PkgInfo) => environmentOrder.indexOf(a.environmentStatus) - environmentOrder.indexOf(b.environmentStatus))
-    .sort((a: PkgInfo, b: PkgInfo) => deploymentOrder.indexOf(a.processStatus) - deploymentOrder.indexOf(b.processStatus));
+    .filter((p: PkgSummary) => p.stackName !== 'GLOBAL')
+    .sort((a: PkgSummary, b: PkgSummary) => ((a?.statusTime ? a?.statusTime : 0) < (b?.statusTime ? b?.statusTime : 0) ? 1 : -1))
+    .sort((a: PkgSummary, b: PkgSummary) => environmentOrder.indexOf(a.environmentStatus) - environmentOrder.indexOf(b.environmentStatus))
+    .sort((a: PkgSummary, b: PkgSummary) => deploymentOrder.indexOf(a.processStatus) - deploymentOrder.indexOf(b.processStatus));
     packages.unshift(global)
     return packages;
   }
 
-  async getUpdateData(packages: PkgInfo[]) {
+  async getUpdateData(packages: PkgSummary[]) {
     try {
       let complete = true;
       let hasNonGlobals = false;
       let selectedPos = -1;
       const tableCalcs = this.calcTableInfo();
       const headers: any[] = [tableCalcs.columns];
-      const data = [];
+      const data: Array<string[]> = [];
       const selectedColor = chalk.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
       const selectedHoverColor = chalk.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
 
@@ -1518,7 +1492,7 @@ export class Dashboard {
             headers[this.columnPriority[j]] = this.tableHeaders[this.columnPriority[j]];
           }
         }
-        const pkg: PkgInfo = packages[i];
+        const pkg: PkgSummary = packages[i];
         if (pkg.stackName === Dashboard.stackName && this.selectedRowIndex !== i) {
           selectedPos = i;
         }
@@ -1534,7 +1508,7 @@ export class Dashboard {
           complete = false;
         }
 
-        const row = [];
+        const row: string[] = [];
         const selected = isSelectedRow;
         if (selected) {
           currentlySelected.stackName = pkg.stackName;
@@ -1676,7 +1650,7 @@ export class Dashboard {
 
     function boxLine(text = '') {
       text = tab + text;
-      return `${' '.repeat(sidePadding)}${bgColor(`${text}${' '.repeat(clamp(statWidth - leftPadding - rightPadding - blessed.cleanTags(text).length, 0, 255))}`)}\n`
+      return `${' '.repeat(sidePadding)}${bgColor(`${text}${' '.repeat(clamp(statWidth - leftPadding - rightPadding - blessed.helpers.cleanTags(text).length, 0, 255))}`)}\n`
     }
 
     function spaceLeft(line: string) {
@@ -1684,7 +1658,7 @@ export class Dashboard {
     }
 
     try {
-      lines = lines.map(l => blessed.cleanTags(l.replace(/\t/g, tabR)));
+      lines = lines.map(l => blessed.helpers.cleanTags(l.replace(/\t/g, tabR)));
 
       let boxText = boxLine();
       boxText += boxLine(fgColor(title + ':'));
@@ -1717,7 +1691,7 @@ export class Dashboard {
       }
       return boxText.replace(/----/g, '    ').replace(/0000/g, '    ') + '\n';
     } catch (e) {
-      Package.global.err(e.stack);
+      Package.global.err(e as string);
     }
   }
 
@@ -1726,7 +1700,7 @@ export class Dashboard {
   }
 
   packageStatus(packages: Package[], environmentStatus: EnvironmentStatus) {
-    const color = Dashboard.instance.getStatusColor(environmentStatus, true) as ChalkFunction;
+    const color = this.getStatusColor(environmentStatus, true) as ChalkFunction;
     const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
     return `[${color(environmentStatus)}]: ${chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
   }
@@ -1806,7 +1780,7 @@ export class Dashboard {
         this.statusBar.setFront();
 
         if (selectedPackage.status?.needsFix?.length) {
-          status += '\n' + Dashboard.instance.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, chalk.bgRed, chalk.whiteBright.underline);
+          status += '\n' + this.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, chalk.bgRed, chalk.whiteBright.underline);
         }
         if (selectedPackage.status?.incomplete?.length) {
           status += `\n${colors.error.underline.bold('NEEDS DEPLOY:')}\n\n`;
@@ -1817,7 +1791,7 @@ export class Dashboard {
           status += `\t${selectedPackage.status.deployed.join('\n\t')}\n\n`;
         }
 
-        this.statusPanel.dependencies.setContent(`${this.dependencies}\n\n`);
+        this.statusPanel?.dependencies.setContent(`${this.dependencies}\n\n`);
       } else {
         status += `${selectedPackage.packageName}: ${selectedPackage.processStatus === ProcessStatus.STATUS_CHK ? 'checking status' : 'current status [' + selectedPackage.processStatus + ']'}`;
       }
@@ -1854,7 +1828,7 @@ export class Dashboard {
 
   async update() {
     try {
-      if (!this.initialized && !this.statusPanel.initialized) {
+      if (!this.initialized && !this.statusPanel?.initialized) {
         return;
       }
 
@@ -1866,7 +1840,11 @@ export class Dashboard {
       this.updatePackageVisuals();
 
       const packages = this.getUpdatePackages();
-      const {data, complete, headers, tableCalcs} = await this.getUpdateData(packages);
+      const resUpdate = await this.getUpdateData(packages);
+      if (!resUpdate) {
+        return;
+      }
+      const {data, complete, headers, tableCalcs} = resUpdate;
 
       if (complete) {
         this.complete = true;
@@ -1888,7 +1866,7 @@ export class Dashboard {
         this.packages.rows.items.map((i: any, index: number) => {
           if (!i.initalized) {
             i.initalized = true;
-            i.on('click', async function () {
+            i.on('click', () => {
               this.packages.rows.focus();
               if (this.packages.rows.items[this.selectedRowIndex] === i) {
                 this.packages.rows.emit('action', i, i.selected);
@@ -1898,15 +1876,15 @@ export class Dashboard {
 
               this.packages.rows.screen.render();
               this.packages.rows.emit('click select', i, index);
-            }.bind(this),);
+            });
           }
         });
       }
 
       if (this.selectedPackage?.stackName === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight) {
-        this.statusOptions.hide();
+        this.statusOptions?.hide();
       } else {
-        this.statusOptions.show();
+        this.statusOptions?.show();
       }
 
       if (!this.statusBarInUse) {
@@ -1953,32 +1931,32 @@ export class Dashboard {
         this.screen.title = title;
       }
 
-      this.statusPanel.updateVis();
+      this.statusPanel?.updateVis();
       if (this.useBothPanels()) {
         const isWideCmdFirst = this.mode === DashboardMode.WIDE_CMD_FIRST;
         if (isWideCmdFirst) {
-          this.cmdPanel.setFront();
-          this.statusPanel.setFront();
+          this.cmdPanel?.setFront();
+          this.statusPanel?.setFront();
         } else {
-          this.statusPanel.setFront();
-          this.cmdPanel.setFront();
+          this.statusPanel?.setFront();
+          this.cmdPanel?.setFront();
         }
-        this.cmdPanel.render();
-        this.statusPanel.render();
+        this.cmdPanel?.render();
+        this.statusPanel?.render();
       } else if (this.mode === DashboardMode.CMD) {
-        this.cmdPanel.render();
+        this.cmdPanel?.render();
       } else {
-        this.statusPanel.render();
+        this.statusPanel?.render();
       }
 
       if (!Dashboard.toggleDebug) {
         this.debugLog.hide();
         this.debugLog.setBack();
-        this.cmdPanel.updateVis();
+        this.cmdPanel?.updateVis();
       } else {
         this.debugLog.show();
         this.debugLog.setFront();
-        this.cmdPanel.updateVis();
+        this.cmdPanel?.updateVis();
       }
 
       if (!this.statusOptions?.bar?.hidden && this.screen._borderStops) {
@@ -1992,28 +1970,29 @@ export class Dashboard {
       this.statusBar.show();
 
       if (!this.menu?.bar?.hidden && this.screen._borderStops) {
-        this.menu.setFront();
-        this.menu.render();
+        this.menu?.setFront();
+        this.menu?.render();
       }
-
-
       this.redraw();
-
     }
   }
 
-  resizeMode(tableCalcs: { tableWidth: number, columns: number } = undefined, bottomOffset = 0) {
+  resizeMode(tableCalcs: { tableWidth: number, columns: number }, bottomOffset = 0) {
     const screenHeight = this.screen.height - bottomOffset;
     const top = 2;
     const panelWidth = this.screen.width - tableCalcs.tableWidth - 2;
 
-    this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions.bar.top + (this.statusOptions.active ? 3 : 0), screenHeight);
-    this.cmdPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusPanel.bottom, screenHeight);
+    if (this.statusPanel) {
+      this.statusPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusOptions?.bar.top + (this.statusOptions?.active ? 3 : 0), screenHeight);
+    }
+    if (this.cmdPanel) {
+      this.cmdPanel.set(tableCalcs.tableWidth + 1, panelWidth + 1, this.statusPanel?.bottom, screenHeight);
+    }
 
     this.splitter.height = this.screen.height - 2 - bottomOffset;
   }
 
-  resizeWidgets(tableCalcs: { tableWidth: number, columns: number } = undefined) {
+  resizeWidgets(tableCalcs: { tableWidth: number, columns: number }) {
     if (!tableCalcs) {
       tableCalcs = this.calcTableInfo();
     }
@@ -2033,10 +2012,10 @@ export class Dashboard {
         Dashboard.moduleToggle = false;
         Dashboard.paramsToggle = false;
       }
-      this.statusOptions.hide();
+      this.statusOptions?.hide();
     } else {
       this.minimizeStatusPanel = false;
-      this.statusOptions.show();
+      this.statusOptions?.show();
     }
 
     if (!hideProcessOptions) {
@@ -2051,12 +2030,12 @@ export class Dashboard {
     this.status.left = 0;
     this.debugLog.left = this.packages.width + 1;
     this.debugLog.width = this.screen.width - this.packages.width;
-    this.debugLog.top = this.statusPanel.bottom.top;
+    this.debugLog.top = this.statusPanel?.bottom.top;
     this.debugLog.height = screenHeight - this.debugLog.top;
 
     const fifthHeight = Math.floor(screenHeight / 5);
     const parameterHeight = Math.floor((screenHeight - fifthHeight - StatusPanel.modulesHeight + 1) / 2) - 1;
-    const bottomOffset = this.menu.active ? 3 : 0;
+    const bottomOffset = this.menu?.active ? 3 : 0;
     this.resizeMode(tableCalcs, bottomOffset);
 
     this.status.top = this.packages.height + (hideProcessOptions ? 0 : 3);
@@ -2106,15 +2085,15 @@ export class Dashboard {
     } else {
       columns = 1;
       let stopGrowing = false;
-      const nextWidth = this.priorityColumnWidth.reduce(function (a: number, b: number) {
+      const nextWidth = this.priorityColumnWidth.reduce( (a: number, b: number) => {
         const nextValue = a + b + this.columnSpacing / 2;
-        if (nextValue > this.splitter.left || stopGrowing) {
+        if (nextValue > this.splitter?.left || stopGrowing) {
           stopGrowing = true;
           return a;
         }
         columns++;
         return nextValue;
-      }.bind(this),);
+      });
       if (!this.blessedDeps.splitterOverride) {
         tableWidth = nextWidth;
       }
@@ -2143,8 +2122,8 @@ export class Dashboard {
     this.splitter.hide();
     this.status.hide();
     this.statusBar.hide();
-    this.cmdPanel.hide();
-    this.statusPanel.hide();
+    this.cmdPanel?.hide();
+    this.statusPanel?.hide();
   }
 
   show() {
@@ -2154,8 +2133,8 @@ export class Dashboard {
     this.splitter.show();
     this.status.show();
     this.statusBar.show();
-    this.cmdPanel.show();
-    this.statusPanel.show();
+    this.cmdPanel?.show();
+    this.statusPanel?.show();
   }
 
   private debug(...text: string[]) {

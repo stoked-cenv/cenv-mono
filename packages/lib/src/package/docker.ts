@@ -3,11 +3,11 @@ import {
   createRepository, deleteRepository, describeRepositories, getRepository, hasTag, listImages, repositoryExists
 } from '../aws/ecr';
 import {ImageIdentifier, Repository} from '@aws-sdk/client-ecr';
-import semver from 'semver';
+import * as semver from 'semver';
 import {CenvLog} from '../log';
 import {StackModule} from "./stack";
 import {execCmd, runScripts, sleep, spawnCmd} from "../utils";
-import {Package, PackageCmd} from './package';
+import {Package, PackageCmd, TPackageMeta} from './package';
 
 
 export class DockerModule extends PackageModule {
@@ -24,11 +24,10 @@ export class DockerModule extends PackageModule {
   repoContainsLatest = false;
   dockerName: string;
   envVars = {DOCKER_BUILDKIT: 1}
-  doNotPush: false;
-  dockerBaseImage: string;
+  dockerBaseImage?: string;
 
-  constructor(module: IPackageModule) {
-    super(module, PackageModuleType.DOCKER);
+  constructor(pkg: Package, path: string, meta: TPackageMeta) {
+    super(pkg, path, meta, PackageModuleType.DOCKER);
     this.dockerName = Package.packageNameToDockerName(this.name);
   }
 
@@ -45,11 +44,11 @@ export class DockerModule extends PackageModule {
   }
 
   get anythingDeployed(): boolean {
-    return !!this.repoUri || !!this.latestImage || this.images?.length > 0;
+    return !!this.repoUri || !!this.latestImage || (!!this.images && this.images?.length > 0);
   }
 
   get latestDigest(): string {
-    return this.latestImage?.imageDigest
+    return this.latestImage?.imageDigest ? this.latestImage.imageDigest : ''
   }
 
   get latestDigestShort(): string | false {
@@ -81,11 +80,15 @@ export class DockerModule extends PackageModule {
       return;
     }
 
-    await Promise.all(repositories.map(async (r) => await deleteRepository(r.repositoryName, true),),);
+    await Promise.all(repositories.map(async (r) => {
+      if (r.repositoryName) {
+        await deleteRepository(r.repositoryName, true)
+      }
+    }));
   }
 
   static fromModule(module: PackageModule) {
-    return new DockerModule(module);
+    return new DockerModule(module.pkg, module.path, module.meta);
   }
 
   async getDigest(pkgCmd: PackageCmd) {
@@ -103,12 +106,14 @@ export class DockerModule extends PackageModule {
   async push(url: string) {
 
     const commandEvents = {
-      postCommandFunc: async (pkgCmd) => {
-
+      postCommandFunc: async (pkgCmd?: PackageCmd) => {
+        if (!pkgCmd) {
+          throw new Error('docker push failed: no digest found');
+        }
         // get the digest from the pushed container
         const digestRes = await this.getDigest(pkgCmd);
         if (!digestRes) {
-          throw new Error('docker build failed: no digest found');
+          throw new Error('docker push failed: no digest found');
         }
 
         // verify that the digest exists in the docker repo
@@ -119,7 +124,7 @@ export class DockerModule extends PackageModule {
     await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, {commandEvents});
   }
 
-  async build(args: any, cmdOptions: any = {build: true, push: true, dependencies: false}): Promise<number> {
+  async build(args: any, cmdOptions: any = {build: true, push: true, dependencies: false}) {
     const {build, push, dependencies} = cmdOptions;
 
     if (dependencies) {
@@ -169,9 +174,12 @@ export class DockerModule extends PackageModule {
     }
   }
 
-  async pushBaseImage(pull = true, push = true): Promise<number> {
+  async pushBaseImage(pull = true, push = true) {
 
     let repoName = this.dockerBaseImage;
+    if (!repoName) {
+      return;
+    }
     const repoParts = repoName.split(':');
     let tag = 'latest';
 
@@ -191,15 +199,15 @@ export class DockerModule extends PackageModule {
 
     if (pull) {
       const pullCmd = `docker pull ${this.dockerBaseImage}`;
-      await spawnCmd(this.pkg.docker.path, pullCmd, pullCmd, {envVars: this.envVars}, this.pkg);
+      await spawnCmd(this.path, pullCmd, pullCmd, {envVars: this.envVars}, this.pkg);
     }
     if (push) {
 
       let cmd = `docker tag ${this.dockerBaseImage} ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
-      await spawnCmd(this.pkg.docker.path, cmd, cmd, {returnOutput: true}, this.pkg);
+      await spawnCmd(this.path, cmd, cmd, {returnOutput: true}, this.pkg);
 
       cmd = `docker push ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
-      await spawnCmd(this.pkg.docker.path, cmd, cmd, {redirectStdErrToStdOut: true}, this.pkg);
+      await spawnCmd(this.path, cmd, cmd, {redirectStdErrToStdOut: true}, this.pkg);
     }
   }
 
@@ -231,7 +239,8 @@ export class DockerModule extends PackageModule {
     }
 
     // run pre build scripts defined in meta
-    await runScripts(this, this.pkg.meta.data.preBuildScripts);
+
+    await runScripts(this, this.meta.preBuildScripts);
 
     if (this.dockerBaseImage) {
       await this.pushBaseImage();
@@ -263,7 +272,7 @@ export class DockerModule extends PackageModule {
     } else if (!this.images?.length) {
       this.status.incomplete.push(this.statusLine('repo empty', `the repo [${this.dockerName}] has no images`, true,));
     } else {
-      this.status.incomplete.push(this.versionMismatch(this.latestImage?.imageTag));
+      this.status.incomplete.push(this.versionMismatch(this.latestImage?.imageTag as string));
     }
   }
 
@@ -300,7 +309,7 @@ export class DockerModule extends PackageModule {
     this.printCheckStatusStart();
     const repo = await getRepository(this.dockerName);
 
-    if (!repo) {
+    if (!repo || !repo.repositoryName) {
       this.printCheckStatusComplete();
       return;
     }
@@ -318,8 +327,8 @@ export class DockerModule extends PackageModule {
       const aVers = a?.imageTag !== 'latest' ? a?.imageTag : false;
       const bVers = b?.imageTag !== 'latest' ? b?.imageTag : false;
       if (aVers && bVers) {
-        const aSemver = semver.parse(aVers);
-        const bSemver = semver.parse(bVers);
+        const aSemver = semver.parse(aVers) || new semver.SemVer('0.0.0');
+        const bSemver = semver.parse(bVers) || new semver.SemVer('0.0.0');
         const compare = aSemver.compare(bSemver);
         if (!compare) {
           return aSemver.comparePre(bSemver);
@@ -349,7 +358,7 @@ export class DockerModule extends PackageModule {
       }
     }
 
-    this.tags = images.map((i) => i.imageTag).filter((t) => !!t && t !== '');
+    this.tags = images.map((i) => i.imageTag as string).filter((t) => !!t && t !== '');
     const status = this.upToDate();
 
     if (this.latestImage) {

@@ -86,10 +86,10 @@ export default class AddCommand extends BaseCommand {
         process.exit(0)
       }
       await Promise.all(packages.map(async (p: Package) => {
-        await Cenv.addParam(p, params, options);
+        await Cenv.addParam(p, params, options as Record<string, string>);
       }));
     } catch (e) {
-      CenvLog.single.errorLog(e.stack);
+      CenvLog.single.catchLog(e as string);
       process.exit(6);
       return
     }

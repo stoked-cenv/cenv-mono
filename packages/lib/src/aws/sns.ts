@@ -5,7 +5,7 @@ import {
 import {CenvLog, errorBold} from '../log';
 
 
-let _client: SNSClient = null;
+let _client: SNSClient;
 
 function getClient() {
   if (_client) {
@@ -24,10 +24,9 @@ async function getTopicAttributes(topicArn: string) {
     const cmd = new GetTopicAttributesCommand({
                                                 TopicArn: topicArn,
                                               })
-    const res = await getClient().send(cmd);
-    return res;
+    return await getClient().send(cmd);
   } catch (e) {
-    CenvLog.single.errorLog(`failed to get topic attributes: ${errorBold(e.message)}`)
+    CenvLog.single.errorLog(`failed to get topic attributes: ${errorBold(e as string)}`)
     return false;
   }
 }
@@ -35,10 +34,9 @@ async function getTopicAttributes(topicArn: string) {
 async function listTopics() {
   try {
     const cmd = new ListTopicsCommand({});
-    const res = await getClient().send(cmd);
-    return res;
+    return await getClient().send(cmd);
   } catch (e) {
-    CenvLog.single.errorLog(`failed to list topics: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`failed to list topics: ${errorBold(e as string)}`);
     return false;
   }
 }
@@ -48,7 +46,7 @@ export async function getTopicArn(topicName: string) {
   if (res && res.Topics) {
     for (let i = 0; i < res.Topics.length; i += 1) {
       const topic = res.Topics[i];
-      if (topic.TopicArn.indexOf(topicName) > -1) {
+      if (topic.TopicArn && topic.TopicArn.indexOf(topicName) > -1) {
         return topic.TopicArn;
       }
     }
@@ -66,7 +64,7 @@ export async function createTopic(DisplayName: string, Name: string, Policy: any
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`createTopic error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`createTopic error: ${errorBold(e as string)}`);
   }
   return false
 }
@@ -81,7 +79,7 @@ export async function subscribe(TopicArn: string, Protocol: string, Endpoint: st
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`subscript to topic error: ${errorBold(e.message)}`);
+    CenvLog.single.errorLog(`subscript to topic error: ${errorBold(e as string)}`);
   }
   return false
 }

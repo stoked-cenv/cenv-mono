@@ -1,10 +1,10 @@
-import path, {join} from 'path';
+import * as path from 'path';
 import {CenvLog, info, infoAlertBold, infoBold} from './log';
 import {Package} from './package/package';
-import semver, {RangeOptions, SemVer} from "semver";
-import fs, {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
+import {eq, lt, parse, RangeOptions, SemVer} from "semver";
+import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
 import {getProfiles, ProfileData,} from "./stdIo";
-import {getMonoRoot, search_sync} from "./utils";
+import {getMonoRoot, search_sync, sureParse} from "./utils";
 import {CenvFiles} from "./file";
 
 export enum BumpMode {
@@ -18,7 +18,7 @@ export enum BumpMode {
 }
 
 export interface IVersionFile {
-  version: semver.SemVer | string;
+  version: SemVer | string;
   upgradedTs?: number;
   lastTs: number;
   upgrades?: { ts: number, v: string }[];
@@ -33,7 +33,7 @@ export const bumpModeID = 'CENV_BUMP_MODE';
 export const bumpStateID = 'CENV_BUMP_STATE';
 
 export class Version {
-  static gitIgnoreFile: string = join(`./.gitignore`);
+  static gitIgnoreFile: string = path.join(`./.gitignore`);
   static lastVersion: SemVer;
   static currentVersion: SemVer;
   static installedVersion: SemVer;
@@ -142,7 +142,7 @@ export class Version {
       pkgPath = path.join(pkgPath, '../', libraryId);
     }
     this.currentVersion = require(path.join(pkgPath, './package.json')).version;
-    this.currentVersion = semver.parse(this.currentVersion, this.opt);
+    this.currentVersion = sureParse(this.currentVersion, this.opt);
     const versionFile = path.join(pkgPath, './.version.json');
     this.versionFileData = {
       version: '0.1.0', lastTs: Date.now(),
@@ -151,9 +151,9 @@ export class Version {
     if (existsSync(versionFile)) {
       this.versionFileData = require(versionFile);
     }
-    this.installedVersion = semver.parse(this.versionFileData.version, this.opt) as SemVer;
+    this.installedVersion = parse(this.versionFileData.version, this.opt) as SemVer;
     this.lastVersion = this.versionFileData.version as SemVer;
-    if (libraryId !== 'lib' || semver.eq(this.currentVersion, this.lastVersion, this.opt)) {
+    if (libraryId !== 'lib' || eq(this.currentVersion, this.lastVersion, this.opt)) {
       this.setEnvVars(packageName, libraryId);
       return;
     }
@@ -191,9 +191,9 @@ export class Version {
   }
 
   static async UpgradeIncrement(incrementVersion: string, upgradeIncrementFunc: () => Promise<void>) {
-    this.nextIncrementVersion = semver.parse(incrementVersion, this.opt);
+    this.nextIncrementVersion = sureParse(incrementVersion, this.opt);
 
-    if (semver.lt(this.installedVersion, this.nextIncrementVersion, this.opt)) {
+    if (lt(this.installedVersion, this.nextIncrementVersion, this.opt)) {
       CenvLog.single.infoLog(`incremental upgrade from ${this.installedVersion.toString()} to ${this.nextIncrementVersion.toString()}`, 'GLOBAL');
       try {
         await upgradeIncrementFunc();
@@ -261,7 +261,7 @@ export class Version {
     },) as string[];
     for (let i = 0; i < cenvEnvSearch.length; i++) {
       const file = cenvEnvSearch[i];
-      const newFile = file.replace(process.env.ENV, process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,);
+      const newFile = file.replace(process.env.ENV!, process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,);
       if (file.indexOf('.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,) > -1) {
         CenvLog.single.infoLog(`the file ${file} has already been upgraded`);
         continue;
@@ -281,7 +281,7 @@ export class Version {
   static async Upgrade_1_9_0() {
     const profileFileData = await getProfiles(false);
     profileFileData.forEach((profileData: ProfileData) => {
-      fs.renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig.AWS_PROFILE}↔${profileData.envConfig.ENV}`));
+      renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig?.AWS_PROFILE}↔${profileData.envConfig?.ENV}`));
     });
 
   }

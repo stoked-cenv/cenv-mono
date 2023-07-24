@@ -1,15 +1,21 @@
 import {configDefaults,} from "./configDefaults";
 import {join, relative} from "path";
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import {existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync} from 'fs';
 import {CenvLog, errorBold, errorDim, errorInfo, infoAlertBold, infoBold} from "./log";
 import Ajv from "ajv";
 import {prettyPrint} from "@base2/pretty-print-object";
-import {fromDir} from './utils';
+import {fromDir, validateEnvVars} from './utils';
 import {BaseCommandOptions, CenvParams} from "./params";
 import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
 import {encrypt} from './aws/kms';
 import {getConfig} from "./aws/appConfig";
+
+
+if (!process.env.HOME) {
+  process.env.HOME = './';
+}
+
 
 const {appExt} = configDefaults;
 
@@ -18,17 +24,17 @@ const ajv = new Ajv({allErrors: true, verbose: true});
 export const cenvRoot = './.cenv/';
 
 class Settings {
-  ApplicationName: string;
-  EnvironmentName: string;
+  ApplicationName: string = '';
+  EnvironmentName: string = '';
 }
 
 export class EnvConfig {
-  ApplicationName: string;
-  EnvironmentName: string;
-  ApplicationId: string;
-  EnvironmentId: string;
-  ConfigurationProfileId: string;
-  DeploymentStrategyId: string;
+  ApplicationName: string = '';
+  EnvironmentName: string = '';
+  ApplicationId: string = '';
+  EnvironmentId: string = '';
+  ConfigurationProfileId: string = '';
+  DeploymentStrategyId: string = '';
 }
 
 type DecryptedValue = `${'--DEC='}${string}`;
@@ -39,8 +45,11 @@ type ReservedNames = "newGlobal" | "global"
 type ValidVarKey = Exclude<string, ReservedNames>;
 export type VarList = { [key: string]: CenvValue }
 export type AppVars = VarList | VarList & { global?: [string], globalEnv?: [string] };
-export type CenvVars = {
-  app: AppVars; environment: VarList; global: VarList; globalEnv: VarList
+export class CenvVars {
+  app: AppVars = {};
+  environment: VarList = {};
+  global: VarList = {};
+  globalEnv: VarList = {};
 }
 
 
@@ -357,21 +366,19 @@ export interface CleanCommandOptions extends BaseCommandOptions {
   environment?: string;
 }
 
-if (!process.env.HOME) {
-  process.env.HOME = './';
-}
-
 
 export class CenvFiles {
+  //static envVars = validateEnvVars(['APPLICATION_NAME', 'ENVIRONMENT_NAME', 'HOME', 'ENV', 'CDK_DEFAULT_ACCOUNT', 'AWS_ACCOUNT_ID'])
+
   public static readonly ENVIRONMENT_TEMPLATE_TOKEN = '[--env--]';
   public static Settings: Settings;
   public static EnvConfig: EnvConfig;
-  public static AppVars: AppVars;
-  public static EnvVars: VarList;
-  public static GlobalVars: VarList;
-  public static GlobalEnvVars: VarList;
-  public static GlobalPath: string = undefined;
-  public static ProfilePath: string = join(process.env.HOME, './.cenv');
+  public static AppVars: AppVars = {};
+  public static EnvVars: VarList = {};
+  public static GlobalVars: VarList = {};
+  public static GlobalEnvVars: VarList = {};
+  public static GlobalPath: string = '';
+  public static ProfilePath: string = join(process.env.HOME!, './.cenv');
   private static path = './.cenv/'
   private static environment: string;
 
@@ -410,7 +417,7 @@ export class CenvFiles {
   }
 
   // load the environment config
-  public static LoadEnvConfig(environment: string = process.env.ENV) {
+  public static LoadEnvConfig(environment: string = process.env.ENV!) {
     this.ENVIRONMENT = environment;
     this.EnvConfig = File.read(EnvConfigFile.PATH, EnvConfigFile.SCHEMA, true) as EnvConfig;
     return this.EnvConfig;
@@ -426,13 +433,13 @@ export class CenvFiles {
 
   public static async GetVars(typed = false, decrypted = true) {
     if (!this.ENVIRONMENT) {
-      this.ENVIRONMENT = process.env.ENV;
+      this.ENVIRONMENT = process.env.ENV!;
     }
     if (!this.EnvConfig) {
       this.EnvConfig = File.read(EnvConfigFile.NAME, EnvConfigFile.SCHEMA, true) as EnvConfig;
     }
     if (!this.EnvConfig) {
-      const res = await getConfig(process.env.APPLICATION_NAME, process.env.ENVIRONMENT_NAME);
+      const res = await getConfig(process.env.APPLICATION_NAME!, process.env.ENVIRONMENT_NAME);
       if (!res) {
 
       }
@@ -552,7 +559,7 @@ export class CenvFiles {
       this.deleteLocalFile(GlobalVarsFile.PATH);
     }
 
-    if (options?.globals) {
+    if (options?.globals && globalEnvVars) {
       this.deleteFiles(globalEnvVars.map(file => (file)));
 
       if (globalEnvVarTemplate) {
@@ -651,7 +658,7 @@ export class CenvFiles {
 
   private static async DecryptVarsBase(rootPath: string, vars: any) {
     if (!vars) {
-      return undefined;
+      return {};
     }
     const newVars: VarList = {};
     for (const [key, value] of Object.entries<string>(vars)) {
@@ -669,11 +676,11 @@ export class CenvFiles {
     }
   }
 
-  private static getLocalCenvFiles(startPath: string = cenvRoot, environment: string = undefined) {
+  private static getLocalCenvFiles(startPath: string = cenvRoot, environment?: string) {
 
-    const config = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})\.config$`) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, null);
-    const envVars = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})$`) : /^\.cenv\.[a-zA-Z0-9]*$/, null);
-    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(`\.cenv\.(${environment})\.globals$`) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, null);
+    const config = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})\.config$`) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, undefined);
+    const envVars = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})$`) : /^\.cenv\.[a-zA-Z0-9]*$/, undefined);
+    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(`\.cenv\.(${environment})\.globals$`) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
     if (environment) {
       return {config, envVars, globalEnvVars};
     }

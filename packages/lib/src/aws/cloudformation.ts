@@ -12,7 +12,7 @@ import {CenvLog, errorBold} from '../log';
 import {Package} from "../package/package";
 import {checkExceptions} from '@aws-sdk/util-waiter'
 
-let _client: CloudFormationClient = null;
+let _client: CloudFormationClient;
 
 function getClient() {
   if (_client) {
@@ -33,15 +33,24 @@ export async function listStacks(StackStatusFilter: string[]) {
     let cmd = new ListStacksCommand({StackStatusFilter: StackStatusFilter});
     let res = await getClient().send(cmd);
     let stacks = res.StackSummaries;
+    if (!stacks) {
+      return [];
+    }
     while (res.NextToken) {
       cmd = new ListStacksCommand({NextToken: res.NextToken});
       res = await getClient().send(cmd);
+      if (!res.StackSummaries) {
+        return stacks;
+      }
       stacks = stacks.concat(res.StackSummaries);
     }
     return stacks;
   } catch (e) {
-    CenvLog.single.errorLog(`list stacks failed: ${errorBold(e.message)}, ${e}`)
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`list stacks failed: ${errorBold(e.message)}, ${e}`)
+    }
   }
+  return [];
 }
 
 export async function describeStacks(stackName: string, silent = false) {
@@ -49,17 +58,26 @@ export async function describeStacks(stackName: string, silent = false) {
     let cmd = new DescribeStacksCommand({StackName: stackName});
     let res = await getClient().send(cmd);
     let stacks = res.Stacks;
+    if (!stacks) {
+      return [];
+    }
     while (res.NextToken) {
       cmd = new DescribeStacksCommand({NextToken: res.NextToken});
       res = await getClient().send(cmd);
+      if (!res.Stacks) {
+        return stacks;
+      }
       stacks = stacks.concat(res.Stacks);
     }
     return stacks;
   } catch (e) {
     if (!silent) {
-      CenvLog.single.errorLog(`describe stacks failed: ${errorBold(e.message)}, ${e}`);
+      if (e instanceof Error) {
+        CenvLog.single.errorLog(`describe stacks failed: ${errorBold(e.message)}, ${e}`);
+      }
     }
   }
+  return [];
 }
 
 export async function listExports() {
@@ -67,15 +85,24 @@ export async function listExports() {
     let cmd = new ListExportsCommand({});
     let res = await getClient().send(cmd);
     let exports = res.Exports;
+    if (!exports) {
+      return []
+    }
     while (res.NextToken) {
       cmd = new ListExportsCommand({NextToken: res.NextToken});
       res = await getClient().send(cmd);
+      if (!res.Exports) {
+        return exports;
+      }
       exports = exports.concat(res.Exports);
     }
     return exports;
   } catch (e) {
-    CenvLog.single.errorLog(`list exports failed: ${errorBold(e.message)}, ${e}`)
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`list exports failed: ${errorBold(e.message)}, ${e}`)
+    }
   }
+  return [];
 }
 
 export async function deleteStack(StackName: string, waitForIt = true, errorOnFailure = false): Promise<boolean> {
@@ -88,7 +115,7 @@ export async function deleteStack(StackName: string, waitForIt = true, errorOnFa
     }
     return true;
   } catch (e) {
-    const errorString = `delete stack ${StackName}: ${errorBold(e.message)}, ${e}`;
+    const errorString = `delete stack ${StackName}: ${e instanceof Error ? `${errorBold(e.message)}, ${e}` : e as string}`;
     if (!errorOnFailure) {
       CenvLog.single.errorLog(errorString);
       return false
@@ -105,7 +132,9 @@ export async function cancelUpdateStack(StackName: string) {
     const res = await getClient().send(cmd);
     Package.fromStackName(StackName)?.info(JSON.stringify(res.$metadata));
   } catch (e) {
-    CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`);
+    }
   }
 }
 
@@ -120,12 +149,12 @@ export async function getExportValue(exportName: string, silent = false): Promis
   exports = exports.filter(e => e.Name === updatedExport);
 
   if (exports.length) {
-    return exports[0].Value;
+    return exports[0].Value as string;
   }
 
   if (!silent) {
     const err = new Error(`export not found: ${exportName}`);
-    CenvLog.single.errorLog(err.stack);
+    CenvLog.single.errorLog(err.stack as string);
   }
 
   return false;

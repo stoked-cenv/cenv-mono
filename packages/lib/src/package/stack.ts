@@ -1,11 +1,11 @@
 import {IPackageModule, PackageModule, PackageModuleType, ProcessMode} from './module';
 import {Stack, StackSummary} from '@aws-sdk/client-cloudformation';
 import {deleteStack, describeStacks} from '../aws/cloudformation';
-import semver, {SemVer} from 'semver';
+import {SemVer, parse} from 'semver';
 import {CenvLog, colors} from '../log';
-import {getMonoRoot, removeScope, runScripts, spawnCmd, stackPath} from "../utils";
-import {CommandEvents, Package, PackageCmd} from "./package";
-import path from "path";
+import {getMonoRoot, removeScope, runScripts, spawnCmd, stackPath, sureParse, validateEnvVars} from "../utils";
+import {CommandEvents, Package, PackageCmd, TPackageMeta} from "./package";
+import * as path from "path";
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -18,13 +18,13 @@ interface NameReplacer {
 
 export class StackModule extends PackageModule {
   detail?: Stack;
-  verified? = false;
+  verified = false;
   summary?: StackSummary;
   stackVersion?: SemVer;
   stackType?: StackType;
 
-  constructor(module: IPackageModule) {
-    super(module, PackageModuleType.STACK);
+  constructor(pkg: Package, path: string, meta: TPackageMeta) {
+    super(pkg, path, meta, PackageModuleType.STACK);
     this.stackType = this.pkg.fullType === 'services' ? StackType.ECS : StackType.LAMBDA;
   }
 
@@ -62,11 +62,11 @@ export class StackModule extends PackageModule {
   }
 
   get deployedDigest(): string | false {
-    return this.getTag('CENV_PKG_DIGEST');
+    return this.getTag('CENV_PKG_DIGEST', this.pkg.stackName);
   }
 
   get deployedDigestShort(): string | false {
-    const digestTag = this.getTag('CENV_PKG_DIGEST');
+    const digestTag = this.getTag('CENV_PKG_DIGEST', this.pkg.stackName);
     if (!digestTag) {
       return false;
     }
@@ -75,23 +75,20 @@ export class StackModule extends PackageModule {
 
   get hasLatestDeployedVersion(): boolean {
     if (this?.stackVersion === undefined) {
-      return;
+      return false;
     }
-    return (this.pkg.rollupVersion?.toString() === semver.parse(this?.stackVersion)?.toString());
+    return (this.pkg.rollupVersion?.toString() === parse(this?.stackVersion)?.toString());
   }
 
   get hasLatestDeployedDigest(): boolean {
-    if (!this.pkg?.stack) {
-      return true;
+    if (!this.pkg?.stack || this?.deployedDigest === false) {
+      return false;
     }
-    if (this?.deployedDigest === false) {
-      return;
-    }
-    return this.pkg?.docker.latestDigest === this?.deployedDigest && !!this.pkg?.docker.latestDigest;
+    return this.pkg?.docker?.latestDigest === this?.deployedDigest && !!this.pkg?.docker.latestDigest;
   }
 
   static fromModule(module: PackageModule) {
-    return new StackModule(module);
+    return new StackModule(module.pkg, module.path, module.meta);
   }
 
   async destroy(packageCmd?: PackageCmd) {
@@ -120,7 +117,7 @@ export class StackModule extends PackageModule {
       await this.destroy(deployCmd);
     }
 
-    await runScripts(this, this.pkg.meta.data.postDeployScripts);
+    await runScripts(this, this.meta.postDeployScripts);
 
     if (!process.env.CENV_SKIP_CDK) {
 
@@ -141,19 +138,13 @@ export class StackModule extends PackageModule {
       await this.pkg.pkgCmd(deployCommand, opt);
     }
 
-    await runScripts(this, this.pkg.meta.data.postDeployScripts);
+    await runScripts(this, this.meta.postDeployScripts);
 
-    if (this?.pkg.meta?.data.postDeployScripts) {
-      for (let i = 0; i < this.pkg.meta.data.postDeployScripts.length; i++) {
-        const script = this.pkg.meta.data.postDeployScripts[i];
-        await spawnCmd(this.pkg.params.path, script, script, {...options, redirectStdErrToStdOut: true}, this.pkg);
-      }
-    }
     deployCmd.result(0);
   }
 
-  async resetVolatileKeys(opt) {
-    if (this.pkg.meta.data?.cenv?.stack?.clearContext) {
+  async resetVolatileKeys(opt: string) {
+    if (this.meta?.cenv?.stack?.clearContext) {
       /*await Promise.allSettled(this.pkg.meta.data.cenv.stack.volatileContextKeys.map(async (key) => {
         key = key.replace('CDK_DEFAULT_ACCOUNT', process.env.CDK_DEFAULT_ACCOUNT);
         key = key.replace('CDK_DEFAULT_REGION', process.env.CDK_DEFAULT_REGION);
@@ -222,7 +213,7 @@ export class StackModule extends PackageModule {
     return opt;
   }
 
-  getCommandEvents(opt, processType: ProcessMode): CommandEvents {
+  getCommandEvents(opt: any, processType: ProcessMode): CommandEvents {
     const commandEvents: CommandEvents = {
       preCommandFunc: async () => {
         this.info(opt.cenvVars.CENV_PKG_VERSION, 'CENV_PKG_VERSION');
@@ -244,7 +235,7 @@ export class StackModule extends PackageModule {
   }
 
   reset() {
-    this.verified = undefined;
+    this.verified = false;
     this.summary = undefined;
     this.stackVersion = undefined;
     this.detail = undefined;
@@ -280,23 +271,25 @@ export class StackModule extends PackageModule {
       }
     }
 
-    const stacks: Stack[] = await describeStacks(this.pkg.stackNameFinal, true);
+    const stacks = await describeStacks(this.pkg.stackNameFinal, true);
     if (stacks && stacks.length) {
       this.detail = stacks[0];
-      const versionTag = this.getTag(`CENV_PKG_VERSION`);
+      const versionTag = this.getTag(`CENV_PKG_VERSION`, this.pkg.stackName);
 
       if (versionTag) {
-        this.stackVersion = semver.parse(versionTag);
+        this.stackVersion = sureParse(versionTag);
       }
 
       if (this.detail?.Outputs) {
         this.detail?.Outputs.map((o) => {
-          if (o.OutputKey === 'Site') {
-            this.pkg.primaryLink = o.OutputValue;
-          } else if (o.OutputKey.startsWith('FargateServiceUrl')) {
-            this.pkg.primaryLink = o.OutputValue;
+          if (o.OutputKey && o.OutputValue) {
+            if (o.OutputKey === 'Site') {
+              this.pkg.primaryLink = o.OutputValue;
+            } else if (o.OutputKey?.startsWith('FargateServiceUrl')) {
+              this.pkg.primaryLink = o.OutputValue;
+            }
+            this.pkg.links.push(o.OutputValue);
           }
-          this.pkg.links.push(o.OutputValue);
         });
       }
     }
@@ -309,11 +302,11 @@ export class StackModule extends PackageModule {
   }
 
   upToDate(): boolean {
-    return this.verified || (this.detail && this.hasLatestDeployedVersion && (!this.pkg?.docker || this.hasLatestDeployedDigest) && this.getStackComplete());
+    return this.verified || (!!this.detail && this.hasLatestDeployedVersion && (!this.pkg?.docker || this.hasLatestDeployedDigest) && this.getStackComplete());
   }
 
   getStackStatus(): string {
-    return this.detail?.StackStatus;
+    return this.detail?.StackStatus ? this.detail.StackStatus : 'UNKNOWN';
   }
 
   getStackComplete(): boolean {
@@ -339,7 +332,7 @@ export class StackModule extends PackageModule {
 
   getDetails() {
     if (this.verified) {
-      this.status.deployed.push(this.statusLine('up to date', `verified using package.json's verifyStack cmd [${this.pkg.meta.data.verifyStack}]`, false));
+      this.status.deployed.push(this.statusLine('up to date', `verified using package.json's verifyStack cmd [${this.meta.verifyStack}]`, false));
       return;
     }
     if (this.upToDate()) {
@@ -365,7 +358,7 @@ export class StackModule extends PackageModule {
       }
       if (!this.stackVersion) {
         this.status.incomplete.push(this.statusLine('not fully deployed', `the stack [${colors.errorBold(this.pkg.stackName)}] exists in environment ${process.env.ENV} but has not been tagged with a CENV_PKG_VERSION`, true));
-      } else if (semver.parse(this.stackVersion) !== this.pkg.rollupVersion) {
+      } else if (parse(this.stackVersion) !== this.pkg.rollupVersion) {
         this.status.incomplete.push(this.versionMismatch(this.stackVersion.toString()));
       }
     }
@@ -380,21 +373,24 @@ export class StackModule extends PackageModule {
     }
   }
 
-  getTag(tag: string, stackName: string = undefined): string | false {
+  getTag(tag: string, stackName: string): string | false {
     if (stackName) {
       const pkg = Package.fromStackName(stackName)
       if (!pkg || !pkg.stack) {
-        return;
+        return false;
       }
-      return pkg.stack.getTag('VPCID')
+      return pkg.stack.getTag('VPCID', stackName)
     }
 
     const tags = this.detail?.Tags?.filter((t) => t.Key === tag)
-    return tags?.length ? tags[0].Value : false;
+    return tags?.length && tags[0].Value ? tags[0].Value : false;
   }
 
-  getOutput(key) {
-    const outputs = this.detail?.Outputs.filter((output: any) => output.OutputKey === key);
+  getOutput(key: string) {
+    if (!this.detail || !this.detail.Outputs) {
+      return false;
+    }
+    const outputs = this.detail.Outputs.filter((output: any) => output.OutputKey === key);
     if (outputs.length) {
       return outputs[0];
     }
@@ -419,7 +415,7 @@ export class StackModule extends PackageModule {
     url = this.updateRegion(url);
 
     const id = this.getOutput(`${process.env.ENV}-network-id`);
-    if (!id) {
+    if (!id || !id.OutputValue) {
       return false;
     }
     return url.replace(/VPC_ID/g, id.OutputValue);
@@ -437,10 +433,10 @@ export class StackModule extends PackageModule {
     url = this.updateRegion(url);
 
     const arn = this.getOutput('CertificateArn');
-    if (!arn) {
+    if (!arn || !arn.OutputValue) {
       return false;
     }
-    return url.replace(/ARN_GUID/g, arn.OutputValue.split('/').pop());
+    return url.replace(/ARN_GUID/g, arn.OutputValue.split('/').pop() as string);
   }
 
   getEcsUrls() {
@@ -451,7 +447,7 @@ export class StackModule extends PackageModule {
       name: `${process.env.ENV}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : ''}svc`,
       regex: /ECS_SERVICE/g
     }
-    const urls = [];
+    const urls: string[] = [];
     urls.push(this.getEcsClusterUrl(cluster));
     urls.push(this.getEcsServiceUrl(cluster, service));
     urls.push(this.getEcsTaskUrl(cluster, service));
@@ -476,13 +472,13 @@ export class StackModule extends PackageModule {
 
   getSpaUrls() {
 
-    const urls = [];
+    const urls: string[] = [];
 
     // cloudfront
     const distroId = this.getOutput(`DistributionId`);
     if (distroId) {
       const distro: NameReplacer = {
-        name: distroId.OutputValue, regex: /DISTRIBUTION_ID/g
+        name: distroId.OutputValue as string, regex: /DISTRIBUTION_ID/g
       }
       urls.push(this.getCloudFrontDistroUrl(distro));
     }
@@ -491,19 +487,22 @@ export class StackModule extends PackageModule {
     const bucketOutput = this.getOutput(`Bucket`);
     if (bucketOutput) {
       const bucket: NameReplacer = {
-        name: bucketOutput.OutputValue, regex: /BUCKET_NAME/g
+        name: bucketOutput.OutputValue as string, regex: /BUCKET_NAME/g
       }
       urls.push(this.getBucketUrl(bucket));
     }
 
     // acm
-    urls.push(this.getAcmUrl());
+    const res = this.getAcmUrl();
+    if (res) {
+      urls.push(res);
+    }
 
     // route53
     return urls;
   }
 
-  getBucketUrl(bucket) {
+  getBucketUrl(bucket: NameReplacer) {
     let url = "https://s3.console.aws.amazon.com/s3/buckets/BUCKET_NAME?region=AWS_REGION&tab=objects"
     url = this.updateRegion(url);
     return url.replace(bucket.regex, bucket.name);
@@ -519,8 +518,8 @@ export class StackModule extends PackageModule {
     let url = `https://AWS_REGION.console.aws.amazon.com/cloudfront/v3/home?region=AWS_REGION#/distributions/DISTRIBUTION_ID`
   }
 
-  updateRegion(urlTemplate) {
-    return urlTemplate.replace(/AWS_REGION/g, process.env.AWS_REGION);
+  updateRegion(urlTemplate: string) {
+    return urlTemplate.replace(/AWS_REGION/g, process.env.AWS_REGION!);
   }
 
 }

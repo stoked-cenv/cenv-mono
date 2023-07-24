@@ -1,4 +1,4 @@
-import path from 'path';
+import * as path from 'path';
 import {existsSync, readFileSync} from 'fs';
 import {Environment} from './environment';
 import {EnvironmentStatus, Package, ProcessStatus} from "./package/package";
@@ -9,23 +9,23 @@ export class Suites {
   static data: any;
   static cache: Suite[] = [];
 
-  static hasPackage(packageName: string): string[] {
+  static hasPackage(packageName: string): boolean {
     const suitesJson = Suite.readSuites();
     if (Object.keys(suitesJson)?.length) {
-      const suites = Object.keys(suitesJson).filter(k => {
-        return suitesJson[k].packages.indexOf(packageName) > -1;
+      const pkg = Object.keys(suitesJson).filter(k => {
+        return suitesJson[k].packages.find(packageName);
       });
-      return suites;
+      return !!pkg;
     }
+    return false;
   }
 }
 
 export class Suite {
 
   name: string;
-  packages: Package[];
+  packages: Package[] = [];
   packageNames: string[];
-  environment: Environment = undefined;
 
   constructor(name: string) {
     this.name = name;
@@ -82,28 +82,5 @@ export class Suite {
     }
     Suites.data = JSON.parse(suites);
     return Suites.data;
-  }
-
-  async getDeployment() {
-    this.environment = new Environment();
-    await this.environment.getStacks();
-    const deployed: Package[] = [];
-    const undeployed: Package[] = []
-    this.packages = this.packages.map((p: Package) => {
-      const stack = this.environment?.stacks.filter(s => s?.StackName === p?.stackName);
-      if (stack?.length === 1) {
-        p.stack.detail = stack[0];
-        p.environmentStatus = EnvironmentStatus.UP_TO_DATE;
-        p.processStatus = ProcessStatus.COMPLETED;
-        return p;
-      } else {
-        p.environmentStatus = EnvironmentStatus.NOT_DEPLOYED;
-        const root = getMonoRoot();
-        const relativePath = path.relative(root, p.path);
-        p.createCmd(`package not deployed`, relativePath, 0);
-        return p;
-      }
-    })
-    return {deployed, undeployed};
   }
 }

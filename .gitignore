@@ -1,55 +1,12 @@
-# compiled output
-**/dist
-/node_modules
-/dist_backup
-**/*/node_modules/*
+dist/
+node_modules/
+coverage/
+.env
 
+tags
 
-# Logs
-logs
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Generated Docusaurus files
+.docusaurus/
+.cache-loader/
 
-# OS
-.DS_Store
-
-# Tests
-/coverage
-/.nyc_output
-
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# cenv
-.version.json
-
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-*.tsbuildinfo
-
-# js files, declarations, and deps
-**/*.js
-!**/jest.config.js
-**/*.d.ts
-**/node_modules
-
-# CDK asset staging directory
-.cdk.staging
-cdk.out
-
-cdk.context.json
-*.js.map
+cenv.build.log

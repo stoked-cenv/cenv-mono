@@ -41,7 +41,7 @@ export default class StatusCommand extends BaseCommand {
   async runCommand(passedParam: string[], options: any, packages: Package[]): Promise<void> {
     try {
       await Promise.allSettled(packages.map((p: Package) => {
-        const endStatus: ProcessStatus = options?.endStatus ? Object.values(ProcessStatus)[options.endStatus] : undefined;
+        const endStatus: ProcessStatus | undefined = options?.endStatus ? Object.values(ProcessStatus)[options.endStatus] : undefined;
         p.checkStatus(options?.targetMode, endStatus);
       }))
     } catch (e) {

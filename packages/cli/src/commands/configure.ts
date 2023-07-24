@@ -60,7 +60,9 @@ export default class ConfigureCommand extends BaseCommand {
       } else {
 
         const profileData = await getMatchingProfileConfig(true, options?.profile, options?.env)
-        CenvLog.single.infoLog(`default profile set to ${printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV)}`);
+        if (profileData.envConfig) {
+          CenvLog.single.infoLog(`default profile set to ${printProfileQuery(profileData.envConfig.AWS_PROFILE!, profileData.envConfig.ENV!)}`);
+        }
         const defaultPath = join(CenvFiles.ProfilePath, 'default');
         copyFileSync(profileData.profilePath, defaultPath)
       }

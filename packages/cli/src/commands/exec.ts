@@ -1,5 +1,5 @@
 import {Command, Option} from 'nest-commander';
-import path from 'path';
+import * as path from 'path';
 import {
   BaseCommandOptions,
   CenvFiles,
@@ -12,7 +12,7 @@ import {
   spawnCmd,
 } from '@stoked-cenv/lib';
 import {BaseCommand} from './base'
-import chalk from "chalk";
+import * as chalk from "chalk";
 
 
 interface ExecCommandOptions extends BaseCommandOptions {
@@ -55,40 +55,25 @@ export default class ExecCommand extends BaseCommand {
       let vars = {};
       await Promise.all(packages.map(async (p: Package) => {
         const pkgPath = packagePath(p.packageName);
-        const relative = path.relative(process.cwd(), pkgPath);
-        if (relative !== '') {
-          process.chdir(path.relative(process.cwd(), pkgPath));
-        }
-        const config = CenvFiles.GetConfig();
-        if (config) {
-          vars = await getConfigVars(true, false, 'ENVIRONMENT VARIABLES', true);
-          Object.entries(cenvVars).forEach(([key, value]) => {
-            console.log(`export ${chalk.whiteBright(key)}=${chalk.whiteBright(value)}`)
-          });
-        }
-        options.module = options.module?.toLowerCase();
-        if (options.module) {
-          let pkgModule: PackageModule;
-          switch (options.module) {
-            case 'docker':
-              pkgModule = p.docker;
-              break;
-            case 'stack':
-              pkgModule = p.stack;
-              break;
-            case 'params':
-              pkgModule = p.params;
-              break;
-            case 'lib':
-              pkgModule = p.lib;
-              break;
-            case 'exec':
-              pkgModule = p.exec;
-              break;
+        if (pkgPath) {
+          const relative = path.relative(process.cwd(), pkgPath);
+          if (relative !== '') {
+            process.chdir(path.relative(process.cwd(), pkgPath));
           }
-          const modulePath = path.relative(process.cwd(), pkgModule.path);
-          if (modulePath !== process.cwd()) {
-            process.chdir(path.relative(process.cwd(), pkgModule.path));
+          const config = CenvFiles.GetConfig();
+          if (config) {
+            vars = await getConfigVars(true, false, 'ENVIRONMENT VARIABLES', true);
+            Object.entries(cenvVars).forEach(([key, value]) => {
+              console.log(`export ${chalk.whiteBright(key)}=${chalk.whiteBright(value)}`)
+            });
+          }
+          options.module = options.module?.toLowerCase();
+          if (options.module) {
+            let pkgModule: PackageModule = p.packageModules[options.module]
+            const modulePath = path.relative(process.cwd(), pkgModule.path);
+            if (modulePath !== process.cwd()) {
+              process.chdir(path.relative(process.cwd(), pkgModule.path));
+            }
           }
         }
         await spawnCmd('./', params.join(' '), params.join(' '), {envVars: vars}, p);

@@ -16,7 +16,7 @@ async function bootstrap() {
   try {
     await CommandFactory.run(CenvModule);
   } catch (e) {
-    console.error(e.message, e.stack);
+    console.error(e as string);
   }
 }
 

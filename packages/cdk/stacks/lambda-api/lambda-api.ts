@@ -5,7 +5,7 @@ import * as api from 'aws-cdk-lib/aws-apigateway';
 import {ApiGatewayToLambda, ApiGatewayToLambdaProps} from '@aws-solutions-constructs/aws-apigateway-lambda';
 import {validateEnvVars} from "@stoked-cenv/lib";
 
-const envVars = validateEnvVars(['CENV_HANDLER', 'CENV_BUILD_PATH']);
+//const envVars = validateEnvVars(['CENV_HANDLER', 'CENV_BUILD_PATH']);
 
 export class LambdaApi extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -14,9 +14,9 @@ export class LambdaApi extends Stack {
     // The code that defines your stack goes here
     const api_lambda_props: ApiGatewayToLambdaProps = {
       lambdaFunctionProps: {
-        code: lambda.Code.fromAsset(envVars.CENV_BUILD_PATH),
+        code: lambda.Code.fromAsset(process.env.CENV_BUILD_PATH!),
         runtime: lambda.Runtime.NODEJS_16_X,
-        handler: envVars.CENV_HANDLER // hello.handler
+        handler: process.env.CENV_HANDLER! // hello.handler
       }, apiGatewayProps: {
         defaultMethodOptions: {
           authorizationType: api.AuthorizationType.NONE

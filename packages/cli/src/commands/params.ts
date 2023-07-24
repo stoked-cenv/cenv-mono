@@ -132,7 +132,7 @@ export default class ParamsCommand extends BaseCommand {
     await getParams(config, type, format, options?.decrypted, options?.deployed);
   }
 
-  async runCommand(params: string[], options?: ParamsCommandOptions, packages?: Package[]): Promise<void> {
+  async runCommand(params: string[], options: ParamsCommandOptions, packages?: Package[]): Promise<void> {
     try {
       if (params.length) {
         // force lowercase
@@ -153,30 +153,30 @@ export default class ParamsCommand extends BaseCommand {
           process.exit(4);
         }
 
-        for (let i = 0; i < params.length; i++) {
-          const param = params[i];
-          options.defaults = true;
-          for (const p of packages) {
-            if (p.chDir()) {
-              if (param === ParamCommands.init) {
-                await Cenv.initParams(options, []);
-              } else if (param === ParamCommands.fix) {
-
-                await p.checkStatus();
-                if (p?.params?.status.needsFix?.length) {
-                  console.log('package', p.packageName);
-                  await p.params.fixDupes();
+        if (packages) {
+          for (let i = 0; i < params.length; i++) {
+            const param = params[i];
+            options.defaults = true;
+            for (const p of packages) {
+              if (p.params && p.chDir() ) {
+                if (param === ParamCommands.init) {
+                  await Cenv.initParams(options, []);
+                } else if (param === ParamCommands.fix) {
+                  await p.checkStatus();
+                  if (p.params.status.needsFix?.length) {
+                    console.log('package', p.packageName);
+                    await p.params.fixDupes();
+                  }
+                } else if (param === ParamCommands.deploy) {
+                  await CenvParams.push(false);
+                } else if (param === ParamCommands.pull) {
+                  const depRes = await getConfig(p.params.name);
+                  if (depRes) {
+                    await CenvParams.pull(true, false, true, false, false, false, depRes.config, true);
+                  }
+                } else if (param === ParamCommands.materialize) {
+                  await CenvParams.Materialize(options.test);
                 }
-              } else if (param === ParamCommands.deploy) {
-                await CenvParams.push(false);
-              } else if (param === ParamCommands.pull) {
-                const depRes = await getConfig(p.params.name);
-                if (depRes) {
-                  await CenvParams.pull(true, false, true, false, false, false, depRes.config, true);
-                }
-
-              } else if (param === ParamCommands.materialize) {
-                await CenvParams.Materialize(options.test);
               }
             }
           }
@@ -188,17 +188,18 @@ export default class ParamsCommand extends BaseCommand {
         if (!type) {
           type = 'all';
         }
-
-        const opts = {...options, pkgCount: packages.length};
-        for (let i = 0; i < packages.length; i++) {
-          if (packages[i].chDir()) {
-            await this.callBase(opts, type, packages[i]);
+        if (packages) {
+          const opts = {...options, pkgCount: packages.length};
+          for (let i = 0; i < packages.length; i++) {
+            if (packages[i].chDir()) {
+              await this.callBase(opts, type, packages[i]);
+            }
           }
         }
       }
 
     } catch (e) {
-      console.log(errorInfo(e) + '\n' + e.stack);
+      CenvLog.single.errorLog(e as string);
     }
   }
 }

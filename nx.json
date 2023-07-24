@@ -1,0 +1,23 @@
+{
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@nrwl/nx-cloud",
+      "options": {
+        "cacheableOperations": [],
+        "accessToken": "ZmI3MzhkNzYtYmZkMC00ZDY4LThlOTgtODhmZTBlNjlhNDkzfHJlYWQtd3JpdGU="
+      }
+    }
+  },
+  "targetDefaults": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ]
+    }
+  },
+  "defaultBase": "main",
+  "$schema": "./node_modules/nx/schemas/nx-schema.json"
+}

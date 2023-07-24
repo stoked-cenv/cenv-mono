@@ -1,4 +1,4 @@
-import {BuildCommandOptions, Package, ProcessStatus} from './package';
+import {BuildCommandOptions, Package, ProcessStatus, TPackageMeta} from './package';
 import {IPackageModule, PackageModule, PackageModuleType} from './module';
 import {CenvLog} from '../log';
 import {Deployment} from "../deployment";
@@ -15,13 +15,13 @@ export class LibModule extends PackageModule {
   public static buildLog: any;
   public static buildLogPath: string;
   buildStatus: LibStatus = LibStatus.UNBUILT;
-  timestamp: Date;
+  timestamp?: Date;
   hasBeenBuilt = false;
-  previousBuildTs: Date;
+  previousBuildTs?: Date;
   hasCheckedLogs = false;
 
-  constructor(module: IPackageModule) {
-    super(module, PackageModuleType.LIB);
+  constructor(pkg: Package, path: string, meta: TPackageMeta) {
+    super(pkg, path, meta, PackageModuleType.LIB);
   }
 
   get anythingDeployed(): boolean {
@@ -81,14 +81,14 @@ export class LibModule extends PackageModule {
   }
 
   static fromModule(module: PackageModule) {
-    return new LibModule(module);
+    return new LibModule(module.pkg, module.path, module.meta);
   }
 
   upToDate(): boolean {
     if (!this.hasCheckedLogs) {
       const res = LibModule.packageHasBeenBuilt(this.pkg.packageName);
       if (!res) {
-        return;
+        return false;
       }
       this.previousBuildTs = res;
       this.hasBeenBuilt = true;
@@ -99,14 +99,14 @@ export class LibModule extends PackageModule {
 
   getDetails() {
     if (this.buildStatus === LibStatus.SUCCESS) {
-      this.status.deployed.push(this.statusLine('build succeeded', `build succeeded at [${this.timestamp.toLocaleString()}]`, false,));
+      this.status.deployed.push(this.statusLine('build succeeded', `build succeeded at [${this.timestamp?.toLocaleString()}]`, false,));
       return;
     } else if (this.hasBeenBuilt) {
-      this.status.deployed.push(this.statusLine('build succeeded', `previously a build succeeded at [${this.previousBuildTs.toLocaleString()}]`, false,));
+      this.status.deployed.push(this.statusLine('build succeeded', `previously a build succeeded at [${this.previousBuildTs?.toLocaleString()}]`, false,));
       return;
     }
     if (this.buildStatus === LibStatus.FAILED) {
-      this.status.needsFix.push(this.statusLine('build failed', `build failed at [${this.timestamp.toLocaleString()}]`, true,));
+      this.status.needsFix.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true,));
     } else {
       this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true,));
     }
@@ -140,7 +140,7 @@ export class LibModule extends PackageModule {
         const buildCmd = this.pkg.createCmd(buildCmdString)
         try {
           const opt = {cenvVars: {}, pkgCmd: buildCmd};
-          if (this.meta?.cenv?.lib?.loadVars) {
+          if (this.pkg.params && this.meta?.cenv?.lib?.loadVars) {
             await this.pkg.params.loadVars();
           }
           const res = await this.pkg.pkgCmd(`pnpm --filter ${this.name} build`, {
@@ -174,7 +174,9 @@ export class LibModule extends PackageModule {
       this.hasBeenBuilt = true;
       return true;
     } catch (e) {
-      CenvLog.single.errorLog(e || 'build failed', this.pkg.stackName, true);
+      if (e instanceof Error) {
+        CenvLog.single.errorLog(e.stack || 'build failed', this.pkg.stackName, true);
+      }
       return false
     }
   }

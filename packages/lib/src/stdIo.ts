@@ -1,24 +1,29 @@
 import read from 'read';
 import {hostname} from 'os';
+import * as path from 'path';
 import {BaseCommandOptions} from './params'
 import {CenvLog, errorBold, infoAlert, infoAlertBold, infoBold, infoInput} from './log';
-import path, {join} from 'path';
-import fs, {existsSync, mkdirSync, readFileSync, writeFileSync} from 'fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync} from 'fs';
 import {getAccountId} from './aws/sts';
-import {inputArgsToEnvVars, isLocalStackRunning} from "./utils";
+import {EnvVars, inputArgsToEnvVars, validateEnvVars} from "./utils";
 import {getKey} from './aws/kms';
 import {listHostedZones} from './aws/route53';
 import {getExportValue} from './aws/cloudformation';
 import {CenvFiles} from "./file";
+import {HostedZone} from "@aws-sdk/client-route-53";
+
+//const envVars = validateEnvVars(['HOME', 'CENV_PROFILE_PATH'])
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
+
 
 export async function readAsync(prompt: string, defaultValue: string): Promise<string> {
   try {
     const finalPrompt = `${prompt}:`;
     return await read({prompt: finalPrompt, default: `${infoInput(defaultValue)}`},);
   } catch (e) {
-    CenvLog.single.errorLog(`readAsync error:\n ${e}\nError: ${e.message}`);
+    CenvLog.single.catchLog(`readAsync error:\nError: ${e as string}`);
+    process.exit(99);
   }
 }
 
@@ -27,7 +32,7 @@ function cleanString(input: string) {
   return input.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '')
 }
 
-export async function ioReadVar(prompt: string, varValue: string, defaultValue: string, defaults = false, protectedMode = false): Promise<string> {
+export async function ioReadVar(prompt: string, varValue: string | undefined, defaultValue: string, defaults = false, protectedMode = false): Promise<string> {
   if (!varValue) {
     if (!defaults) {
       if (protectedMode && defaultValue.match(/^<\].*?\[>$/)?.length) {
@@ -55,7 +60,7 @@ export async function ioAppEnv(config: any, application: any, environment: any, 
   return {application, environment};
 }
 
-export async function ioReadVarList(keyValueList: any, protectedMode = false) {
+export async function ioReadVarList(keyValueList: any, protectedMode = false): Promise<Record<string, string>> {
   for (const [key, value] of Object.entries(keyValueList)) {
     const output = await ioReadVar(key, undefined, value as string, false, protectedMode);
     keyValueList[key] = output;
@@ -110,12 +115,15 @@ async function getAccountInfo() {
   return args;
 }
 
-export function printProfileQuery(profile: string, environment: string) {
+export function printProfileQuery(profile?: string, environment?: string) {
+  if (!profile && !environment) {
+    return `the profile query contains neither a profile or an environment`;
+  }
   return `${profile ? `profile: ${infoAlertBold(profile)} ` : ''}${environment ? `environment: ${infoAlertBold(environment)} ` : ''}`;
 }
 
 export interface ProfileData {
-  envConfig?: any,
+  envConfig?: Record<string, string>,
   profilePath: string,
   askUser: boolean
 }
@@ -132,11 +140,11 @@ export async function getProfiles(paramMatchesOnly = false, profile = '', enviro
 
   createDirIfNotExists(CenvFiles.ProfilePath);
 
-  const list = fs.readdirSync(CenvFiles.ProfilePath);
+  const list = readdirSync(CenvFiles.ProfilePath);
   const matchingProfileFiles: ProfileData[] = [];
   for (let i = 0; i < list.length; i++) {
     const file = list[i];
-    const stat = fs.statSync(path.join(CenvFiles.ProfilePath, file));
+    const stat = statSync(path.join(CenvFiles.ProfilePath, file));
     if (stat && stat.isDirectory()) {
       continue;
     }
@@ -152,14 +160,14 @@ export async function getProfiles(paramMatchesOnly = false, profile = '', enviro
     }
 
     if (!paramMatchesOnly) {
-      const profConfig: ProfileData = await loadCenvProfile(fileBase);
+      const profConfig: ProfileData = await loadCenvProfile(fileBase) as ProfileData;
       matchingProfileFiles.push(profConfig);
       continue;
     } else if (fileBase.indexOf(filename) === -1) {
       continue;
     }
 
-    const profConfig: ProfileData = await loadCenvProfile(fileBase);
+    const profConfig: ProfileData = await loadCenvProfile(fileBase) as ProfileData;
     matchingProfileFiles.push(profConfig);
   }
   return matchingProfileFiles;
@@ -173,7 +181,7 @@ export async function getMatchingProfileConfig(exactMatch: boolean, profile?: st
     printProfileQuery(profile, environment);
     CenvLog.single.alertLog(`Multiple profiles match your query: ${printProfileQuery(profile, environment)}.\n\nPlease specify both the profile and the environment options. The following are the matching profiles:\n\n`);
     matchingProfileFiles.forEach((profileData) => {
-      CenvLog.single.stdLog(printProfileQuery(profileData.envConfig.AWS_PROFILE, profileData.envConfig.ENV))
+      CenvLog.single.stdLog(printProfileQuery(profileData.envConfig?.AWS_PROFILE, profileData.envConfig?.ENV))
     });
     process.exit(0);
   } else if (!exactMatch) {
@@ -190,11 +198,11 @@ export async function loadCenvProfile(filename: string, options?: Record<string,
   let profilePath;
 
   if (filename) {
-    profilePath = join(process.env.HOME, `.cenv/${filename}`);
+    profilePath = path.join(process.env.HOME!, `.cenv/${filename}`);
   } else {
-    profilePath = join(process.env.HOME, `.cenv/default`)
+    profilePath = path.join(process.env.HOME!, `.cenv/default`)
   }
-  let alwaysAsk: boolean = undefined;
+  let alwaysAsk: boolean = false;
   if (existsSync(profilePath)) {
     envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
     if (!envConfig.CDK_DEFAULT_ACCOUNT) {
@@ -218,20 +226,8 @@ export async function loadCenvProfile(filename: string, options?: Record<string,
 }
 
 export async function configure(options: any, alwaysAsk = false, verifyLocalRunning = false) {
-  if (process.env.CENV_LOCAL) {
-    options.profile = 'local';
-  }
-  if (options?.profile === 'local') {
-    process.env.CENV_LOCAL = 'true';
-  }
 
-  const localstackApiKeyPath = join(CenvFiles.ProfilePath, `localstack-api-key`);
-  const defaultRootDomainPath = join(CenvFiles.ProfilePath, `default-root-domain`);
-  if (options?.localstackApiKey !== undefined && !alwaysAsk) {
-    process.env.LOCALSTACK_API_KEY = options.localstackApiKey;
-    writeFileSync(localstackApiKeyPath, options.localstackApiKey);
-    return;
-  }
+  const defaultRootDomainPath = path.join(CenvFiles.ProfilePath, `default-root-domain`);
 
   // verify that we need a config at all
   if (options?.profile === 'default' && !alwaysAsk) {
@@ -241,166 +237,116 @@ export async function configure(options: any, alwaysAsk = false, verifyLocalRunn
     }
   }
 
-  let profileData: ProfileData = undefined;
+  let profileData: ProfileData = {askUser: alwaysAsk, profilePath: path.join(process.env.CENV_PROFILE_PATH!, 'default')};
   let profilePath = '';
   if (!alwaysAsk) {
     profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
     profilePath = profileData.profilePath;
     alwaysAsk = profileData.askUser;
   } else {
-    profilePath = join(CenvFiles.ProfilePath, `default`);
+    profilePath = path.join(CenvFiles.ProfilePath, `default`);
   }
 
-  let args: any = {};
+  //let args: Record<string, string> = {};
   let envConfig = profileData?.envConfig;
-
-  alwaysAsk = profileData?.askUser;
 
   if (existsSync(defaultRootDomainPath)) {
     defaultRootDomain = readFileSync(defaultRootDomainPath, 'utf8');
   }
 
-  const localDefaults = {
-    AWS_REGION: 'us-east-1', ENV: 'local', ROOT_DOMAIN: 'localhost'
-  };
-
-  if (options?.profile === 'local') {
-    args = envConfig || localDefaults
-  }
-
-  let kmsKey = null
+  let envVarList = new EnvVars();
   if (!envConfig || (alwaysAsk && !options?.show)) {
-    if (options?.profile !== 'local') {
-      args = envConfig || {
-        AWS_PROFILE: 'aws-profile', AWS_REGION: 'us-east-1', ENV: 'dev'
-      }
+    envVarList.setVars(envConfig || {
+      AWS_PROFILE: 'default', AWS_REGION: 'us-east-1', ENV: 'dev'
+    });
+
+    if (!process.env.CENV_DEFAULTS || alwaysAsk) {
+      envVarList.setVars(await ioReadVarList(envVarList));
+    }
+    if (!envVarList.vars.KMS_KEY && options?.key) {
+      const kmsKey = await getKey();
+      envVarList.setVars(await ioReadVarList({KMS_KEY: kmsKey}));
     }
 
-    let envVars = null;
-    if (process.env.CENV_LOCAL && !alwaysAsk) {
-      envVars = localDefaults;
-    } else if (process.env.CENV_DEFAULTS && !alwaysAsk) {
-      envVars = args;
-    } else {
-      envVars = await ioReadVarList(args);
-    }
-
-    if (options?.profile !== 'local') {
-      process.env.AWS_PROFILE = envVars.AWS_PROFILE;
-      process.env.AWS_REGION = envVars.AWS_REGION;
-      if (!envVars.KMS_KEY && options?.key) {
-        kmsKey = await getKey();
-        let args2 = {KMS_KEY: kmsKey ? kmsKey : ''};
-        args2 = await ioReadVarList(args2);
-        envVars.KMS_KEY = args2.KMS_KEY;
-      }
-      if (!envVars.ROOT_DOMAIN) {
-        const listZoneRes: any = await listHostedZones();
-        let args2 = {ROOT_DOMAIN: defaultRootDomain};
-        for (let i = 0; i < listZoneRes.HostedZones.length; i++) {
-          const zone = listZoneRes.HostedZones[i].Name;
-          if (zone.endsWith('your-domain.com.')) {
-            args2.ROOT_DOMAIN = zone.slice(0, -1)
+    // TODO: cycle through the hosted zones instead of having the user type it in..
+    if (!envVarList.vars.ROOT_DOMAIN) {
+      const hostedZones = await listHostedZones();
+      if (hostedZones && hostedZones.length) {
+        const defaultZone = hostedZones.find((hz: HostedZone) => hz.Name && hz.Name.indexOf(defaultRootDomain) > -1)
+        if (defaultZone) {
+          envVarList.set('ROOT_DOMAIN', defaultZone.Name!);
+        } else {
+          const recordSetCountSorted = hostedZones.filter((hz: HostedZone) => hz.ResourceRecordSetCount)
+                                                  .sort(({ResourceRecordSetCount: a}, {ResourceRecordSetCount: b}) => b as number - (a as number));
+          if (recordSetCountSorted.length > 0) {
+            envVarList.set('ROOT_DOMAIN', recordSetCountSorted[0].Name!);
+          } else {
+            envVarList.set('ROOT_DOMAIN', hostedZones[0].Name!);
           }
         }
-        args2 = await ioReadVarList(args2);
-        envVars.ROOT_DOMAIN = args2.ROOT_DOMAIN;
+        const userSelected = await ioReadVarList({ROOT_DOMAIN: envVarList.vars.ROOT_DOMAIN});
+        envVarList.set('ROOT_DOMAIN', userSelected.ROOT_DOMAIN);
+
+        // TODO: does the zone they typed appear in our list of available zones?
       }
     }
 
-    if (!existsSync(join(process.env.HOME, '.cenv'))) {
-      mkdirSync(join(process.env.HOME, '.cenv'), {recursive: true});
+    if (!existsSync(path.join(process.env.HOME!, '.cenv'))) {
+      mkdirSync(path.join(process.env.HOME!, '.cenv'), {recursive: true});
     }
-    writeFileSync(profilePath, JSON.stringify(envVars, null, 2));
-    envConfig = envVars;
+    writeFileSync(profilePath, JSON.stringify(envVarList, null, 2));
+    envConfig = envVarList.vars;
   }
 
   for (const [key, value] of Object.entries(envConfig) as [string, string][]) {
-    process.env[key] = value;
-    args[key] = value;
-    if (key === 'AWS_REGION') {
-      process.env['CDK_DEFAULT_REGION'] = value;
-      args['CDK_DEFAULT_REGION'] = value;
-    }
-    if (key === 'AWS_PROFILE') {
+    envVarList.set(key, value);
 
-      const awsCredsFile = join(process.env.HOME, '.aws/credentials');
+    if (key === 'AWS_REGION') {
+      envVarList.set('CDK_DEFAULT_REGION', value);
+    }
+
+    if (key === 'AWS_PROFILE') {
+      const awsCredsFile = path.join(process.env.HOME!, '.aws/credentials');
       if (existsSync(awsCredsFile)) {
         const credentials = readFileSync(awsCredsFile, 'utf8')
-        if (value === 'local') {
-          process.env.AWS_ACCESS_KEY_ID = 'local';
-          process.env.AWS_SECRET_ACCESS_KEY = 'local';
-        } else {
-          const prof = credentials.split(`[${value}]`)[1]?.split('[')[0];
-          process.env.AWS_ACCESS_KEY_ID = prof?.split('aws_access_key_id = ')[1]?.split('\n')[0];
-          process.env.AWS_SECRET_ACCESS_KEY = prof?.split('aws_secret_access_key = ')[1]?.split('\n')[0];
-        }
+        const prof = credentials.split(`[${value}]`)[1]?.split('[')[0];
+        envVarList.set('AWS_ACCESS_KEY_ID', prof?.split('aws_access_key_id = ')[1]?.split('\n')[0]);
+        envVarList.set('AWS_SECRET_ACCESS_KEY', prof?.split('aws_secret_access_key = ')[1]?.split('\n')[0]);
       }
     }
   }
 
-  if (process.env.ENV === 'local') {
-    process.env.AWS_ENDPOINT = 'http://localhost:4566';
-    args['AWS_ENDPOINT'] = 'http://localhost:4566';
-    if (existsSync(localstackApiKeyPath)) {
-      const localstackApiKey = readFileSync(join(process.env.HOME, `.cenv/localstack-api-key`), {encoding: 'utf8'});
-      args['LOCALSTACK_API_KEY'] = localstackApiKey;
-      process.env.LOCALSTACK_API_KEY = localstackApiKey;
-    }
-  } else {
-    delete process.env.AWS_ENDPOINT
-  }
-  args['AWS_ACCESS_KEY_ID'] = process.env.AWS_ACCESS_KEY_ID;
-  args['AWS_SECRET_ACCESS_KEY'] = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!args['CDK_DEFAULT_ACCOUNT'] || !args['AWS_ACCOUNT_USER'] || !['AWS_ACCOUNT_USER_ARN']) {
-    const accountInfo: any = process.env.ENV === 'local' ? {Account: '000000000000', User: ''} : await getAccountInfo();
+  if (!envVarList.vars.CDK_DEFAULT_ACCOUNT || !envVarList.vars.AWS_ACCOUNT_USER || !envVarList.vars.AWS_ACCOUNT_USER_ARN) {
+    const accountInfo: any = await getAccountInfo();
     if (!accountInfo) {
       process.exit(9);
     } else {
-      args = {...args, ...accountInfo};
+      envVarList.add(accountInfo);
     }
   }
-
 
   if (!process.env['KMS_KEY']) {
     const kmsKey = await getKey();
     if (kmsKey) {
-      process.env['KMS_KEY'] = kmsKey;
-      args['KMS_KEY'] = kmsKey;
+      envVarList.set('KMS_KEY', kmsKey);
     }
   }
 
-  if (options?.show) {
-    CenvLog.single.infoLog(`${JSON.stringify(args, null, 2)}`);
-  }
+  envVarList.set('VITE_APP_ROOT_DOMAIN', envVarList.vars.ROOT_DOMAIN);
+  envVarList.set('VITE_APP_ENV', envVarList.vars.ENV);
 
-  process.env['VITE_APP_ROOT_DOMAIN'] = process.env['ROOT_DOMAIN'];
-  process.env['VITE_APP_ENV'] = process.env['ENV'];
-
-  if (args['ENV'] != 'local') {
-    writeFileSync(defaultRootDomainPath, args['ROOT_DOMAIN']);
-  }
-
-  if (process.env.ENV === 'local' && verifyLocalRunning) {
-    if (!await isLocalStackRunning()) {
-      process.exit(5);
-    }
-  }
-
-  if (process.env.AWS_PROFILE === 'local') {
-    delete args.AWS_PROFILE;
-    delete process.env.AWS_PROFILE
-  }
+  writeFileSync(defaultRootDomainPath, envVarList.vars.ROOT_DOMAIN);
 
   const cidr = await getExportValue('cidr', true);
   if (cidr) {
-    process.env.CENV_NETWORK_CIDR = cidr;
-    args['CENV_NETWORK_CIDR'] = cidr;
+    envVarList.set('CENV_NETWORK_CIDR', 'cidr')
   }
 
   // because cdk logs everything to stderr by default.. fucking annoying..
-  process.env.CI = 'true';
-  args.CI = 'true';
-  return args;
+  envVarList.set('CI', 'true')
+
+  if (options?.show) {
+    CenvLog.single.infoLog(`${JSON.stringify(envVarList.vars, null, 2)}`);
+  }
+  return envVarList.vars;
 }

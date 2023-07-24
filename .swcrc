@@ -1,0 +1,25 @@
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "decorators": true
+    },
+    "transform": {
+      "legacyDecorator": true,
+      "decoratorMetadata": true
+    },
+    "target": "es2017",
+    "keepClassNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@stoked-cenv/lib": ["packages/lib/src/index.ts"],
+      "@stoked-cenv/ui": ["packages/ui/src/index.ts"],
+      "@stoked-cenv/cli": ["packages/lib/src/index.ts"],
+      "@stoked-cenv/cdk": ["packages/cdk/core/index.ts"]
+    }
+  },
+  "module": {
+    "type": "commonjs",
+    "strictMode": true
+  }
+}

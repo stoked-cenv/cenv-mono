@@ -7,7 +7,7 @@ import {
 import { Response } from 'express';
 import { ErrorMessage } from './models/messages';
 
-const errorMessages = {
+const errorMessages: {[key: number]: string} = {
   404: 'Not Found',
   500: 'Internal server error',
 };

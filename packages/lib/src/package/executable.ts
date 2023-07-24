@@ -1,13 +1,14 @@
 import {IPackageModule, PackageModule, PackageModuleType} from './module';
 import {existsSync} from "fs";
 import {execCmd} from "../utils";
+import {Package, TPackageMeta} from "./package";
 
 export class ExecutableModule extends PackageModule {
-  installPath: string;
-  installed: boolean = undefined;
+  installPath?: string;
+  installed: boolean = false;
 
-  constructor(module: IPackageModule) {
-    super(module, PackageModuleType.EXEC);
+  constructor(pkg: Package, path: string, meta: TPackageMeta) {
+    super(pkg, path, meta, PackageModuleType.EXEC);
   }
 
   get exec() {
@@ -36,7 +37,7 @@ export class ExecutableModule extends PackageModule {
   }
 
   static fromModule(module: PackageModule) {
-    return new ExecutableModule(module);
+    return new ExecutableModule(module.pkg, module.path, module.meta);
   }
 
   upToDate(): boolean {
@@ -53,7 +54,7 @@ export class ExecutableModule extends PackageModule {
   }
 
   reset() {
-    this.installed = undefined;
+    this.installed = false;
     this.installPath = undefined;
     this.checked = false;
   }
@@ -64,7 +65,11 @@ export class ExecutableModule extends PackageModule {
 
   printCheckStatusComplete(): void {
     this.getDetails();
-    this.info('installed at', this.installPath, 'executable')
+    if (this.installPath) {
+      this.info('installed at', this.installPath, 'executable')
+    } else {
+      this.info('not installed', 'executable')
+    }
   }
 
   async checkStatus() {

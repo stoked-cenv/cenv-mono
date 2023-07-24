@@ -6,6 +6,7 @@ import {
   GetParametersCommand,
   PutParameterCommand,
   SSMClient,
+  DeleteParametersCommandOutput
 } from '@aws-sdk/client-ssm';
 
 import {RateLimiter} from "limiter";
@@ -20,7 +21,7 @@ import {simplify, sleep} from '../utils'
 import {Package} from "../package/package";
 
 const ssmLimiter = new RateLimiter({tokensPerInterval: 5, interval: "second"});
-let _client: SSMClient = null;
+let _client: SSMClient;
 
 function getClient() {
   if (_client) {
@@ -39,13 +40,15 @@ export async function getParameter(path: string, silent = false, decrypted = fal
     const command = new GetParameterCommand({Name: strippedPath, WithDecryption: decrypted});
     const remainingRequests = await ssmLimiter.removeTokens(1);
     const response = await getClient().send(command);
-
-    const {Name: Path, Value, Type, ARN} = response.Parameter;
-    return {[Path]: {Value, Type, ARN}}
+    if (!response.Parameter) {
+      return false;
+    }
+    const {Name, Value, Type, ARN} = response.Parameter as { Name: string, Value: string, Type: string, ARN: string};
+    return {[strippedPath]: {Name, Value, Type, ARN}}
   } catch (e) {
     if (!silent) {
       CenvLog.single.errorLog(['parameter not found', strippedPath]);
-      CenvLog.single.errorLog(['getParameterCommand error', e.message, e])
+      CenvLog.single.errorLog(['getParameterCommand error', e as string])
     }
   }
 }
@@ -57,17 +60,19 @@ export async function getParameters(Names: string[], decrypted = false) {
     const response = await getClient().send(command);
 
     const results: any = {};
-    for (let i = 0; i < response.Parameters.length; i++) {
-      const param = response.Parameters[i];
-      results[param.Name] = {
-        Value: param.Type === 'SecureString' ? param.Value.replace('kms:alias/aws/ssm:', '') : param.Value,
-        Type: param.Type,
-        ARN: param.ARN
-      };
+    if (response.Parameters) {
+      for (let i = 0; i < response.Parameters.length; i++) {
+        const param = response.Parameters[i];
+        results[param.Name as string] = {
+          Value: param.Value && param.Type === 'SecureString' ? param.Value.replace('kms:alias/aws/ssm:', '') : param.Value,
+          Type: param.Type,
+          ARN: param.ARN
+        };
+      }
     }
     return results;
   } catch (e) {
-    CenvLog.single.errorLog(['getParametersCommand error', e.message])
+    CenvLog.single.errorLog(['getParametersCommand error', e as string])
   }
 }
 
@@ -94,13 +99,14 @@ export async function decryptValue(value: string): Promise<string> {
   if (value !== 'undefined') {
     return await decrypt(value);
   }
-  return;
+  CenvLog.single.catchLog('can not decrypt invalid value: ' + value)
+  process.exit(329);
 }
 
 export async function getParametersByPath(path: string, decrypted = false) {
   try {
     const strippedPath = stripPath(path);
-    let NextToken = undefined;
+    let NextToken: string | undefined = undefined;
     const responseObj: any = {};
 
     while (true) {
@@ -113,18 +119,22 @@ export async function getParametersByPath(path: string, decrypted = false) {
 
       const remainingRequests = await ssmLimiter.removeTokens(1);
       const response = await getClient().send(command);
-      await Promise.all(response.Parameters.map(async (param) => {
-        const {Name, Type} = param;
-        let Value = param.Value;
-        if (decrypted && isEncrypted(Value)) {
-          Value = Value.replace(/^--(ENC)=/, '');
-          if (Value !== 'undefined') {
-            Value = await decrypt(Value as string);
+      if (response.Parameters) {
+        await Promise.all(response.Parameters.map(async (param) => {
+          const {Name, Type} = param;
+          let Value = param.Value;
+          if (Value && Name) {
+            if (decrypted && isEncrypted(Value)) {
+              Value = Value.replace(/^--(ENC)=/, '');
+              if (Value !== 'undefined') {
+                Value = await decrypt(Value as string);
+              }
+            }
+            responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
+            return param;
           }
-        }
-        responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
-        return param;
-      }));
+        }));
+      }
 
       if (!response.NextToken) {
         break;
@@ -134,7 +144,7 @@ export async function getParametersByPath(path: string, decrypted = false) {
 
     return responseObj;
   } catch (e) {
-    CenvLog.single.errorLog(['getParametersByPath error', e.message])
+    CenvLog.single.errorLog(['getParametersByPath error', e as string])
   }
 }
 
@@ -146,7 +156,7 @@ export async function putParameter(Name: string, Value: string, Overwrite = fals
     if (Name.indexOf('global') > -1 && Value === '') {
       new DeleteParameterCommand({Name: stripPath(Name)});
     } else {
-      let KeyId = undefined;
+      let KeyId: string | undefined = undefined;
       if (Type === 'SecureString') {
         KeyId = process.env.KMS_KEY
       }
@@ -156,16 +166,19 @@ export async function putParameter(Name: string, Value: string, Overwrite = fals
       const response = await getClient().send(command);
     }
   } catch (e) {
-    CenvLog.single.errorLog(['putParameterCommand error', Name, Value, e.message])
+    CenvLog.single.errorLog(['putParameterCommand error', Name, Value, e as string])
   }
 }
 
 export async function appendParameter(Name: string, Value: string, Type = 'String') {
   try {
     const getParamRes = await getParameter(stripPath(Name));
+    if (!getParamRes){
+      return;
+    }
     const newValue = Object.values(getParamRes)[0].Value + Value;
 
-    let KeyId = undefined;
+    let KeyId: string| undefined = undefined;
     if (Type === 'SecureString') {
       KeyId = process.env.KMS_KEY
     }
@@ -174,7 +187,7 @@ export async function appendParameter(Name: string, Value: string, Type = 'Strin
     const remainingRequests = await ssmLimiter.removeTokens(1);
     const response = await getClient().send(command);
   } catch (e) {
-    CenvLog.single.errorLog(['appendParameter error', e.message])
+    CenvLog.single.errorLog(['appendParameter error', e as string])
   }
 }
 
@@ -186,7 +199,7 @@ export async function deleteParameters(Names: string[]) {
   try {
     await sleep(3);
     if (Names.length > 0) {
-      const responseArr = [];
+      const responseArr: DeleteParametersCommandOutput[] = [];
       for (let i = 0; i < Names.length; i += 10) {
         await sleep(3);
         const chunk = Names.slice(i, i + 10);
@@ -199,7 +212,7 @@ export async function deleteParameters(Names: string[]) {
     }
     return {};
   } catch (e) {
-    CenvLog.single.errorLog(['deleteParametersCommand error', e.message])
+    CenvLog.single.errorLog(['deleteParametersCommand error', e as string])
   }
 }
 
@@ -316,7 +329,7 @@ export async function listParameters(config: EnvConfig, decrypted: boolean, allG
     }
     return res;
   } catch (e) {
-    CenvLog.single.errorLog(['listParameters error', e.message, e]);
+    CenvLog.single.errorLog(['listParameters error', e as string]);
   }
 }
 
@@ -380,9 +393,9 @@ export async function upsertParameter(config: any, parameter: {
   return result;
 }
 
-export function updateTemplates(add: boolean, envVar: string, type: string, value: string = undefined) {
-  let file = null;
-  let path = null;
+export function updateTemplates(add: boolean, envVar: string, type: string, value?: string) {
+  let file: any = null;
+  let path: string | null = null;
   if (type === 'environment') {
     file = EnvVarsFile;
     path = CenvFiles.PATH;
@@ -401,7 +414,7 @@ export function updateTemplates(add: boolean, envVar: string, type: string, valu
         file.save(varData, true, file.TEMPLATE, path);
       } else if (!add && hasIt) {
         delete varData[envVar];
-        File.save(varData, false, file.TEMPLATE, path);
+        File.save(varData, false, file.TEMPLATE, path!);
       }
     }
   }
@@ -409,7 +422,9 @@ export function updateTemplates(add: boolean, envVar: string, type: string, valu
 
 function printYamlPretty(yamlData: any, format: string, printPkg?: string) {
   const space = printPkg ? '  ' : '';
-  printPkgName(printPkg);
+  if (printPkg) {
+    printPkgName(printPkg);
+  }
   for (const [key, value] of Object.entries(yamlData)) {
     const val: any = value;
     if (format === 'simple') {

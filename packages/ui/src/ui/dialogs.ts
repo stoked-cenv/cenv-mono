@@ -1,11 +1,13 @@
 import {getMonoRoot, IPackage, Package} from '@stoked-cenv/lib';
-import path from 'path';
-import blessed from 'blessed';
+import * as path from 'path';
 import {existsSync, readFileSync, writeFileSync} from 'fs';
 import {Dashboard} from './dashboard';
-
+import {Element} from 'blessed/lib/widgets/element';
+import {Form} from 'blessed/lib/widgets/form';
+import {Button} from 'blessed/lib/widgets/button';
+import {Textbox} from "blessed/lib/widgets/textbox";
 export default class Dialogs {
-  static dialogs: blessed.element[] = []
+  static dialogs: Element[] = []
 
   static add(dialog: any) {
     dialog.show();
@@ -27,7 +29,7 @@ export default class Dialogs {
       if (dialog !== Dashboard.instance?.menu) {
         dialog.destroy();
       } else {
-        if (!Dashboard.instance?.menu.active) {
+        if (!Dashboard.instance?.menu?.active) {
           if (this.open()) {
             this.close();
           } else {
@@ -49,7 +51,7 @@ export default class Dialogs {
     const bg = 'gray';
     let form: any = undefined;
 
-    form = blessed.form({
+    form = Form({
                           parent: screen,
                           shadow: false,
                           left: 'center',
@@ -100,7 +102,7 @@ export default class Dialogs {
         suites = JSON.parse(suites);
       }
       suites[data.deployment] = {
-        packages: packages.map((p: IPackage) => p.params.name)
+        packages: packages.map((p: IPackage) => p.params?.name)
       };
 
       writeFileSync(suitesPath, JSON.stringify(suites, null, 2));
@@ -117,7 +119,7 @@ export default class Dialogs {
       screen.render();
     });
 
-    const text = blessed.textbox({
+    const text = Textbox({
                                    parent: form, mouse: true, keys: true, style: {
         bg: 'blue'
       }, height: 1, width: 20, left: 1, top: 1, name: 'deployment'
@@ -127,7 +129,7 @@ export default class Dialogs {
       text.readInput();
     });
 
-    const submit = blessed.button({
+    const submit = Button({
                                     parent: form, mouse: true, keys: true, shrink: true, padding: {
         left: 1, right: 1
       }, left: 29, top: 1, name: 'submit', content: 'create', style: {
@@ -145,6 +147,8 @@ export default class Dialogs {
   static saveDump(screen: any, exit = false) {
     const dump = {
       ts: Date.now(), packages: Package.getPackages(true).map((p: Package) => {
+        /*
+        Error:(148, 18) TS2790: The operand of a 'delete' operator must be optional.
         if (p?.params?.pkg) {
           delete p.params.pkg;
         }
@@ -154,12 +158,13 @@ export default class Dialogs {
         if (p?.stack?.pkg) {
           delete p.stack.pkg;
         }
+         */
       })
     }
 
     let form: any = undefined;
     let selfDestructTimer = 3000;
-    let timer: NodeJS.Timer = undefined;
+    let timer: NodeJS.Timer | undefined = undefined;
     const interval = 250;
     const baseScreenContent = "Creating a deployment status dump. \n\nThis message will self destruct in: ";
     let screenContent = baseScreenContent + (selfDestructTimer / 1000).toFixed(2);
@@ -175,7 +180,7 @@ export default class Dialogs {
       }
     }, interval)
 
-    form = blessed.form({
+    form = Form({
                           parent: screen,
                           shadow: false,
                           left: 'center',
@@ -221,8 +226,8 @@ export default class Dialogs {
 
   static yesOrNoDialog(prompt: string, callback: (response: boolean) => void) {
 
-    const form = blessed.form({
-                                parent: Dashboard.instance.screen,
+    const form = Form({
+                                parent: Dashboard.instance?.screen,
                                 shadow: false,
                                 left: 'center',
                                 top: 'center',
@@ -245,7 +250,7 @@ export default class Dialogs {
 
     this.dialogs.push(form);
 
-    const yes = blessed.button({
+    const yes = Button({
                                  parent: form, mouse: true, keys: true, shrink: true, padding: {
         left: 1, right: 1
       }, left: 29, top: 1, name: 'submit', content: 'yes', style: {
@@ -258,7 +263,7 @@ export default class Dialogs {
       form.submit(true);
     });
 
-    const no = blessed.button({
+    const no = Button({
                                 parent: form, mouse: true, keys: true, shrink: true, padding: {
         left: 8, right: 1
       }, left: 29, top: 2, name: 'submit', content: 'no', style: {

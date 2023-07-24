@@ -22,20 +22,19 @@ import {
   createEnvironment,
   deleteCenvData,
   getApplication,
-  getConfigParams,
   getConfigurationProfile,
   getDeploymentStrategy,
   getEnvironment
 } from './aws/appConfig'
-import chalk from 'chalk';
-import path from 'path';
+import * as chalk from 'chalk';
+import * as path from 'path';
 import {BaseCommandOptions, CenvParams, DashboardCreateOptions, DashboardCreator, validateOneType} from './params';
 import {Environment,} from './environment';
 import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from "./aws/cloudformation";
 import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import {execCmd, getMonoRoot, packagePath, search_sync, sleep} from "./utils";
+import {execCmd, getMonoRoot, packagePath, search_sync, sleep, validateEnvVars} from "./utils";
 import {ioAppEnv} from "./stdIo";
 import {deleteHostedZone} from "./aws/route53";
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from "fs";
@@ -46,7 +45,7 @@ import {Template} from "./templates";
 interface FlagValidation {
   application: string;
   environment: string;
-  options: ParamsCommandOptions;
+  options: any;
   envConfig: EnvConfig;
 }
 
@@ -88,7 +87,7 @@ export interface StackProc {
 
 export class Cenv {
   static runningProcesses?: { [stackName: string]: StackProc[] } = {};
-  static processes?: { [pid: number]: StackProc } = {};
+  static processes: { [pid: number]: StackProc } = {};
   static dashboard: any = null;
   static cleanTags: (...text: string[]) => string[];
   static dashboardCreator: DashboardCreator;
@@ -101,7 +100,7 @@ export class Cenv {
 
   // from cenv.json
   static suites: any = {};
-  static scopeName: string = undefined;
+  static scopeName: string;
   static defaultSuite: string;
   static globalPackage: string;
   static primaryPackagePath: string;
@@ -136,7 +135,7 @@ export class Cenv {
     await this.cmdInit({logLevel: process.env.CENV_LOG_LEVEL}, false);
   }
 
-  static createGlobalsPackage(projectName, primaryPackagePath, scope?: string) {
+  static createGlobalsPackage(projectName: string, primaryPackagePath: string, scope?: string) {
     const globalsNameNoScope = projectName + '-globals';
     const globalsPath = path.join(primaryPackagePath, 'globals');
     if (!existsSync(globalsPath)) {
@@ -246,7 +245,7 @@ export class Cenv {
         Cenv.primaryPackagePath = cenvConfig.primaryPackagePath
         if (cenvConfig.globalPackage) {
           const packageGlobalPath = packagePath(cenvConfig.globalPackage);
-          if (!existsSync(packageGlobalPath)) {
+          if (!packageGlobalPath || !existsSync(packageGlobalPath)) {
             if (!runningInitCmd) {
               CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${cenvConfig.globalPackage} (using scope and globals property)`);
             }
@@ -265,6 +264,9 @@ export class Cenv {
   }
 
   static addSpawnedProcess(stackName: string, cmd: string, proc: child.ChildProcess) {
+    if (proc.pid === undefined || Cenv.processes === undefined || Cenv.runningProcesses === undefined) {
+      return;
+    }
     Cenv.processes[proc.pid] = {stackName, cmd, proc};
 
     if (!Cenv.runningProcesses[stackName]) {
@@ -281,7 +283,7 @@ export class Cenv {
     if (options.exports) {
       let exports: any = await listExports();
       if (params) {
-        exports = exports.filter((e: Export) => params.includes(e.Name.replace(`${process.env.ENV}-`, '')),);
+        exports = exports.filter((e: Export) => params.includes(e.Name?.replace(`${process.env.ENV}-`, '') as string),);
         exports = exports.map((e: Export) => e.Value);
         CenvLog.single.stdLog(exports.join(' '));
         return;
@@ -300,11 +302,11 @@ export class Cenv {
   }
 
   static addParam = async (pkg: Package, params: string[], options: Record<string, any>) => {
-    function getAddParam(application: string = undefined) {
+    function getAddParam(application: string) {
       return `cenv add ${application ? application + ' ' : ''}${options?.app ? '-a' : ''} ${options?.environment ? '-e' : ''} ${options?.global ? '-g' : ''} ${options?.globalEnv ? '-ge' : ''}`;
     }
 
-    const cmd = pkg.createCmd(getAddParam());
+    const cmd = pkg.createCmd(getAddParam(pkg.packageName));
     const type = validateOneType(Object.keys(options));
     if (!type) {
       cmd.err(`Must contain at least one type flag (${infoBold('--app-type')}, ${infoBold('--environment-type',)}, 
@@ -312,7 +314,7 @@ export class Cenv {
       cmd.result(2);
       return cmd;
     }
-    let value = null;
+    let value: string | null = null;
     if (params.length === 2) {
       value = params[1];
     }
@@ -326,6 +328,12 @@ export class Cenv {
     if (!pkg.chDir()) {
       return;
     }
+
+    if (!value) {
+      CenvLog.single.catchLog(new Error(`can not create a parameter without a valid value - key name ${params[0]}`))
+      process.exit(912);
+    }
+
     const ctx: any = await CenvParams.getParamsContext();
     const config = ctx.EnvConfig;
     const key = params[0].toLowerCase().replace(/_/g, '/');
@@ -353,19 +361,6 @@ export class Cenv {
     cmd.result(0);
     return cmd;
   };
-
-  static async getCenvConfig() {
-    const config = await getConfigParams('cenv', 'default', 'config');
-    const strat = await getDeploymentStrategy();
-    return {
-      ApplicationId: config.ApplicationId,
-      EnvironmentId: config.EnvironmentId,
-      ConfigurationProfileId: config.ConfigurationProfileId,
-      DeploymentStrategyId: strat.DeploymentStrategyId,
-      ApplicationName: 'cenv',
-      EnvironmentName: 'default',
-    };
-  }
 
   public static async setEnvironment(environment: string, config: any) {
     if (!config) {
@@ -402,7 +397,8 @@ export class Cenv {
 
   static async initParams(options?: ParamsCommandOptions, tags: string[] = []) {
     try {
-      const flagValidateResponse = this.initFlagValidation(options, tags);
+      const flagValidateResponse = this.initFlagValidation(options);
+
       let {application, environment, envConfig} = flagValidateResponse;
       options = flagValidateResponse.options;
 
@@ -410,27 +406,35 @@ export class Cenv {
         await this.deployCenv();
       }
 
-      const appEnvNameRes = await this.processApplicationEnvironmentNames(options, application, environment, envConfig,);
+      const appEnvNameRes = await this.processApplicationEnvironmentNames(options as Record<string, string>, application, environment, envConfig,);
+      if (!appEnvNameRes) {
+        CenvLog.single.catchLog('could not determine the env config data');
+        process.exit(533);
+      }
+
       application = appEnvNameRes.application;
       environment = appEnvNameRes.environment;
 
-      const processAppRes = await this.processApplication(application, environment,);
+      const processAppRes = await this.processApplication(application, environment);
       envConfig = processAppRes.envConfig;
       const createdApp = processAppRes.createdApp;
 
-      const processEnvRes = await this.processEnvironment(envConfig, application, environment,);
+      const processEnvRes = await this.processEnvironment(envConfig, application, environment);
       envConfig = processEnvRes.envConfig;
       const createdEnv = processEnvRes.createdEnv;
 
-      envConfig = await this.processConfigurationProfile(envConfig);
-
-      await this.processInitData(envConfig, options);
+      const confProf = await this.processConfigurationProfile(envConfig);
+      if (!confProf) {
+        CenvLog.single.errorLog('could not look up the params configuration from the envConfig: ' + JSON.stringify(envConfig, null, 2))
+        return;
+      }
+      await this.processInitData(confProf, options as Record<string, string>);
 
       if (options?.envToParams) {
         await this.envToParams(envConfig);
       }
     } catch (err) {
-      CenvLog.single.catchLog('Cenv.init err: ' + (err.stack ? err.stack : err),);
+      CenvLog.single.catchLog('Cenv.init err: ' + (err instanceof Error ? err.stack : err));
     }
   }
 
@@ -445,10 +449,10 @@ export class Cenv {
       const AppConfigGetArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/AppConfigGod`;
       const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
 
-      const componentsMissing = [];
+      const componentsMissing: Array<[string, string]> = [];
       let verified = true;
       const depStratRes = await getDeploymentStrategy();
-      if (!depStratRes.DeploymentStrategyId) {
+      if (!depStratRes || !depStratRes.DeploymentStrategyId) {
         verified = false;
         componentsMissing.push(['Deployment Strategy', 'Instant.AllAtOnce']);
       }
@@ -486,6 +490,7 @@ export class Cenv {
 
   static async deployCenv(force = false): Promise<void> {
     try {
+      //const envVars = validateEnvVars(['AWS_ACCOUNT_USER_ARN'])
       const cmdText = `cenv deploy -cenv${force ? ` --force` : ''}`;
       //const cmd = mat ? mat.createCmd(cmdText) : PackageCmd.createCmd(cmdText);
 
@@ -499,7 +504,7 @@ export class Cenv {
       const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
 
       const depStratRes = await getDeploymentStrategy();
-      if (!depStratRes.DeploymentStrategyId) {
+      if (!depStratRes || !depStratRes.DeploymentStrategyId) {
         await createDeploymentStrategy();
       }
       const policyExists = await getPolicy(AppConfigGetArn);
@@ -545,7 +550,7 @@ export class Cenv {
 
         const group = await createGroup(this.keyGroupName);
         const attRes = await attachPolicyToGroup(this.keyGroupName, 'KmsPolicy', KmsPolicyArn,);
-        const groupUser = await addUserToGroup(this.keyGroupName, process.env.AWS_ACCOUNT_USER_ARN.split('/')[1],);
+        const groupUser = await addUserToGroup(this.keyGroupName, process.env.AWS_ACCOUNT_USER_ARN!.split('/')[1],);
 
         const polRes = await attachPolicyToRole(this.roleName, KmsPolicyArn);
         if (!polRes) {
@@ -580,11 +585,12 @@ export class Cenv {
         //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV },);
       }
     } catch (e) {
-      CenvLog.single.catchLog('Cenv.deployCenv err: ' + (e.stack ? e.stack : e),);
+      CenvLog.single.catchLog('Cenv.deployCenv err: ' + (e instanceof Error ? e.stack : e));
     }
   }
 
   static async destroyCenv(): Promise<boolean> {
+    //const envVars = validateEnvVars(['ROOT_DOMAIN', 'CDK_DEFAULT_ACCOUNT', 'ENV'])
     let destroyedAnything = false;
     try {
       const KmsPolicyArn = `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`;
@@ -595,7 +601,7 @@ export class Cenv {
         destroyedAnything = true;
         const materializationRes = await deleteFunction('cenv-params');
         if (!materializationRes) {
-          return;
+          return false;
         }
       }
 
@@ -620,7 +626,7 @@ export class Cenv {
         //console.log(JSON.stringify(roleExists, null, 2));
         const roleRes = await deleteRole(this.roleName);
         if (!roleRes) {
-          return;
+          return false;
         }
       }
 
@@ -631,7 +637,7 @@ export class Cenv {
           destroyedAnything = true;
           const polRes = await deletePolicy(KmsPolicyArn);
           if (!polRes) {
-            return;
+            return false;
           }
         }
       }
@@ -642,11 +648,11 @@ export class Cenv {
 
       if (process.env.ENV === 'local') {
         destroyedAnything = true;
-        await deleteHostedZone(process.env.ROOT_DOMAIN);
+        await deleteHostedZone(process.env.ROOT_DOMAIN!);
       }
 
     } catch (e) {
-      CenvLog.single.catchLog('Cenv.destroyCenv err: ' + (e.stack ? e.stack : e),);
+      CenvLog.single.catchLog('Cenv.destroyCenv err: ' + (e instanceof Error ? e.stack : e));
     }
     return destroyedAnything;
   }
@@ -680,12 +686,12 @@ export class Cenv {
       }
       return out;
     } catch (e) {
-      CenvLog.single.errorLog('cenv execCmd error: \n' + e.stack);
+      CenvLog.single.errorLog('cenv execCmd error: \n' + (e instanceof Error ? e.stack : e));
       return e;
     }
   }
 
-  private static initFlagValidation(options: Record<string, any>, tags: string[]): FlagValidation | undefined {
+  private static initFlagValidation(options?: Record<string, any>): FlagValidation {
     if (options?.environment) {
       process.env.ENV = options.environment;
     }
@@ -695,16 +701,17 @@ export class Cenv {
       options.push = true;
     }
 
-    const envConfig: EnvConfig = CenvFiles.GetConfig(options?.environment || process.env.ENV,);
-    const {application, environment} = options;
+    const envConfig: EnvConfig = CenvFiles.GetConfig(options?.environment || process.env.ENV);
+    if (envConfig) {}
 
-    if (!options?.destroy && !options?.clean && envConfig && envConfig?.ApplicationId && application && envConfig.ApplicationName !== application) {
+    if (!options?.destroy && !options?.clean && envConfig && envConfig?.ApplicationId && options?.application && envConfig.ApplicationName !== options.application) {
       CenvLog.single.errorLog('Must use --destroy or --clean with an existing config if --application is used',);
       process.exit(0);
     }
 
+
     // exitWithoutTags(tags);
-    return {application, environment, options, envConfig};
+    return {application: options?.application, environment: envConfig.EnvironmentName, options, envConfig};
   }
 
   private static async processApplicationEnvironmentNames(options: Record<string, any>, application: string, environment: string, envConfig: EnvConfig) {
@@ -782,15 +789,16 @@ export class Cenv {
   }
 
   private static async processConfigurationProfile(envConfig: EnvConfig) {
-    const confProf = await getConfigurationProfile(envConfig.ApplicationId, 'config',);
+    const confProf = await getConfigurationProfile(envConfig.ApplicationId, 'config');
 
-    if (!confProf) {
-      const confProf = await createConfigurationProfile(envConfig.ApplicationId, 'config',);
-      envConfig.ConfigurationProfileId = confProf.Id;
-    } else {
-      envConfig.ConfigurationProfileId = confProf.ConfigurationProfileId;
+    if (!confProf || !confProf.ConfigurationProfileId) {
+      return false;
     }
+    envConfig.ConfigurationProfileId = confProf.ConfigurationProfileId;
     const deploymentStratRes = await getDeploymentStrategy();
+    if (!deploymentStratRes || !deploymentStratRes.DeploymentStrategyId) {
+      return false
+    }
     envConfig.DeploymentStrategyId = deploymentStratRes.DeploymentStrategyId;
     return envConfig;
   }

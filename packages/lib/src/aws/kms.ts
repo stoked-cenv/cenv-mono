@@ -3,7 +3,7 @@ import {
   CreateKeyCommand,
   DecryptCommand,
   EncryptCommand,
-  GetKeyPolicyCommand,
+  GetKeyPolicyCommand, KeyMetadata,
   KMSClient,
   ListAliasesCommand,
   ListKeysCommand,
@@ -15,7 +15,7 @@ import {getAccountId} from './sts';
 // import { isArray } from 'aws-cdk/lib/util';
 
 
-let _client: KMSClient = null;
+let _client: KMSClient;
 
 function getClient() {
   if (_client) {
@@ -37,19 +37,21 @@ export async function getKey() {
   const listKeysRes = await getClient().send(listKeysCommand);
   const listAliasesCmd = new ListAliasesCommand({});
   const listAliasesRes = await getClient().send(listAliasesCmd);
+  if (!listAliasesRes.Aliases || !listKeysRes.Keys) {
+    return '';
+  }
   for (let i = 0; i < listAliasesRes.Aliases.length; i++) {
     const alias = listAliasesRes.Aliases[i];
     if (alias.AliasName === aliasName) {
-
       for (let j = 0; j < listKeysRes.Keys.length; j++) {
         const key = listKeysRes.Keys[j];
-        if (key.KeyId === alias.TargetKeyId) {
+        if (key.KeyId === alias.TargetKeyId && key.KeyArn) {
           return key.KeyArn;
         }
       }
     }
   }
-  return false;
+  return '';
 }
 
 export async function createKey() {
@@ -143,11 +145,13 @@ export async function createKey() {
     }`)*/
                                      });
     const res = await getClient().send(cmd);
-    const aliasCmd = new CreateAliasCommand({TargetKeyId: res.KeyMetadata.KeyId, AliasName: aliasName})
+    const aliasCmd = new CreateAliasCommand({TargetKeyId: res?.KeyMetadata?.KeyId, AliasName: aliasName})
     const aliasRes = await getClient().send(aliasCmd);
-    return res.KeyMetadata.KeyId;
+    return res.KeyMetadata?.KeyId?.toString();
   } catch (e) {
-    CenvLog.single.errorLog(`failed to create key: ${colors.errorBold(e.message)}, ${e}`)
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`failed to create key: ${colors.errorBold(e.message)}, ${e}`)
+    }
     return false;
   }
 }
@@ -163,6 +167,9 @@ export async function addKeyAccount(Account: string) {
     const getKeyPolicy = new GetKeyPolicyCommand({KeyId: key, PolicyName: 'default'})
     const getKeyRes = await getClient().send(getKeyPolicy);
     const keyAccount = `arn:aws:iam::${Account}:root`;
+    if (!getKeyRes.Policy) {
+      return false;
+    }
     let Policy = JSON.parse(getKeyRes.Policy);
     if (Policy.Statement.length === 1) {
       Policy.Statement.push({
@@ -185,7 +192,9 @@ export async function addKeyAccount(Account: string) {
 
     return await getClient().send(putPolicyKeyCmd);
   } catch (e) {
-    CenvLog.single.errorLog(`failed to add account ${Account} to the curb-key: ${colors.errorBold(e.message)}, ${e}`)
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`failed to add account ${Account} to the curb-key: ${colors.errorBold(e.message)}, ${e}`)
+    }
     return false;
   }
 }
@@ -193,8 +202,8 @@ export async function addKeyAccount(Account: string) {
 export async function encrypt(Plaintext: any) {
   try {
     if (!process.env.KMS_KEY) {
-      CenvLog.single.errorLog(`no KMS_KEY configured run ${colors.errorBold('cenv install -k')} to install a key on this account or ${colors.errorBold('cenv config -k')} to configure a key from another account`);
-      return;
+      CenvLog.single.catchLog(`no KMS_KEY configured run ${colors.errorBold('cenv install -k')} to install a key on this account or ${colors.errorBold('cenv config -k')} to configure a key from another account`);
+      process.exit(883);
     }
     const input = {
       KeyId: process.env.KMS_KEY, Plaintext: Buffer.from(JSON.stringify(Plaintext)),
@@ -202,10 +211,13 @@ export async function encrypt(Plaintext: any) {
     const cmd = new EncryptCommand(input);
     const encryptedBlob = await getClient().send(cmd);
 
-    const buff = Buffer.from(encryptedBlob.CiphertextBlob);
+    const buff = Buffer.from(encryptedBlob.CiphertextBlob as Uint8Array);
     return buff.toString('base64');
   } catch (e) {
-    CenvLog.single.errorLog(`kms encrypt failed: ${colors.errorBold(e.message)}\n${e}`)
+    if (e instanceof Error) {
+      CenvLog.single.catchLog(`kms encrypt failed: ${colors.errorBold(e.message)}\n${e}`)
+    }
+    process.exit(884);
   }
 }
 
@@ -216,9 +228,10 @@ export async function decrypt(CiphertextBlob: any) {
                                      CiphertextBlob: Uint8Array.from(atob(CiphertextBlob), (v) => v.charCodeAt(0)),
                                    });
     const decryptedBinaryData = await getClient().send(cmd);
-    const decryptedData = String.fromCharCode.apply(null, new Uint16Array(decryptedBinaryData.Plaintext));
+    const decryptedData = String.fromCharCode.apply(null, Array.from(new Uint16Array(decryptedBinaryData.Plaintext as Uint8Array)));
     return decryptedData.replace(/['"]+/g, '');
   } catch (e) {
-    CenvLog.single.errorLog(`kms decrypt failed: ${colors.errorBold(e.message)}\n${e}`)
+    CenvLog.single.catchLog(`kms decrypt failed: ${colors.errorBold(e as string)}`)
+    process.exit(333);
   }
 }

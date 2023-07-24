@@ -1,16 +1,16 @@
-import cron from "node-cron";
+import * as cron from "node-cron";
 import {
   AppConfigDataClient, GetLatestConfigurationCommand, StartConfigurationSessionCommand
 } from "@aws-sdk/client-appconfigdata";
-import YAML from 'yaml';
-import chalk from 'chalk';
+import * as YAML from 'yaml';
+import * as chalk from 'chalk';
 import {CenvParams} from '../params';
 import {CenvLog, info, infoAlertBold} from '../log';
 import {CenvFiles} from '../file';
 import {decryptValue, isEncrypted} from './parameterStore';
 import {getConfig} from "./appConfig";
 
-let _client: AppConfigDataClient = null;
+let _client: AppConfigDataClient;
 
 function getClient() {
   if (_client) {
@@ -26,7 +26,7 @@ function getClient() {
 
 export async function startSession() {
   if (CenvFiles.EnvConfig.ApplicationId === undefined || CenvFiles.EnvConfig.EnvironmentId === undefined || CenvFiles.EnvConfig.ConfigurationProfileId === undefined) {
-    const configRes = await getConfig();
+    const configRes = await getConfig(process.env.APPLICATION_NAME!);
     if (!configRes) {
       CenvLog.single.catchLog(['startSession error', 'No config found']);
       process.exit();
@@ -38,7 +38,7 @@ export async function startSession() {
     const response = await getClient().send(command);
     return response.InitialConfigurationToken;
   } catch (e) {
-    CenvLog.single.errorLog(['startSession error', e.message])
+    CenvLog.single.errorLog(['startSession error', e instanceof Error ? e.message : e as string])
     return false;
   }
 }
@@ -56,7 +56,7 @@ export async function getLatestConfiguration(token: any, allValues = false) {
     }
     return result
   } catch (e) {
-    CenvLog.single.errorLog(['getLatestConfiguration error', e.message,])
+    CenvLog.single.errorLog(['getLatestConfiguration error', e instanceof Error ? e.message : e as string])
     return result;
   }
 }
@@ -64,7 +64,7 @@ export async function getLatestConfiguration(token: any, allValues = false) {
 async function parseConfig(configInput: any, allValues = false) {
   const ymlConfig = YAML.parse(configInput);
   const updatedConfig: any = {};
-  const env: { [key: string]: string } = process.env;
+  const env: { [key: string]: string | undefined } = process.env;
   for (const [key, value] of Object.entries(ymlConfig)) {
     if ((env[key] != value as string && value !== undefined) || allValues) {
       if (isEncrypted(value as string)) {
@@ -90,7 +90,7 @@ interface StartConfigPollingParams {
 function startConfigPolling(options: StartConfigPollingParams) {
   console.log(chalk.green(`polling cron: ${options?.cronExpression}`));
   let count = 0;
-  cron.schedule(options?.cronExpression, async () => {
+  cron.schedule(options?.cronExpression ? options?.cronExpression : '0 * * * *', async () => {
     count += 1;
     console.log(count % 2 === 0 ? chalk.gray('poll') : info('poll'));
     if (process.env.NextPollConfigurationToken) {
@@ -99,7 +99,9 @@ function startConfigPolling(options: StartConfigPollingParams) {
     } else {
       await getConfigVars(false, false, 'UPDATED CONFIG VARS');
     }
-    await options?.postConfigCallback();
+    if (options?.postConfigCallback) {
+      await options?.postConfigCallback();
+    }
   });
 }
 
@@ -187,8 +189,8 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
       }
     }
 
-    return await pollDeployedVars(clientType === ClientMode.REMOTE_POLLING ? cronExpression : undefined, silent);
+    return await pollDeployedVars(clientType === ClientMode.REMOTE_POLLING ? cronExpression : '0 * * * *', silent);
   } catch (e) {
-    CenvLog.single.alertLog(`startEnv failed: ${infoAlertBold(`${e.message}`)}\n ${JSON.stringify(e, null, 4)}`);
+    CenvLog.single.alertLog(`startConfigPolling failed: ${infoAlertBold(`${e instanceof Error ? e.message : e as string}`)}\n ${JSON.stringify(e, null, 4)}`);
   }
 }

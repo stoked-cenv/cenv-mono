@@ -1,10 +1,10 @@
-import path from 'path';
-import chalk from 'chalk';
+import * as path from 'path';
+import * as chalk from 'chalk';
 import {Environments} from './environment'
 import {Cenv} from './cenv'
 import {BaseCommandOptions} from "./params";
 import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from "./package/package";
-import {execCmd, getMonoRoot, getOs, ICmdOptions, isOsSupported, sleep} from "./utils";
+import {execCmd, getMonoRoot, getOs, ICmdOptions, isOsSupported, sleep, validateEnvVars} from "./utils";
 import Fake from "./fake";
 import {ProcessMode} from "./package/module";
 import {CenvLog, colors, info, LogLevel} from "./log";
@@ -12,6 +12,7 @@ import {Version} from "./version";
 import {listStacks} from "./aws/cloudformation";
 import {ParamsModule} from "./package/params";
 import {DockerModule} from "./package/docker";
+import {StackSummary} from "@aws-sdk/client-cloudformation";
 
 
 export interface CdkCommandOptions extends BaseCommandOptions {
@@ -67,7 +68,7 @@ export class Deployment {
   static dependencies: { [key: string]: DeploymentDependencies } = {};
   static processing: Package[] = [];
   static completed: any[] = [];
-  static maxProcessing: number = process.env.CENV_MAX_PROCESSING ? parseInt(process.env.CENV_MAX_PROCESSING) : undefined;
+  static maxProcessing?: number = process.env.CENV_MAX_PROCESSING ? parseInt(process.env.CENV_MAX_PROCESSING) : undefined;
   static processItems: any[] = [];
   static options: any = {strictVersions: false};
 
@@ -170,7 +171,7 @@ export class Deployment {
       if (e instanceof Number || (e instanceof String && !Number.isNaN(Number(e)))) {
         CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.stackName, true);
       } else if (e instanceof Error) {
-        CenvLog.single.errorLog(e.stack, pkg.stackName, true);
+        CenvLog.single.errorLog(e.stack ? e.stack : e.toString(), pkg.stackName, true);
       } else {
         CenvLog.single.errorLog(`${e} not sure what this exception type is`, pkg.stackName, true);
       }
@@ -182,7 +183,7 @@ export class Deployment {
 
   static async packageStart(pkg: Package, message: string, envVars: any = {},) {
     try {
-      pkg.timer.start();
+      pkg.timer?.start();
 
       if (pkg.processStatus === ProcessStatus.HAS_PREREQS && pkg?.cmds?.length > 0) {
         pkg.cmds[0].code = 0;
@@ -200,7 +201,7 @@ export class Deployment {
 
       const complete = await this.packageComplete(pkg, processRes ? ProcessStatus.COMPLETED : ProcessStatus.FAILED);
       if (complete) {
-        Package.global.timer.stop();
+        Package.global.timer?.stop();
       }
     } catch (e) {
       CenvLog.single.catchLog(new Error(pkg.packageName + ': ' + e));
@@ -253,7 +254,7 @@ export class Deployment {
 
     packageInfo.setDeployStatus(processStatus !== undefined ? processStatus : ProcessStatus.COMPLETED);
     packageInfo.statusTime = Date.now();
-    packageInfo.timer.stop();
+    packageInfo.timer?.stop();
 
     if (this.options.bump) {
       await packageInfo.bumpComplete();
@@ -310,6 +311,7 @@ export class Deployment {
     } else if (this.isDestroy() && packageInfo?.meta?.data.destroyDependencies && packageInfo.meta.data.destroyDependencies.length > 0) {
       return packageInfo.meta.data.destroyDependencies;
     }
+    return [];
   };
 
   static getDeployDependency(pkg: Package, dep: Package) {
@@ -497,7 +499,7 @@ export class Deployment {
         await this.dockerPrefight(items);
       }
 
-      Package.global.timer.start();
+      Package.global.timer?.start();
 
       if (this.isDeploy()) {
         if (this.options?.bump !== 'reset' && !this.options?.skipBuild) {
@@ -607,7 +609,6 @@ export class Deployment {
       }
       await this.validateBootstrap();
     }
-    PackageCmd.createCmd(this.isDestroy() ? 'global destroy logs' : 'global deploy logs');
     options = Deployment.deployDestroyOptions(options);
 
     this.options = {...this.options, ...options};
@@ -618,22 +619,18 @@ export class Deployment {
   }
 
   static async getUninstallables(packages: Package[]) {
-    const environment = await Environments.getEnvironment(process.env.ENV);
+    const environment = await Environments.getEnvironment(process.env.ENV!);
 
     if (!environment.stacks?.length && (this.options.suite || this.options.environment)) {
       packages = [];
     } else if (!this.options?.parameters && packages?.length) {
-      packages = packages.map((p: Package) => {
+      packages = packages.filter((p: Package) => {
         const stack = environment.stacks.filter((s) => s?.StackName === p?.stackName,);
-        if (stack?.length === 1) {
-          p.stack.summary = stack[0];
-          return p;
-        } else {
-          const root = getMonoRoot();
-          const relativePath = path.relative(root, p.path)
-          p.createCmd(`package not deployed`, relativePath, 0);
-          return null;
+        if (stack?.length === 1 && p.stack) {
+          p.stack.summary = stack[0] as StackSummary;
+          return true;
         }
+        return false;
       });
     }
 
@@ -698,7 +695,9 @@ export class Deployment {
         await this.processInit(uninstallables?.length ? uninstallables : packages);
       }
     } catch (e) {
-      CenvLog.single.catchLog(`uninstall failed: ${e.message}\n${e}\n${e.stack}`,);
+      if (e instanceof Error) {
+        CenvLog.single.catchLog(`uninstall failed: ${e.message}\n${e}\n${e.stack}`,);
+      }
     }
   }
 }

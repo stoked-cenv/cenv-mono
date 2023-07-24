@@ -145,7 +145,7 @@ export default class DestroyCommand extends BaseCommand {
   async runCommand(params: string[], options?: DestroyCommandOptions, packages?: Package[]): Promise<void> {
     try {
 
-      const localOnly = packages.length === 1 && packages[0].local
+      const localOnly = packages?.length === 1 && packages[0].local
       if (options?.globalParameters) {
         await ParamsModule.destroyGlobal();
         packages = localOnly ? [] : packages;
@@ -176,8 +176,8 @@ export default class DestroyCommand extends BaseCommand {
         options.stack = options.docker = options.parameters = false;
       }
 
-      if ((!options?.allParameters && !options?.allDocker) && options?.suite || options?.environment || packages?.length > 0 || options?.all) {
-        if (options.all) {
+      if ((!options?.allParameters && !options?.allDocker) && options?.suite || options?.environment || (packages && packages?.length > 0) || options?.all) {
+        if (options?.all) {
           const suite = new Suite(Cenv.defaultSuite);
           packages = suite.packages;
         }

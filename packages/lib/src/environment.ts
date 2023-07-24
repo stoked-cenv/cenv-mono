@@ -20,16 +20,11 @@ export class Environments {
 export class Environment {
   name: string;
   suite?: Suite;
-  packages: Package[];
-  stacks: StackSummary[];
+  packages: Package[] = [];
+  stacks: StackSummary[] = [];
 
   constructor(options?: { environment?: string, suite?: Suite }) {
-    this.name = options?.environment || process.env.ENV;
-    if (!this.name) {
-      CenvLog.single.catchLog('environment load failed: no environment specified and no ENV variable present')
-      return;
-    }
-    this.name = options?.environment || process.env.ENV;
+    this.name = options?.environment || process.env.ENV!;
     this.suite = options?.suite;
   }
 
@@ -51,12 +46,14 @@ export class Environment {
     this.stacks = await Environment.getStacks(this.name)
 
     this.packages = this.stacks.map((s) => {
-      return Package.fromStackName(s.StackName);
+      return Package.fromStackName(s.StackName as string);
     }).filter(p => !!p);
 
     this.packages = this.stacks.map((s) => {
-      const pkg = Package.fromStackName(s.StackName);
-      pkg.stack.summary = s;
+      const pkg = Package.fromStackName(s.StackName as string);
+      if (pkg.stack) {
+        pkg.stack.summary = s;
+      }
       return pkg;
     });
     if (this.packages?.length) {
@@ -65,7 +62,7 @@ export class Environment {
   }
 
   async getStacks(): Promise<StackSummary[]> {
-    this.stacks = (await Environment.getStacks(this.name)).filter(s => s.StackName.startsWith(this.name + '-'));
+    this.stacks = (await Environment.getStacks(this.name)).filter(s => s.StackName ? s.StackName.startsWith(this.name + '-') : false);
     return this.stacks;
   }
 }

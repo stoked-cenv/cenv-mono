@@ -15,7 +15,7 @@ import {
 export abstract class BaseCommand extends CommandRunner {
   allowUI = false;
   args: any;
-  deploymentMode: ProcessMode;
+  deploymentMode?: ProcessMode;
   localPackageAccepted = true;
   packageRequired = false;
   meta: any;

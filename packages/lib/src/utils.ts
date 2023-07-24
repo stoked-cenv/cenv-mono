@@ -3,24 +3,26 @@ import {join} from 'path';
 import * as child from 'child_process';
 import {ClientMode, startCenv} from './aws/appConfigData';
 import {CenvLog, errorBold, info, infoAlert, infoBold, LogLevel} from './log';
-import fs, {existsSync, readFileSync, rmSync} from 'fs';
+import {cpSync, copyFileSync, existsSync, readFileSync, rmSync, lstatSync, statSync, mkdirSync, writeFileSync, readdirSync} from 'fs';
 import * as os from 'os';
 import {hostname} from 'os';
 import {CenvParams, DashboardCreateOptions} from './params';
 import {CommandEvents, Package, PackageCmd, ProcessStatus} from './package/package';
 import * as fsp from 'fs/promises';
+import * as semver from 'semver';
 import {createHash} from 'crypto';
 import {PackageModule, ProcessMode} from "./package/module";
 import {CenvFiles} from "./file";
 import {deleteCenvData} from "./aws/appConfig";
 import {Suite} from "./suite";
 import {Environment} from "./environment";
-import {Cenv} from "./cenv"
+import {Cenv, StackProc} from "./cenv"
 import {cancelUpdateStack, deleteStack, describeStacks} from "./aws/cloudformation";
 import {Stack} from "@aws-sdk/client-cloudformation";
+import {RangeOptions} from "semver";
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
-  return isString(value) ? !!value : value && value.length > 0;
+  return typeof value === 'string' ? !!value : value && value.length > 0;
 }
 
 export function inputArgsToEnvVars(inputArgs: any) {
@@ -45,23 +47,23 @@ export function stringToArray(value: string | string[]): string[] {
 
 const packagePaths: any = {};
 
-export function stackPath(codifiedName: string): string {
+export function stackPath(codifiedName: string): string | false {
   const pkgComp = Package.getPackageComponent(codifiedName);
   const result = packagePath(pkgComp.package, __dirname);
   if (!result || !result.length) {
     CenvLog.alert(`could not find the related files for the codified package name ${codifiedName} `);
-    return;
+    return false;
   }
 
   const compResults = search_sync(result, true, true, pkgComp.component, {excludedDirs: ['cdk.out', 'node_modules', 'dist']}) as string[];
   if (!compResults || !compResults.length) {
     CenvLog.alert(`found the package ${pkgComp.package} could not find the related files for the codified package name ${codifiedName} `);
-    return;
+    return false;
   }
   return compResults[0]
 }
 
-export function packagePath(packageName: string, workingDirectory?: string, useCache = true): string {
+export function packagePath(packageName: string, workingDirectory?: string, useCache = true): string | false {
   if (packageName === 'GLOBAL') {
     return getMonoRoot(workingDirectory, useCache);
   }
@@ -87,7 +89,7 @@ export function packagePath(packageName: string, workingDirectory?: string, useC
   if (packagePaths[packageName]) {
     return packagePaths[packageName];
   }
-  return undefined;
+  return false;
 }
 
 export async function execAll(shell: string, configure = false, sequential = false,) {
@@ -195,7 +197,7 @@ export interface ICmdOptions {
   commandEvents?: CommandEvents;
 }
 
-export async function runScripts(pkgModule: PackageModule, scripts: (string | { exec: string, options: object })[]) {
+export async function runScripts(pkgModule: PackageModule, scripts: (string | { exec: string, options: object })[] | undefined) {
   if (scripts) {
     for (let i = 0; i < scripts.length; i++) {
       const script: any = scripts[i];
@@ -209,20 +211,18 @@ export async function runScripts(pkgModule: PackageModule, scripts: (string | { 
   }
 }
 
-function spawnInfo(options: any, chunk: string, output: string, pkg: Package) {
+function spawnInfo(options: any, chunk: string, output: string) {
   // match cdk status output
   // stackName | cloudformation sequence number | time | cf status | aws object | aws type (stack id) cf event
   // (.*?) \|.*([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} (?>AM)|(?>PM)) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:]*) *\| ([a-z_A-Z_\:\/-]*) \((.*)\)]? ?(.*)?$
   if (options.returnOutput) {
     output += chunk;
-  } else if (Object.keys(LogLevel).indexOf(CenvLog.logLevel) < Object.keys(LogLevel).indexOf(LogLevel.INFO)) {
-    CenvLog.single.tempLog('t: ' + chunk, pkg?.stackName);
-  } else {
+  }  else {
     options.pkgCmd?.info(chunk);
   }
 }
 
-function log(options: any, cmdLog: PackageCmd, packageInfo: Package, ...text: string[]) {
+function log(options: any, cmdLog?: PackageCmd, packageInfo?: Package, ...text: string[]) {
   if (options.silent) {
     return;
   }
@@ -239,7 +239,7 @@ export async function spawn(cmd: string) {
   await spawnCmd('./', cmd);
 }
 
-function err(errors: string[], options: any, cmdLog: PackageCmd, packageInfo: Package, ...text: string[]) {
+function err(errors: string[], options: any, cmdLog?: PackageCmd, packageInfo?: Package, ...text: string[]) {
   errors = errors.concat(text)
   if (options.silent) {
     return;
@@ -253,11 +253,11 @@ function err(errors: string[], options: any, cmdLog: PackageCmd, packageInfo: Pa
   return {errors};
 }
 
-function spawnErr(options: any, cmdLog: PackageCmd, chunk: string, output: string, pkg: Package, errors: string[]) {
+function spawnErr(chunk: string, options: any, errors: string[], output: string, cmdLog?: PackageCmd, pkg?: Package) {
   if (options?.redirectStdErrToStdOut) {
     const actualErrors = new RegExp(/ERROR/, 'i').exec(chunk);
     if (!actualErrors) {
-      spawnInfo(options, chunk, output, pkg);
+      spawnInfo(options, chunk, output);
     } else {
       err(errors, options, cmdLog, pkg, chunk)
     }
@@ -266,15 +266,19 @@ function spawnErr(options: any, cmdLog: PackageCmd, chunk: string, output: strin
   }
 }
 
-function handleErrors(errors: string[], packageInfo: Package) {
+function handleErrors(errors: string[], packageInfo?: Package) {
   if (errors.length) {
     errors.forEach((err: string) => {
-      packageInfo.err('err handleErrors()' + err);
+      if (packageInfo) {
+        packageInfo.err('err handleErrors()' + err);
+      } else {
+        CenvLog.single.errorLog('err handleErrors()' + err);
+      }
     })
   }
 }
 
-export async function spawnCmd(folder: string, cmd: string, name: string = undefined, options: ICmdOptions = {
+export async function spawnCmd(folder: string, cmd: string, name?: string, options: ICmdOptions = {
   envVars: {},
   cenvVars: {},
   detached: false,
@@ -288,8 +292,12 @@ export async function spawnCmd(folder: string, cmd: string, name: string = undef
   redirectStdErrToStdOut: false,
   pipedOutput: false,
   commandEvents: undefined
-}, packageInfo: Package = undefined,): Promise<any> {
-  let cmdLog: PackageCmd = options.pkgCmd;
+}, packageInfo?: Package): Promise<any> {
+
+  if (cmd.length === 0) {
+    process.exit(45);
+  }
+  let cmdLog = options.pkgCmd;
   if (packageInfo && !cmdLog && !options.silent) {
     cmdLog = packageInfo.createCmd(cmd);
   }
@@ -309,7 +317,7 @@ export async function spawnCmd(folder: string, cmd: string, name: string = undef
       process.chdir(newCwd);
     }
 
-    let configVarDisplay: string = null;
+    let configVarDisplay: string;
     let configVars: any = {};
     if (options.getCenvVars && !packageInfo) {
       const useCurrentDirectory = existsSync('.cenv');
@@ -382,9 +390,9 @@ export async function spawnCmd(folder: string, cmd: string, name: string = undef
       if (packageInfo && process.env.CENV_VERBOSE_SPAWN_OPTIONS) {
         packageInfo.info(packageInfo.packageName, JSON.stringify(opt, null, 2));
       }
-      const proc = child.spawn(cmdFinal, spawnArgs, opt);
+      const proc = child.spawn(cmdFinal as string, spawnArgs, opt);
       const processName = `${packageInfo ? `[${packageInfo.stackName}] ` : ''}${cmd}`;
-      Cenv.addSpawnedProcess(packageInfo.stackName, processName, proc);
+      Cenv.addSpawnedProcess(packageInfo ? packageInfo.stackName : 'GLOBAL', processName, proc);
 
       if (stdio?.length && stdio[0] === 'overlapped') {
         proc.stdin.pipe(options.stdin);
@@ -393,19 +401,21 @@ export async function spawnCmd(folder: string, cmd: string, name: string = undef
         proc.stdout.setEncoding('utf-8');
         proc.stderr.setEncoding('utf-8');
         proc.stdout.on('data', function (chunk) {
-          spawnInfo(options, chunk, output, packageInfo);
+          spawnInfo(options, chunk, output);
         });
         proc.stderr.on('data', function (chunk) {
-          spawnErr(options, cmdLog, chunk, output, packageInfo, errors);
+          spawnErr(chunk, options, errors, output, cmdLog, packageInfo );
         });
       }
       // proc.on('close', function (code) { });
       proc.on('error', function (error: any) {
-        spawnErr(options, cmdLog, error, output, packageInfo, errors);
+        spawnErr(error, options, errors, output, cmdLog, packageInfo );
       });
 
       proc.on('exit', async function (code) {
-        delete Cenv.processes[proc.pid];
+        if (proc.pid && Cenv.processes) {
+          delete Cenv.processes[proc.pid];
+        }
 
         if (code === undefined || code === null) {
           code = 1;
@@ -453,7 +463,7 @@ export async function spawnCmd(folder: string, cmd: string, name: string = undef
         if (!options?.waitForOutput) {
           resolve(0);
         }
-        if (options?.waitSeconds > 0) {
+        if (options?.waitSeconds && options.waitSeconds > 0) {
           resolve(0);
         }
       }
@@ -470,7 +480,7 @@ export async function exec(cmd: string, silent = false) {
   return await execCmd('./', cmd, cmd, {}, false, silent);
 }
 
-export function execCmd(folder: string, cmd: string, name: string = undefined, envVars: object = {}, rejectOnStdErr = false, silent = false, pkg: Package = undefined,): Promise<string> {
+export function execCmd(folder: string, cmd: string, name?: string, envVars: object = {}, rejectOnStdErr = false, silent = false, pkg?: Package): Promise<string> {
 
   function log(...text: string[]) {
 
@@ -514,7 +524,9 @@ export function execCmd(folder: string, cmd: string, name: string = undefined, e
         CenvLog.single.infoLog(`${info(cons)} ${cmd}`, pkg?.stackName);
       }
     } catch (e) {
-      err(e);
+      if (e) {
+        err(e.toString());
+      }
     }
     //console.log(`changing working directory from: ${originalDir} to ${newCwd}`)
     if (relativeDir !== '') {
@@ -557,16 +569,16 @@ export function execCmd(folder: string, cmd: string, name: string = undefined, e
 }
 
 export function fromDir(startPath: string, filter: string | RegExp, foundMsg = '-- found: ', recursive = false) {
-  if (!fs.existsSync(startPath)) {
+  if (!existsSync(startPath)) {
     console.log('no dir ', startPath);
     return;
   }
 
-  const files = fs.readdirSync(startPath);
-  const foundFiles = [];
+  const files = readdirSync(startPath);
+  const foundFiles: string[] = [];
   for (let i = 0; i < files.length; i++) {
-    const filename = path.join(startPath, files[i]);
-    const stat = fs.lstatSync(filename);
+    const filename = path.join(startPath, files[i].toString());
+    const stat = lstatSync(filename);
     if (stat.isDirectory() && recursive) {
       fromDir(filename, filter); //recurse
     } else if (filename.match(filter)) {
@@ -632,14 +644,14 @@ function search_sync_depth(dir: string, first = false, searchDown = true, search
     options.depth = -1;
   }
   const retVal: searchSyncFallbackResults = {results: [], fallbacks: []};
-  const list = fs.readdirSync(dir);
-  const directories = [];
+  const list = readdirSync(dir);
+  const directories: string[] = [];
   for (let i = 0; i < list.length; i++) {
-    const fileName = list[i];
-    const file = path.resolve(dir, fileName);
+    const fileName: string = list[i].toString();
+    const file = path.resolve(dir, fileName.toString());
     const filenameList = file.split('\\');
     const filename = filenameList[filenameList.length - 1];
-    const stat = fs.statSync(file);
+    const stat = statSync(file);
     if (stat && stat.isDirectory() && searchDown) {
       let addDir = true;
       if (options?.excludedDirs?.length) {
@@ -665,7 +677,7 @@ function search_sync_depth(dir: string, first = false, searchDown = true, search
         retVal.fallbacks.push(file);
       }
 
-      let foundFile = undefined;
+      let foundFile: string | undefined = undefined;
       if (searchFile instanceof RegExp) {
         const m = fileName.match(searchFile)?.length;
         if (m) {
@@ -795,9 +807,9 @@ function elapsedBase(start: [number, number], format = 'seconds', note: string, 
 }
 
 export class Timer {
-  startTime: [number, number];
-  final: [number, number];
-  finalElapsed: string;
+  startTime?: [number, number];
+  final?: [number, number];
+  finalElapsed?: string;
   note: string;
   format: string;
   silent: boolean;
@@ -814,7 +826,7 @@ export class Timer {
 
   get elapsed() {
     if (this.running) {
-      return elapsedBase(this.startTime, this.format, this.note, this.silent) + this.format[0];
+      return elapsedBase(this.startTime as [number, number], this.format, this.note, this.silent) + this.format[0];
     } else if (this.finalElapsed) {
       return `${this.finalElapsed}${this.format[0]}`;
     } else {
@@ -834,7 +846,7 @@ export class Timer {
 
   stop() {
     if (this.running) {
-      this.finalElapsed = elapsedBase(this.startTime, this.format, this.note, this.silent);
+      this.finalElapsed = elapsedBase(this.startTime as [number, number], this.format, this.note, this.silent);
       this.final = process.hrtime();
       this.running = false;
     }
@@ -1011,30 +1023,32 @@ export function clamp(number: number, min: number, max: number) {
 const killedStackCmds: Record<string, string[]> = {};
 
 export async function killStackProcesses(StackName: string) {
-  for (const [pid, stackProc] of Object.entries(Cenv.processes)) {
+  for (const [pid, stackProc] of Object.entries(Cenv.processes) as [string, StackProc][]) {
     if (stackProc.stackName === StackName) {
       CenvLog.alert(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
       const killSuccess = stackProc.proc.kill();
 
       if (stackProc.cmd.startsWith('cdk deploy')) {
-        const stacks: Stack[] = await describeStacks(StackName);
-        const status = stacks[0].StackStatus;
-        CenvLog.single.alertLog(`the current status is ${status}`, 'killed cdk deploy process')
-        if (status === "UPDATE_IN_PROGRESS") {
-          CenvLog.single.alertLog(`now attempting to cancel the cloudformation update`, 'killed cdk deploy process')
-          await cancelUpdateStack(StackName)
-        } else if (status === "CREATE_IN_PROGRESS") {
-          CenvLog.single.alertLog(`now attempting to destroy the cloud formation creation`, 'killed cdk deploy process')
-          await deleteStack(StackName)
+        const stacks = await describeStacks(StackName);
+        if (stacks) {
+          const status = stacks[0].StackStatus;
+          CenvLog.single.alertLog(`the current status is ${status}`, 'killed cdk deploy process')
+          if (status === "UPDATE_IN_PROGRESS") {
+            CenvLog.single.alertLog(`now attempting to cancel the cloudformation update`, 'killed cdk deploy process')
+            await cancelUpdateStack(StackName)
+          } else if (status === "CREATE_IN_PROGRESS") {
+            CenvLog.single.alertLog(`now attempting to destroy the cloud formation creation`, 'killed cdk deploy process')
+            await deleteStack(StackName)
+          }
         }
       }
-      if (killSuccess) {
-        delete Cenv.processes[pid];
+      if (killSuccess && pid) {
+        delete Cenv.processes[Number(pid)];
       }
     }
 
   }
-  delete Cenv.processes;
+  Cenv.processes = {};
   delete Cenv.runningProcesses;
 }
 
@@ -1043,13 +1057,13 @@ export function killRunningProcesses() {
     CenvLog.err(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
     const killSuccess = stackProc.proc.kill();
     if (killSuccess) {
-      if (!killedStackCmds[stackProc.stackName]) {
-        killedStackCmds[stackProc.stackName] = [];
+      if (!killedStackCmds[stackProc.stackName as string]) {
+        killedStackCmds[stackProc.stackName as string] = [];
       }
-      killedStackCmds[stackProc.stackName].push(stackProc.cmd);
+      killedStackCmds[stackProc.stackName as string].push(stackProc.cmd);
     }
   }
-  delete Cenv.processes;
+  Cenv.processes = {};
   delete Cenv.runningProcesses;
 }
 
@@ -1079,7 +1093,7 @@ export function cleanup(eventType: string, error?: Error, exitCode?: number) {
 
   if (process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     process.argv.shift();
-    process.argv[0] = process.argv[0].split('/').pop();
+    process.argv[0] = process.argv[0].split('/').pop() as string;
     console.log(`[${eventType}] ${process.argv.join(' ')}`);
   }
 
@@ -1148,7 +1162,7 @@ function getPackageFileInfo(pkg: Package, fullPath: string) {
 export async function computeMetaHash(pkg: Package, input: string, inputHash: any = null) {
   const hash = inputHash ? inputHash : createHash('sha256');
   let fileInfo;
-  if (fs.lstatSync(input).isDirectory()) {
+  if (lstatSync(input).isDirectory()) {
     const info = await fsp.readdir(input, {withFileTypes: true});
 
     // construct a string from the modification date, the filename and the filesize
@@ -1219,12 +1233,12 @@ export function deepClone(obj: any, hash = new WeakMap()): any {
 
 export function readFiles(dirname: string, onFileContent: (dirname: string, filename: string) => void) {
   try {
-    const filenames = fs.readdirSync(dirname)
+    const filenames = readdirSync(dirname)
 
     if (filenames) {
       filenames.forEach(function (filename) {
-        const content = fs.readFileSync(join(dirname, filename), 'utf-8');
-        onFileContent(filename, content);
+        const content = readFileSync(join(dirname, filename.toString()), 'utf-8');
+        onFileContent(filename.toString(), content);
       });
     }
 
@@ -1241,7 +1255,7 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
   packages: Package[]
 } | false {
   let packages;
-  const invalidStatePackages = [];
+  const invalidStatePackages: Package[] = [];
   if (selectedPkg?.stackName === 'GLOBAL') {
     packages = Package.getPackages();
   } else {
@@ -1341,9 +1355,9 @@ function parsePackageParams(params: string[]): { packages: Package[], nonPackage
   const newParams: string[] = [];
   while (params.length) {
     if (params[0].startsWith(`${Cenv.scopeName}/`) || Package.getRootPackageName() === params[0]) {
-      packageNames.push(params.shift());
+      packageNames.push(params.shift() as string);
     } else {
-      newParams.push(params.shift())
+      newParams.push(params.shift() as string);
     }
   }
   return {packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams}
@@ -1438,7 +1452,7 @@ async function execInit(application: string, environment: string) {
   //await Cenv.initVars({defaults: true, environment, application, push: true, force: true});
 }
 
-export async function processEnvFiles(environment: string, added: string[], changed: string[], deleted: string[]) {
+export async function processEnvFiles(environment: string, added?: string[], changed?: string[], deleted?: string[]) {
   if (changed) {
     await execEnvironment(environment, changed, execInit);
   }
@@ -1476,7 +1490,7 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
     CenvLog.single.catchLog(`a param passed in looks like a package but was not loaded`);
   }
 
-  let pkgs = [];
+  let pkgs: Package[] = [];
   if (options.localPackageAccepted) {
     const packageFile = path.resolve('./package.json')
     if (existsSync(packageFile)) {
@@ -1506,14 +1520,14 @@ export async function parseCmdParams(params: string[], options: any, cmd?: Proce
 }
 
 
-export async function parseParamsExec(params: string[], options: any, asyncExecFunc: (ctx: any, params: any, options: any) => Promise<PackageCmd>): Promise<PackageCmd[]> {
+export async function parseParamsExec(params: string[], options: any, asyncExecFunc: (ctx: any, params: any, options: any) => Promise<PackageCmd>): Promise<PackageCmd[] | undefined> {
   try {
 
     const {packages, parsedParams, validatedOptions} = await parseCmdParams(params, options);
     const result: PackageCmd[] = [];
     if (packages?.length) {
       for (let i = 0; i < packages?.length;) {
-        const app = packages.shift();
+        const app = packages.shift() as Package;
         if (app.chDir()) {
           const ctx: any = await CenvParams.getParamsContext();
           const resCmd = await asyncExecFunc(ctx, parsedParams, validatedOptions);
@@ -1527,7 +1541,9 @@ export async function parseParamsExec(params: string[], options: any, asyncExecF
     }
 
   } catch (e) {
-    CenvLog.single.errorLog(e.stack);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(e.stack as string);
+    }
   }
 }
 
@@ -1539,13 +1555,13 @@ export function pbcopy(data: any) {
 
 export async function createParamsLibrary(pkgPath: string) {
 
-  if (!fs.existsSync(pkgPath)) {
-    fs.mkdirSync(pkgPath);
+  if (!existsSync(pkgPath)) {
+    mkdirSync(pkgPath);
   }
 
   const libPathModule = pkgPath + '/node_modules/@stoked-cenv/lib'
-  if (!fs.existsSync(libPathModule)) {
-    fs.mkdirSync(libPathModule, {recursive: true});
+  if (!existsSync(libPathModule)) {
+    mkdirSync(libPathModule, {recursive: true});
   }
 
   const libPath = path.join(__dirname, '../');
@@ -1553,15 +1569,15 @@ export async function createParamsLibrary(pkgPath: string) {
   const tsconfig = '/tsconfig.json';
   const index = '/index.ts'
 
-  fs.cpSync(libPath + 'dist', libPathModule, {recursive: true});
-  fs.copyFileSync(libPath + tsconfig, libPathModule + tsconfig);
+  cpSync(libPath + 'dist', libPathModule, {recursive: true});
+  copyFileSync(libPath + tsconfig, libPathModule + tsconfig);
   const pkgMeta = require(libPath + 'package.json');
   delete pkgMeta.dependencies['stoked-cenv'];
-  fs.writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
+  writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
   const paramsPath = path.join(__dirname, '../params');
-  fs.copyFileSync(paramsPath + pkg + '.build', pkgPath + pkg);
-  fs.copyFileSync(paramsPath + tsconfig + '.build', pkgPath + tsconfig);
-  fs.copyFileSync(paramsPath + index + '.build', pkgPath + index);
+  copyFileSync(paramsPath + pkg + '.build', pkgPath + pkg);
+  copyFileSync(paramsPath + tsconfig + '.build', pkgPath + tsconfig);
+  copyFileSync(paramsPath + index + '.build', pkgPath + index);
 
   await execCmd(libPathModule, 'npm i');
   await execCmd(pkgPath, 'npm i');
@@ -1571,26 +1587,7 @@ export async function createParamsLibrary(pkgPath: string) {
   return path.join(pkgPath, `materializationLambda.zip`)
 }
 
-export function validateEnvVars(envVars: string[]): Record<string, string> | never {
-  let valid = true;
-  const validatedEnvVars: Record<string, string> = {};
-  for (const keyIndex in envVars) {
-    const key = envVars[keyIndex];
-    const value = process.env[key];
-    if (value === undefined) {
-      CenvLog.single.errorLog(`the required environment variable "${key}" was not provided to the stack`)
-      valid = false;
-    } else {
-      validatedEnvVars[key] = value;
-    }
-  }
-  if (!valid) {
-    process.exit(-33);
-  }
-  return validatedEnvVars;
-}
-
-export function onlyUnique(value, index, array) {
+export function onlyUnique(value: any, index: number, array: any[]) {
   return array.indexOf(value) === index;
 }
 
@@ -1602,4 +1599,74 @@ export async function execExists(exec: string) {
 export function removeScope(packageName: string) {
   const regex = /\@.*?\//m;
   return packageName.replace(regex, '');
+}
+
+export function validateEnvVars(envVars: string[]): Record<string, string> | never {
+  let valid = true;
+  const validatedEnvVars: Record<string, string> = {};
+  for (const keyIndex in envVars) {
+    const key = envVars[keyIndex];
+    const value = process.env[key];
+    if (value === undefined) {
+      const msg = `the required environment variable "${key}" was not provided to the stack`;
+      if (CenvLog?.single) {
+        CenvLog.single.errorLog(msg)
+      } else {
+        console.error('error', msg)
+      }
+      valid = false;
+    } else {
+      validatedEnvVars[key] = value;
+    }
+  }
+  if (!valid) {
+    process.exit(-33);
+  }
+  return validatedEnvVars;
+}
+
+export function sureParse(version: string | semver.SemVer | null, opt?: RangeOptions) {
+  const parsed = semver.parse(version, opt);
+  if (!parsed) {
+    CenvLog.single.errorLog(`the provided version "${version}" is not a valid semver version`);
+    process.exit(-33);
+  }
+  return parsed;
+}
+
+export class EnvVars {
+  vars: Readonly<Record<string, string>> = {}
+  private _vars: Record<string, string> = {};
+
+  constructor(properties: Record<string, string> = {}) {
+    this.setVars(properties);
+  }
+
+  set(key: string, value: string) {
+    this._vars[key] = value;
+    this.vars = this._vars
+    process.env[key] = value;
+  }
+
+  add(envVars: {[key: string]: string}) {
+    for (const [key, value] of Object.entries(envVars)) {
+      this.set(key, value);
+    }
+  }
+
+  remove(key: string) {
+    delete this._vars[key];
+    this.vars = this._vars
+    delete process.env[key];
+  }
+
+  setVars(envVars: {[key: string]: string}) {
+    for (const key in Object.keys(this.vars)) {
+      if (!envVars[key]) {
+        this.remove(key)
+      }
+    }
+    this.add(envVars);
+    this.vars = this._vars
+  }
 }

@@ -17,7 +17,7 @@ import {
 
 const {ENV, CENV_STACK_NAME} = process.env;
 
-const envVars = validateEnvVars(['ENV', 'CENV_STACK_NAME']);
+//const envVars = validateEnvVars(['ENV', 'CENV_STACK_NAME']);
 
 
 const app = new cdk.App();
@@ -213,8 +213,8 @@ const app = new cdk.App();
 //
 // }
 
-new CloudFrontToS3(app, `${envVars.ENV}-${envVars.CENV_STACK_NAME}`, {
+new CloudFrontToS3(app, `${process.env.ENV}-${process.env.CENV_STACK_NAME}`, {
   bucketProps: {
-    publicReadAccess: true, bucketName: `${envVars.ENV}-${envVars.CENV_STACK_NAME}-media`, transferAcceleration: true
+    publicReadAccess: true, bucketName: `${process.env.ENV}-${process.env.CENV_STACK_NAME}-media`, transferAcceleration: true
   }
 });

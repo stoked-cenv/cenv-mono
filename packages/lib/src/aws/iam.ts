@@ -23,7 +23,7 @@ import {
 } from '@aws-sdk/client-iam';
 import {CenvLog, errorBold} from '../log';
 
-let _client: IAMClient = null;
+let _client: IAMClient;
 
 function getClient() {
   if (_client) {
@@ -45,7 +45,7 @@ export async function getPolicy(PolicyArn: string, silent = true) {
       return res.Policy;
     }
   } catch (e) {
-    if (!silent) {
+    if (!silent && e instanceof Error) {
       CenvLog.single.errorLog(`get policy error: ${errorBold(e.message)}`);
     }
   }
@@ -60,7 +60,9 @@ export async function createPolicy(PolicyName: string, PolicyDocument: any) {
       return res.Policy;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`create policy error: ${errorBold(e.message)}, ${e}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`create policy error: ${errorBold(e.message)}, ${e}`);
+    }
   }
   return false
 }
@@ -69,6 +71,9 @@ export async function deletePolicy(PolicyArn: string) {
   try {
     const listPolicyVersionsCmd = new ListPolicyVersionsCommand({PolicyArn});
     const listPolicyVersionsRes = await getClient().send(listPolicyVersionsCmd);
+    if (listPolicyVersionsRes.Versions === undefined) {
+      return false
+    }
     for (let i = 0; i < listPolicyVersionsRes.Versions.length; i++) {
       const version = listPolicyVersionsRes.Versions[i];
       if (!version.IsDefaultVersion) {
@@ -82,7 +87,9 @@ export async function deletePolicy(PolicyArn: string) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`delete policy [${PolicyArn}] error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`delete policy [${PolicyArn}] error: ${errorBold(e.message)}`);
+    }
   }
   return false
 }
@@ -95,7 +102,9 @@ export async function attachPolicyToRole(RoleName: string, PolicyArn: string) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`attach policy to role error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`attach policy to role error: ${errorBold(e.message)}`);
+    }
   }
   return false
 }
@@ -104,6 +113,9 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
   try {
     const listGroupPolicyCmd = new ListAttachedGroupPoliciesCommand({GroupName});
     const listGroupPolicyRes = await getClient().send(listGroupPolicyCmd);
+    if (listGroupPolicyRes.AttachedPolicies === undefined) {
+      return;
+    }
     for (let i = 0; i < listGroupPolicyRes.AttachedPolicies.length; i++) {
       const policy = listGroupPolicyRes.AttachedPolicies[i];
       if (policy.PolicyName === PolicyName) {
@@ -118,7 +130,9 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`attach policy to group error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`attach policy to group error: ${errorBold(e.message)}`);
+    }
   }
 }
 
@@ -126,7 +140,11 @@ export async function deleteGroup(GroupName: string, silent = true) {
   try {
     const listGroupsCmd = new ListGroupsCommand({});
     const listGroupsRes = await getClient().send(listGroupsCmd);
+    if (listGroupsRes.Groups === undefined) {
+      return false;
+    }
     let groupExists = false;
+
     for (let i = 0; i < listGroupsRes.Groups.length; i++) {
       const group = listGroupsRes.Groups[i];
       if (group.GroupName === GroupName) {
@@ -140,6 +158,9 @@ export async function deleteGroup(GroupName: string, silent = true) {
     }
     const getCmd = new GetGroupCommand({GroupName});
     const getRes = await getClient().send(getCmd);
+    if (getRes.Users === undefined) {
+      return false;
+    }
     for (let i = 0; i < getRes.Users.length; i++) {
       const user: User = getRes.Users[i];
       const rmvCmd = new RemoveUserFromGroupCommand({GroupName, UserName: user.UserName})
@@ -153,7 +174,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
                                                      });
       const rmvPolRes = await getClient().send(rmvPolCmd);
     } catch (e) {
-      if (!silent) {
+      if (!silent && e instanceof Error) {
         CenvLog.single.errorLog(`detach policy error: ${errorBold(e.message)}`)
       }
     }
@@ -165,7 +186,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
     return false;
 
   } catch (e) {
-    if (!silent) {
+    if (!silent && e instanceof Error) {
       CenvLog.single.errorLog(`delete group error: ${errorBold(e.message)}`);
     }
   }
@@ -176,6 +197,9 @@ export async function createGroup(GroupName: string) {
   try {
     const listGroupsCmd = new ListGroupsCommand({});
     const listGroupsRes = await getClient().send(listGroupsCmd);
+    if (listGroupsRes.Groups === undefined) {
+      return false;
+    }
     for (let i = 0; i < listGroupsRes.Groups.length; i++) {
       const group = listGroupsRes.Groups[i];
       if (group.GroupName === GroupName) {
@@ -190,7 +214,9 @@ export async function createGroup(GroupName: string) {
       return res.Group;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`create group error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`create group error: ${errorBold(e.message)}`);
+    }
   }
   return false
 }
@@ -203,7 +229,9 @@ export async function addUserToGroup(GroupName: string, UserName: string) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`attach user to group error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`attach user to group error: ${errorBold(e.message)}`);
+    }
   }
 }
 
@@ -215,7 +243,9 @@ export async function detachPolicyFromRole(RoleName: string, PolicyArn: string) 
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`detatch policy to role error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`detatch policy to role error: ${errorBold(e.message)}`);
+    }
   }
   return false
 }
@@ -228,7 +258,9 @@ export async function createRole(RoleName: string, AssumeRolePolicyDocument: any
       return res.Role;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`create role error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`create role error: ${errorBold(e.message)}`);
+    }
   }
   return false
 }
@@ -242,7 +274,9 @@ export async function deleteRole(RoleName: string) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`delete role error: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`delete role error: ${errorBold(e.message)}`);
+    }
   }
   return false
 }
@@ -255,7 +289,7 @@ export async function getRole(RoleName: string, silent = true) {
       return res.Role;
     }
   } catch (e) {
-    if (!silent) {
+    if (!silent && e instanceof Error) {
       CenvLog.single.errorLog(`get role error: ${errorBold(e.message)}`);
     }
   }

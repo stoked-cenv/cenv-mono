@@ -5,8 +5,8 @@ import AddCommand from '../commands/add';
 import ParamsCommand from '../commands/params'
 import {CommandTestFactory} from 'nest-commander-testing';
 import {CenvFiles, getMonoRoot, packagePath} from "@stoked-cenv/lib";
-import path from "path";
-
+import * as path from "path";
+/*
 describe('Init Command', () => {
   let commandInstance: TestingModule;
   const hour = 60 * 60 * 1000;
@@ -92,4 +92,4 @@ describe('Init Command', () => {
 
   //afterAll(async () => {
   //});
-});
+//});

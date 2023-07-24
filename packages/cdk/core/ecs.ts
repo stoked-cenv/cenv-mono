@@ -11,6 +11,7 @@ import {Certificate} from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import {ensureValidCerts, tagStack} from './utils.js';
+import {validateEnvVars} from "@stoked-cenv/lib";
 
 export interface ECSServiceDeploymentParams {
   env: string;
@@ -28,23 +29,19 @@ export interface ECSServiceDeploymentParams {
   assignedDomain?: string;
 }
 
-const {ENV, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ASSIGNED_DOMAIN} = process.env;
+//const envVars = validateEnvVars(['ENV', 'ROOT_DOMAIN', 'CDK_DEFAULT_ACCOUNT', 'CDK_DEFAULT_REGION']);
+const {ASSIGNED_DOMAIN} = process.env;
 export const defaultStackProps = {
   env: {
-    account: CDK_DEFAULT_ACCOUNT, region: CDK_DEFAULT_REGION
+    account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION
   },
-}
-
-if (!ROOT_DOMAIN) {
-  console.log('ROOT_DOMAIN is not available.. bye bye');
-  process.exit();
 }
 
 if (ASSIGNED_DOMAIN) {
   ensureValidCerts(ASSIGNED_DOMAIN);
 }
 
-export const VPC_NAME = `${ENV}-net`;
+export const VPC_NAME = `${process.env.ENV}-net`;
 const getVPCByName = (construct: Construct, id = process.env.ENV + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
   vpcName
 });
@@ -72,8 +69,8 @@ export class ECSServiceStack extends Stack {
       ecrRepositoryName,
       envVariables = {},
       logRetention = logs.RetentionDays.ONE_WEEK,
-      rootDomain = ROOT_DOMAIN,
-      region = CDK_DEFAULT_REGION,
+      rootDomain = process.env.ROOT_DOMAIN,
+      region = process.env.CDK_DEFAULT_REGION,
       healthCheck
     } = params;
     this.params = params;
@@ -90,7 +87,7 @@ export class ECSServiceStack extends Stack {
 
     let subDomain: string = subdomain as string; // i.e. install.dev
     let baseDomain: string = rootDomain as string;
-    let fullDomain = `${subDomain}.${ENV}.${baseDomain}`;
+    let fullDomain = `${subDomain}.${process.env.ENV}.${baseDomain}`;
 
     if (ASSIGNED_DOMAIN) {
       const assignedParts = ASSIGNED_DOMAIN.split('.');
@@ -108,7 +105,7 @@ export class ECSServiceStack extends Stack {
     // Requires environment, you must specify env for the stack.
     // Use to easily query hosted zones.
     this.zone = HostedZone.fromLookup(this, 'zone', {
-      domainName: rootDomain
+      domainName: rootDomain!
     });
 
     // A certificate managed by AWS Certificate Manager.

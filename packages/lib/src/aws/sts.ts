@@ -1,7 +1,7 @@
 import {GetCallerIdentityCommand, STSClient} from '@aws-sdk/client-sts';
 import {CenvLog, errorBold} from '../log';
 
-let _client: STSClient = null;
+let _client: STSClient;
 
 function getClient() {
   if (_client) {
@@ -23,7 +23,9 @@ export async function getAccountId() {
       return {Account: res.Account, User: res.UserId, UserArn: res.Arn};
     }
   } catch (e) {
-    CenvLog.single.errorLog(`failed to get account id: ${errorBold(e.message)}`);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(`failed to get account id: ${errorBold(e.message)}`);
+    }
   }
   return false
 }

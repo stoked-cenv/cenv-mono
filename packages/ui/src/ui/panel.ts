@@ -1,16 +1,15 @@
-import blessed from 'blessed';
-import contrib from 'blessed-contrib'
+import {Screen} from 'blessed/lib/widgets/screen';
+import {Grid} from 'blessed-contrib/lib/layout/grid';
 import {Package, PackageCmd, PackageModule} from '@stoked-cenv/lib';
 import {Dashboard} from './dashboard'
 
 export abstract class CenvPanel {
-  grid: contrib.Widgets.GridElement;
+  grid: Grid;
   active = false;
   dashboard: Dashboard;
-  screen: blessed.Screen;
+  screen: Screen;
   widgets: any [];
   focusPoolWidgets: any [];
-  focusText: string;
 
   constructor(dashboard: Dashboard) {
     this.dashboard = dashboard;
@@ -22,7 +21,7 @@ export abstract class CenvPanel {
 
   get focusPool(): any[] {
     return this.focusPoolWidgets.filter(w => {
-      return (w.type === 'params' && Dashboard.instance.statusPanel.showParams) || (w.type !== 'params' && !w.hidden);
+      return (w.type === 'params' && Dashboard.instance?.statusPanel?.showParams) || (w.type !== 'params' && !w.hidden);
     });
   }
 

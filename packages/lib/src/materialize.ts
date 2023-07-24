@@ -1,6 +1,6 @@
 import {CenvParams, LambdaProcessResponse} from './params'
 
-exports.handler = async function (event) {
+exports.handler = async function (event: Event) {
   try {
     console.log("request:", JSON.stringify(event, null, 2));
     const output: LambdaProcessResponse = await CenvParams.MaterializeCore(event);

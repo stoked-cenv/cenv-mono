@@ -7,6 +7,7 @@ const commands = Commands.list();
 function getProviders() {
   const providers: any = [];
   commands.map(async (cmd: string[]) => {
+    console.log('importing:', `./commands/${cmd[1]}`)
     const command = await import(`./commands/${cmd[1]}`)
     command.meta = Reflect.getMetadata('CommandBuilder:Command:Meta', command.default);
     command.options = Reflect.getMetadata('CommandBuilder:Option:Meta', command.default);

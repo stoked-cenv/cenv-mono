@@ -70,7 +70,7 @@ export default class EnvCommand extends BaseCommand {
     return val;
   }
 
-  async runCommand(params: string[], options?: EnvCommandOptions,): Promise<void> {
+  async runCommand(params: string[], options: EnvCommandOptions,): Promise<void> {
     try {
       if (options?.listStacks) {
         const filter = typeof options?.listStacks === 'string' ? [options.listStacks] : [];
@@ -86,7 +86,7 @@ export default class EnvCommand extends BaseCommand {
           return;
         }
 
-        await processEnvFiles(params[0], options?.addedFiles?.split(' '), options?.changedFiles?.split(' '), options?.deletedFiles?.split(' '));
+          await processEnvFiles(params[0], options?.addedFiles?.split(' '), options?.changedFiles?.split(' '), options?.deletedFiles?.split(' '));
         return;
       }
       await Cenv.env(params, options);

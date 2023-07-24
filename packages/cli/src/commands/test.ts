@@ -1,7 +1,7 @@
 import {Command, Option} from 'nest-commander';
 import {BaseCommandOptions, CenvLog, EnvironmentStatus, getMonoRoot, Package, spawn, Suite} from "@stoked-cenv/lib";
 import {BaseCommand} from './base'
-import path from "path";
+import * as path from "path";
 
 
 @Command({
