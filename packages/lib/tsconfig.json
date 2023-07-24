@@ -1,0 +1,36 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "declaration": true,
+    "module": "commonjs",
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2017",
+    "outDir": "./dist",
+    "sourceMap": true,
+    "baseUrl": "src",
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
+    "esModuleInterop": true,
+    "typeRoots": [
+      "types/read",
+      "node_modules/@types"
+    ]
+  },
+  "include": [
+    "src",
+    "types/read"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "cdk.out"
+  ]
+}
