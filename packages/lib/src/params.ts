@@ -15,7 +15,7 @@ import {
 } from './aws/parameterStore';
 import {invoke, updateLambdas} from './aws/lambda';
 import {CenvLog, errorInfo, infoAlertBold, infoBold,} from './log';
-import * as chalk from "chalk";
+import chalk from "chalk";
 import {getConfigVars} from './aws/appConfigData';
 import {ioReadVarList, readAsync} from './stdIo';
 import {expandTemplateVars, sleep,} from './utils';

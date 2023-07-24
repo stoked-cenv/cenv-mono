@@ -1,4 +1,4 @@
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import {Cenv} from './cenv';
 import {cleanup} from "./utils";
 
@@ -7,7 +7,7 @@ const infoBold = chalk.blueBright;
 const infoDim = chalk.dim;
 const errorInfo = chalk.red;
 const errorBold = chalk.redBright;
-const errorDim = chalk.hex('#800000')
+const errorDim = chalk.black;
 const infoInput = chalk.green;
 const stdGreen = infoInput;
 const green = stdGreen;
@@ -18,7 +18,7 @@ const greenBold = stdGreenBold;
 const infoAlert = chalk.yellow;
 const infoAlertBold = chalk.yellowBright.underline;
 const verbose = chalk.cyan;
-const orange = chalk.hex('#FFA500');
+const orange = chalk.magenta;
 const stdWhite = chalk.white;
 export {
   stdGreen,
@@ -41,20 +41,20 @@ export {
 };
 
 const colors = {
-  info: chalk.hex('#888888'),
-  infoDim: chalk.hex('#555555'),
-  infoBold: chalk.bold.hex('#AAAAAA'),
+  info: chalk.yellow,
+  infoDim: chalk.yellow,
+  infoBold: chalk.bold.yellow,
   std: chalk.white,
   stdDim: chalk.dim,
   stdBold: chalk.bold.whiteBright,
   error: chalk.red,
-  errorDim: chalk.hex('#800000'),
+  errorDim: chalk.yellow,
   errorBold: chalk.bold.redBright,
-  errorHighlight: chalk.hex('#FFAAAA'),
+  errorHighlight: chalk.yellow,
   success: chalk.green,
-  successDim: chalk.hex('#009900'),
+  successDim: chalk.yellow,
   successBold: chalk.greenBright,
-  successHighlight: chalk.hex('#AAFFAA'),
+  successHighlight: chalk.yellow,
   alert: chalk.yellow,
   alertDim: chalk.yellow.dim,
   alertBold: chalk.yellowBright.underline

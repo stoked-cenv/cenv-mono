@@ -12,7 +12,7 @@ import {
   spawnCmd,
 } from '@stoked-cenv/lib';
 import {BaseCommand} from './base'
-import * as chalk from "chalk";
+import chalk from "chalk";
 
 
 interface ExecCommandOptions extends BaseCommandOptions {

@@ -1,14 +1,15 @@
 import {Module} from '@nestjs/common';
 import {Commands} from '@stoked-cenv/ui';
 import {CenvLog} from '@stoked-cenv/lib';
+import CenvCommand from "./commands/cenv";
 
 const commands = Commands.list();
 
 function getProviders() {
   const providers: any = [];
   commands.map(async (cmd: string[]) => {
-    console.log('importing:', `./commands/${cmd[1]}`)
-    const command = await import(`./commands/${cmd[1]}`)
+    console.log(`${__dirname}/commands/${cmd[1]}.js`)
+    const command = await import(`./commands/${cmd[1]}.js`)
     command.meta = Reflect.getMetadata('CommandBuilder:Command:Meta', command.default);
     command.options = Reflect.getMetadata('CommandBuilder:Option:Meta', command.default);
     if (command.options) {
@@ -21,7 +22,8 @@ function getProviders() {
 }
 
 @Module({
-          providers: getProviders()
+          providers: [CenvCommand],
+          //providers: getProviders()
         })
 
 export class CenvModule {

@@ -26,7 +26,7 @@ import {
   getDeploymentStrategy,
   getEnvironment
 } from './aws/appConfig'
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import * as path from 'path';
 import {BaseCommandOptions, CenvParams, DashboardCreateOptions, DashboardCreator, validateOneType} from './params';
 import {Environment,} from './environment';

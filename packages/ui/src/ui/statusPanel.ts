@@ -433,7 +433,7 @@ export default class StatusPanel extends CenvPanel {
           if (pkg.params.needsDeploy) {
             color = chalk.red;
           } else if (pkg.params.needsMaterialization) {
-            color = chalk.hex('#FFA500');
+            color = chalk.red;
           }
           if (color) {
             name = color(name);

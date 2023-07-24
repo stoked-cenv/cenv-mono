@@ -9,7 +9,7 @@
     "target": "es2017",
     "outDir": "./dist",
     "baseUrl": ".",
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "noUnusedLocals": false,
     "sourceMap": true,
@@ -20,9 +20,15 @@
       "@stoked-cenv/cli": ["packages/cli/src/index.ts"],
       "@stoked-cenv/cdk": ["packages/cdk/core/index.ts"],
       "blessed-contrib": ["packages/blessed-contrib/index.js"]
-    }
-
+    },
+    "typeRoots": [
+      "node_modules/@types",
+      "packages/ui/src/blessed.d.ts",
+      "packages/lib/src/read.d.ts"
+    ],
+    "noImplicitAny": false,
+    "esModuleInterop": true
   },
-  "includes": ["**/src", "**/lib", "**/core", "**/stacks"],
+  "includes": [],
   "exclude": ["node_modules", "dist", "example", "**/*.d.ts", "**/docs"]
 }

@@ -29,7 +29,7 @@ import {
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import {ChalkFunction} from 'chalk';
-import * as chalk from 'chalk'
+import chalk from 'chalk'
 import {isFunction} from "lodash";
 import {HelpUI} from "./help";
 import Groups from "./group";

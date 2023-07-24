@@ -1,5 +1,5 @@
 import * as path from 'path';
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import {Environments} from './environment'
 import {Cenv} from './cenv'
 import {BaseCommandOptions} from "./params";
