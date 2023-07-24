@@ -1,15 +1,9 @@
 .DS_Store
-
-
 dist/
 node_modules/
 coverage/
 .env
-
 tags
-
-# Generated Docusaurus files
 .docusaurus/
 .cache-loader/
-
 cenv.build.log
