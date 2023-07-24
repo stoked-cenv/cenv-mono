@@ -47,7 +47,7 @@ import { LogService } from './common/log.service';
             RemoveCommand,
             StatCommand,
             TestCommand,
-            UICommand,
+            UICommand
           ],
         })
-export class BasicModule {}
+export class CliModule {}

@@ -7,3 +7,9 @@ tags
 .docusaurus/
 .cache-loader/
 cenv.build.log
+*.js
+!webpack.config.js
+!babel.config.js
+*.js.map
+
+basic-cli
