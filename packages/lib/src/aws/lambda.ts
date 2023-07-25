@@ -134,11 +134,11 @@ export async function listFunctions(tags = {}, silent = true) {
   return []
 }
 
-export async function updateLambdas(environmentVariables: any, functionName: string) {
+export async function updateLambdas(environmentVariables: any, functionName: string): Promise<string | false> {
 
   const functions = await listFunctions(false)
   if (!functions) {
-    return [];
+    return false;
   }
 
   const matchingFunctions: FunctionConfiguration[] = [];

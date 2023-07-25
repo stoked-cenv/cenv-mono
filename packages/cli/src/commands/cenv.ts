@@ -10,17 +10,17 @@ interface CenvCommandOptions extends BaseCommandOptions {
 }
 
 @RootCommand({
-               name: 'cenv',
-             })
+   name: 'cenv'
+})
 export default class CenvCommand extends BaseCommand {
 
   constructor() {
     super();
   }
-
   @Option({
-            name: 'version', flags: '-v, --version', description: 'Display cenv\'s installed version',
-          }) parseVersion(val: boolean): boolean {
+    name: 'version', flags: '-v, --version', description: 'Display cenv\'s installed version'
+  })
+  parseVersion(val: boolean): boolean {
     return val;
   }
 

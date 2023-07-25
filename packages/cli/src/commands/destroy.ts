@@ -71,9 +71,7 @@ export default class DestroyCommand extends BaseCommand {
 
   /* SHARED */
   @Option({
-            flags: '--profile, <profile>',
-            description: `Environment profile to use on deployments.`,
-            defaultValue: 'default',
+            flags: '--profile <profile>', description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
           }) parseProfile(val: string): string {
     return val;
   }

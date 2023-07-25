@@ -32,11 +32,7 @@ export class DockerModule extends PackageModule {
   }
 
   public static get ecrUrl(): string {
-    if (StackModule.localEnv) {
-      return 'localhost:4510';
-    } else {
-      return `${process.env.CDK_DEFAULT_ACCOUNT}.dkr.ecr.${process.env.AWS_REGION}.amazonaws.com`;
-    }
+    return `${process.env.CDK_DEFAULT_ACCOUNT}.dkr.ecr.${process.env.AWS_REGION}.amazonaws.com`;
   }
 
   public static get digestRegex(): RegExp {

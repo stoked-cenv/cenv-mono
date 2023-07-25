@@ -685,7 +685,7 @@ export class Deployment {
     }
   }
 
-  static async Destroy(packages: Package[] = [], options: any) {
+  static async Destroy(packages: Package[] | undefined = [], options: any) {
     try {
       options.mode = ProcessMode.DESTROY;
       this.options.mode = options.mode;

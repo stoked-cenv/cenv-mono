@@ -104,8 +104,7 @@ export default class DeployCommand extends BaseCommand {
 
   @Option({
             flags: '--profile, <profile>',
-            description: `Environment profile to use on deployments.`,
-            defaultValue: 'default',
+            description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
           }) parseProfile(val: string): string {
     return val;
   }

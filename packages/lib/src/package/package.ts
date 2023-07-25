@@ -1,4 +1,4 @@
-import {execCmd, getMonoRoot, packagePath, removeScope, spawnCmd, sureParse, Timer, validateEnvVars} from '../utils';
+import { execCmd, getGuaranteedMonoRoot, getMonoRoot, packagePath, removeScope, spawnCmd, sureParse, Timer, validateEnvVars } from '../utils';
 import {existsSync, readFileSync} from "fs";
 import * as path from 'path';
 import {PackageModule, PackageModuleType, PackageStatus} from './module'
@@ -440,6 +440,7 @@ export class Package implements IPackage {
   cmds: PackageCmd[] = [];
 
   constructor(packageName: string, noCache = false) {
+    console.log('load packageName:', packageName)
     if (!Package.loading && !noCache) {
       const err = new Error(`attempting to load ${packageName} after loading has been disabled`,);
       this.err(err.stack as string);
@@ -525,7 +526,7 @@ export class Package implements IPackage {
         this.setDependentComponentVolatileKeys();
       } else {
         // global
-        this.meta = new PackageMetaConsolidated(getMonoRoot());
+        this.meta = new PackageMetaConsolidated(getGuaranteedMonoRoot());
       }
 
       if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {
@@ -823,12 +824,12 @@ export class Package implements IPackage {
   }
 
   static getRootPackageName() {
-    const monoRepoRoot = getMonoRoot();
+    const monoRepoRoot = getGuaranteedMonoRoot();
     return this.getPackageName(monoRepoRoot);
   }
 
   static getRootPackagePath() {
-    const monoRepoRoot = getMonoRoot();
+    const monoRepoRoot = getGuaranteedMonoRoot();
     return path.join(monoRepoRoot, './package.json');
   }
 
@@ -1169,7 +1170,7 @@ export class Package implements IPackage {
       if (previousVersion === newVersion) {
         return;
       }
-      const root = getMonoRoot();
+      const root = getGuaranteedMonoRoot();
       const relativePath = path.relative(root, this.path as string);
       this.createCmd(`${this.packageName} trigger upgrade: ${previousVersion} to ${newVersion}`, relativePath, 0,);
 
@@ -1195,7 +1196,7 @@ export class Package implements IPackage {
       return cmd;
     } catch (e) {
       CenvLog.single.catchLog(e);
-      process.exit(1);
+      process.exit(3424);
     }
   }
 
@@ -1376,7 +1377,7 @@ export class Package implements IPackage {
       }
 
       if (!options.pkgCmd && options.silent !== true) {
-        const root = getMonoRoot();
+        const root = getGuaranteedMonoRoot();
         const relativePath = path.relative(root, options.pkgPath)
         options.pkgCmd = this.createCmd(cmd, relativePath);
         if (options.parentCmd) {

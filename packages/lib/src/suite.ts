@@ -2,18 +2,18 @@ import * as path from 'path';
 import {existsSync, readFileSync} from 'fs';
 import {Environment} from './environment';
 import {EnvironmentStatus, Package, ProcessStatus} from "./package/package";
-import {getMonoRoot} from "./utils";
+import { getGuaranteedMonoRoot, getMonoRoot } from './utils';
 import {Cenv} from "./cenv";
+import { CenvLog } from './log';
 
 export class Suites {
   static data: any;
   static cache: Suite[] = [];
 
   static hasPackage(packageName: string): boolean {
-    const suitesJson = Suite.readSuites();
-    if (Object.keys(suitesJson)?.length) {
-      const pkg = Object.keys(suitesJson).filter(k => {
-        return suitesJson[k].packages.find(packageName);
+    if (Cenv.suites && Object.keys(Cenv.suites)?.length) {
+      const pkg = Object.keys(Cenv.suites).filter(k => {
+        return Cenv.suites[k].packages.find(packageName);
       });
       return !!pkg;
     }
@@ -56,31 +56,16 @@ export class Suite {
     if (Suites.data) {
       return Suites.data[suite];
     }
-    Suite.readSuites();
 
-    if (Suites?.data && Suites.data[suite]) {
-      return new Suite(Suites.data[suite]);
+
+    if (Cenv.suites && Cenv.suites[suite]) {
+      return new Suite(Cenv.suites[suite]);
     }
   }
 
   static suitePath() {
-    const rootPath = getMonoRoot();
-    return path.join(rootPath, 'suites.json');
-  }
-
-  static readSuites() {
-    if (Suites.data) {
-      return Suites.data;
-    }
-    const suitesPath = this.suitePath();
-    if (!existsSync(suitesPath)) {
-      return;
-    }
-    const suites: any = readFileSync(suitesPath, 'utf-8');
-    if (!suites) {
-      return;
-    }
-    Suites.data = JSON.parse(suites);
-    return Suites.data;
+    const rootPath = getGuaranteedMonoRoot();
+    const suitePath = path.join(rootPath, 'suites.json');
+    return existsSync(suitePath) ? suitePath : false;
   }
 }

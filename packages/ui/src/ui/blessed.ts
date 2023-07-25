@@ -10,6 +10,8 @@ function getBlessedDeps() {
   return blessedDeps;
 }
 
+blessed.text.prototype.name = '';
+
 blessed.widget.List.prototype.move = async function (offset: number) {
   this.select(this.selected + offset);
 };

@@ -1,3 +1,4 @@
+import {blessed, contrib} from './blessed';
 import {Text} from 'blessed/lib/widgets/text';
 import {List} from 'blessed/lib/widgets/list';
 import {Box} from 'blessed/lib/widgets/box';
@@ -8,11 +9,14 @@ import {CenvPanel} from './panel';
 import chalk from 'chalk';
 import {CenvLog, Cmd, PackageCmd} from '@stoked-cenv/lib';
 
+blessed.text.prototype.name = '';
+blessed.list.prototype.name = ''
+blessed.box.prototype.name = '';
 export default class CmdPanel extends CenvPanel {
-  grid: any;
-  cmdList: any;
-  stdout: Text;
-  stderr: any;
+  grid: contrib.grid;
+  cmdList: blessed.list;
+  stdout: blessed.text;
+  stderr: blessed.box;
   selectedCmdIndex = -1;
   debugStr: any;
 
@@ -22,7 +26,7 @@ export default class CmdPanel extends CenvPanel {
 
   init() {
     try {
-      this.cmdList = this.addGridWidget(List, {
+      this.cmdList = this.addGridWidget(blessed.list, {
         keys: true, mouse: true, interactive: true, style: {
           text: 'red', selected: {
             bold: true, fg: [24, 242, 24], bg: 'black',
@@ -33,7 +37,7 @@ export default class CmdPanel extends CenvPanel {
       }, [0, 2, 1, 3], true,);
       this.cmdList.name = 'tasks';
 
-      this.stdout = this.addGridWidget(Text, {
+      this.stdout = this.addGridWidget(blessed.text, {
         vi: true, fg: 'white', label: 'stdout', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
           ch: ' ', inverse: true,
         }, style: {
@@ -63,7 +67,7 @@ export default class CmdPanel extends CenvPanel {
         }
       });
 
-      this.stderr = this.addGridWidget(Box, {
+      this.stderr = this.addGridWidget(blessed.box, {
         fg: 'brightRed', label: 'stderr', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
           ch: ' ', inverse: true,
         }, style: {

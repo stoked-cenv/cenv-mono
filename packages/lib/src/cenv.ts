@@ -17,7 +17,6 @@ import {Package, PackageCmd,} from './package/package'
 import {deleteFunction, getFunction} from './aws/lambda'
 import {
   createApplication,
-  createConfigurationProfile,
   createDeploymentStrategy,
   createEnvironment,
   deleteCenvData,
@@ -26,21 +25,28 @@ import {
   getDeploymentStrategy,
   getEnvironment
 } from './aws/appConfig'
-import chalk from 'chalk';
+import * as chalk from 'chalk';
 import * as path from 'path';
 import {BaseCommandOptions, CenvParams, DashboardCreateOptions, DashboardCreator, validateOneType} from './params';
 import {Environment,} from './environment';
 import {Export} from '@aws-sdk/client-cloudformation';
-import {listExports} from "./aws/cloudformation";
+import { getExportValue, listExports } from './aws/cloudformation';
 import {CenvFiles, EnvConfig} from "./file";
 import {upsertParameter} from "./aws/parameterStore";
-import {execCmd, getMonoRoot, packagePath, search_sync, sleep, validateEnvVars} from "./utils";
-import {ioAppEnv} from "./stdIo";
-import {deleteHostedZone} from "./aws/route53";
-import {existsSync, mkdirSync, readFileSync, writeFileSync} from "fs";
+import { createParamsLibrary, EnvVars, execCmd, getMonoRoot, packagePath, search_sync, sleep, validateEnvVars } from './utils';
+import { getContextConfig, ConfigureCommandOptions, getMatchingProfileConfig, ioAppEnv, ioReadVarList } from './stdIo';
+import { deleteHostedZone, listHostedZones } from './aws/route53';
+import { existsSync, mkdirSync, readFileSync, rmdirSync, writeFileSync } from 'fs';
 import * as child from 'child_process';
 import {PackageModule} from "./package/module";
 import {Template} from "./templates";
+import { Suite } from './suite';
+import { Version } from './version';
+import { Deployment } from './deployment';
+import { Dashboard } from '@stoked-cenv/ui';
+import { getKey } from './aws/kms';
+import { HostedZone } from '@aws-sdk/client-route-53';
+import { getAccountId } from './aws/sts';
 
 interface FlagValidation {
   application: string;
@@ -202,8 +208,14 @@ export class Cenv {
 
   static async new(name: string, options: NewCommandOptions) {
     const projectPath = path.join(process.cwd(), name);
-    if (existsSync(projectPath) && !options?.force) {
-      throw new Error(`the directory ${name} already exists`)
+    if (existsSync(projectPath)) {
+      if (!options?.force) {
+        CenvLog.single.alertLog(`the directory ${name} already exists, either add the --force flag to replace the existing data or choose a new directory`);
+        process.exit(636);
+      } else {
+        rmdirSync(projectPath);
+        mkdirSync(projectPath);
+      }
     }
     mkdirSync(path.join(projectPath, 'packages'), {recursive: true});
     process.chdir(projectPath);
@@ -213,8 +225,16 @@ export class Cenv {
     await Template.newWeb()
   }
 
-  static async cmdInit(options: any, runningInitCmd = false): Promise<boolean> {
+  static async cmdInit(options: any, cenvRootNotRequired = false): Promise<boolean> {
     try {
+
+      CenvFiles.setPaths();
+
+      Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
+      Cenv.cleanTags = (...text: string[]) => {
+        return Dashboard.cleanTags(...text);
+      }
+
       if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
         options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
         const {logLevel}: { logLevel: keyof typeof LogLevel } = options;
@@ -226,14 +246,22 @@ export class Cenv {
         CenvLog.logLevel = LogLevel.INFO;
       }
 
-      if (runningInitCmd) {
+      if (!process.env.CENV_VERSION) {
+        await Version.getVersion('@stoked-cenv/cli');
+        await Version.getVersion('@stoked-cenv/lib');
+        await Version.getVersion('@stoked-cenv/ui');
+      }
+
+      options.args = await Cenv.configure(options as ConfigureCommandOptions);
+
+      const monoRoot = getMonoRoot();
+      if (!monoRoot && cenvRootNotRequired) {
         return true;
       }
 
-      let monoRoot = getMonoRoot();
       if (!monoRoot) {
-        monoRoot = process.cwd();
-        await this.init({});
+        CenvLog.single.alertLog(`the cwd "${process.cwd()}" is not located inside a cenv folder.. run "cenv init" to initialize the current directory as a cenv project or call 'cenv new My-New-Cenv-App'`)
+        process.exit(902);
       }
       const cenvConfigPath = path.resolve(monoRoot, 'cenv.json');
       if (existsSync(cenvConfigPath)) {
@@ -241,14 +269,21 @@ export class Cenv {
         Cenv.defaultSuite = cenvConfig.defaultSuite;
         Cenv.scopeName = cenvConfig.scope;
         Cenv.suites = cenvConfig.suites;
+        const suitesPath = Suite.suitePath()
+        if (suitesPath) {
+          if (Cenv.suites) {
+            CenvLog.single.catchLog('a suites.json file is not supported when there is also a suites property in the cenv.json file');
+            process.exit(687);
+          } else {
+            Cenv.suites = require(suitesPath);
+          }
+        }
         Cenv.globalPackage = cenvConfig.globalPackage;
         Cenv.primaryPackagePath = cenvConfig.primaryPackagePath
         if (cenvConfig.globalPackage) {
           const packageGlobalPath = packagePath(cenvConfig.globalPackage);
           if (!packageGlobalPath || !existsSync(packageGlobalPath)) {
-            if (!runningInitCmd) {
-              CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${cenvConfig.globalPackage} (using scope and globals property)`);
-            }
+            CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${cenvConfig.globalPackage} (using scope and globals property)`);
           } else if (packageGlobalPath) {
             CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
           }
@@ -579,9 +614,7 @@ export class Cenv {
 
       const materializationExists = await getFunction('cenv-params');
       if (!materializationExists) {
-        //const pkgPath = process.env.HOME + '/.paramsBuilder';
-        //await execCmd(pkgPath, `rm -rf *`);
-        //const zipFile = await createParamsLibrary(pkgPath);
+        const zipFile = await createParamsLibrary();
         //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV },);
       }
     } catch (e) {
@@ -702,7 +735,6 @@ export class Cenv {
     }
 
     const envConfig: EnvConfig = CenvFiles.GetConfig(options?.environment || process.env.ENV);
-    if (envConfig) {}
 
     if (!options?.destroy && !options?.clean && envConfig && envConfig?.ApplicationId && options?.application && envConfig.ApplicationName !== options.application) {
       CenvLog.single.errorLog('Must use --destroy or --clean with an existing config if --application is used',);
@@ -809,12 +841,143 @@ export class Cenv {
 
     if (!options?.push && !options?.stack) {
       await CenvParams.pull(false, false, true, true);
-    } else {
-
     }
 
     if (options?.push) {
       await CenvParams.push(options?.stack);
     }
   }
+
+  static async getAccountInfo() {
+    const callerIdentity: any = await getAccountId();
+    if (!callerIdentity) {
+      return false;
+    }
+    return {
+      CDK_DEFAULT_ACCOUNT: callerIdentity.Account,
+      AWS_ACCOUNT_USER: callerIdentity.User,
+      AWS_ACCOUNT_USER_ARN: callerIdentity.UserArn
+    };
+  }
+
+  static async configure(options: any, alwaysAsk = false) {
+
+    // verify that we need a config at all
+    if (!alwaysAsk) {
+      const contextConfig = getContextConfig();
+      if (contextConfig) {
+        return contextConfig;
+      }
+
+    }
+    const profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
+
+    let envConfig = profileData?.envConfig;
+
+    const { ROOT_DOMAIN, AWS_PROFILE, AWS_REGION, ENV } = process.env;
+    const envVarList = new EnvVars({...profileData?.envConfig, ...{ ROOT_DOMAIN, AWS_PROFILE, AWS_REGION, ENV }});
+    if (!envConfig || (alwaysAsk && !options?.show)) {
+      envVarList.setVars(envConfig || {
+        AWS_PROFILE: options?.profile || 'default', AWS_REGION: 'us-east-1', ENV: 'dev'
+      });
+
+      if (!process.env.CENV_DEFAULTS || alwaysAsk) {
+        envVarList.setVars(await ioReadVarList(envVarList.all));
+      }
+      const accountInfo: any = await this.getAccountInfo();
+      envVarList.add(accountInfo);
+      //await setSession(envVarList.get(accountInfo.));
+
+      const awsCredsFile = path.join(process.env.HOME!, '.aws/credentials');
+      if (existsSync(awsCredsFile)) {
+        const credentials = readFileSync(awsCredsFile, 'utf8')
+        const prof = credentials.split(`[${envVarList.get('AWS_PROFILE')}]`)[1]?.split('[')[0];
+        envVarList.set('AWS_ACCESS_KEY_ID', prof?.split('aws_access_key_id = ')[1]?.split('\n')[0]);
+        envVarList.set('AWS_SECRET_ACCESS_KEY', prof?.split('aws_secret_access_key = ')[1]?.split('\n')[0]);
+      }
+      if (!envVarList.check('KMS_KEY') && options?.key) {
+        const kmsKey = await getKey();
+        envVarList.setVars(await ioReadVarList({KMS_KEY: kmsKey}));
+      }
+
+      // TODO: cycle through the hosted zones instead of having the user type it in..
+      if (!envVarList.check('ROOT_DOMAIN')) {
+        const defaultRootDomainPath = path.join(CenvFiles.ProfilePath, `default-root-domain`);
+        let defaultRootDomain: string | undefined = undefined;
+        if (existsSync(defaultRootDomainPath)) {
+          defaultRootDomain = readFileSync(defaultRootDomainPath, 'utf8');
+        }
+
+        const hostedZones = await listHostedZones();
+        if (hostedZones && hostedZones.length) {
+          let domain: string | undefined = undefined;
+          if (defaultRootDomain !== undefined) {
+            const defaultZone = hostedZones.find((hz: HostedZone) => hz.Name && hz.Name.indexOf(defaultRootDomain) > -1)
+            if (defaultZone) {
+              domain =  defaultZone.Name!.slice(0, -1);
+            }
+          } else if (!domain) {
+            const recordSetCountSorted = hostedZones.filter((hz: HostedZone) => hz.ResourceRecordSetCount)
+                                                    .sort(({ResourceRecordSetCount: a}, {ResourceRecordSetCount: b}) => b as number - (a as number));
+            if (recordSetCountSorted.length > 0) {
+              domain = recordSetCountSorted[0].Name!.slice(0, -1);
+            } else {
+              domain = hostedZones[0].Name!.slice(0, -1);
+            }
+          }
+          const userSelected = await ioReadVarList( { ROOT_DOMAIN: domain });
+          envVarList.set('ROOT_DOMAIN', userSelected.ROOT_DOMAIN);
+
+          // TODO: does the zone they typed appear in our list of available zones?
+        }
+      }
+
+      if (!existsSync(CenvFiles.ProfilePath)) {
+        mkdirSync(CenvFiles.ProfilePath, {recursive: true});
+      }
+      writeFileSync(profileData.profilePath, JSON.stringify(envVarList.all, null, 2));
+      envConfig = envVarList.all;
+    }
+
+    for (const [key, value] of Object.entries(envConfig) as [string, string][]) {
+      envVarList.set(key, value);
+
+      if (key === 'AWS_REGION') {
+        envVarList.set('CDK_DEFAULT_REGION', value);
+      }
+    }
+
+    if (!envVarList.get('CDK_DEFAULT_ACCOUNT') || !envVarList.get('AWS_ACCOUNT_USER') || !envVarList.get('AWS_ACCOUNT_USER_ARN')) {
+      const accountInfo: any = await this.getAccountInfo();
+      if (!accountInfo) {
+        process.exit(9);
+      } else {
+        envVarList.add(accountInfo);
+      }
+    }
+
+    if (!process.env['KMS_KEY']) {
+      const kmsKey = await getKey();
+      if (kmsKey) {
+        envVarList.set('KMS_KEY', kmsKey);
+      }
+    }
+
+    envVarList.set('VITE_APP_ROOT_DOMAIN', envVarList.get('ROOT_DOMAIN') as string);
+    envVarList.set('VITE_APP_ENV', envVarList.get('ENV') as string);
+
+    const cidr = await getExportValue('cidr', true);
+    if (cidr) {
+      envVarList.set('CENV_NETWORK_CIDR', 'cidr')
+    }
+
+    // because cdk logs everything to stderr by default.. fucking annoying..
+    envVarList.set('CI', 'true')
+
+    if (options?.show) {
+      CenvLog.single.infoLog(`${JSON.stringify(envVarList.all, null, 2)}`);
+    }
+    return envVarList.all;
+  }
+
 }

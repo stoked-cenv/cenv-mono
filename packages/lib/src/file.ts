@@ -5,16 +5,13 @@ import {existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync} from 'fs
 import {CenvLog, errorBold, errorDim, errorInfo, infoAlertBold, infoBold} from "./log";
 import Ajv from "ajv";
 import {prettyPrint} from "@base2/pretty-print-object";
-import {fromDir, validateEnvVars} from './utils';
+import { fromDir, getMonoRoot, validateEnvVars } from './utils';
 import {BaseCommandOptions, CenvParams} from "./params";
 import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
 import {encrypt} from './aws/kms';
 import {getConfig} from "./aws/appConfig";
-
-
-if (!process.env.HOME) {
-  process.env.HOME = './';
-}
+import * as path from 'path';
+import { Cenv } from './cenv';
 
 
 const {appExt} = configDefaults;
@@ -24,17 +21,17 @@ const ajv = new Ajv({allErrors: true, verbose: true});
 export const cenvRoot = './.cenv/';
 
 class Settings {
-  ApplicationName: string = '';
-  EnvironmentName: string = '';
+  ApplicationName = '';
+  EnvironmentName = '';
 }
 
 export class EnvConfig {
-  ApplicationName: string = '';
-  EnvironmentName: string = '';
-  ApplicationId: string = '';
-  EnvironmentId: string = '';
-  ConfigurationProfileId: string = '';
-  DeploymentStrategyId: string = '';
+  ApplicationName = '';
+  EnvironmentName = '';
+  ApplicationId = '';
+  EnvironmentId = '';
+  ConfigurationProfileId = '';
+  DeploymentStrategyId = '';
 }
 
 type DecryptedValue = `${'--DEC='}${string}`;
@@ -377,9 +374,11 @@ export class CenvFiles {
   public static EnvVars: VarList = {};
   public static GlobalVars: VarList = {};
   public static GlobalEnvVars: VarList = {};
-  public static GlobalPath: string = '';
-  public static ProfilePath: string = join(process.env.HOME!, './.cenv');
-  private static path = './.cenv/'
+  public static GlobalPath: string | null = null;
+  public static ProfilePath: string | null = null;
+  public static GitTempPath: string | null = null;
+  public static ArtifactsPath: string | null = null;
+  private static path = cenvRoot;
   private static environment: string;
 
   public static get SESSION_PARAMS(): {
@@ -414,6 +413,19 @@ export class CenvFiles {
 
   public static get AWS_ACCOUNT_ID(): any {
     return process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID || 'local'
+  }
+
+  public static get PRIMARY_PACKAGE_PATH(): any {
+    if (!Cenv.primaryPackagePath) {
+      Cenv.primaryPackagePath = 'packages';
+    }
+    const root = getMonoRoot();
+    if (!root) {
+      CenvLog.single.catchLog('can not find the primary package path because there is no mono repo');
+      process.exit(799);
+    }
+    return join(root, Cenv.primaryPackagePath);
+
   }
 
   // load the environment config
@@ -678,9 +690,9 @@ export class CenvFiles {
 
   private static getLocalCenvFiles(startPath: string = cenvRoot, environment?: string) {
 
-    const config = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})\.config$`) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, undefined);
-    const envVars = fromDir(startPath, environment ? new RegExp(`^\.cenv\.(${environment})$`) : /^\.cenv\.[a-zA-Z0-9]*$/, undefined);
-    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(`\.cenv\.(${environment})\.globals$`) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
+    const config = fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})\.config$/) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, undefined);
+    const envVars = fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})$/) : /^\.cenv\.[a-zA-Z0-9]*$/, undefined);
+    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(/\.cenv\.(${environment})\.globals$/) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
     if (environment) {
       return {config, envVars, globalEnvVars};
     }
@@ -711,5 +723,34 @@ export class CenvFiles {
       return result;
     }
     return undefined;
+  }
+
+  static ensurePath(path: string) {
+    if (!existsSync(path)) {
+      mkdirSync(path, {recursive: true});
+    }
+  }
+
+  static setPaths() {
+    if (!process.env.HOME) {
+      process.env.HOME = require('os').homedir();
+    }
+
+    if (!process.env.CENV_PROFILE_PATH) {
+      process.env.CENV_PROFILE_PATH = path.join(process.env.HOME, cenvRoot, 'profiles');
+      this.ProfilePath = process.env.CENV_PROFILE_PATH;
+      this.ensurePath(this.ProfilePath);
+    }
+
+    if (!this.GitTempPath) {
+      this.GitTempPath = path.join(process.env.HOME, cenvRoot, 'gitTemp');
+      this.ensurePath(this.GitTempPath);
+    }
+
+    if (!this.ArtifactsPath) {
+      this.ArtifactsPath = path.join(process.env.HOME, cenvRoot, 'artifacts');
+      this.ensurePath(this.ArtifactsPath);
+    }
+
   }
 }

@@ -4,7 +4,7 @@ import {Package} from './package/package';
 import {eq, lt, parse, RangeOptions, SemVer} from "semver";
 import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
 import {getProfiles, ProfileData,} from "./stdIo";
-import {getMonoRoot, search_sync, sureParse} from "./utils";
+import { getMonoRoot, getProbableMonoRoot, search_sync, sureParse } from './utils';
 import {CenvFiles} from "./file";
 
 export enum BumpMode {
@@ -208,7 +208,12 @@ export class Version {
   }
 
   static async Upgrade_1_0_0() {
-    const monoRoot = getMonoRoot();
+    let monoRoot = getMonoRoot();
+    if (!monoRoot) {
+      monoRoot = getProbableMonoRoot();
+      CenvLog.single.catchLog('could not upgrade from a version before 1.0.0 automatically.. try putting a suites.json or cenv.json file in the root directory');
+      process.exit(391);
+    }
     const search = search_sync(path.resolve(monoRoot), false, true, '.cenv', {
       excludedDirs: ['node_modules', 'cdk.out', '.cenv'], startsWith: true,
     }) as string[];

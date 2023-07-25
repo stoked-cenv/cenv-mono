@@ -5,6 +5,11 @@ module.exports = {
         project: '**/tsconfig.json',
         tsconfigRootDir : __dirname,
         sourceType: 'module',
+        ecmaFeatures: {
+            experimentalDecorators: true,
+            jsx: true,
+            tsx: true
+        },
     },
     plugins: ['@typescript-eslint'],
     root: true,
@@ -15,7 +20,9 @@ module.exports = {
         '@typescript-eslint/no-explicit-any': 'off',
         '@typescript-eslint/no-var-requires': 'off',
         '@typescript-eslint/no-control-regex': 0,
-        '@typescript-eslint/no-fallthrough': 'off'
+        '@typescript-eslint/no-fallthrough': 'off',
+        '@typescript-eslint/no-non-null-assertion': 'off',
+        'no-useless-escape': 'off'
     },
     env: {
         node: true,

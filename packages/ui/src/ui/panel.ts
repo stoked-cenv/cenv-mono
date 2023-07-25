@@ -1,10 +1,10 @@
 import {Screen} from 'blessed/lib/widgets/screen';
-import {Grid} from 'blessed-contrib/lib/layout/grid';
+import * as contrib from 'blessed-contrib';
 import {Package, PackageCmd, PackageModule} from '@stoked-cenv/lib';
 import {Dashboard} from './dashboard'
 
 export abstract class CenvPanel {
-  grid: Grid;
+  grid: contrib.grid;
   active = false;
   dashboard: Dashboard;
   screen: Screen;
@@ -35,9 +35,8 @@ export abstract class CenvPanel {
     this.render();
   }
 
-  addGridWidget(widget: any, widgetOptions: Record<string, any>, gridOptions: number[], focusable = false, grid?: undefined) {
-    const theGrid = grid || this.grid;
-    const newWidget = theGrid.set(gridOptions[0], gridOptions[1], gridOptions[2], gridOptions[3], widget, widgetOptions);
+  addGridWidget(widget: any, widgetOptions: Record<string, any>, gridOptions: number[], focusable = false) {
+    const newWidget = this.dashboard.grid.set(gridOptions[0], gridOptions[1], gridOptions[2], gridOptions[3], widget, widgetOptions);
 
     this.widgets.push(newWidget)
     if (focusable) {

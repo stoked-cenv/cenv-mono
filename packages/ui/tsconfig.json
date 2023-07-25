@@ -13,14 +13,15 @@
     "baseUrl": "src",
     "incremental": true,
     "skipLibCheck": true,
+    "noImplicitAny": false,
     "strictNullChecks": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "typeRoots": [
-      "./node_modules/@types",
-      "types"
+      "types/read",
+      "node_modules/@types"
     ]
   },
   "include": [

@@ -1,0 +1,27 @@
+{
+  "name": "cli",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "type": "library",
+  "targets": {
+    "test": {
+      "executor": "nx-uvu:uvu",
+      "options": {
+        "rootDir": "packages/cli/test",
+        "useSwc": false,
+        "coverage": false,
+        "pattern": "index.spec.ts"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "rootDir": "packages/cli/src",
+        "commands": ["rimraf --glob src/**/*.js -v"],
+        "__unparsed__": "test iwjfiw"
+      }
+    },
+    "echo": {
+      "command": "echo 'hello'"
+    }
+  }
+}

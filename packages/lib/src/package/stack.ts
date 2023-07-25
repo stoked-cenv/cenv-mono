@@ -28,13 +28,10 @@ export class StackModule extends PackageModule {
     this.stackType = this.pkg.fullType === 'services' ? StackType.ECS : StackType.LAMBDA;
   }
 
-  public static get localEnv(): boolean {
-    return process.env.ENV! === 'local';
+  public static get cdkExe(): string {
+    return 'cdk';
   }
 
-  public static get cdkExe(): string {
-    return this.localEnv ? 'cdklocal' : 'cdk';
-  }
   static commands = [`${this.cdkExe} deploy --require-approval never --no-color -m direct`, `${this.cdkExe} destroy --force --no-color`, `${this.cdkExe} synth`,];
 
   get statusText(): string {

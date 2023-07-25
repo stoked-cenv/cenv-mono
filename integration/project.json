@@ -1,0 +1,36 @@
+{
+  "name": "integration",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "type": "library",
+  "targets": {
+    "e2e": {
+      "executor": "nx-uvu:uvu",
+      "options": {
+        "rootDir": "integration",
+        "useSwc": true,
+        "coverage": true,
+        "pattern": "index.spec.ts"
+      }
+    },
+    "e2e-ref": {
+      "executor": "nx-uvu:uvu",
+      "options": {
+        "rootDir": "integration",
+        "useSwc": true,
+        "coverage": true,
+        "pattern": "reference.spec.ts"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "rootDir": "integration",
+        "command": "rimraf --glob {projectRoot}/src/**/*.js"
+      }
+    }
+  },
+  "implicitDependencies": ["cli", "@stoked-cenv/lib", "@stoked-cenv/ui", "@stoked-cenv/cdk"],
+  "scripts": {
+    "clean": "rimraf --glob **/*.js"
+  }
+}

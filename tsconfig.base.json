@@ -1,16 +1,23 @@
 {
   "compilerOptions": {
-    "lib": ["es2017"],
-    "target": "es2017",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "module": "commonjs",
     "declaration": true,
-    "noImplicitAny": false
+    "removeComments": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "es2017",
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "strict": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "sourceMap": true,
+    "lib": ["ES7"],
+    "esModuleInterop": true,
+    "paths": {
+      "nest-commander": ["packages/nest-commander/src/index.ts"],
+      "nest-commander-testing": ["packages/nest-commander-testing/src/index.ts"]
+    }
   },
-  "include": [],
-  "exclude": ["node_modules", "cdk.out", "bin", "deploy", "dist", "test", "Dockerfile"]
+  "exclude": ["node_modules", "dist"]
 }

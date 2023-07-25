@@ -11,5 +11,5 @@ cenv.build.log
 !webpack.config.js
 !babel.config.js
 *.js.map
-
-basic-cli
+/packages/lib/.version.json
+/packages/cli/tsconfig.tsbuildinfo

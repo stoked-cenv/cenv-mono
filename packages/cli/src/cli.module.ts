@@ -26,10 +26,11 @@ import { LogService } from './common/log.service';
 
 @Module({
           providers: [
+
+            CenvCommand,
             AddParamsCommand,
             BuildCommand,
             LogService,
-            CenvCommand,
             CleanCommand,
             ConfigureCommand,
             DeployCommand,

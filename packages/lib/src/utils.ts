@@ -20,6 +20,7 @@ import {Cenv, StackProc} from "./cenv"
 import {cancelUpdateStack, deleteStack, describeStacks} from "./aws/cloudformation";
 import {Stack} from "@aws-sdk/client-cloudformation";
 import {RangeOptions} from "semver";
+import { createRole, getRole } from './aws/iam';
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
   return typeof value === 'string' ? !!value : value && value.length > 0;
@@ -45,7 +46,7 @@ export function stringToArray(value: string | string[]): string[] {
   return isString(value) ? [value as string] : (value as string[]);
 }
 
-const packagePaths: any = {};
+const packagePaths: Record<string, string> = {};
 
 export function stackPath(codifiedName: string): string | false {
   const pkgComp = Package.getPackageComponent(codifiedName);
@@ -65,13 +66,20 @@ export function stackPath(codifiedName: string): string | false {
 
 export function packagePath(packageName: string, workingDirectory?: string, useCache = true): string | false {
   if (packageName === 'GLOBAL') {
-    return getMonoRoot(workingDirectory, useCache);
+    const pkgPath = getMonoRoot(workingDirectory, useCache);
+    if (!pkgPath) {
+      return false;
+    }
+    return pkgPath;
   }
   if (useCache && packagePaths[packageName]) {
     return packagePaths[packageName];
   }
 
   const cwd = getMonoRoot(workingDirectory, workingDirectory ? false : useCache);
+  if (!cwd) {
+    return false;
+  }
   const packages = search_sync(cwd, false, true, 'package.json', {
     excludedDirs: ['cdk.out', 'node_modules'],
   }) as string[];
@@ -755,6 +763,27 @@ export function exitWithoutTags(tags: any) {
   }
 }
 
+export function getProbableMonoRoot() {
+  const searchFallback = search_sync(process.cwd(), true, false, 'suites.json', { fallBack: 'package.json' }) as searchSyncFallbackResults;
+  if (searchFallback.results && searchFallback.results.length) {
+    return searchFallback.results[0];
+  }
+
+  if (searchFallback?.fallbacks?.length) {
+    return getShortestPathCount(searchFallback.fallbacks);
+  }
+  return false;
+}
+
+export function getShortestPathCount(paths: string[]) {
+  if (!paths?.length) {
+    CenvLog.single.catchLog('can not get shortest path from an empty array');
+    process.exit(882);
+  }
+  const sortedPaths = paths.sort((a,b) => (a.split('/').length > b.split('/').length) ? 1 : ((b.split('/').length > a.split('/').length) ? -1 : 0))
+  return sortedPaths[0];
+}
+
 export function getMonoRoot(workingDirectory = './', useCache = true) {
   if (useCache && packagePaths['root']) {
     return packagePaths['root'];
@@ -772,8 +801,22 @@ export function getMonoRoot(workingDirectory = './', useCache = true) {
   return rootPath;
 }
 
+export function getGuaranteedMonoRoot(workingDirectory = './', useCache = true): string {
+  const rootPath = getMonoRoot(workingDirectory, useCache);
+  if (!rootPath) {
+    CenvLog.single.catchLog(`could not locate the suitePath because the cwd "${process.cwd()}" does not appear to be in a cenv repo`)
+    process.exit(750)
+  }
+  return rootPath;
+}
+
 export function getMonoRootName() {
-  return getMonoRoot().split('/').pop();
+  const root = getMonoRoot();
+  if (!root) {
+    // TODO: probably should throw error?
+    return false;
+  }
+  return root.split('/').pop();
 }
 
 function elapsedBase(start: [number, number], format = 'seconds', note: string, silent = false) {
@@ -932,8 +975,7 @@ export function expandTemplateVars(baseVars: any) {
         if (!dependencyTree[k]) {
           dependencyTree[k] = new Set();
         }
-        if (groupIndex === 0) {
-        } else {
+        if (groupIndex !== 0) {
           dependencyTree[k].add(match);
         }
       });
@@ -981,8 +1023,11 @@ export function expandTemplateVars(baseVars: any) {
 }
 
 export async function deleteFiles(search: string | RegExp, options: any) {
-  console.log(search, options);
   const monoRoot = getMonoRoot();
+  if (!monoRoot) {
+    // TODO: probably should throw error here
+    return;
+  }
   const results = search_sync(path.resolve(monoRoot), false, true, search, options,) as string[];
   for (let i = 0; i < results.length; i++) {
     const file = results[i];
@@ -1553,13 +1598,13 @@ export function pbcopy(data: any) {
   proc.stdin.end();
 }
 
-export async function createParamsLibrary(pkgPath: string) {
+export async function createParamsLibrary() {
 
-  if (!existsSync(pkgPath)) {
-    mkdirSync(pkgPath);
+  if (!existsSync(CenvFiles.GitTempPath)) {
+    mkdirSync(CenvFiles.GitTempPath);
   }
 
-  const libPathModule = pkgPath + '/node_modules/@stoked-cenv/lib'
+  const libPathModule = CenvFiles.GitTempPath + '/node_modules/@stoked-cenv/lib'
   if (!existsSync(libPathModule)) {
     mkdirSync(libPathModule, {recursive: true});
   }
@@ -1575,16 +1620,16 @@ export async function createParamsLibrary(pkgPath: string) {
   delete pkgMeta.dependencies['stoked-cenv'];
   writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
   const paramsPath = path.join(__dirname, '../params');
-  copyFileSync(paramsPath + pkg + '.build', pkgPath + pkg);
-  copyFileSync(paramsPath + tsconfig + '.build', pkgPath + tsconfig);
-  copyFileSync(paramsPath + index + '.build', pkgPath + index);
+  copyFileSync(paramsPath + pkg + '.build', CenvFiles.GitTempPath + pkg);
+  copyFileSync(paramsPath + tsconfig + '.build', CenvFiles.GitTempPath + tsconfig);
+  copyFileSync(paramsPath + index + '.build', CenvFiles.GitTempPath + index);
 
   await execCmd(libPathModule, 'npm i');
-  await execCmd(pkgPath, 'npm i');
-  await execCmd(pkgPath, 'tsc');
+  await execCmd(CenvFiles.GitTempPath, 'npm i');
+  await execCmd(CenvFiles.GitTempPath, 'tsc');
 
-  await execCmd(pkgPath, `zip -r materializationLambda.zip * > zip.log`);
-  return path.join(pkgPath, `materializationLambda.zip`)
+  await execCmd(CenvFiles.GitTempPath, `zip -r materializationLambda.zip * > zip.log`);
+  return path.join(CenvFiles.GitTempPath, `materializationLambda.zip`)
 }
 
 export function onlyUnique(value: any, index: number, array: any[]) {
@@ -1635,16 +1680,55 @@ export function sureParse(version: string | semver.SemVer | null, opt?: RangeOpt
 }
 
 export class EnvVars {
-  vars: Readonly<Record<string, string>> = {}
   private _vars: Record<string, string> = {};
 
   constructor(properties: Record<string, string> = {}) {
-    this.setVars(properties);
+
+    Object.entries(properties).forEach((entry) => {
+      if (entry[1] !== undefined) {
+        this._vars[entry[0]] = entry[1];
+      }
+    });
+  }
+
+  get all() {
+    return this._vars;
+  }
+
+  get json() {
+    return JSON.stringify(this._vars, null, 2);
+  }
+
+  static clean(value: string) {
+    if (value.indexOf(' ') === -1) {
+      return value.split('"').join('');
+    }
+    return value;
+  }
+
+  get(key: string): string {
+    const value = this._vars[key];
+    if (!value) {
+      CenvLog.single.errorLog(`the key ${key} was not found in the environment variable key store`);
+      process.exit(545);
+    }
+
+    return EnvVars.clean(value);
+  }
+
+  check(key: string): string | undefined {
+    const value = this._vars[key];
+    if (!value) {
+      return undefined;
+    }
+
+    return EnvVars.clean(value);
   }
 
   set(key: string, value: string) {
+    key = EnvVars.clean(key);
+    value = EnvVars.clean(value);
     this._vars[key] = value;
-    this.vars = this._vars
     process.env[key] = value;
   }
 
@@ -1656,17 +1740,15 @@ export class EnvVars {
 
   remove(key: string) {
     delete this._vars[key];
-    this.vars = this._vars
     delete process.env[key];
   }
 
   setVars(envVars: {[key: string]: string}) {
-    for (const key in Object.keys(this.vars)) {
+    for (const key in Object.keys(this._vars)) {
       if (!envVars[key]) {
         this.remove(key)
       }
     }
     this.add(envVars);
-    this.vars = this._vars
   }
 }

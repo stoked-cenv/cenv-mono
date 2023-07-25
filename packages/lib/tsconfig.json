@@ -1,19 +1,20 @@
 {
   "compileOnSave": true,
   "compilerOptions": {
-    "declaration": true,
     "module": "commonjs",
+    "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "target": "es2017",
-    "outDir": "./dist",
     "sourceMap": true,
+    "outDir": "./dist",
     "baseUrl": "src",
+    "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": false,
     "noImplicitAny": false,
+    "strictNullChecks": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
@@ -24,10 +25,11 @@
     ]
   },
   "include": [
-    "src",
+    "lib/**/*.ts",
     "types/read"
   ],
   "exclude": [
+    "lib/**/*.d.ts",
     "node_modules",
     "dist",
     "build",

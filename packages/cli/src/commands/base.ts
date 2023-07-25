@@ -1,15 +1,7 @@
-import {CommandRunner} from 'nest-commander';
+import { CommandRunner, Option } from 'nest-commander';
 import {Dashboard} from '@stoked-cenv/ui';
 import {
-  BaseCommandOptions,
-  Cenv,
-  configure,
-  ConfigureCommandOptions,
-  Deployment,
-  Package,
-  parseCmdParams,
-  ProcessMode,
-  Version
+  BaseCommandOptions, Cenv,Package, parseCmdParams, ProcessMode,
 } from '@stoked-cenv/lib';
 
 export abstract class BaseCommand extends CommandRunner {
@@ -20,37 +12,34 @@ export abstract class BaseCommand extends CommandRunner {
   packageRequired = false;
   meta: any;
 
-  async run(passedParams: string[], options?: any) {
-    Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
-    Cenv.cleanTags = (...text: string[]) => {
-      return Dashboard.cleanTags(...text);
-    }
-    const runningInit = this.command.name() === 'init' || this.command.name() === 'new';
-    await Cenv.cmdInit(options, runningInit);
 
-    if (!process.env.CENV_VERSION) {
-      await Version.getVersion('@stoked-cenv/cli');
-      await Version.getVersion('@stoked-cenv/lib');
-      await Version.getVersion('@stoked-cenv/ui');
-    }
+  @Option({
+    flags: '--profile <profile>',
+    description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
+  })
+  parseVersion(val: boolean): boolean {
+    return val;
+  }
 
-    if (runningInit) {
+  async run(passedParams: string[], options?: BaseCommandOptions) {
+
+    const cenvRootNotRequired = this.command.name() === 'init' || this.command.name() === 'new';
+    const opt: any = options;
+    await Cenv.cmdInit(opt, cenvRootNotRequired);
+
+    this.args = opt?.args;
+
+    if (cenvRootNotRequired) {
       await this.runCommand(passedParams, options);
       return;
     }
-
-    if (!options?.profile && !options?.env) {
-      options.profile = 'default';
-    }
-
-    this.args = await configure(options as ConfigureCommandOptions);
     if (!this.allowUI) {
-      options.cli = true;
+      opt.cli = true;
     }
-    options.localPackageAccepted = this.localPackageAccepted;
-    const passThru = {skipBuild: options.skipBuild};
+    opt.localPackageAccepted = this.localPackageAccepted;
+    const passThru = {skipBuild: opt.skipBuild};
 
-    const {packages, parsedParams, validatedOptions} = await parseCmdParams(passedParams, options, this.deploymentMode);
+    const {packages, parsedParams, validatedOptions} = await parseCmdParams(passedParams, opt, this.deploymentMode);
     const deployCreateOptions = {
       packages,
       suite: validatedOptions.suite,
@@ -58,7 +47,7 @@ export abstract class BaseCommand extends CommandRunner {
       cmd: this.deploymentMode,
       options: validatedOptions
     }
-    if (options?.userInterface && !process.env.CENV_SPAWNED) {
+    if (opt?.userInterface && !process.env.CENV_SPAWNED) {
       if (!Cenv.dashboard) {
         Cenv.dashboard = new Dashboard(deployCreateOptions);
       }

@@ -1,10 +1,12 @@
 import blessed from 'blessed';
 import {Cenv, CenvLog, getMonoRoot, Package, PackageModule, ProcessMode} from "@stoked-cenv/lib";
-import {Table} from 'blessed-contrib/lib/widget/table';
+import * as contrib from 'blessed-contrib';
 import {CenvPanel} from './panel';
 import Groups from './group';
 import chalk from 'chalk';
 import {Dashboard} from './dashboard';
+
+contrib.table.prototype.baseRender = contrib.table.prototype.render;
 
 enum ParamType {
   app, environment, global, globalEnv
@@ -317,8 +319,9 @@ export default class StatusPanel extends CenvPanel {
     }
   }
 
+
   addParamCtrl(type: string, gridOptions: number[]) {
-    const paramCtrl = this.addGridWidget(Table, this.getParameterWidgetOptions(type), gridOptions, true);
+    const paramCtrl = this.addGridWidget(contrib.table, this.getParameterWidgetOptions(type), gridOptions, true);
     paramCtrl.type = 'params';
     paramCtrl.name = type;
     paramCtrl.rows.top = 0;
@@ -365,6 +368,7 @@ export default class StatusPanel extends CenvPanel {
       }
     });
 
+
     paramCtrl.render = () => {
       if (this.screen.focused == paramCtrl.rows) {
         paramCtrl.rows.focus();
@@ -372,7 +376,7 @@ export default class StatusPanel extends CenvPanel {
 
       paramCtrl.rows.width = paramCtrl.width - 3;
       paramCtrl.rows.height = paramCtrl.height - 2;
-      blessed.Box.prototype.render.call(this);
+      paramCtrl.baseRender();
     };
     return paramCtrl;
   }

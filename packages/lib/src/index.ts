@@ -32,6 +32,7 @@ export * from './environment';
 export * from './suite';
 export * from './cenv';
 export * from './queue'
+export * from './test';
 
 export {toUtf8} from '@aws-sdk/util-utf8-node';
 

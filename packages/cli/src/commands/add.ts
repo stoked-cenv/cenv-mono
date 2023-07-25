@@ -14,11 +14,11 @@ interface AddParamCommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-           name: 'add',
-           description: 'Add parameter(s) to package',
-           arguments: '<key> [value]',
-           aliases: ['update', 'upsert']
-         })
+  name: 'add',
+  description: 'Add parameter(s) to package',
+  arguments: '<key> [value]',
+  aliases: ['update', 'upsert']
+})
 export default class AddCommand extends BaseCommand {
 
   @Option({
@@ -74,7 +74,7 @@ export default class AddCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+            flags: '--profile, <profile>', description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
           }) parseProfile(val: string): string {
     return val;
   }

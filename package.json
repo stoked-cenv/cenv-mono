@@ -11,6 +11,7 @@
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
     "e2e": "nx e2e integration",
+    "clean": "rimraf --glob src/**/*.js",
     "version": "echo pnpm $(pnpm --version); echo tsc $(tsc --version); echo node $(node --version); nx --version; cenv --version",
     "version:bump": "pnpm -r run version:bump prerelease --force && pnpm -r up \"@stoked-cenv/*\" && git add package.json packages/cli/package.json packages/ui/package.json packages/lib/package.json packages/cdk/package.json pnpm-lock.yaml && git commit -m \"push bump packages\" && git push && pnpm version prerelease && git push",
     "publish:bump": "pnpm run version:bump && pnpm --filter \"@stoked-cenv/*\" run publish:bump --publish-branch $(git rev-parse --abbrev-ref HEAD)"

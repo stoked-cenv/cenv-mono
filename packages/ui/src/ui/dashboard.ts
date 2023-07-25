@@ -58,7 +58,7 @@ export class Dashboard {
   // static state
   static toggleDebug = false;
   static instance?: Dashboard = undefined;
-  static stackName = '';
+  static stackName = 'GLOBAL';
   static moduleToggle = true;
   static dependencyToggle = true;
   static paramsToggle = false;
@@ -1311,6 +1311,10 @@ export class Dashboard {
   }
 
   getPkg(stackName?: string) {
+    stackName = stackName ? stackName : Dashboard.stackName;
+    if (!stackName) {
+      return undefined;
+    }
     return Package.fromStackName(stackName ? stackName : Dashboard.stackName);
   }
 

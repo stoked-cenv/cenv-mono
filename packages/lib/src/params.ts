@@ -491,9 +491,7 @@ export class CenvParams {
     if (!data) {
       return;
     }
-    if (process.env.ENV === 'local') {
-      data.isLocalStack = true;
-    }
+
     if (test) {
       const res = await this.MaterializeCore(data);
       CenvLog.single.verboseLog('materialization test results:\n' + res);
@@ -527,11 +525,6 @@ export class CenvParams {
       if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId || !DeploymentStrategyId) {
         console.log('Missing required parameters in event');
         return {error: new Error('Missing required parameters in event')}
-      }
-
-      if (event.isLocalStack) {
-        console.log('set localstack')
-        process.env.AWS_ENDPOINT = 'http://localhost.localstack.cloud:4566';
       }
 
       const appConfig = {

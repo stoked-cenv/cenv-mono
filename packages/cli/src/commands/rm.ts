@@ -3,7 +3,6 @@ import {
   BaseCommandOptions,
   CenvLog,
   CenvParams,
-  configure,
   deleteParametersByPath,
   filteredCount,
   info,
@@ -90,7 +89,7 @@ export default class RemoveCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+            flags: '--profile, <profile>', description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
           }) parseProfile(val: string): string {
     return val;
   }
@@ -103,9 +102,6 @@ export default class RemoveCommand extends BaseCommand {
   async runCommand(params: string[], options?: RemoveCommandOptions, packages?: Package[]): Promise<void> {
     try {
 
-      if (options?.profile) {
-        await configure(options);
-      }
       if (options?.path) {
         await deleteParametersByPath(options?.path);
         return;

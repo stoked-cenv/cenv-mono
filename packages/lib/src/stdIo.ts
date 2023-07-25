@@ -4,7 +4,7 @@ import * as path from 'path';
 import {BaseCommandOptions} from './params'
 import {CenvLog, errorBold, infoAlert, infoAlertBold, infoBold, infoInput} from './log';
 import {existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync} from 'fs';
-import {getAccountId} from './aws/sts';
+import { getAccountId, setSession } from './aws/sts';
 import {EnvVars, inputArgsToEnvVars, validateEnvVars} from "./utils";
 import {getKey} from './aws/kms';
 import {listHostedZones} from './aws/route53';
@@ -54,7 +54,6 @@ export async function ioAppEnv(config: any, application: any, environment: any, 
     return;
   }
   application = await ioReadVar('application name', application.value, application.defaultValue, defaults);
-  console.log('application', application)
   environment = await ioReadVar('environment name', environment.value, environment.defaultValue, defaults);
 
   return {application, environment};
@@ -76,7 +75,7 @@ export async function ioYesOrNo(prompt = 'Are you sure?', defaultValue = 'n'): P
   return false;
 }
 
-function getContextConfig() {
+export function getContextConfig() {
   const {
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, ROOT_DOMAIN, CDK_DEFAULT_ACCOUNT, CDK_DEFAULT_REGION, ENV
   } = process.env;
@@ -97,23 +96,6 @@ export interface ConfigureCommandOptions extends BaseCommandOptions {
 }
 
 const defaultAwsRegion = 'us-east-1';
-let defaultRootDomain = `${hostname}.stokedconsulting.com`;
-
-async function getAccountInfo() {
-  const callerIdentity: any = process.env.ENV === 'local' ? {Account: '000000000000', User: ''} : await getAccountId();
-  const accountId = callerIdentity.Account;
-  if (!accountId) {
-    return false;
-  }
-  const args: any = {};
-  process.env['CDK_DEFAULT_ACCOUNT'] = accountId;
-  args['CDK_DEFAULT_ACCOUNT'] = accountId;
-  process.env['AWS_ACCOUNT_USER'] = callerIdentity.User;
-  args['AWS_ACCOUNT_USER'] = callerIdentity.User;
-  process.env['AWS_ACCOUNT_USER_ARN'] = callerIdentity.UserArn;
-  args['AWS_ACCOUNT_USER_ARN'] = callerIdentity.UserArn;
-  return args;
-}
 
 export function printProfileQuery(profile?: string, environment?: string) {
   if (!profile && !environment) {
@@ -135,7 +117,13 @@ export function createDirIfNotExists(path: string) {
 }
 
 export async function getProfiles(paramMatchesOnly = false, profile = '', environment = '') {
-  const filename = profile === 'default' ? 'default' : `${profile}↔${environment}`;
+  const getFile = () => {
+    if (profile === '' && environment === '') {
+      return 'default';
+    }
+    return `${profile}↔${environment}`
+  }
+  const filename = getFile();
   const reservedFiles = ['localstack-api-key', 'default-root-domain']
 
   createDirIfNotExists(CenvFiles.ProfilePath);
@@ -198,155 +186,19 @@ export async function loadCenvProfile(filename: string, options?: Record<string,
   let profilePath;
 
   if (filename) {
-    profilePath = path.join(process.env.HOME!, `.cenv/${filename}`);
+    profilePath = path.join(CenvFiles.ProfilePath, filename);
   } else {
-    profilePath = path.join(process.env.HOME!, `.cenv/default`)
+    profilePath = path.join(CenvFiles.ProfilePath, `default`)
   }
-  let alwaysAsk: boolean = false;
+  let alwaysAsk = false;
   if (existsSync(profilePath)) {
     envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
-    if (!envConfig.CDK_DEFAULT_ACCOUNT) {
-      process.env.AWS_PROFILE = envConfig.AWS_PROFILE;
-      process.env.AWS_REGION = envConfig.AWS_REGION;
-      const accountInfo = await getAccountInfo();
-      if (!accountInfo) {
-        return;
-      }
-      envConfig = {...envConfig, ...accountInfo};
-      writeFileSync(profilePath, JSON.stringify(envConfig));
-    }
   } else if (options?.show) {
     CenvLog.single.alertLog(`no configuration currently setup to show run '${infoAlertBold('cenv configure')}'`);
-    process.exit();
+    process.exit(231);
   } else {
     alwaysAsk = true;
   }
 
   return {envConfig, profilePath, askUser: alwaysAsk};
-}
-
-export async function configure(options: any, alwaysAsk = false, verifyLocalRunning = false) {
-
-  const defaultRootDomainPath = path.join(CenvFiles.ProfilePath, `default-root-domain`);
-
-  // verify that we need a config at all
-  if (options?.profile === 'default' && !alwaysAsk) {
-    const contextConfig = getContextConfig();
-    if (contextConfig) {
-      return contextConfig;
-    }
-  }
-
-  let profileData: ProfileData = {askUser: alwaysAsk, profilePath: path.join(process.env.CENV_PROFILE_PATH!, 'default')};
-  let profilePath = '';
-  if (!alwaysAsk) {
-    profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
-    profilePath = profileData.profilePath;
-    alwaysAsk = profileData.askUser;
-  } else {
-    profilePath = path.join(CenvFiles.ProfilePath, `default`);
-  }
-
-  //let args: Record<string, string> = {};
-  let envConfig = profileData?.envConfig;
-
-  if (existsSync(defaultRootDomainPath)) {
-    defaultRootDomain = readFileSync(defaultRootDomainPath, 'utf8');
-  }
-
-  let envVarList = new EnvVars();
-  if (!envConfig || (alwaysAsk && !options?.show)) {
-    envVarList.setVars(envConfig || {
-      AWS_PROFILE: 'default', AWS_REGION: 'us-east-1', ENV: 'dev'
-    });
-
-    if (!process.env.CENV_DEFAULTS || alwaysAsk) {
-      envVarList.setVars(await ioReadVarList(envVarList));
-    }
-    if (!envVarList.vars.KMS_KEY && options?.key) {
-      const kmsKey = await getKey();
-      envVarList.setVars(await ioReadVarList({KMS_KEY: kmsKey}));
-    }
-
-    // TODO: cycle through the hosted zones instead of having the user type it in..
-    if (!envVarList.vars.ROOT_DOMAIN) {
-      const hostedZones = await listHostedZones();
-      if (hostedZones && hostedZones.length) {
-        const defaultZone = hostedZones.find((hz: HostedZone) => hz.Name && hz.Name.indexOf(defaultRootDomain) > -1)
-        if (defaultZone) {
-          envVarList.set('ROOT_DOMAIN', defaultZone.Name!);
-        } else {
-          const recordSetCountSorted = hostedZones.filter((hz: HostedZone) => hz.ResourceRecordSetCount)
-                                                  .sort(({ResourceRecordSetCount: a}, {ResourceRecordSetCount: b}) => b as number - (a as number));
-          if (recordSetCountSorted.length > 0) {
-            envVarList.set('ROOT_DOMAIN', recordSetCountSorted[0].Name!);
-          } else {
-            envVarList.set('ROOT_DOMAIN', hostedZones[0].Name!);
-          }
-        }
-        const userSelected = await ioReadVarList({ROOT_DOMAIN: envVarList.vars.ROOT_DOMAIN});
-        envVarList.set('ROOT_DOMAIN', userSelected.ROOT_DOMAIN);
-
-        // TODO: does the zone they typed appear in our list of available zones?
-      }
-    }
-
-    if (!existsSync(path.join(process.env.HOME!, '.cenv'))) {
-      mkdirSync(path.join(process.env.HOME!, '.cenv'), {recursive: true});
-    }
-    writeFileSync(profilePath, JSON.stringify(envVarList, null, 2));
-    envConfig = envVarList.vars;
-  }
-
-  for (const [key, value] of Object.entries(envConfig) as [string, string][]) {
-    envVarList.set(key, value);
-
-    if (key === 'AWS_REGION') {
-      envVarList.set('CDK_DEFAULT_REGION', value);
-    }
-
-    if (key === 'AWS_PROFILE') {
-      const awsCredsFile = path.join(process.env.HOME!, '.aws/credentials');
-      if (existsSync(awsCredsFile)) {
-        const credentials = readFileSync(awsCredsFile, 'utf8')
-        const prof = credentials.split(`[${value}]`)[1]?.split('[')[0];
-        envVarList.set('AWS_ACCESS_KEY_ID', prof?.split('aws_access_key_id = ')[1]?.split('\n')[0]);
-        envVarList.set('AWS_SECRET_ACCESS_KEY', prof?.split('aws_secret_access_key = ')[1]?.split('\n')[0]);
-      }
-    }
-  }
-
-  if (!envVarList.vars.CDK_DEFAULT_ACCOUNT || !envVarList.vars.AWS_ACCOUNT_USER || !envVarList.vars.AWS_ACCOUNT_USER_ARN) {
-    const accountInfo: any = await getAccountInfo();
-    if (!accountInfo) {
-      process.exit(9);
-    } else {
-      envVarList.add(accountInfo);
-    }
-  }
-
-  if (!process.env['KMS_KEY']) {
-    const kmsKey = await getKey();
-    if (kmsKey) {
-      envVarList.set('KMS_KEY', kmsKey);
-    }
-  }
-
-  envVarList.set('VITE_APP_ROOT_DOMAIN', envVarList.vars.ROOT_DOMAIN);
-  envVarList.set('VITE_APP_ENV', envVarList.vars.ENV);
-
-  writeFileSync(defaultRootDomainPath, envVarList.vars.ROOT_DOMAIN);
-
-  const cidr = await getExportValue('cidr', true);
-  if (cidr) {
-    envVarList.set('CENV_NETWORK_CIDR', 'cidr')
-  }
-
-  // because cdk logs everything to stderr by default.. fucking annoying..
-  envVarList.set('CI', 'true')
-
-  if (options?.show) {
-    CenvLog.single.infoLog(`${JSON.stringify(envVarList.vars, null, 2)}`);
-  }
-  return envVarList.vars;
 }

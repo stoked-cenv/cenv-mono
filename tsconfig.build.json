@@ -1,4 +1,7 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "dist", "example", "packages","test"]
+  "compilerOptions": {
+    "experimentalDecorators": true
+  },
+  "exclude": ["test", "example"]
 }

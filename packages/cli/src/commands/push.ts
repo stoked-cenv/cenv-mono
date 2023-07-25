@@ -1,6 +1,6 @@
 import {Command, Option} from 'nest-commander';
 import {
-  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, configure, createEnvironment, errorInfo, getEnvironment
+  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, createEnvironment, errorInfo, getEnvironment
 } from '@stoked-cenv/lib'
 
 import {BaseCommand} from './base'
@@ -40,14 +40,13 @@ export default class PushCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '--profile, <profile>', description: `Environment profile to use on init.`, defaultValue: 'default',
+            flags: '--profile, <profile>', description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
           }) parseProfile(val: string): string {
     return val;
   }
 
   async runCommand(param: string[], options: PushCommandOptions): Promise<void> {
     try {
-      await configure(options);
       const config = CenvFiles.GetConfig();
       if (!config) {
         CenvLog.single.errorLog('push: could not load config');

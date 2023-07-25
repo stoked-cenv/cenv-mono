@@ -22,8 +22,7 @@ export default class CleanCommand extends BaseCommand {
   @Option({
             name: 'environment',
             flags: '-e, --environment <environment>',
-            description: 'clean specific environment only',
-            defaultValue: undefined
+            description: 'clean specific environment only'
           }) parseEnvironment(val: string): string {
     return val;
   }

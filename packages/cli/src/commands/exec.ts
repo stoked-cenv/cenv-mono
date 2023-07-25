@@ -3,7 +3,6 @@ import * as path from 'path';
 import {
   BaseCommandOptions,
   CenvFiles,
-  configure as cenvConfigure,
   errorInfo,
   getConfigVars,
   Package,
@@ -31,7 +30,7 @@ export default class ExecCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '--profile <string>', description: 'Cenv configuration profile', defaultValue: 'default',
+            flags: '--profile <string>', description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
           }) parseEnvironment(val: string): string {
     return val;
   }
@@ -49,9 +48,7 @@ export default class ExecCommand extends BaseCommand {
   }
 
   async runCommand(params: string[], options: any, packages: Package[]): Promise<void> {
-
     try {
-      const cenvVars = await cenvConfigure(options);
       let vars = {};
       await Promise.all(packages.map(async (p: Package) => {
         const pkgPath = packagePath(p.packageName);
@@ -63,7 +60,7 @@ export default class ExecCommand extends BaseCommand {
           const config = CenvFiles.GetConfig();
           if (config) {
             vars = await getConfigVars(true, false, 'ENVIRONMENT VARIABLES', true);
-            Object.entries(cenvVars).forEach(([key, value]) => {
+            Object.entries(options.args).forEach(([key, value]) => {
               console.log(`export ${chalk.whiteBright(key)}=${chalk.whiteBright(value)}`)
             });
           }

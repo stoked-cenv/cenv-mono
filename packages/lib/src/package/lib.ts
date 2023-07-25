@@ -3,7 +3,7 @@ import {IPackageModule, PackageModule, PackageModuleType} from './module';
 import {CenvLog} from '../log';
 import {Deployment} from "../deployment";
 import {BumpMode, Version} from "../version";
-import {computeMetaHash, getMonoRoot} from "../utils";
+import { computeMetaHash, getGuaranteedMonoRoot, getMonoRoot } from '../utils';
 import {join} from "path";
 import {existsSync, readFileSync, writeFileSync} from "fs";
 
@@ -40,7 +40,7 @@ export class LibModule extends PackageModule {
   }
 
   static loadBuildLog() {
-    this.buildLogPath = join(getMonoRoot(), './cenv.build.log');
+    this.buildLogPath = join(getGuaranteedMonoRoot(), './cenv.build.log');
     if (existsSync(this.buildLogPath)) {
       this.buildLog = JSON.parse(readFileSync(this.buildLogPath, 'utf-8'));
     } else {
