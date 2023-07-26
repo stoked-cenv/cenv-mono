@@ -285,7 +285,7 @@ export class Cenv {
           if (!packageGlobalPath || !existsSync(packageGlobalPath)) {
             CenvLog.single.infoLog(`globals could not be loaded from the data provided in the cenv.json definition file ${cenvConfig.globalPackage} (using scope and globals property)`);
           } else if (packageGlobalPath) {
-            CenvFiles.GlobalPath = path.join(packageGlobalPath, CenvFiles.PATH);
+            CenvFiles.setGlobalPath(path.join(packageGlobalPath, CenvFiles.PATH));
           }
         }
       } else {
@@ -874,8 +874,8 @@ export class Cenv {
 
     let envConfig = profileData?.envConfig;
 
-    const { ROOT_DOMAIN, AWS_PROFILE, AWS_REGION, ENV } = process.env;
-    const envVarList = new EnvVars({...profileData?.envConfig, ...{ ROOT_DOMAIN, AWS_PROFILE, AWS_REGION, ENV }});
+    const envVarList = new EnvVars({...profileData?.envConfig});
+    envVarList.setEnvVars(['ROOT_DOMAIN', 'AWS_PROFILE', 'AWS_REGION', 'ENV']);
     if (!envConfig || (alwaysAsk && !options?.show)) {
       envVarList.setVars(envConfig || {
         AWS_PROFILE: options?.profile || 'default', AWS_REGION: 'us-east-1', ENV: 'dev'
@@ -902,7 +902,7 @@ export class Cenv {
 
       // TODO: cycle through the hosted zones instead of having the user type it in..
       if (!envVarList.check('ROOT_DOMAIN')) {
-        const defaultRootDomainPath = path.join(CenvFiles.ProfilePath, `default-root-domain`);
+        const defaultRootDomainPath = path.join(CenvFiles.PROFILE_PATH, `default-root-domain`);
         let defaultRootDomain: string | undefined = undefined;
         if (existsSync(defaultRootDomainPath)) {
           defaultRootDomain = readFileSync(defaultRootDomainPath, 'utf8');
@@ -932,8 +932,8 @@ export class Cenv {
         }
       }
 
-      if (!existsSync(CenvFiles.ProfilePath)) {
-        mkdirSync(CenvFiles.ProfilePath, {recursive: true});
+      if (!existsSync(CenvFiles.PROFILE_PATH)) {
+        mkdirSync(CenvFiles.PROFILE_PATH, {recursive: true});
       }
       writeFileSync(profileData.profilePath, JSON.stringify(envVarList.all, null, 2));
       envConfig = envVarList.all;

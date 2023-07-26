@@ -3,7 +3,7 @@ import {
   AppConfigDataClient, GetLatestConfigurationCommand, StartConfigurationSessionCommand
 } from "@aws-sdk/client-appconfigdata";
 import * as YAML from 'yaml';
-import chalk from 'chalk';
+import * as chalk from 'chalk';
 import {CenvParams} from '../params';
 import {CenvLog, info, infoAlertBold} from '../log';
 import {CenvFiles} from '../file';

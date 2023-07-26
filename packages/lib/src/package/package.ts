@@ -440,12 +440,11 @@ export class Package implements IPackage {
   cmds: PackageCmd[] = [];
 
   constructor(packageName: string, noCache = false) {
-    console.log('load packageName:', packageName)
+
     if (!Package.loading && !noCache) {
       const err = new Error(`attempting to load ${packageName} after loading has been disabled`,);
       this.err(err.stack as string);
     }
-
     const isGlobal = packageName === 'GLOBAL';
 
     const packageComponent = Package.getPackageComponent(packageName);
@@ -455,6 +454,7 @@ export class Package implements IPackage {
     this.instance = packageComponent.instance;
     this.stackName = Package.packageNameToStackName(packageName);
     this.name = this.stackName.replace(process.env.ENV + '-', '');
+    CenvLog.single.verboseLog('load packageName: ' + packageName, this.stackName, true)
 
     if (!noCache) {
       const pkg = Package.cache[this.stackName];
@@ -470,8 +470,7 @@ export class Package implements IPackage {
 
       let pkgPath;
       if (isRoot || isGlobal) {
-        pkgPath = getMonoRoot();
-        this.fullType = this.package.toLowerCase();
+        pkgPath = getGuaranteedMonoRoot();
       } else {
         pkgPath = packagePath(this.package);
         if (!pkgPath) {
@@ -485,13 +484,7 @@ export class Package implements IPackage {
       }
 
       if (pkgPath) {
-        const pkgPathParts = pkgPath.split('/');
-
-        if (!this.fullType) {
-          while (pkgPathParts.shift() !== 'packages' && pkgPathParts.length > 0) { /* loop  until done sucka */
-          }
-          this.fullType = pkgPathParts.shift();
-        }
+        this.fullType = 'pkg'
 
         this.meta = new PackageMetaConsolidated(pkgPath);
         const pathMeta = this.meta.metas[pkgPath];
@@ -527,6 +520,7 @@ export class Package implements IPackage {
       } else {
         // global
         this.meta = new PackageMetaConsolidated(getGuaranteedMonoRoot());
+        this.fullType = 'global';
       }
 
       if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {

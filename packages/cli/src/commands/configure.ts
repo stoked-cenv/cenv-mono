@@ -26,6 +26,14 @@ export default class ConfigureCommand extends BaseCommand {
   }
 
 
+  @Option({
+            flags: '-s, --show',
+            description: 'Show the configuration for a specific profile',
+          })
+  parseShow(val: boolean): boolean {
+    return val;
+  }
+
   async set(params: string[], options?: ConfigureCommandOptions) {
     if (params.length === 1) {
       if (params[0] !== 'set') {
@@ -53,7 +61,9 @@ export default class ConfigureCommand extends BaseCommand {
         await this.set(passedParams, options);
         return;
       }
-      await Cenv.configure(options, true);
+      if (!options?.show) {
+        await Cenv.configure(options, true);
+      }
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

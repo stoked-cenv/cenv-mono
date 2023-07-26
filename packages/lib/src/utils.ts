@@ -997,7 +997,7 @@ export function expandTemplateVars(baseVars: any) {
   let iteration = 0;
   let lastSize = size;
   while (dependencies.size) {
-    for (const dep of dependencies.keys()) {
+    for (const dep of Array.from(dependencies)) {
       if (!dependencyTree[dep]) {
         Object.keys(baseVars).map((k) => {
           baseVars[k] = baseVars[k].replace(`<{${dep}}>`, baseVars[dep]);
@@ -1423,7 +1423,7 @@ export function validateBaseOptions(deployCreateOptions: DashboardCreateOptions)
           options.cli = true;
         }
       }
-    } else if (!!(options.cenv || options.key)) {
+    } else if (options.cenv || options.key) {
       options.cli = true;
     }
     options.userInterface = !options.cli;
@@ -1481,7 +1481,7 @@ async function execEnvironment(environment: string, fileList: string[] = [], fun
     if (existsSync('package.json')) {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
       if (!pkg?.cenv?.ApplicationName) {
-        pkg.cenv = {ApplicationName: pkg.name, GlobalPath: CenvFiles.GlobalPath}
+        pkg.cenv = {ApplicationName: pkg.name, GlobalPath: CenvFiles.GLOBAL_PATH}
       }
       await func(pkg.cenv.ApplicationName, environment);
     } else {
@@ -1502,10 +1502,7 @@ export async function processEnvFiles(environment: string, added?: string[], cha
     await execEnvironment(environment, changed, execInit);
   }
   if (deleted) {
-    async function execDestroy(application: string) {
-      await deleteCenvData(application, false, true,);
-    }
-
+    const execDestroy = async (application: string) => { await deleteCenvData(application, false, true) }
     await execEnvironment(environment, deleted, execDestroy);
   }
 }
@@ -1600,11 +1597,11 @@ export function pbcopy(data: any) {
 
 export async function createParamsLibrary() {
 
-  if (!existsSync(CenvFiles.GitTempPath)) {
-    mkdirSync(CenvFiles.GitTempPath);
+  if (!existsSync(CenvFiles.GIT_TEMP_PATH)) {
+    mkdirSync(CenvFiles.GIT_TEMP_PATH);
   }
 
-  const libPathModule = CenvFiles.GitTempPath + '/node_modules/@stoked-cenv/lib'
+  const libPathModule = CenvFiles.GIT_TEMP_PATH + '/node_modules/@stoked-cenv/lib'
   if (!existsSync(libPathModule)) {
     mkdirSync(libPathModule, {recursive: true});
   }
@@ -1620,16 +1617,16 @@ export async function createParamsLibrary() {
   delete pkgMeta.dependencies['stoked-cenv'];
   writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
   const paramsPath = path.join(__dirname, '../params');
-  copyFileSync(paramsPath + pkg + '.build', CenvFiles.GitTempPath + pkg);
-  copyFileSync(paramsPath + tsconfig + '.build', CenvFiles.GitTempPath + tsconfig);
-  copyFileSync(paramsPath + index + '.build', CenvFiles.GitTempPath + index);
+  copyFileSync(paramsPath + pkg + '.build', CenvFiles.GIT_TEMP_PATH + pkg);
+  copyFileSync(paramsPath + tsconfig + '.build', CenvFiles.GIT_TEMP_PATH + tsconfig);
+  copyFileSync(paramsPath + index + '.build', CenvFiles.GIT_TEMP_PATH + index);
 
   await execCmd(libPathModule, 'npm i');
-  await execCmd(CenvFiles.GitTempPath, 'npm i');
-  await execCmd(CenvFiles.GitTempPath, 'tsc');
+  await execCmd(CenvFiles.GIT_TEMP_PATH, 'npm i');
+  await execCmd(CenvFiles.GIT_TEMP_PATH, 'tsc');
 
-  await execCmd(CenvFiles.GitTempPath, `zip -r materializationLambda.zip * > zip.log`);
-  return path.join(CenvFiles.GitTempPath, `materializationLambda.zip`)
+  await execCmd(CenvFiles.GIT_TEMP_PATH, `zip -r materializationLambda.zip * > zip.log`);
+  return path.join(CenvFiles.GIT_TEMP_PATH, `materializationLambda.zip`)
 }
 
 export function onlyUnique(value: any, index: number, array: any[]) {
@@ -1726,8 +1723,14 @@ export class EnvVars {
   }
 
   set(key: string, value: string) {
+    if (!value) {
+      return;
+    }
     key = EnvVars.clean(key);
     value = EnvVars.clean(value);
+    if (!value) {
+      return;
+    }
     this._vars[key] = value;
     process.env[key] = value;
   }
@@ -1750,5 +1753,13 @@ export class EnvVars {
       }
     }
     this.add(envVars);
+  }
+
+  setEnvVars(envVars: string []) {
+    for (const key in envVars) {
+      if (process.env[key]) {
+        this.set(key, process.env[key]!);
+      }
+    }
   }
 }

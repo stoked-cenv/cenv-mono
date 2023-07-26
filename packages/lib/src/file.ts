@@ -275,7 +275,7 @@ export class EnvVarsFile extends File {
 
 export class GlobalVarsFile extends File {
   public static get PATH(): string {
-    const p = join(CenvFiles.GlobalPath as string, this.NAME as string);
+    const p = join(CenvFiles.GLOBAL_PATH as string, this.NAME as string);
     return p.toString();
   }
 
@@ -295,7 +295,7 @@ export class GlobalVarsFile extends File {
     }
   }
 
-  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
+  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GLOBAL_PATH) {
     let merged = data;
     if (existsSync(this.PATH)) {
       const globalData = super.read(this.PATH, this.SCHEMA, false);
@@ -311,7 +311,7 @@ export class GlobalVarsFile extends File {
 
 export class GlobalEnvVarsFile extends File {
   public static get PATH(): string {
-    const p = join(CenvFiles.GlobalPath as string, this.NAME as string);
+    const p = join(CenvFiles.GLOBAL_PATH as string, this.NAME as string);
     return p.toString();
   }
 
@@ -333,14 +333,14 @@ export class GlobalEnvVarsFile extends File {
   }
 
   public static get TEMPLATE_PATH(): string {
-    return join(CenvFiles.GlobalPath, this.TEMPLATE);
+    return join(CenvFiles.GLOBAL_PATH, this.TEMPLATE);
   }
 
   public static get TEMPLATE(): string {
     return `${appExt}.env.globals.template`
   }
 
-  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GlobalPath) {
+  public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.GLOBAL_PATH) {
     let merged = data;
     if (existsSync(this.PATH)) {
       const globalData = super.read(this.PATH, this.SCHEMA, false);
@@ -374,12 +374,44 @@ export class CenvFiles {
   public static EnvVars: VarList = {};
   public static GlobalVars: VarList = {};
   public static GlobalEnvVars: VarList = {};
-  public static GlobalPath: string | null = null;
-  public static ProfilePath: string | null = null;
-  public static GitTempPath: string | null = null;
-  public static ArtifactsPath: string | null = null;
+  private static GlobalPath: string | null = null;
+  private static ProfilePath: string | null = null;
+  private static GitTempPath: string | null = null;
+  private static ArtifactsPath: string | null = null;
   private static path = cenvRoot;
   private static environment: string;
+
+  public static get GIT_TEMP_PATH(): string {
+    if (!this.GitTempPath) {
+      CenvLog.single.catchLog('CenvFiles.GitTempPath is trying to be accessed but has not been set');
+      process.exit(799);
+    }
+    return this.GitTempPath;
+  }
+
+  public static get GLOBAL_PATH(): string {
+    if (!this.GlobalPath) {
+      CenvLog.single.catchLog('CenvFiles.GlobalPath is trying to be accessed but has not been set');
+      process.exit(799);
+    }
+    return this.GlobalPath;
+  }
+
+  public static get PROFILE_PATH(): string {
+    if (!this.ProfilePath) {
+      CenvLog.single.catchLog('CenvFiles.ProfilePath is trying to be accessed but has not been set');
+      process.exit(799);
+    }
+    return this.ProfilePath;
+  }
+
+  public static get ARTIFACTS_PATH(): string {
+    if (!this.ArtifactsPath) {
+      CenvLog.single.catchLog('CenvFiles.ArtifactsPath is trying to be accessed but has not been set');
+      process.exit(799);
+    }
+    return this.ArtifactsPath;
+  }
 
   public static get SESSION_PARAMS(): {
     ApplicationIdentifier: string, EnvironmentIdentifier: string, ConfigurationProfileIdentifier: string
@@ -451,10 +483,8 @@ export class CenvFiles {
       this.EnvConfig = File.read(EnvConfigFile.NAME, EnvConfigFile.SCHEMA, true) as EnvConfig;
     }
     if (!this.EnvConfig) {
-      const res = await getConfig(process.env.APPLICATION_NAME!, process.env.ENVIRONMENT_NAME);
-      if (!res) {
+      await getConfig(process.env.APPLICATION_NAME!, process.env.ENVIRONMENT_NAME);
 
-      }
     }
     await this.LoadVars(decrypted);
     const ret: any = {
@@ -534,11 +564,11 @@ export class CenvFiles {
     }
 
     if (Object.keys(vars.global).length > 0) {
-      GlobalVarsFile.save(vars.global, silent, GlobalVarsFile.NAME, CenvFiles.GlobalPath);
+      GlobalVarsFile.save(vars.global, silent, GlobalVarsFile.NAME, CenvFiles.GLOBAL_PATH);
     }
 
     if (Object.keys(vars.globalEnv).length > 0) {
-      GlobalEnvVarsFile.save(vars.globalEnv, silent, GlobalEnvVarsFile.NAME, CenvFiles.GlobalPath);
+      GlobalEnvVarsFile.save(vars.globalEnv, silent, GlobalEnvVarsFile.NAME, CenvFiles.GLOBAL_PATH);
     }
   }
 
@@ -692,7 +722,7 @@ export class CenvFiles {
 
     const config = fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})\.config$/) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, undefined);
     const envVars = fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})$/) : /^\.cenv\.[a-zA-Z0-9]*$/, undefined);
-    const globalEnvVars = fromDir(CenvFiles.GlobalPath, environment ? new RegExp(/\.cenv\.(${environment})\.globals$/) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
+    const globalEnvVars = fromDir(CenvFiles.GLOBAL_PATH, environment ? new RegExp(/\.cenv\.(${environment})\.globals$/) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
     if (environment) {
       return {config, envVars, globalEnvVars};
     }
@@ -731,24 +761,27 @@ export class CenvFiles {
     }
   }
 
+  static setGlobalPath(globalPath: string) {
+    this.GlobalPath = globalPath;
+  }
   static setPaths() {
     if (!process.env.HOME) {
       process.env.HOME = require('os').homedir();
     }
 
     if (!process.env.CENV_PROFILE_PATH) {
-      process.env.CENV_PROFILE_PATH = path.join(process.env.HOME, cenvRoot, 'profiles');
+      process.env.CENV_PROFILE_PATH = path.join(process.env.HOME!, cenvRoot, 'profiles');
       this.ProfilePath = process.env.CENV_PROFILE_PATH;
       this.ensurePath(this.ProfilePath);
     }
 
     if (!this.GitTempPath) {
-      this.GitTempPath = path.join(process.env.HOME, cenvRoot, 'gitTemp');
+      this.GitTempPath = path.join(process.env.HOME!, cenvRoot, 'gitTemp');
       this.ensurePath(this.GitTempPath);
     }
 
     if (!this.ArtifactsPath) {
-      this.ArtifactsPath = path.join(process.env.HOME, cenvRoot, 'artifacts');
+      this.ArtifactsPath = path.join(process.env.HOME!, cenvRoot, 'artifacts');
       this.ensurePath(this.ArtifactsPath);
     }
 

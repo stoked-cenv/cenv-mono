@@ -88,7 +88,7 @@ export class Dashboard {
   columnSpacing = 2;
   maxColumnWidth;
   minColumnWidth = 12;
-  tableWidth: number = 0;
+  tableWidth = 0;
   splitter: any;
   suite: string | undefined;
   environment;
@@ -98,7 +98,7 @@ export class Dashboard {
   mode: DashboardMode = DashboardMode.MIXED;
   modeLastWide: DashboardMode = DashboardMode.WIDE_CMD_FIRST;
   modeLast: DashboardMode = DashboardMode.MIXED;
-  dependencies: string = '';
+  dependencies = '';
   cmdOptions: any;
   selectedPackage?: Package;
   selectedRowFg?: number[] = undefined;
@@ -110,8 +110,8 @@ export class Dashboard {
   selectedPackageBgHover = [24, 255, 24];
   selectedFullPackageBgHover = [24, 255, 24];
   packageBgHover = [15, 40, 15];
-  hoverRowIndex: number = -1;
-  selectedRowIndex: number = -1;
+  hoverRowIndex = -1;
+  selectedRowIndex = -1;
   selectedFully = false;
   blue = chalk.blue;
   blueBright = [0, 150, 255];
@@ -123,7 +123,7 @@ export class Dashboard {
   lightGray = [220, 220, 220];
   green = [0, 255, 0];
   statusBarInUse = false;
-  packageHover: boolean = false;
+  packageHover = false;
   view = 'mixed';
   blessedDeps;
   fullScreenCtrl: any;
@@ -1379,7 +1379,7 @@ export class Dashboard {
         return;
       }
       this.selectedPackage = Package.getPackageFromVis(stackNameVis);
-      Dashboard.stackName = this.selectedPackage?.stackName!;
+      Dashboard.stackName = this.selectedPackage.stackName;
 
       this.lastSelectedFully = false;
       this.selectedRowIndex = this.packages.rows.selected;
@@ -1391,7 +1391,7 @@ export class Dashboard {
 
       this.packageTs = Date.now();
 
-      const color = this.getStatusColor(this.selectedPackage?.environmentStatusReal!, true,) as ChalkFunction;
+      const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as ChalkFunction;
       let env = '';
       let envQuote = '';
       if (this.selectedPackage?.packageName !== 'GLOBAL') {
