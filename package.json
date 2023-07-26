@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.40",
+  "version": "2.0.0-a.41",
   "private": true,
   "scripts": {
     "build": "pnpm -r run build",
