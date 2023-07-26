@@ -24,10 +24,14 @@ export default class StatusPanel extends CenvPanel {
   initialized = false;
   moduleInfo: any;
   monoRoot: any;
-  app: any;
-  environment: any;
-  global: any;
-  globalEnv: any;
+
+  // param controls
+  app: blessed.List;
+  environment: blessed.List;
+  global: blessed.List;
+  globalEnv: blessed.List;
+  paramCtrlMap: Record<string, blessed.List>;
+
   parameterColumnWidth = 10;
   fullScreen = false;
   bottom: any;
@@ -100,6 +104,12 @@ export default class StatusPanel extends CenvPanel {
       this.environment = this.addParamCtrl('environment', [2, 2, 3, 3]);
       this.global = this.addParamCtrl('global', [2, 3, 3, 3]);
       this.globalEnv = this.addParamCtrl('globalEnv', [2, 3, 3, 3]);
+      this.paramCtrlMap = {
+        app: this.app,
+        environment: this.environment,
+        global: this.global,
+        globalEnv: this.globalEnv
+      }
 
       /*
       Groups['details'] = [
@@ -355,7 +365,7 @@ export default class StatusPanel extends CenvPanel {
     paramCtrl.on('element click', (item: any)=> {
       this.selectParam(paramCtrl.name, item);
       if (Dashboard.instance) {
-        const index = Dashboard.instance.focusPool.indexOf(this[paramCtrl.name]);
+        const index = Dashboard.instance.focusPool.indexOf(this.paramCtrlMap[paramCtrl.name]);
         this.setFocus(index);
       }
     });
@@ -363,7 +373,7 @@ export default class StatusPanel extends CenvPanel {
     paramCtrl.rows.on('select item', async (item: any) => {
       this.selectParam(paramCtrl.name, item);
       if (Dashboard.instance) {
-        const index = Dashboard.instance.focusPool.indexOf(this[paramCtrl.name]);
+        const index = Dashboard.instance.focusPool.indexOf(this.paramCtrlMap[paramCtrl.name]);
         this.setFocus(index);
       }
     });

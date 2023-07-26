@@ -1,7 +1,4 @@
 import {blessed, contrib} from './blessed';
-import {Text} from 'blessed/lib/widgets/text';
-import {List} from 'blessed/lib/widgets/list';
-import {Box} from 'blessed/lib/widgets/box';
 
 import colors from 'colors/safe';
 import {Dashboard} from './dashboard';

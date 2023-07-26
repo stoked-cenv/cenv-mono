@@ -1,13 +1,11 @@
-import { getGuaranteedMonoRoot, getMonoRoot, IPackage, Package } from '@stoked-cenv/lib';
+import blessed from 'blessed';
+import { getGuaranteedMonoRoot, IPackage, Package } from '@stoked-cenv/lib';
 import * as path from 'path';
 import {existsSync, readFileSync, writeFileSync} from 'fs';
 import {Dashboard} from './dashboard';
-import {Element} from 'blessed/lib/widgets/element';
-import {Form} from 'blessed/lib/widgets/form';
-import {Button} from 'blessed/lib/widgets/button';
-import {Textbox} from "blessed/lib/widgets/textbox";
+
 export default class Dialogs {
-  static dialogs: Element[] = []
+  static dialogs: blessed.Element[] = []
 
   static add(dialog: any) {
     dialog.show();
@@ -51,7 +49,7 @@ export default class Dialogs {
     const bg = 'gray';
     let form: any = undefined;
 
-    form = Form({
+    form = blessed.Form({
                           parent: screen,
                           shadow: false,
                           left: 'center',
@@ -119,7 +117,7 @@ export default class Dialogs {
       screen.render();
     });
 
-    const text = Textbox({
+    const text = blessed.Textbox({
                                    parent: form, mouse: true, keys: true, style: {
         bg: 'blue'
       }, height: 1, width: 20, left: 1, top: 1, name: 'deployment'
@@ -129,7 +127,7 @@ export default class Dialogs {
       text.readInput();
     });
 
-    const submit = Button({
+    const submit = blessed.Button({
                                     parent: form, mouse: true, keys: true, shrink: true, padding: {
         left: 1, right: 1
       }, left: 29, top: 1, name: 'submit', content: 'create', style: {
@@ -180,7 +178,7 @@ export default class Dialogs {
       }
     }, interval)
 
-    form = Form({
+    form = blessed.Form({
                           parent: screen,
                           shadow: false,
                           left: 'center',
@@ -226,7 +224,7 @@ export default class Dialogs {
 
   static yesOrNoDialog(prompt: string, callback: (response: boolean) => void) {
 
-    const form = Form({
+    const form = blessed.Form({
                                 parent: Dashboard.instance?.screen,
                                 shadow: false,
                                 left: 'center',
@@ -250,7 +248,7 @@ export default class Dialogs {
 
     this.dialogs.push(form);
 
-    const yes = Button({
+    const yes = blessed.Button({
                                  parent: form, mouse: true, keys: true, shrink: true, padding: {
         left: 1, right: 1
       }, left: 29, top: 1, name: 'submit', content: 'yes', style: {
@@ -263,7 +261,7 @@ export default class Dialogs {
       form.submit(true);
     });
 
-    const no = Button({
+    const no = blessed.Button({
                                 parent: form, mouse: true, keys: true, shrink: true, padding: {
         left: 8, right: 1
       }, left: 29, top: 2, name: 'submit', content: 'no', style: {

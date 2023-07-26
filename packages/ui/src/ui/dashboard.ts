@@ -1,5 +1,4 @@
 import {blessed, contrib, getBlessedDeps} from './blessed';
-import {Screen} from 'blessed/lib/widgets/screen';
 import Dialogs from './dialogs';
 import Menu from './menu';
 import {
@@ -66,7 +65,7 @@ export class Dashboard {
   static enableMenuCommands = true;
 
   // widgets
-  screen: Screen;
+  screen: blessed.Screen;
   statusOptions?: Menu;
   cmdPanel?: CmdPanel;
   statusPanel?: StatusPanel;
@@ -478,7 +477,7 @@ export class Dashboard {
       this.status.setContent('');
 
       this.screen.key('backspace', async(ch: any, key: any) => {
-        if (!this.statusPanel?.enableSelection || this.focusedBox.type !== 'params') {
+        /*if (!this.statusPanel?.enableSelection || this.focusedBox.type !== 'params') {
           return;
         }
         const pkg = this.getPkg();
@@ -504,6 +503,8 @@ export class Dashboard {
 
         await CenvParams.removeParameters([this.statusPanel.selectedParamKey], {}, [this.focusedBox.name]);
         await this.statusPanel.updateParams(pkg);
+
+         */
       });
 
       this.screen.key(['escape', 'q', 'C-c'], (ch: any, key: any) => {
@@ -1546,12 +1547,12 @@ export class Dashboard {
         row.push(rowColor(pkg.processStatus));
         row.push(rowColor(pkg.timer));
 
-        const finalRow = [tableCalcs.columns];
+        const finalRow: { [key: number]: any} = [];
         for (let j = 0; j < tableCalcs.columns; j++) {
           finalRow[this.columnPriority[j]] = row[this.columnPriority[j]];
         }
 
-        data.push(finalRow);
+        data.push(Object.values(finalRow));
       }
       if (this.selectedRowIndex != this.packages.rows.selected) {
         this.packages.rows.select(this.selectedRowIndex)

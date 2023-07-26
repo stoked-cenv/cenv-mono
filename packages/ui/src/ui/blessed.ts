@@ -1,4 +1,4 @@
-import * as blessed from 'blessed';
+import blessed from 'blessed';
 import * as contrib from 'blessed-contrib';
 import {Dashboard} from './dashboard';
 
@@ -168,5 +168,5 @@ blessed.widget.Box.prototype.enableDrag = function (verify: (data: any) => boole
 
   return (this._draggable = true);
 };
-blessed.widget.Element
+
 export {blessed, getBlessedDeps, contrib};

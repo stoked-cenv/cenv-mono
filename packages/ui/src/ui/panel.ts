@@ -1,4 +1,4 @@
-import {Screen} from 'blessed/lib/widgets/screen';
+import blessed from 'blessed';
 import * as contrib from 'blessed-contrib';
 import {Package, PackageCmd, PackageModule} from '@stoked-cenv/lib';
 import {Dashboard} from './dashboard'
@@ -7,7 +7,7 @@ export abstract class CenvPanel {
   grid: contrib.grid;
   active = false;
   dashboard: Dashboard;
-  screen: Screen;
+  screen: blessed.Screen;
   widgets: any [];
   focusPoolWidgets: any [];
 
