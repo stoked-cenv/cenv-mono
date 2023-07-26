@@ -108,7 +108,7 @@ importers:
         specifier: ^2.41.0
         version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.39
+        specifier: workspace:2.0.0-a.40
         version: link:../lib
       aws-cdk:
         specifier: 2.43.1
@@ -178,10 +178,10 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0(@nestjs/common@10.0.0)(@nestjs/core@10.0.0)
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.39
+        specifier: workspace:2.0.0-a.40
         version: link:../lib
       '@stoked-cenv/ui':
-        specifier: workspace:2.0.0-a.39
+        specifier: workspace:2.0.0-a.40
         version: link:../ui
       chalk:
         specifier: ^4.1.2
@@ -420,7 +420,7 @@ importers:
         specifier: link:/Users/stoked/code/cenv-mono/packages/cli
         version: link:../cli
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.39
+        specifier: workspace:2.0.0-a.40
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0
@@ -8266,7 +8266,7 @@ packages:
       pretty-format: 28.1.3
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.1(@swc/core@1.3.70)(@types/node@18.11.18)(typescript@4.9.5)
+      ts-node: 10.9.1(@swc/core@1.3.70)(@types/node@18.16.19)(typescript@4.9.5)
     transitivePeerDependencies:
       - supports-color
     dev: true
