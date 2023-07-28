@@ -2,13 +2,12 @@
   "name": "@stoked-cenv/ui",
   "version": "2.0.0-a.41",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
   "scripts": {
-    "prebuild": "rimraf dist",
     "start": "node dist/index.js",
+    "build": "echo 'build configured through nx project.json'",
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm run lint -- --fix",
-    "build": "tsc",
     "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
     "version:bump": "pnpm version",
@@ -20,8 +19,6 @@
     "@aws-sdk/client-cloudformation": "^3.370.0",
     "@aws-sdk/client-ecr": "^3.370.0",
     "@aws-sdk/util-utf8-node": "^3.259.0",
-    "@stoked-cenv/cli": "link:/Users/stoked/code/cenv-mono/packages/cli",
-    "@stoked-cenv/lib": "workspace:2.0.0-a.41",
     "async-mutex": "^0.4.0",
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
@@ -51,5 +48,8 @@
     "application",
     "configuration",
     "parameters"
-  ]
+  ],
+  "peerDependencies": {
+    "@stoked-cenv/lib": "^2.0.0-a.35 || ^2.0.1"
+  }
 }

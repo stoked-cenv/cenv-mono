@@ -13,7 +13,7 @@ export * from './aws/ec2';
 export * from './params';
 export * from './utils';
 export * from './configDefaults';
-export * from './log';
+export * from './log.service';
 export * from './stdIo';
 export * from './file';
 export * from './version';

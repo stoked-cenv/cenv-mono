@@ -20,7 +20,6 @@ export default class StatusPanel extends CenvPanel {
   selectedIndex: any;
   debugStr: any;
   dashboard: Dashboard;
-  screen;
   initialized = false;
   moduleInfo: any;
   monoRoot: any;
@@ -30,7 +29,7 @@ export default class StatusPanel extends CenvPanel {
   environment: blessed.List;
   global: blessed.List;
   globalEnv: blessed.List;
-  paramCtrlMap: Record<string, blessed.List>;
+  paramCtrlMap: Record<string, blessed.List> = {};
 
   parameterColumnWidth = 10;
   fullScreen = false;
@@ -51,7 +50,6 @@ export default class StatusPanel extends CenvPanel {
 
   constructor(dashboard: any) {
     super(dashboard);
-    this.screen = dashboard.screen;
     this.dashboard = dashboard;
   }
 
@@ -155,7 +153,7 @@ export default class StatusPanel extends CenvPanel {
         }
       });
 
-      this.moduleInfo = this.grid.set(0, 3, 1, 2, blessed.list, {
+      this.moduleInfo = this.dashboard.grid.set(0, 3, 1, 2, blessed.list, {
         mouse: true, keys: true, style: {
           text: 'red', border: {fg: 'gray'}, label: {side: 'right', fg: 'gray'},
         }, scrollable: true, scrollbar: {
@@ -193,7 +191,7 @@ export default class StatusPanel extends CenvPanel {
       });
 
       this.paramForm = blessed.form({
-                                      parent: this.screen,
+                                      parent: this.dashboard.screen,
                                       mouse: true,
                                       keys: true,
                                       vi: true,
@@ -380,7 +378,7 @@ export default class StatusPanel extends CenvPanel {
 
 
     paramCtrl.render = () => {
-      if (this.screen.focused == paramCtrl.rows) {
+      if (this.dashboard.screen.focused == paramCtrl.rows) {
         paramCtrl.rows.focus();
       }
 
@@ -526,8 +524,8 @@ export default class StatusPanel extends CenvPanel {
         this.moduleInfo.width = width - fifthWidth;
         top = this.moduleInfo.top + this.modules.height;
       } else {
-        this.modules.left = this.screen.width + 1;
-        this.moduleInfo.left = this.screen.width + 1;
+        this.modules.left = this.dashboard.screen.width + 1;
+        this.moduleInfo.left = this.dashboard.screen.width + 1;
       }
 
 
@@ -613,10 +611,10 @@ export default class StatusPanel extends CenvPanel {
 
       } else {
         if (this.app && this.environment && this.global && this.globalEnv) {
-          this.app.left = this.screen.width + 1;
-          this.environment.left = this.screen.width + 1;
-          this.global.left = this.screen.width + 1;
-          this.globalEnv.left = this.screen.width + 1;
+          this.app.left = this.dashboard.screen.width + 1;
+          this.environment.left = this.dashboard.screen.width + 1;
+          this.global.left = this.dashboard.screen.width + 1;
+          this.globalEnv.left = this.dashboard.screen.width + 1;
         }
       }
 

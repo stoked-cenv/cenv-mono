@@ -1,9 +1,9 @@
 import {Command, Option} from 'nest-commander';
 import {
-  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, Cenv, errorInfo, getEnvironment
+  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, Cenv, colors, getEnvironment
 } from '@stoked-cenv/lib'
 
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 import chalk from "chalk";
 
 
@@ -62,7 +62,7 @@ export default class PullCommand extends BaseCommand {
       if (options.environment) {
         const envRes = await getEnvironment(config.ApplicationId, options.environment);
         if (!envRes) {
-          console.log(errorInfo(`Environment ${options.environment} not found. Use push --environment [environment name] to create a new environment for this application.`));
+          console.log(colors.error(`Environment ${options.environment} not found. Use push --environment [environment name] to create a new environment for this application.`));
           return;
         }
         config.EnvironmentId = envRes.EnvironmentId;
@@ -77,7 +77,7 @@ export default class PullCommand extends BaseCommand {
 
       const materializedConfig = await CenvParams.pull(options?.deployed, options?.decrypted);
     } catch (e) {
-      console.log(errorInfo(e));
+      console.log(colors.error(e));
     }
   }
 }

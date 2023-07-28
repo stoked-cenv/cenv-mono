@@ -14,6 +14,9 @@ export class CenvTest {
     }
 
     console.log('dirname', __dirname);
+    if (!packages) {
+      return;
+    }
     await Promise.all(packages.map(async (p: Package) => {
       if (p.params?.hasCenvVars) {
         const vars = await startCenv(ClientMode.REMOTE_ON_STARTUP);

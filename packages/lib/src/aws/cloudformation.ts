@@ -8,7 +8,7 @@ import {
   waitUntilStackDeleteComplete,
 } from '@aws-sdk/client-cloudformation';
 
-import {CenvLog, errorBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {Package} from "../package/package";
 import {checkExceptions} from '@aws-sdk/util-waiter'
 
@@ -47,7 +47,7 @@ export async function listStacks(StackStatusFilter: string[]) {
     return stacks;
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`list stacks failed: ${errorBold(e.message)}, ${e}`)
+      CenvLog.single.errorLog(`list stacks failed: ${colors.errorBold(e.message)}, ${e}`)
     }
   }
   return [];
@@ -73,7 +73,7 @@ export async function describeStacks(stackName: string, silent = false) {
   } catch (e) {
     if (!silent) {
       if (e instanceof Error) {
-        CenvLog.single.errorLog(`describe stacks failed: ${errorBold(e.message)}, ${e}`);
+        CenvLog.single.errorLog(`describe stacks failed: ${colors.errorBold(e.message)}, ${e}`);
       }
     }
   }
@@ -99,7 +99,7 @@ export async function listExports() {
     return exports;
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`list exports failed: ${errorBold(e.message)}, ${e}`)
+      CenvLog.single.errorLog(`list exports failed: ${colors.errorBold(e.message)}, ${e}`)
     }
   }
   return [];
@@ -115,7 +115,7 @@ export async function deleteStack(StackName: string, waitForIt = true, errorOnFa
     }
     return true;
   } catch (e) {
-    const errorString = `delete stack ${StackName}: ${e instanceof Error ? `${errorBold(e.message)}, ${e}` : e as string}`;
+    const errorString = `delete stack ${StackName}: ${e instanceof Error ? `${colors.errorBold(e.message)}, ${e}` : e as string}`;
     if (!errorOnFailure) {
       CenvLog.single.errorLog(errorString);
       return false
@@ -133,7 +133,7 @@ export async function cancelUpdateStack(StackName: string) {
     Package.fromStackName(StackName)?.info(JSON.stringify(res.$metadata));
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`cancel update stack: ${errorBold(e.message)}, ${e}`);
+      CenvLog.single.errorLog(`cancel update stack: ${colors.errorBold(e.message)}, ${e}`);
     }
   }
 }

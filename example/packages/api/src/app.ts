@@ -1,5 +1,5 @@
 import helmet from 'helmet';
-import * as nocache from 'nocache';
+import nocache from 'nocache';
 import {ConfigService} from '@nestjs/config';
 import {NestFactory} from '@nestjs/core';
 import {AppModule} from './app.module';

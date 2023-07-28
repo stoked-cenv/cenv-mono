@@ -1,9 +1,9 @@
 import {Command, Option} from 'nest-commander';
 import {
-  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, createEnvironment, errorInfo, getEnvironment
+  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, createEnvironment, colors, getEnvironment
 } from '@stoked-cenv/lib'
 
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 
 interface PushCommandOptions extends BaseCommandOptions {
   deploy?: boolean;
@@ -70,7 +70,7 @@ export default class PushCommand extends BaseCommand {
         await CenvParams.push(options.deploy)
       }
     } catch (e) {
-      console.log(errorInfo(e));
+      console.log(colors.error(e));
     }
   }
 }

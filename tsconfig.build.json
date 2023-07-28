@@ -1,7 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "experimentalDecorators": true
-  },
-  "exclude": ["test", "example"]
+  "exclude": ["integration", "example"]
 }

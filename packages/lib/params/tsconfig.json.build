@@ -20,7 +20,7 @@
     "typeRoots": ["./types", "./node_modules/@types", "../dist"]
   },
   "include": [
-    "index.ts.broken"
+    "index.ts.bak.broken"
   ],
   "exclude": []
 }

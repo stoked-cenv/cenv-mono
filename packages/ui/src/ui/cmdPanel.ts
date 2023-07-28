@@ -10,7 +10,6 @@ blessed.text.prototype.name = '';
 blessed.list.prototype.name = ''
 blessed.box.prototype.name = '';
 export default class CmdPanel extends CenvPanel {
-  grid: contrib.grid;
   cmdList: blessed.list;
   stdout: blessed.text;
   stderr: blessed.box;

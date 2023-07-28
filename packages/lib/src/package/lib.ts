@@ -1,6 +1,6 @@
 import {BuildCommandOptions, Package, ProcessStatus, TPackageMeta} from './package';
 import {IPackageModule, PackageModule, PackageModuleType} from './module';
-import {CenvLog} from '../log';
+import {CenvLog} from '../log.service';
 import {Deployment} from "../deployment";
 import {BumpMode, Version} from "../version";
 import { computeMetaHash, getGuaranteedMonoRoot, getMonoRoot } from '../utils';

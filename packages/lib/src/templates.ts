@@ -1,15 +1,15 @@
 import * as path from "path";
 import {Cenv} from "./cenv";
 import {getMonoRoot} from "./utils";
-import {CenvLog, LogLevel} from "./log";
+import {CenvLog, LogLevel} from './log.service';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'fs';
 import { CenvFiles } from './file';
 
 export class Template {
 
   static async cloneRepo(destinationPath: string, repo: string, repoDir?: string | string[], branch?: string) {
-    if (process.cwd() !== CenvFiles.GitTempPath) {
-      const relativePath = path.relative(process.cwd(), CenvFiles.GitTempPath);
+    if (process.cwd() !== CenvFiles.GIT_TEMP_PATH) {
+      const relativePath = path.relative(process.cwd(), CenvFiles.GIT_TEMP_PATH);
       process.chdir(relativePath);
     }
     let silent = true;
@@ -41,14 +41,15 @@ export class Template {
     } else if (repo.indexOf('@') !== -1 && repo.indexOf(':') !== -1) {
       gitDomain = repo.substring(repo.indexOf('@') + 1, repo.indexOf(':'));
       gitPackage = repo.substring(repo.indexOf(':') + 1);
-    } else {
+    }
+    if (!gitDomain || !gitPackage) {
       CenvLog.single.catchLog(`the repo url "${repo}" does not appear to be in https or ssh form.. so it isn't supported`);
       process.exit(772);
     }
     if (gitPackage.endsWith('.git')) {
       gitPackage.substring(0, gitPackage.length - 5)
     }
-    const finalTempPath = path.join(CenvFiles.GitTempPath, gitDomain, gitPackage);
+    const finalTempPath = path.join(CenvFiles.GIT_TEMP_PATH, gitDomain, gitPackage);
     const finalTempParts = path.parse(finalTempPath);
     if (!existsSync(finalTempParts.dir)) {
       mkdirSync(finalTempParts.dir, {recursive: true})
@@ -60,6 +61,8 @@ export class Template {
     const branchFlag = branch ? `--branch ${branch} ` : '';
     if (typeof repoDir === "string") {
       repoDir = [repoDir];
+    } else if (!repoDir) {
+      return;
     }
 
     await Cenv.execCmd(`git clone ${branchFlag}${repo} --no-checkout ${finalTempPath}`, {silent});

@@ -2,7 +2,7 @@ import {
   CreateTopicCommand, GetTopicAttributesCommand, ListTopicsCommand, SNSClient, SubscribeCommand,
 } from '@aws-sdk/client-sns';
 
-import {CenvLog, errorBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 
 
 let _client: SNSClient;
@@ -26,7 +26,7 @@ async function getTopicAttributes(topicArn: string) {
                                               })
     return await getClient().send(cmd);
   } catch (e) {
-    CenvLog.single.errorLog(`failed to get topic attributes: ${errorBold(e as string)}`)
+    CenvLog.single.errorLog(`failed to get topic attributes: ${colors.errorBold(e as string)}`)
     return false;
   }
 }
@@ -36,7 +36,7 @@ async function listTopics() {
     const cmd = new ListTopicsCommand({});
     return await getClient().send(cmd);
   } catch (e) {
-    CenvLog.single.errorLog(`failed to list topics: ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`failed to list topics: ${colors.errorBold(e as string)}`);
     return false;
   }
 }
@@ -64,7 +64,7 @@ export async function createTopic(DisplayName: string, Name: string, Policy: any
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`createTopic error: ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`createTopic error: ${colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -79,7 +79,7 @@ export async function subscribe(TopicArn: string, Protocol: string, Endpoint: st
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`subscript to topic error: ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`subscript to topic error: ${colors.errorBold(e as string)}`);
   }
   return false
 }

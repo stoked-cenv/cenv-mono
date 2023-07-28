@@ -1,0 +1,25 @@
+{
+  "name": "@stoked-cenv/lib",
+  "sourceRoot": "packages/lib/src",
+  "type": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "rootDir": "packages/lib/src",
+        "outputPath": "packages/lib/dist",
+        "main": "packages/lib/src/index.ts",
+        "tsConfig": "packages/lib/tsconfig.lib.json",
+        "deleteOutputPath": true,
+        "packageJson": "package/lib/package.json"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "dist/@stoked-cenv/lib",
+        "command": "pnpm publish"
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import {CenvLog, errorBold, info, infoBold, LogLevel} from './log'
+import {CenvLog, colors, LogLevel} from './log.service'
 import {
   addUserToGroup,
   attachPolicyToGroup,
@@ -43,7 +43,6 @@ import {Template} from "./templates";
 import { Suite } from './suite';
 import { Version } from './version';
 import { Deployment } from './deployment';
-import { Dashboard } from '@stoked-cenv/ui';
 import { getKey } from './aws/kms';
 import { HostedZone } from '@aws-sdk/client-route-53';
 import { getAccountId } from './aws/sts';
@@ -132,9 +131,9 @@ export class Cenv {
 
     const configOutput = JSON.stringify(cenvConfig, null, 2) + '\n';
     writeFileSync(path.join(process.cwd(), 'cenv.json'), configOutput);
-    console.log(`${info('generated')} ${infoBold('cenv.json')}`)
+    console.log(`${colors.info('generated')} ${colors.infoBold('cenv.json')}`)
     if (CenvLog.logLevel === LogLevel.VERBOSE) {
-      console.log(info(JSON.stringify(cenvConfig, null, 2)))
+      console.log(colors.info(JSON.stringify(cenvConfig, null, 2)))
     }
 
     await this.execCmd(`npm init -y`, {silent: true});
@@ -167,10 +166,10 @@ export class Cenv {
     };
 
     writeFileSync(path.join(globalsPath, 'package.json'), JSON.stringify(globalMeta, null, 2) + '\n');
-    console.log(`${info('generated')} ${infoBold('globals package')}`);
+    console.log(`${colors.info('generated')} ${colors.infoBold('globals package')}`);
 
     if (CenvLog.logLevel === LogLevel.VERBOSE) {
-      console.log(info(JSON.stringify(globalMeta, null, 2)))
+      console.log(colors.info(JSON.stringify(globalMeta, null, 2)))
       console.log(' ')
     }
     return globalsName;
@@ -232,18 +231,20 @@ export class Cenv {
 
       Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
       Cenv.cleanTags = (...text: string[]) => {
-        return Dashboard.cleanTags(...text);
+        return this.dashboard?.cleanTags(...text);
       }
 
-      if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
-        options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
-        const {logLevel}: { logLevel: keyof typeof LogLevel } = options;
-        process.env.CENV_LOG_LEVEL = LogLevel[logLevel];
-        CenvLog.logLevel = LogLevel[logLevel];
-        CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
-      } else {
-        process.env.CENV_LOG_LEVEL = LogLevel.INFO
-        CenvLog.logLevel = LogLevel.INFO;
+      if (cenvRootNotRequired) {
+        if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
+          options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
+          const { logLevel }: { logLevel: keyof typeof LogLevel } = options;
+          process.env.CENV_LOG_LEVEL = LogLevel[logLevel];
+          CenvLog.logLevel = LogLevel[logLevel];
+          CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
+        } else {
+          process.env.CENV_LOG_LEVEL = LogLevel.INFO
+          CenvLog.logLevel = LogLevel.INFO;
+        }
       }
 
       if (!process.env.CENV_VERSION) {
@@ -313,7 +314,7 @@ export class Cenv {
 
   static async env(params: string[], options: Record<string, any>) {
     if (!params.length) {
-      CenvLog.info(`current environment: ${infoBold(process.env.ENV)}`,);
+      CenvLog.info(`current environment: ${colors.infoBold(process.env.ENV)}`,);
     }
     if (options.exports) {
       let exports: any = await listExports();
@@ -325,7 +326,7 @@ export class Cenv {
       }
       CenvLog.info('exports');
       const coloredLines = exports.map((e: Export) => {
-        return `\t${e.Name}: ${infoBold(e.Value)}`;
+        return `\t${e.Name}: ${colors.infoBold(e.Value)}`;
       });
       CenvLog.info(coloredLines.join('\n'));
       return;
@@ -344,8 +345,8 @@ export class Cenv {
     const cmd = pkg.createCmd(getAddParam(pkg.packageName));
     const type = validateOneType(Object.keys(options));
     if (!type) {
-      cmd.err(`Must contain at least one type flag (${infoBold('--app-type')}, ${infoBold('--environment-type',)}, 
-        ${infoBold('--global-type')}, ${infoBold('--global-env-type')}`,);
+      cmd.err(`Must contain at least one type flag (${colors.infoBold('--app-type')}, ${colors.infoBold('--environment-type',)}, 
+        ${colors.infoBold('--global-type')}, ${colors.infoBold('--global-env-type')}`,);
       cmd.result(2);
       return cmd;
     }
@@ -375,7 +376,7 @@ export class Cenv {
     const keyPath = CenvParams.GetRootPath(ctx.EnvConfig.ApplicationName, ctx.EnvConfig.EnvironmentName, type,);
     const alreadyExistingType = await CenvFiles.KeyExists(key, keyPath, type);
     if (alreadyExistingType) {
-      const error = `Attempted to add key "${errorBold(key)}" as ${type === 'global' ? 'a' : 'an'} "${errorBold(type)}" param type, but this key already exists as ${alreadyExistingType === 'global' ? 'a' : 'an'} "${errorBold(alreadyExistingType)}" param`;
+      const error = `Attempted to add key "${colors.errorBold(key)}" as ${type === 'global' ? 'a' : 'an'} "${colors.errorBold(type)}" param type, but this key already exists as ${alreadyExistingType === 'global' ? 'a' : 'an'} "${colors.errorBold(alreadyExistingType)}" param`;
       cmd.err(error);
       cmd.result(4);
       return cmd;
@@ -389,7 +390,7 @@ export class Cenv {
       await CenvParams.pull(false, false, false);
     }
     if (options?.stack) {
-      cmd.out(`deploying ${infoBold(config.ApplicationName,)} configuration to environment ${chalk.blueBright(config.EnvironmentName,)}`,);
+      cmd.out(`deploying ${colors.infoBold(config.ApplicationName,)} configuration to environment ${chalk.blueBright(config.EnvironmentName,)}`,);
       await CenvParams.Materialize();
     }
     cmd.out('success');
@@ -510,7 +511,7 @@ export class Cenv {
       if (!silent) {
         if (!verified) {
           CenvLog.info(`cenv failed validation with the following missing components:`,);
-          componentsMissing.map((component) => CenvLog.info(` - ${component[0]} (${infoBold(component[1])})`,),);
+          componentsMissing.map((component) => CenvLog.info(` - ${component[0]} (${colors.infoBold(component[1])})`,),);
         } else {
           CenvLog.info('cenv www has been verified');
         }
@@ -608,7 +609,7 @@ export class Cenv {
         return;
       }
 
-      CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${infoBold('🙄')}`);
+      CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${colors.infoBold('🙄')}`);
       await sleep(8);
       // iam client => waitUntilRoleExists
 
@@ -912,7 +913,7 @@ export class Cenv {
         if (hostedZones && hostedZones.length) {
           let domain: string | undefined = undefined;
           if (defaultRootDomain !== undefined) {
-            const defaultZone = hostedZones.find((hz: HostedZone) => hz.Name && hz.Name.indexOf(defaultRootDomain) > -1)
+            const defaultZone = hostedZones.find((hz: HostedZone) => hz.Name && hz.Name.indexOf(defaultRootDomain as string) > -1)
             if (defaultZone) {
               domain =  defaultZone.Name!.slice(0, -1);
             }

@@ -1,0 +1,34 @@
+{
+  "name": "@stoked-cenv/cdk",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "type": "library",
+  "sourceRoot": "packages/cdk/src",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": "dependencies"
+        }
+      ],
+      "options": {
+        "rootDir": "./packages/cdk/src",
+        "outputPath": "./packages/cdk/dist",
+        "main": "./packages/cdk/src/index.ts",
+        "tsConfig": "./packages/cdk/tsconfig.build.json",
+        "deleteOutputPath": true,
+        "packageJson": "./packages/cdk/package.json",
+        "assets": ["./*.md"]
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "dist/@stoked-cenv/ui",
+        "command": "pnpm publish"
+      }
+    }
+  },
+  "implicitDependencies": ["@stoked-cenv/lib"]
+}

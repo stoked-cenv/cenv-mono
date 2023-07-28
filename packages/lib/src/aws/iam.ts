@@ -18,10 +18,10 @@ import {
   ListAttachedGroupPoliciesCommand,
   ListGroupsCommand,
   ListPolicyVersionsCommand,
-  RemoveUserFromGroupCommand,
+  RemoveUserFromGroupCommand, Role,
   User,
 } from '@aws-sdk/client-iam';
-import {CenvLog, errorBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 
 let _client: IAMClient;
 
@@ -46,7 +46,7 @@ export async function getPolicy(PolicyArn: string, silent = true) {
     }
   } catch (e) {
     if (!silent && e instanceof Error) {
-      CenvLog.single.errorLog(`get policy error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`get policy error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -61,7 +61,7 @@ export async function createPolicy(PolicyName: string, PolicyDocument: any) {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`create policy error: ${errorBold(e.message)}, ${e}`);
+      CenvLog.single.errorLog(`create policy error: ${colors.errorBold(e.message)}, ${e}`);
     }
   }
   return false
@@ -88,7 +88,7 @@ export async function deletePolicy(PolicyArn: string) {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`delete policy [${PolicyArn}] error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`delete policy [${PolicyArn}] error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -103,7 +103,7 @@ export async function attachPolicyToRole(RoleName: string, PolicyArn: string) {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`attach policy to role error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`attach policy to role error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -131,7 +131,7 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`attach policy to group error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`attach policy to group error: ${colors.errorBold(e.message)}`);
     }
   }
 }
@@ -175,7 +175,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
       const rmvPolRes = await getClient().send(rmvPolCmd);
     } catch (e) {
       if (!silent && e instanceof Error) {
-        CenvLog.single.errorLog(`detach policy error: ${errorBold(e.message)}`)
+        CenvLog.single.errorLog(`detach policy error: ${colors.errorBold(e.message)}`)
       }
     }
     const cmd = new DeleteGroupCommand({GroupName});
@@ -187,7 +187,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
 
   } catch (e) {
     if (!silent && e instanceof Error) {
-      CenvLog.single.errorLog(`delete group error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`delete group error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -215,7 +215,7 @@ export async function createGroup(GroupName: string) {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`create group error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`create group error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -230,7 +230,7 @@ export async function addUserToGroup(GroupName: string, UserName: string) {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`attach user to group error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`attach user to group error: ${colors.errorBold(e.message)}`);
     }
   }
 }
@@ -244,22 +244,23 @@ export async function detachPolicyFromRole(RoleName: string, PolicyArn: string) 
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`detatch policy to role error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`detatch policy to role error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
 }
 
-export async function createRole(RoleName: string, AssumeRolePolicyDocument: any) {
+export async function createRole(RoleName: string, AssumeRolePolicyDocument: any): Promise<false | Role> {
   try {
     const cmd = new CreateRoleCommand({RoleName, AssumeRolePolicyDocument});
     const res = await getClient().send(cmd);
-    if (res) {
+    if (res && res.Role) {
       return res.Role;
     }
+    return false;
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`create role error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`create role error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -275,7 +276,7 @@ export async function deleteRole(RoleName: string) {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`delete role error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`delete role error: ${colors.errorBold(e.message)}`);
     }
   }
   return false
@@ -290,7 +291,7 @@ export async function getRole(RoleName: string, silent = true) {
     }
   } catch (e) {
     if (!silent && e instanceof Error) {
-      CenvLog.single.errorLog(`get role error: ${errorBold(e.message)}`);
+      CenvLog.single.errorLog(`get role error: ${colors.errorBold(e.message)}`);
     }
   }
   return false

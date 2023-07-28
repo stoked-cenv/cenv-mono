@@ -7,7 +7,7 @@
     "experimentalDecorators": true,
     "target": "es2017",
     "outDir": "./dist",
-    "baseUrl": "./",
+    "baseUrl": "./src",
     "strict": true,
     "skipLibCheck": true,
     "noUnusedLocals": false,
@@ -15,9 +15,11 @@
     "lib": ["ES7"],
     "esModuleInterop": true,
     "paths": {
-      "nest-commander": ["packages/nest-commander/src/index.ts"],
-      "nest-commander-testing": ["packages/nest-commander-testing/src/index.ts"]
+      "@stoked-cenv/lib": ["packages/lib/src/index.ts"],
+      "@stoked-cenv/ui": ["packages/ui/src/index.ts"],
+      "@stoked-cenv/cdk": ["packages/cdk/src/index.ts"],
+      "@stoked-cenv/cli": ["packages/cli/src/index.ts"]
     }
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "example"]
 }

@@ -1,27 +1,42 @@
 {
-  "name": "cli",
+  "name": "@stoked-cenv/cli",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "type": "library",
+  "sourceRoot": "packages/cli/src",
   "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": "dependencies"
+        }
+      ],
+      "options": {
+        "rootDir": "packages/cli/src",
+        "outputPath": "packages/cli/dist",
+        "main": "packages/cli/index.ts",
+        "tsConfig": "packages/cli/tsconfig.build.json",
+        "deleteOutputPath": true,
+        "packageJson": "packages/cli/package.json"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "dist/@stoked-cenv/cli",
+        "command": "pnpm publish"
+      }
+    },
     "test": {
       "executor": "nx-uvu:uvu",
       "options": {
-        "rootDir": "packages/cli/test",
-        "useSwc": false,
+        "rootDir": "./",
+        "useSwc": true,
         "coverage": false,
-        "pattern": "index.spec.ts"
+        "pattern": "packages/cli/test/index.spec.ts"
       }
-    },
-    "clean": {
-      "executor": "nx:run-commands",
-      "options": {
-        "rootDir": "packages/cli/src",
-        "commands": ["rimraf --glob src/**/*.js -v"],
-        "__unparsed__": "test iwjfiw"
-      }
-    },
-    "echo": {
-      "command": "echo 'hello'"
     }
-  }
+  },
+  "implicitDependencies": ["@stoked-cenv/lib", "@stoked-cenv/ui"]
 }

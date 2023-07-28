@@ -10,7 +10,7 @@ import {
   PutKeyPolicyCommand,
 } from '@aws-sdk/client-kms';
 
-import {CenvLog, colors} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {getAccountId} from './sts';
 // import { isArray } from 'aws-cdk/lib/util';
 

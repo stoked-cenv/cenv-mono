@@ -2,7 +2,7 @@ import { execCmd, getGuaranteedMonoRoot, getMonoRoot, packagePath, removeScope, 
 import {existsSync, readFileSync} from "fs";
 import * as path from 'path';
 import {PackageModule, PackageModuleType, PackageStatus} from './module'
-import {CenvLog, colors, LogLevel, Mouth} from '../log';
+import {CenvLog, colors, LogLevel, Mouth} from '../log.service';
 import {coerce, inc, parse, SemVer} from 'semver';
 import {ParamsModule} from './params';
 import {DockerModule} from './docker';
@@ -277,20 +277,30 @@ export class PackageMeta implements IPackageMeta {
 
   static load(packagePath: string) {
 
-    const pkgPath = path.resolve(packagePath, 'package.json');
-    if (!packagePath || !existsSync(pkgPath)) {
+    const pkgPath = path.join(packagePath, 'package.json');
+    const projectPath = path.join(packagePath, 'project.json');
+    const pkgExists = existsSync(pkgPath);
+    const projectExists = existsSync(projectPath);
+    if (!pkgExists && !pkgExists) {
       CenvLog.single.catchLog(new Error(`[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`));
       process.exit(2);
     }
 
-    const pkgMeta = require(path.resolve(packagePath, 'package.json'));
-    const data = {...pkgMeta};
-    data.deployDependencies = pkgMeta?.deployDependencies ? pkgMeta?.deployDependencies.map((dep: string) => Package.fromPackageName(dep)) : [];
-    data.destroyDependencies = pkgMeta?.destroyDependencies ? pkgMeta?.destroyDependencies.map((dep: string) => Package.fromPackageName(dep)) : [];
-    data.preBuildScripts = pkgMeta?.preBuildScripts ? pkgMeta?.preBuildScripts : [];
-    data.postBuildScripts = pkgMeta?.postBuildScripts ? pkgMeta?.postBuildScripts : [];
-    data.preDeployScripts = pkgMeta?.preDeployScripts ? pkgMeta?.preDeployScripts : [];
-    data.postDeployScripts = pkgMeta?.postDeployScripts ? pkgMeta?.postDeployScripts : [];
+    let data;
+    if (pkgExists) {
+      const pkgMeta = require(pkgPath);
+      data = { ...pkgMeta };
+      data.deployDependencies = pkgMeta?.deployDependencies ? pkgMeta?.deployDependencies.map((dep: string) => Package.fromPackageName(dep)) : [];
+      data.destroyDependencies = pkgMeta?.destroyDependencies ? pkgMeta?.destroyDependencies.map((dep: string) => Package.fromPackageName(dep)) : [];
+      data.preBuildScripts = pkgMeta?.preBuildScripts ? pkgMeta?.preBuildScripts : [];
+      data.postBuildScripts = pkgMeta?.postBuildScripts ? pkgMeta?.postBuildScripts : [];
+      data.preDeployScripts = pkgMeta?.preDeployScripts ? pkgMeta?.preDeployScripts : [];
+      data.postDeployScripts = pkgMeta?.postDeployScripts ? pkgMeta?.postDeployScripts : [];
+    }
+    if (projectExists) {
+      const projectMeta = require(projectPath);
+      data = { ...data, ...projectMeta };
+    }
     return data;
   }
 }
@@ -397,7 +407,7 @@ export class Package implements IPackage {
   public static cache: { [stackName: string]: Package } = {};
 
   name: string;
-  fullType: string = 'unknown';
+  fullType = 'pkg';
   stackName: string;
   params?: ParamsModule;
   docker?: DockerModule;
@@ -439,12 +449,12 @@ export class Package implements IPackage {
   timer?: Timer = undefined;
   cmds: PackageCmd[] = [];
 
-  constructor(packageName: string, noCache = false) {
+  constructor(packageName: string, useCache = true) {
 
-    if (!Package.loading && !noCache) {
+    /*if (!Package.loading && !useCache) {
       const err = new Error(`attempting to load ${packageName} after loading has been disabled`,);
       this.err(err.stack as string);
-    }
+    }*/
     const isGlobal = packageName === 'GLOBAL';
 
     const packageComponent = Package.getPackageComponent(packageName);
@@ -456,7 +466,7 @@ export class Package implements IPackage {
     this.name = this.stackName.replace(process.env.ENV + '-', '');
     CenvLog.single.verboseLog('load packageName: ' + packageName, this.stackName, true)
 
-    if (!noCache) {
+    if (useCache) {
       const pkg = Package.cache[this.stackName];
       if (pkg) {
         CenvLog.single.catchLog(`attempting to load ${packageName} after it has already been loaded`);
@@ -551,7 +561,7 @@ export class Package implements IPackage {
       this.mouth = new Mouth(this.stackName, this.stackName);
       this.timer = new Timer(this.stackName, 'seconds');
 
-      if (!noCache) {
+      if (useCache) {
         Package.cache[this.stackName] = this;
       }
     } catch (e) {
@@ -613,7 +623,7 @@ export class Package implements IPackage {
     if (!modules.length) {
       return parse('0.0.0') as SemVer;
     }
-    return modules.filter(m => m?.buildVersion).map(m => m?.buildVersion!).reduce((a, b) => {
+    return modules.filter(m => m?.buildVersion).map(m => m.buildVersion!).reduce((a, b) => {
       return this.useHighestVersion(a, b)
     });
   }
@@ -623,7 +633,7 @@ export class Package implements IPackage {
     if (!modules.length) {
       return parse('0.0.0') as SemVer;
     }
-    return modules.filter(fm => !!fm.currentVersion).map(m => m?.currentVersion!).reduce((a, b) => {
+    return modules.filter(fm => !!fm.currentVersion).map(m => m.currentVersion!).reduce((a, b) => {
       return this.useHighestVersion(a, b)
     });
   }
@@ -1469,10 +1479,20 @@ export class Package implements IPackage {
     //delete this.timer;
     this.processStatus = ProcessStatus.STATUS_CHK;
 
-    await this.lib?.checkStatus();
-    await this.exec?.checkStatus();
-    await this.params?.checkStatus();
-    await this.docker?.checkStatus();
-    await this.stack?.checkStatus();
+    if (this.lib) {
+      await this.lib?.checkStatus();
+    }
+    if (this.exec) {
+      await this.exec?.checkStatus();
+    }
+    if (this.params) {
+      await this.params?.checkStatus();
+    }
+    if (this.docker) {
+      await this.docker?.checkStatus();
+    }
+    if (this.stack) {
+      await this.stack?.checkStatus();
+    }
   }
 }

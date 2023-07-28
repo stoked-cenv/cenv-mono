@@ -7,7 +7,7 @@ import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from ".
 import {execCmd, getMonoRoot, getOs, ICmdOptions, isOsSupported, sleep, validateEnvVars} from "./utils";
 import Fake from "./fake";
 import {ProcessMode} from "./package/module";
-import {CenvLog, colors, info, LogLevel} from "./log";
+import {CenvLog, colors, LogLevel} from './log.service';
 import {Version} from "./version";
 import {listStacks} from "./aws/cloudformation";
 import {ParamsModule} from "./package/params";
@@ -473,7 +473,7 @@ export class Deployment {
         }
 
         if (!dockerStatus.active) {
-          CenvLog.err('docker daemon not active after 30 seconds:\n' + info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
+          CenvLog.err('docker daemon not active after 30 seconds:\n' + colors.info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
           return;
         } else {
           CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');

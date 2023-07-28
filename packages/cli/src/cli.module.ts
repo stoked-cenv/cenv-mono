@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import AddParamsCommand from './commands/add';
-import BuildCommand from './commands/build';
+import AddParamsCommand from './commands/add.command';
+import BuildCommand from './commands/build.command';
 //import BumpCommand from './commands/bump';
-import CenvCommand from './commands/cenv';
+import CenvCommand from './commands/cenv.command';
 import CleanCommand from './commands/clean';
 import ConfigureCommand from './commands/configure';
 import DeployCommand from './commands/deploy';
@@ -22,15 +22,14 @@ import StatCommand from './commands/stat';
 import TestCommand from './commands/test';
 import UICommand from './commands/ui';
 
-import { LogService } from './common/log.service';
+import { CenvLog } from '@stoked-cenv/lib';
 
 @Module({
           providers: [
-
+            CenvLog,
             CenvCommand,
             AddParamsCommand,
             BuildCommand,
-            LogService,
             CleanCommand,
             ConfigureCommand,
             DeployCommand,

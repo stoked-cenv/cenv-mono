@@ -4,7 +4,7 @@ import {
 } from '../aws/ecr';
 import {ImageIdentifier, Repository} from '@aws-sdk/client-ecr';
 import * as semver from 'semver';
-import {CenvLog} from '../log';
+import {CenvLog} from '../log.service';
 import {StackModule} from "./stack";
 import {execCmd, runScripts, sleep, spawnCmd} from "../utils";
 import {Package, PackageCmd, TPackageMeta} from './package';

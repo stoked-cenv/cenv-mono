@@ -1,6 +1,6 @@
 import {Command, Option} from 'nest-commander';
 import {BaseCommandOptions, Cenv, CenvLog, listStacks, processEnvFiles} from '@stoked-cenv/lib'
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 
 interface EnvCommandOptions extends BaseCommandOptions {
   addedFiles?: string;

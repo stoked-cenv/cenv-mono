@@ -1,26 +1,15 @@
-import read from 'read';
-import {hostname} from 'os';
 import * as path from 'path';
 import {BaseCommandOptions} from './params'
-import {CenvLog, errorBold, infoAlert, infoAlertBold, infoBold, infoInput} from './log';
+import {CenvLog, colors} from './log.service';
 import {existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync} from 'fs';
-import { getAccountId, setSession } from './aws/sts';
-import {EnvVars, inputArgsToEnvVars, validateEnvVars} from "./utils";
-import {getKey} from './aws/kms';
-import {listHostedZones} from './aws/route53';
-import {getExportValue} from './aws/cloudformation';
+import {inputArgsToEnvVars} from "./utils";
 import {CenvFiles} from "./file";
-import {HostedZone} from "@aws-sdk/client-route-53";
-
-//const envVars = validateEnvVars(['HOME', 'CENV_PROFILE_PATH'])
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-
+import read from './read';
 
 export async function readAsync(prompt: string, defaultValue: string): Promise<string> {
   try {
     const finalPrompt = `${prompt}:`;
-    return await read({prompt: finalPrompt, default: `${infoInput(defaultValue)}`},);
+    return await read({prompt: finalPrompt, default: `${colors.success(defaultValue)}`},);
   } catch (e) {
     CenvLog.single.catchLog(`readAsync error:\nError: ${e as string}`);
     process.exit(99);
@@ -36,7 +25,7 @@ export async function ioReadVar(prompt: string, varValue: string | undefined, de
   if (!varValue) {
     if (!defaults) {
       if (protectedMode && defaultValue.match(/^<\].*?\[>$/)?.length) {
-        CenvLog.single.infoLog(`${infoBold(prompt)}: ${infoBold(defaultValue)}(read-only)`)
+        CenvLog.single.infoLog(`${colors.infoBold(prompt)}: ${colors.infoBold(defaultValue)}(read-only)`)
         varValue = defaultValue;
       } else {
         varValue = await readAsync(prompt, defaultValue);
@@ -50,7 +39,7 @@ export async function ioReadVar(prompt: string, varValue: string | undefined, de
 
 export async function ioAppEnv(config: any, application: any, environment: any, overwrite = false, defaults = false) {
   if (config?.ConfigurationId && !overwrite) {
-    CenvLog.single.errorLog(`This application is already initialized. Run "${errorBold('cenv init --force')}" to reset the application to start from scratch.`);
+    CenvLog.single.errorLog(`This application is already initialized. Run "${colors.errorBold('cenv init --force')}" to reset the application to start from scratch.`);
     return;
   }
   application = await ioReadVar('application name', application.value, application.defaultValue, defaults);
@@ -68,7 +57,7 @@ export async function ioReadVarList(keyValueList: any, protectedMode = false): P
 }
 
 export async function ioYesOrNo(prompt = 'Are you sure?', defaultValue = 'n'): Promise<boolean> {
-  const answer = await readAsync(infoAlert(`${prompt} (y/${infoInput('n')})`), defaultValue,);
+  const answer = await readAsync(colors.alert(`${prompt} (y/${colors.success('n')})`), defaultValue,);
   if (answer === 'y') {
     return true;
   }
@@ -101,7 +90,7 @@ export function printProfileQuery(profile?: string, environment?: string) {
   if (!profile && !environment) {
     return `the profile query contains neither a profile or an environment`;
   }
-  return `${profile ? `profile: ${infoAlertBold(profile)} ` : ''}${environment ? `environment: ${infoAlertBold(environment)} ` : ''}`;
+  return `${profile ? `profile: ${colors.alertBold(profile)} ` : ''}${environment ? `environment: ${colors.alertBold(environment)} ` : ''}`;
 }
 
 export interface ProfileData {
@@ -126,13 +115,13 @@ export async function getProfiles(paramMatchesOnly = false, profile = '', enviro
   const filename = getFile();
   const reservedFiles = ['localstack-api-key', 'default-root-domain']
 
-  createDirIfNotExists(CenvFiles.ProfilePath);
+  createDirIfNotExists(CenvFiles.PROFILE_PATH);
 
-  const list = readdirSync(CenvFiles.ProfilePath);
+  const list = readdirSync(CenvFiles.PROFILE_PATH);
   const matchingProfileFiles: ProfileData[] = [];
   for (let i = 0; i < list.length; i++) {
     const file = list[i];
-    const stat = statSync(path.join(CenvFiles.ProfilePath, file));
+    const stat = statSync(path.join(CenvFiles.PROFILE_PATH, file));
     if (stat && stat.isDirectory()) {
       continue;
     }
@@ -177,7 +166,7 @@ export async function getMatchingProfileConfig(exactMatch: boolean, profile?: st
     process.exit(0);
   }
   return {
-    profilePath: `${path.join(CenvFiles.ProfilePath, 'default')}`, askUser: true
+    profilePath: `${path.join(CenvFiles.PROFILE_PATH, 'default')}`, askUser: true
   };
 }
 
@@ -186,15 +175,15 @@ export async function loadCenvProfile(filename: string, options?: Record<string,
   let profilePath;
 
   if (filename) {
-    profilePath = path.join(CenvFiles.ProfilePath, filename);
+    profilePath = path.join(CenvFiles.PROFILE_PATH, filename);
   } else {
-    profilePath = path.join(CenvFiles.ProfilePath, `default`)
+    profilePath = path.join(CenvFiles.PROFILE_PATH, `default`)
   }
   let alwaysAsk = false;
   if (existsSync(profilePath)) {
     envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
   } else if (options?.show) {
-    CenvLog.single.alertLog(`no configuration currently setup to show run '${infoAlertBold('cenv configure')}'`);
+    CenvLog.single.alertLog(`no configuration currently setup to show run '${colors.alertBold('cenv configure')}'`);
     process.exit(231);
   } else {
     alwaysAsk = true;

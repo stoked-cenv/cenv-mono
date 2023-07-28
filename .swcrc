@@ -12,14 +12,15 @@
     "keepClassNames": true,
     "baseUrl": ".",
     "paths": {
-      "@stoked-cenv/lib": ["packages/lib/src/index.ts"],
-      "@stoked-cenv/ui": ["packages/ui/src/index.ts"],
-      "@stoked-cenv/cli": ["packages/lib/src/index.ts"],
-      "@stoked-cenv/cdk": ["packages/cdk/core/index.ts"]
+      "@stoked-cenv/lib": ["packages/lib/src/index.ts.bak"],
+      "@stoked-cenv/ui": ["packages/ui/src/index.ts.bak"],
+      "@stoked-cenv/cli": ["packages/lib/src/index.ts.bak"],
+      "@stoked-cenv/cdk": ["packages/cdk/core/index.ts.bak"],
+      "blessed": ["packages/ui/types/blessed/index.d.ts"],
     }
   },
   "module": {
     "type": "commonjs",
-    "strictMode": true
+    "strictMode": false
   }
 }

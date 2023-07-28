@@ -3,7 +3,7 @@ module.exports = {
     parser: '@typescript-eslint/parser',
     parserOptions: {
         project: '**/tsconfig.json',
-        tsconfigRootDir : __dirname,
+        tsconfigRootDir : `${__dirname}`,
         sourceType: 'module',
         ecmaFeatures: {
             experimentalDecorators: true,
@@ -22,7 +22,9 @@ module.exports = {
         '@typescript-eslint/no-control-regex': 0,
         '@typescript-eslint/no-fallthrough': 'off',
         '@typescript-eslint/no-non-null-assertion': 'off',
-        'no-useless-escape': 'off'
+        'no-useless-escape': 'off',
+        '@typescript-eslint/ban-ts-comment': 'off',
+        '@typescript-eslint/no-namespace': 'off'
     },
     env: {
         node: true,

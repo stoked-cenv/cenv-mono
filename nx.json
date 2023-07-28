@@ -1,13 +1,32 @@
 {
-
+  "npmScope": "@stoked-cenv/cli",
   "tasksRunnerOptions": {
     "default": {
       "runner": "@nrwl/nx-cloud",
       "options": {
-        "cacheableOperations": ["build", "e2e", "e2e-ref", "test", "lint"],
-        "accessToken": "ZmI3MzhkNzYtYmZkMC00ZDY4LThlOTgtODhmZTBlNjlhNDkzfHJlYWQtd3JpdGU="
+        "cacheableOperations": ["build", "e2e","test", "lint"],
+        "canTrackAnalytics": false,
+        "showUsageWarnings": true,
+        "accessToken": "ZmI3MzhkNzYtYmZkMC00ZDY4LThlOTgtODhmZTBlNjlhNDkzfHJlYWQtd3JpdGU=",
+        "parallel": 1
       }
     }
+  },
+  "targetDependencies": {
+    "publish": [
+      {
+        "target": "build",
+        "projects": "self"
+      }
+    ]
+  },
+  "affected": {
+    "defaultBase": "main"
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "sharedGlobals": ["{workspaceRoot}/workspace.json", "{workspaceRoot}/nx.json"],
+    "production": ["default"]
   },
   "targetDefaults": {
     "build": {

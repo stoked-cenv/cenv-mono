@@ -5,7 +5,7 @@ import {
 import * as YAML from 'yaml';
 import * as chalk from 'chalk';
 import {CenvParams} from '../params';
-import {CenvLog, info, infoAlertBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {CenvFiles} from '../file';
 import {decryptValue, isEncrypted} from './parameterStore';
 import {getConfig} from "./appConfig";
@@ -92,7 +92,7 @@ function startConfigPolling(options: StartConfigPollingParams) {
   let count = 0;
   cron.schedule(options?.cronExpression ? options?.cronExpression : '0 * * * *', async () => {
     count += 1;
-    console.log(count % 2 === 0 ? chalk.gray('poll') : info('poll'));
+    console.log(count % 2 === 0 ? chalk.gray('poll') : colors.info('poll'));
     if (process.env.NextPollConfigurationToken) {
       const res = await getLatestConfiguration(process.env.NextPollConfigurationToken, true);
       displayConfigVars('UPDATED CONFIG VARS', res);
@@ -131,7 +131,7 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
 
 export async function getConfigVars(allValues = false, silent = true, title = 'INITIAL CONFIG VARS', exports = false) {
 
-  let token = await startSession();
+  const token = await startSession();
 
   if (!token) {
     CenvLog.single.errorLog('could not start appConfigData session');
@@ -191,6 +191,6 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
 
     return await pollDeployedVars(clientType === ClientMode.REMOTE_POLLING ? cronExpression : '0 * * * *', silent);
   } catch (e) {
-    CenvLog.single.alertLog(`startConfigPolling failed: ${infoAlertBold(`${e instanceof Error ? e.message : e as string}`)}\n ${JSON.stringify(e, null, 4)}`);
+    CenvLog.single.alertLog(`startConfigPolling failed: ${colors.alertBold(`${e instanceof Error ? e.message : e as string}`)}\n ${JSON.stringify(e, null, 4)}`);
   }
 }

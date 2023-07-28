@@ -2,7 +2,7 @@ import {Command, Option} from 'nest-commander';
 import {
   CenvFiles, CenvLog, Cenv, ConfigureCommandOptions, getMatchingProfileConfig, printProfileQuery
 } from "@stoked-cenv/lib";
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 
 import {copyFileSync, existsSync,} from 'fs';
 import {join} from 'path';
@@ -13,10 +13,6 @@ import {join} from 'path';
    aliases: ['config', 'conf']
 })
 export default class ConfigureCommand extends BaseCommand {
-  constructor() {
-    super()
-  }
-
   @Option({
     flags: '-ll, --log-level, <logLevel>',
             description: `Logging mode 2`
@@ -40,7 +36,7 @@ export default class ConfigureCommand extends BaseCommand {
         process.exit(6);
       }
 
-      if (!existsSync(CenvFiles.ProfilePath)) {
+      if (!existsSync(CenvFiles.PROFILE_PATH)) {
         CenvLog.single.errorLog('.cenv has not been configured yet')
         process.exit(6);
       } else {
@@ -49,7 +45,7 @@ export default class ConfigureCommand extends BaseCommand {
         if (profileData.envConfig) {
           CenvLog.single.infoLog(`default profile set to ${printProfileQuery(profileData.envConfig.AWS_PROFILE!, profileData.envConfig.ENV!)}`);
         }
-        const defaultPath = join(CenvFiles.ProfilePath, 'default');
+        const defaultPath = join(CenvFiles.PROFILE_PATH, 'default');
         copyFileSync(profileData.profilePath, defaultPath)
       }
     }

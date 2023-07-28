@@ -1,19 +1,14 @@
 import {Command, Option} from 'nest-commander';
 import {Cenv, CenvLog, NewCommandOptions, Package} from '@stoked-cenv/lib'
 
-import {BaseCommand} from './base';
+import {BaseCommand} from './base.command';
 
 @Command({
            name: 'new', description: `Create a new cenv project`, aliases: ['n'], arguments: '<name>',
          })
 export default class NewCommand extends BaseCommand {
-
-  constructor() {
-    super()
-    this.allowUI = false;
-    this.localPackageAccepted = true;
-  }
-
+  allowUI = false;
+  localPackageAccepted = true;
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

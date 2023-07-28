@@ -1,4 +1,4 @@
-import {CenvLog} from './log';
+import {CenvLog} from './log.service';
 import {Package} from './package/package';
 import {listStacks} from './aws/cloudformation'
 import {Suite} from './suite';

@@ -5,7 +5,7 @@ import {join} from 'path';
 import {existsSync} from 'fs';
 import {destroyAppConfig, destroyRemainingConfigs, getConfig} from '../aws/appConfig';
 import {CenvParams} from '../params';
-import {CenvLog, colors} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {expandTemplateVars, simplify, validateEnvVars} from '../utils';
 import {decryptValue, deleteParametersByPath, isEncrypted, stripPath} from '../aws/parameterStore';
 import {Semaphore} from 'async-mutex';

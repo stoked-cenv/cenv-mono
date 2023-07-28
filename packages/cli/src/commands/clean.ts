@@ -1,6 +1,6 @@
 import {Command, Option} from 'nest-commander';
 import {CenvFiles, CenvLog, configDefaults, Package, spawnCmd} from '@stoked-cenv/lib';
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 
 @Command({
            name: 'clean',

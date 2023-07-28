@@ -2,7 +2,7 @@ import {IPackageModule, PackageModule, PackageModuleType, ProcessMode} from './m
 import {Stack, StackSummary} from '@aws-sdk/client-cloudformation';
 import {deleteStack, describeStacks} from '../aws/cloudformation';
 import {SemVer, parse} from 'semver';
-import {CenvLog, colors} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {getMonoRoot, removeScope, runScripts, spawnCmd, stackPath, sureParse, validateEnvVars} from "../utils";
 import {CommandEvents, Package, PackageCmd, TPackageMeta} from "./package";
 import * as path from "path";

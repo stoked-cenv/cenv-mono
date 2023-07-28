@@ -12,7 +12,7 @@ import {
 import {RateLimiter} from "limiter";
 
 import {getConfigVars} from './appConfigData';
-import {CenvLog, infoAlertBold, infoBold, stdGreenBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {CenvFiles, EnvConfig, EnvVarsFile, File, GlobalEnvVarsFile, IParameter} from '../file';
 import {CenvParams} from "../params";
 import {existsSync} from 'fs';
@@ -225,7 +225,7 @@ export async function deleteParametersByPath(path: string, outputPrefix = '', pa
   if (outputPrefix !== '') {
     outputPrefix += ' ';
   }
-  Package.global.info(`${outputPrefix}deleted ${infoBold(total)} parameters under ${infoBold(path)}`, packageName);
+  Package.global.info(`${outputPrefix}deleted ${colors.infoBold(total)} parameters under ${colors.infoBold(path)}`, packageName);
   return;
 }
 
@@ -344,7 +344,7 @@ export async function upsertParameter(config: any, parameter: {
   let linkOnly = false;
   if (!param.Value) {
     if (!paramPath.startsWith('/global')) {
-      CenvLog.single.alertLog(` - skipping ${infoAlertBold(paramPath)} as it has no value`);
+      CenvLog.single.alertLog(` - skipping ${colors.alertBold(paramPath)} as it has no value`);
       return UpsertResult.SKIPPED;
     } else {
       linkOnly = true;
@@ -356,13 +356,13 @@ export async function upsertParameter(config: any, parameter: {
 
   if (!linkOnly) {
     if (!getParamRes) {
-      CenvLog.info(` - writing ${param.Type === 'SecureString' ? 'encrypted ' : ''}parameter ${infoBold(param.Name)} with value ${infoBold(param.Value)}`);
+      CenvLog.info(` - writing ${param.Type === 'SecureString' ? 'encrypted ' : ''}parameter ${colors.infoBold(param.Name)} with value ${colors.infoBold(param.Value)}`);
       await putParameter(paramPath, param.Value, false, param.Type);
       result = UpsertResult.CREATED;
 
       // if parameter exists, check to see if the value has changed
     } else if (param.Value !== Object.values(getParamRes)[0].Value) {
-      CenvLog.info(`- updating parameter ${param.Type === 'SecureString' ? 'encrypted ' : ''}${infoBold(param.Name)} with value ${infoBold(param.Value)}`);
+      CenvLog.info(`- updating parameter ${param.Type === 'SecureString' ? 'encrypted ' : ''}${colors.infoBold(param.Name)} with value ${colors.infoBold(param.Value)}`);
       await putParameter(paramPath, param.Value, true, param.Type);
       result = UpsertResult.UPDATED;
     }
@@ -375,13 +375,13 @@ export async function upsertParameter(config: any, parameter: {
     const linkPath = param.ParamType === 'global' ? rootPaths['globalLink'] : rootPaths['globalEnvLink'];
     const link: any = await getParameter(linkPath, true)
     if (!link) {
-      CenvLog.info(` - creating link parameter ${infoBold(linkPath)} with value ${infoBold(paramPath)}`);
+      CenvLog.info(` - creating link parameter ${colors.infoBold(linkPath)} with value ${colors.infoBold(paramPath)}`);
       await putParameter(linkPath, paramPath, false, 'StringList');
       result = UpsertResult.UPDATED;
     } else {
       const linkNode = link[linkPath];
       if (linkNode && linkNode.Value.indexOf(paramPath) === -1) {
-        CenvLog.info(` - appending link parameter ${infoBold(linkPath)} with value ${infoBold(paramPath)}`);
+        CenvLog.info(` - appending link parameter ${colors.infoBold(linkPath)} with value ${colors.infoBold(paramPath)}`);
         await appendParameter(linkPath, `,${paramPath}`);
         result = UpsertResult.UPDATED;
       }
@@ -401,7 +401,7 @@ export function updateTemplates(add: boolean, envVar: string, type: string, valu
     path = CenvFiles.PATH;
   } else if (type === 'globalEnv') {
     file = GlobalEnvVarsFile;
-    path = CenvFiles.GlobalPath;
+    path = CenvFiles.GLOBAL_PATH;
   }
   if (file !== null) {
     if (!existsSync(file.TEMPLATE_PATH)) {
@@ -429,12 +429,12 @@ function printYamlPretty(yamlData: any, format: string, printPkg?: string) {
     const val: any = value;
     if (format === 'simple') {
       const keyVal = val.Value ? val.Value : val;
-      console.log(`${space}${infoBold(key)}: ${keyVal}`);
+      console.log(`${space}${colors.infoBold(key)}: ${keyVal}`);
     } else {
-      console.log(`${space}${infoBold(key)}: `);
-      console.log(`${space}  ${infoBold('Value')}: ${val.Value}`);
-      console.log(`${space}  ${infoBold('Path')}: ${val.Path}`);
-      console.log(`${space}  ${infoBold('Type')}: ${val.Type}`);
+      console.log(`${space}${colors.infoBold(key)}: `);
+      console.log(`${space}  ${colors.infoBold('Value')}: ${val.Value}`);
+      console.log(`${space}  ${colors.infoBold('Path')}: ${val.Path}`);
+      console.log(`${space}  ${colors.infoBold('Type')}: ${val.Type}`);
     }
   }
   if (printPkg) {
@@ -444,7 +444,7 @@ function printYamlPretty(yamlData: any, format: string, printPkg?: string) {
 
 function printPkgName(printPkg: string) {
   if (printPkg) {
-    console.log(stdGreenBold(printPkg));
+    console.log(colors.successBold(printPkg));
   }
 }
 

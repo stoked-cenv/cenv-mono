@@ -5,12 +5,11 @@ import {
   CenvParams,
   deleteParametersByPath,
   filteredCount,
-  info,
-  infoBold,
+  colors,
   Package,
   variableTypes
 } from '@stoked-cenv/lib'
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 
 interface RemoveCommandOptions extends BaseCommandOptions {
   app?: boolean;
@@ -95,7 +94,7 @@ export default class RemoveCommand extends BaseCommand {
   }
 
   printRm(key: string, type: string) {
-    info('removing parameter ' + infoBold(key) + ' from ' + infoBold(type))
+    colors.info('removing parameter ' + colors.infoBold(key) + ' from ' + colors.infoBold(type))
   }
 
 

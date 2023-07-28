@@ -83,9 +83,9 @@ export class Dashboard {
   focusIndex = -1;
   focusedBox;
   priorityColumnWidth: any = [];
-  columnWidth;
+  columnWidth: number[] = this.defaultColumnWidth;
   columnSpacing = 2;
-  maxColumnWidth;
+  maxColumnWidth: number = this.defaultColumnWidth.reduce((sum, a) => sum + a, 0);
   minColumnWidth = 12;
   tableWidth = 0;
   splitter: any;
@@ -143,17 +143,18 @@ export class Dashboard {
 
   constructor(dashboardOptions: DashboardCreateOptions) {
     try {
-      this.cmdPanel = new CmdPanel(this);
-      if (Dashboard.instance) {
-        CenvLog.single.catchLog('attempted to initialize the dashboard twice');
-        process.exit(349);
-      }
 
       this.cmdOptions = dashboardOptions.options;
       this.blessedDeps = getBlessedDeps();
       this.blessedDeps.dashboard = this;
       this.createBaseWidgets();
+      this.cmdPanel = new CmdPanel(this);
       this.statusPanel = new StatusPanel(this);
+
+      if (Dashboard.instance) {
+        CenvLog.single.catchLog('attempted to initialize the dashboard twice');
+        process.exit(349);
+      }
 
       this.suite = dashboardOptions?.suite ? dashboardOptions?.suite : undefined;
       this.environment = dashboardOptions?.environment;
@@ -371,7 +372,7 @@ export class Dashboard {
         el.render();
       });
 
-      this.columnWidth = this.defaultColumnWidth;
+
       this.maxColumnWidth = this.defaultColumnWidth.reduce(function (a, b) {
         return a + b;
       }) - 1;
@@ -909,11 +910,11 @@ export class Dashboard {
       this.initialized = true;
 
       this.debug('CENV_LOG_LEVEL=' + process.env.CENV_LOG_LEVEL)
-      this.debug(`isVerbose=${CenvLog.isVerbose}`)
-      this.debug(`isInfo=${CenvLog.isInfo}`)
-      this.debug(`isDebug=${CenvLog.isAlert}`)
-      this.debug(`isMinimal=${CenvLog.isStdout}`)
-      this.debug(`isNone=${CenvLog.isNone}`)
+      this.debug(`isVerbose=${CenvLog.single.isVerbose}`)
+      this.debug(`isInfo=${CenvLog.single.isInfo}`)
+      this.debug(`isDebug=${CenvLog.single.isAlert}`)
+      this.debug(`isMinimal=${CenvLog.single.isStdout}`)
+      this.debug(`isNone=${CenvLog.single.isNone}`)
 
     } catch (e) {
       CenvLog.single.catchLog(e);
@@ -1040,10 +1041,13 @@ export class Dashboard {
 
   getContext(type: PkgContextType = PkgContextType.COMPLETE, failOnInvalid = true) {
     const selectedPkg = this.getPkg();
+    if (!selectedPkg) {
+      return [];
+    }
     const ctx = getPkgContext(selectedPkg, type, failOnInvalid);
     if (!ctx) {
       this.setStatusBar('invalid state', 'at least one package is in an invalid state');
-      return;
+      return [];
     }
 
     if (selectedPkg?.stackName === 'GLOBAL') {
@@ -1146,7 +1150,7 @@ export class Dashboard {
         shape: 'line', artificial: true, blink: true, color: null, // null for default
       }
                                   });
-
+    screen.render();
     this.screen = screen;
 
     //create layout and widgets
@@ -1325,7 +1329,7 @@ export class Dashboard {
     } else {
       cmd[type] = msg;
     }
-    if (type === 'stdout' && !CenvLog.isInfo && process.env.CENV_STDTEMP) {
+    if (type === 'stdout' && !CenvLog.single.isInfo && process.env.CENV_STDTEMP) {
       this.storeLogBase(cmd, 'stdtemp', msg);
     }
   }
@@ -1380,8 +1384,18 @@ export class Dashboard {
         return;
       }
       this.selectedPackage = Package.getPackageFromVis(stackNameVis);
-      Dashboard.stackName = this.selectedPackage.stackName;
+      if (this.selectedPackage) {
+        Dashboard.stackName = this.selectedPackage.stackName;
+        const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as ChalkFunction;
+        let env = '';
+        let envQuote = '';
+        if (this.selectedPackage?.packageName !== 'GLOBAL') {
+          env = ` [${color(this.selectedPackage?.environmentStatusReal)}]`;
+          envQuote = this.packageHover ? ` - (${color(this.selectedPackage?.getEnvironmentStatusDescription())})` : '';
+        }
+        this.packageBox.setLabel(`${this.selectedPackage?.packageName}${env}${envQuote}\n\n`);
 
+      }
       this.lastSelectedFully = false;
       this.selectedRowIndex = this.packages.rows.selected;
       this.selectedFully = false;
@@ -1391,16 +1405,6 @@ export class Dashboard {
       this.setPanels(this.mode);
 
       this.packageTs = Date.now();
-
-      const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as ChalkFunction;
-      let env = '';
-      let envQuote = '';
-      if (this.selectedPackage?.packageName !== 'GLOBAL') {
-        env = ` [${color(this.selectedPackage?.environmentStatusReal)}]`;
-        envQuote = this.packageHover ? ` - (${color(this.selectedPackage?.getEnvironmentStatusDescription())})` : '';
-      }
-
-      this.packageBox.setLabel(`${this.selectedPackage?.packageName}${env}${envQuote}\n\n`);
 
       setTimeout(async () => {
         await this.statusPanel?.updatePackage();
@@ -1908,7 +1912,9 @@ export class Dashboard {
   }
 
   updateVis() {
-    this.blessedDeps.splitterOverride = null;
+    if (this.blessedDeps) {
+      this.blessedDeps.splitterOverride = null;
+    }
     const newDefaultMax = this.maxColumnWidth;
     if (this.splitter.left > newDefaultMax) {
       this.splitter.left = newDefaultMax;
@@ -2023,12 +2029,14 @@ export class Dashboard {
       this.statusOptions?.show();
     }
 
-    if (!hideProcessOptions) {
-      this.processOptions.bar.width = tableCalcs.tableWidth;
-      this.processOptions.bar.top = this.packages.height;
-      this.processOptions.show();
-    } else {
-      this.processOptions.hide();
+    if (this.processOptions) {
+      if (!hideProcessOptions) {
+        this.processOptions.bar.width = tableCalcs.tableWidth;
+        this.processOptions.bar.top = this.packages.height;
+        this.processOptions.show();
+      } else {
+        this.processOptions.hide();
+      }
     }
 
     const screenHeight = this.screen.height - 1;
@@ -2077,13 +2085,15 @@ export class Dashboard {
       this.splitter.left = tableWidth;
     }
 
-    if (!this.blessedDeps.splitterOverride) {
-      this.blessedDeps.splitterOverride = this.maxColumnWidth;
-    } else {
-      tableWidth = this.blessedDeps.splitterOverride;
+    if (this.blessedDeps) {
+      if (!this.blessedDeps.splitterOverride) {
+        this.blessedDeps.splitterOverride = this.maxColumnWidth;
+      } else {
+        tableWidth = this.blessedDeps.splitterOverride;
+      }
     }
 
-    let columns = this.columnWidth.length;
+    let columns = this.columnWidth?.length;
 
     if (tableWidth > this.maxColumnWidth) {
       tableWidth = this.maxColumnWidth;
@@ -2099,7 +2109,7 @@ export class Dashboard {
         columns++;
         return nextValue;
       });
-      if (!this.blessedDeps.splitterOverride) {
+      if (!this.blessedDeps?.splitterOverride) {
         tableWidth = nextWidth;
       }
     }

@@ -3,7 +3,7 @@ import {Command, Option} from 'nest-commander';
 import {
   addKeyAccount, Cenv, CenvLog, createKey, DeployCommandOptions, Deployment, Package, ProcessMode,
 } from '@stoked-cenv/lib';
-import {BaseCommand} from './base';
+import {BaseCommand} from './base.command';
 
 @Command({
            name: 'deploy',
@@ -13,12 +13,8 @@ import {BaseCommand} from './base';
          })
 export default class DeployCommand extends BaseCommand {
   deploymentMode = ProcessMode.DEPLOY;
-
-  constructor() {
-    super()
-    this.allowUI = true;
-    this.packageRequired = true;
-  }
+  allowUI = true;
+  packageRequired = true;
 
   /*
     @Option({

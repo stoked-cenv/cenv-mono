@@ -4,7 +4,7 @@ import {Environment} from './environment';
 import {EnvironmentStatus, Package, ProcessStatus} from "./package/package";
 import { getGuaranteedMonoRoot, getMonoRoot } from './utils';
 import {Cenv} from "./cenv";
-import { CenvLog } from './log';
+import { CenvLog } from './log.service';
 
 export class Suites {
   static data: any;

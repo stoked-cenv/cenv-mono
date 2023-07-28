@@ -4,7 +4,7 @@ import {
   CenvFiles,
   CenvLog,
   CenvParams,
-  errorInfo,
+  colors,
   getConfig,
   getParams,
   Package,
@@ -13,7 +13,7 @@ import {
   variableTypes
 } from '@stoked-cenv/lib'
 
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 
 enum ParamCommands {
   init = 'init', deploy = 'deploy', pull = 'pull', fix = 'fix', materialize = 'materialize'

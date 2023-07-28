@@ -7,7 +7,7 @@ import {
   ListImagesCommand,
   Repository,
 } from '@aws-sdk/client-ecr';
-import {CenvLog, errorBold, infoBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 
 let _client: ECRClient;
 
@@ -31,7 +31,7 @@ export async function createRepository(repositoryName: string) {
       return res.repository;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`createRepository error: ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`createRepository error: ${colors.errorBold(e as string)}`);
   }
   return false;
 }
@@ -44,7 +44,7 @@ export async function listImages(repositoryName: string) {
       return res.imageIds;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`listImages error: ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`listImages error: ${colors.errorBold(e as string)}`);
   }
   return false;
 }
@@ -55,14 +55,14 @@ export async function deleteImages(repositoryName: string, imageIds: any = undef
     if (!imageIds) {
       return true;
     }
-    CenvLog.info(` - deleting ecr images ${infoBold(repositoryName)}`);
+    CenvLog.info(` - deleting ecr images ${colors.infoBold(repositoryName)}`);
     const cmd = new BatchDeleteImageCommand({repositoryName, imageIds: imageIds});
     const res = await getClient().send(cmd);
     if (res) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`deleteImages from ${repositoryName} error : ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`deleteImages from ${repositoryName} error : ${colors.errorBold(e as string)}`);
   }
   return false;
 }
@@ -81,14 +81,14 @@ export async function deleteRepository(repositoryName: string, images = false) {
       }
     }
 
-    CenvLog.info(` - deleting ecr repo ${infoBold(repositoryName)}`);
+    CenvLog.info(` - deleting ecr repo ${colors.infoBold(repositoryName)}`);
     const cmd = new DeleteRepositoryCommand({repositoryName});
     const res = await getClient().send(cmd);
     if (res) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`deleteRepository ${repositoryName} error: ${errorBold(e as string)}`);
+    CenvLog.single.errorLog(`deleteRepository ${repositoryName} error: ${colors.errorBold(e as string)}`);
   }
   return false;
 }
@@ -101,7 +101,7 @@ export async function describeRepositories(): Promise<Repository[] | false> {
       return res.repositories;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`describeRepositories error: ${errorBold(e as string)}\n${JSON.stringify(e)}`);
+    CenvLog.single.errorLog(`describeRepositories error: ${colors.errorBold(e as string)}\n${JSON.stringify(e)}`);
   }
   return false;
 }

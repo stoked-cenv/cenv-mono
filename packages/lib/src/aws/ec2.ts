@@ -1,5 +1,5 @@
 import {DescribeVpcsCommand, EC2Client} from '@aws-sdk/client-ec2';
-import {CenvLog, errorBold} from '../log';
+import {CenvLog, colors} from '../log.service';
 import {Cenv} from "../cenv";
 
 let _client: EC2Client;
@@ -33,10 +33,10 @@ export async function getVpcId(name: string) {
 
       return res.Vpcs[0].VpcId;
     }
-    CenvLog.single.errorLog(`failed to get vpc name: ${errorBold(name)}`);
+    CenvLog.single.errorLog(`failed to get vpc name: ${colors.errorBold(name)}`);
   } catch (e) {
-    CenvLog.single.errorLog(`failed to get vpc id: ${errorBold(e as string)}`);
-    Cenv.dashboard.debug(errorBold(e as string))
+    CenvLog.single.errorLog(`failed to get vpc id: ${colors.errorBold(e as string)}`);
+    Cenv.dashboard.debug(colors.errorBold(e as string))
   }
   return false
 }

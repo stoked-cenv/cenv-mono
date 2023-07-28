@@ -2,7 +2,7 @@ import {Command, Option} from 'nest-commander';
 import {
   Cenv, CenvLog, Deployment, DestroyCommandOptions, DockerModule, Package, ParamsModule, ProcessMode, Suite
 } from "@stoked-cenv/lib";
-import {BaseCommand} from './base';
+import {BaseCommand} from './base.command';
 
 @Command({
            name: 'destroy',
@@ -13,13 +13,8 @@ import {BaseCommand} from './base';
          })
 export default class DestroyCommand extends BaseCommand {
   deploymentMode = ProcessMode.DESTROY;
-
-  constructor() {
-    super()
-    this.allowUI = true;
-    this.packageRequired = true;
-  }
-
+  allowUI = true;
+  packageRequired = true;
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

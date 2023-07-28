@@ -1,0 +1,32 @@
+{
+  "name": "@stoked-cenv/ui",
+  "sourceRoot": "packages/ui/src",
+  "type": "library",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": "dependencies"
+        }
+      ],
+      "options": {
+        "rootDir": "packages/ui/src",
+        "outputPath": "packages/ui/dist",
+        "main": "packages/ui/src/index.ts",
+        "tsConfig": "packages/ui/tsconfig.build.json",
+        "deleteOutputPath": true,
+        "packageJson": "packages/ui/package.json"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "dist/@stoked-cenv/ui",
+        "command": "pnpm publish"
+      }
+    }
+  },
+  "implicitDependencies": ["@stoked-cenv/lib"]
+}

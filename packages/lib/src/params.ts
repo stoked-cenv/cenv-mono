@@ -14,7 +14,7 @@ import {
   upsertParameter
 } from './aws/parameterStore';
 import {invoke, updateLambdas} from './aws/lambda';
-import {CenvLog, errorInfo, infoAlertBold, infoBold,} from './log';
+import {CenvLog, colors} from './log.service';
 import chalk from "chalk";
 import {getConfigVars} from './aws/appConfigData';
 import {ioReadVarList, readAsync} from './stdIo';
@@ -40,9 +40,9 @@ export function validateCount(options: string[], types: string[], silent = false
   const valid = filtered.length === 1;
   if (!valid && !silent) {
     if (filtered.length === 0) {
-      console.log(errorInfo('The command did not include parameter type.'));
+      console.log(colors.error('The command did not include parameter type.'));
     } else {
-      console.log(errorInfo('The command included more than one type - included: ' + filtered.join(', ')));
+      console.log(colors.error('The command included more than one type - included: ' + filtered.join(', ')));
     }
   }
   return valid ? filtered[0].replace('Type', '') : false;
@@ -106,7 +106,7 @@ export class CenvParams {
         if (paths.length) {
           await deleteParameters(paths);
           totalRemoved += paths.length;
-          CenvLog.single.infoLog(`removed all ${infoBold(paths.length)} ${infoBold(varType)} parameters${' related to ' + pkg}`);
+          CenvLog.single.infoLog(`removed all ${colors.infoBold(paths.length)} ${colors.infoBold(varType)} parameters${' related to ' + pkg}`);
         } else if (type) {
           CenvLog.single.alertLog(`attempted to remove all the ${type} parameters but none were found`)
         }
@@ -223,7 +223,7 @@ export class CenvParams {
     if (options?.kill) {
       const killItWithFire = await readAsync('The --kill flag removes the global parameter entirely. Any services that depend on it will be broken. Are you sure you want to delete the global parameter? (y/n): ', 'n');
       if (killItWithFire !== 'y') {
-        console.log(errorInfo('The global parameter was not deleted. If you simply want to remove the reference from this application to the global parameter use the same command without --kill.'));
+        console.log(colors.error('The global parameter was not deleted. If you simply want to remove the reference from this application to the global parameter use the same command without --kill.'));
         process.exit(6);
       }
     }
@@ -268,14 +268,14 @@ export class CenvParams {
       await updateTemplates(false, params[i], pdata.type);
     }
     if (linksUpdated.length > 0) {
-      CenvLog.single.infoLog(`deleted link(s): [${infoBold(linksUpdated.join(', '))}]`);
+      CenvLog.single.infoLog(`deleted link(s): [${colors.infoBold(linksUpdated.join(', '))}]`);
     }
     if (linksUpdated.length !== linksAttempted.length) {
       const remaining = linksAttempted.filter(p => !linksUpdated.includes(p));
-      CenvLog.single.alertLog(`attempted to remove link(s) [${infoAlertBold(remaining.join(', '))}] from ${cenvPackage} but ${remaining.length > 1 ? 'they were' : 'it was'} not found`)
+      CenvLog.single.alertLog(`attempted to remove link(s) [${colors.alertBold(remaining.join(', '))}] from ${cenvPackage} but ${remaining.length > 1 ? 'they were' : 'it was'} not found`)
     }
     if (paramsUpdated.length > 0) {
-      CenvLog.single.infoLog(`deleted: [${infoBold(paramsUpdated.join(', '))}]`);
+      CenvLog.single.infoLog(`deleted: [${colors.infoBold(paramsUpdated.join(', '))}]`);
     }
     if (!options?.kill) {
       if (paramsUpdated.length || linksUpdated.length) {
@@ -332,7 +332,7 @@ export class CenvParams {
       return;
     }
 
-    CenvLog.single.infoLog(`pushing ${infoBold(config.EnvironmentName)} variables to cloud`);
+    CenvLog.single.infoLog(`pushing ${colors.infoBold(config.EnvironmentName)} variables to cloud`);
 
     let updatedCount = 0;
     const data = await CenvFiles.GetVars(true, decrypted);
@@ -481,7 +481,7 @@ export class CenvParams {
         CenvFiles.SaveVars(variables, data.EnvironmentName, false);
       }
     } else {
-      CenvLog.single.alertLog(`no variables configured for the ${infoAlertBold(data.EnvironmentName)} environment`)
+      CenvLog.single.alertLog(`no variables configured for the ${colors.alertBold(data.EnvironmentName)} environment`)
     }
     return variables;
   }
@@ -507,7 +507,7 @@ export class CenvParams {
         for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
           for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
             if (afterKey === beforeKey) {
-              output += `'${infoBold(afterKey)}': '${infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${chalk.green(beforeValue)}` : ''}\n`;
+              output += `'${colors.infoBold(afterKey)}': '${colors.infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${chalk.green(beforeValue)}` : ''}\n`;
             }
           }
         }

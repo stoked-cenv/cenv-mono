@@ -2,7 +2,7 @@ import {Command, Option} from 'nest-commander';
 import {CenvUI} from '@stoked-cenv/ui';
 import {BaseCommandOptions, Cenv, CenvLog, Package, Suite} from '@stoked-cenv/lib'
 
-import {BaseCommand} from './base';
+import {BaseCommand} from './base.command';
 
 export interface UICommandOptions extends BaseCommandOptions {
   suite?: string;
@@ -15,12 +15,8 @@ export interface UICommandOptions extends BaseCommandOptions {
 
          })
 export default class UICommand extends BaseCommand {
-
-  constructor() {
-    super()
-    this.allowUI = true;
-    this.localPackageAccepted = false;
-  }
+  allowUI = true;
+  localPackageAccepted = false;
 
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,

@@ -2,7 +2,7 @@ import * as path from 'path';
 import {join} from 'path';
 import * as child from 'child_process';
 import {ClientMode, startCenv} from './aws/appConfigData';
-import {CenvLog, errorBold, info, infoAlert, infoBold, LogLevel} from './log';
+import {CenvLog, colors, LogLevel} from './log.service';
 import {cpSync, copyFileSync, existsSync, readFileSync, rmSync, lstatSync, statSync, mkdirSync, writeFileSync, readdirSync} from 'fs';
 import * as os from 'os';
 import {hostname} from 'os';
@@ -81,7 +81,7 @@ export function packagePath(packageName: string, workingDirectory?: string, useC
     return false;
   }
   const packages = search_sync(cwd, false, true, 'package.json', {
-    excludedDirs: ['cdk.out', 'node_modules'],
+    excludedDirs: ['cdk.out', 'node_modules','dist'],
   }) as string[];
 
   for (let i = 0; i < packages.length; i++) {
@@ -133,9 +133,9 @@ function printIfExists(color = true, envVar: string) {
     }
 
     if (color) {
-      CenvLog.single.infoLog(`export ${envVar}=${infoBold(isClear ? process.env[envVar] : '****')}`,);
+      CenvLog.single.infoLog(`export ${envVar}=${colors.infoBold(isClear ? process.env[envVar] : '****')}`,);
     } else {
-      console.log(`export ${envVar}=${infoBold(isClear ? process.env[envVar] : '****')}`,);
+      console.log(`export ${envVar}=${colors.infoBold(isClear ? process.env[envVar] : '****')}`,);
     }
   }
 }
@@ -169,7 +169,7 @@ export function printApp(cmd: string, envVars: Record<string, string>, cenvVars:
   if (envVarDisplay && envVarDisplay.trim().length > 0) {
     CenvLog.single.infoLog(envVarDisplay ? envVarDisplay
     .split(' ')
-    .join(info(`\n`) + `export `)
+    .join(colors.info(`\n`) + `export `)
     .replace('\n', '') : '',);
   }
 
@@ -179,11 +179,11 @@ export function printApp(cmd: string, envVars: Record<string, string>, cenvVars:
     CenvLog.single.infoLog('# cenv config vars');
     CenvLog.single.infoLog(configVarDisplay ? configVarDisplay
     .split(' ')
-    .join(info(`\n`) + `export `)
+    .join(colors.info(`\n`) + `export `)
     .replace('\n', '') : '',);
   }
 
-  console.log(`${info(`${cons} `)}${infoBold(cmd)}`);
+  console.log(`${colors.info(`${cons} `)}${colors.infoBold(cmd)}`);
 }
 
 export interface ICmdOptions {
@@ -367,13 +367,13 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
       const cons = `${hostname()}:${consoleFolder} ${process.env.USER}$`;
       if (!packageInfo) {
         if (envVarDisplay && envVarDisplay.trim().length > 0) {
-          log(options, cmdLog, packageInfo, envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo, envVarDisplay ? envVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '');
         }
         if (configVarDisplay && configVarDisplay.trim().length > 0) {
           log(options, cmdLog, packageInfo, '# cenv config vars');
-          log(options, cmdLog, packageInfo, configVarDisplay ? configVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo, configVarDisplay ? configVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '');
         }
-        log(options, cmdLog, packageInfo, `${info(`${cons} `)}${infoBold(cmd)}`)
+        log(options, cmdLog, packageInfo, `${colors.info(`${cons} `)}${colors.infoBold(cmd)}`)
       }
 
       const spawnArgs = cmd.split(' ');
@@ -528,8 +528,8 @@ export function execCmd(folder: string, cmd: string, name?: string, envVars: obj
     try {
       if (name && !silent) {
         //log(`${cons} cd ${infoBold(folder)}`);
-        log(envVarDisplay ? envVarDisplay.split(' ').join(info(`\n`) + `export `).replace('\n', '') : '')
-        CenvLog.single.infoLog(`${info(cons)} ${cmd}`, pkg?.stackName);
+        log(envVarDisplay ? envVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '')
+        CenvLog.single.infoLog(`${colors.info(cons)} ${cmd}`, pkg?.stackName);
       }
     } catch (e) {
       if (e) {
@@ -600,7 +600,7 @@ export function fromDir(startPath: string, filter: string | RegExp, foundMsg = '
 }
 
 export function unimplemented() {
-  console.log(infoAlert('Unimplemented!'));
+  console.log(colors.alert('Unimplemented!'));
 }
 
 export interface searchSyncFallbackResults {
@@ -1070,7 +1070,7 @@ const killedStackCmds: Record<string, string[]> = {};
 export async function killStackProcesses(StackName: string) {
   for (const [pid, stackProc] of Object.entries(Cenv.processes) as [string, StackProc][]) {
     if (stackProc.stackName === StackName) {
-      CenvLog.alert(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
+      CenvLog.alert(`${colors.errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
       const killSuccess = stackProc.proc.kill();
 
       if (stackProc.cmd.startsWith('cdk deploy')) {
@@ -1099,7 +1099,7 @@ export async function killStackProcesses(StackName: string) {
 
 export function killRunningProcesses() {
   for (const [pid, stackProc] of Object.entries(Cenv.processes)) {
-    CenvLog.err(`${errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
+    CenvLog.err(`${colors.errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
     const killSuccess = stackProc.proc.kill();
     if (killSuccess) {
       if (!killedStackCmds[stackProc.stackName as string]) {
@@ -1446,7 +1446,7 @@ export async function processEnvFile(envFile: string, envName: string) {
   if (result?.length === 5) {
     const [, servicePath, , configEnvironment] = result;
     if (configEnvironment === envName || configEnvironment === "" || configEnvironment === 'globals') {
-      CenvLog.info(infoBold(servicePath), 'service path');
+      CenvLog.info(colors.infoBold(servicePath), 'service path');
       return {valid: true, servicePath, environment: envName};
     }
   }

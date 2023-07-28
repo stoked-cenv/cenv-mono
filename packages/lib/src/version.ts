@@ -1,5 +1,5 @@
 import * as path from 'path';
-import {CenvLog, info, infoAlertBold, infoBold} from './log';
+import {CenvLog, colors} from './log.service';
 import {Package} from './package/package';
 import {eq, lt, parse, RangeOptions, SemVer} from "semver";
 import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
@@ -125,7 +125,7 @@ export class Version {
   }
 
   static setEnvVars(packageName: string, libraryId: string) {
-    const versionString = `${info(packageName)}: ${infoBold(this.currentVersion)}`;
+    const versionString = `${CenvLog.colors.info(packageName)}: ${CenvLog.colors.infoBold(this.currentVersion)}`;
     if (process.env.CENV_VERSION) {
       process.env.CENV_VERSION += versionString + '\n';
     } else {
@@ -275,7 +275,7 @@ export class Version {
         if (process.env.KILL_IT_WITH_FIRE) {
           rmSync(file);
         } else {
-          CenvLog.single.alertLog(`attempting to upgrade file ${infoAlertBold(file,)} but the file ${infoAlertBold(newFile)} already exists`,);
+          CenvLog.single.alertLog(`attempting to upgrade file ${colors.alertBold(file,)} but the file ${colors.alertBold(newFile)} already exists`,);
         }
         continue;
       }
@@ -286,7 +286,7 @@ export class Version {
   static async Upgrade_1_9_0() {
     const profileFileData = await getProfiles(false);
     profileFileData.forEach((profileData: ProfileData) => {
-      renameSync(profileData.profilePath, path.join(CenvFiles.ProfilePath, `${profileData.envConfig?.AWS_PROFILE}↔${profileData.envConfig?.ENV}`));
+      renameSync(profileData.profilePath, path.join(CenvFiles.PROFILE_PATH, `${profileData.envConfig?.AWS_PROFILE}↔${profileData.envConfig?.ENV}`));
     });
 
   }

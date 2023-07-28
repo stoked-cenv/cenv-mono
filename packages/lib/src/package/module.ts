@@ -2,7 +2,7 @@ import {Package, TPackageMeta} from './package';
 import {parse, SemVer} from 'semver';
 import {writeFileSync} from 'fs';
 import * as path from 'path';
-import {CenvLog, Mouth,} from '../log';
+import {CenvLog, Mouth,} from '../log.service';
 
 export enum PackageModuleType {
   PARAMS = 'PARAMS', DOCKER = 'DOCKER', STACK = 'STACK', LIB = 'LIB', EXEC = 'EXEC'
@@ -50,7 +50,7 @@ export abstract class PackageModule implements IPackageModule {
   cleanDeps = false;
   fixedDeps = false;
   removedDeps: any[] = [];
-  depCheckReport: string = '';
+  depCheckReport = '';
   mouth: Mouth;
   status: PackageStatus = {needsFix: [], deployed: [], incomplete: []};
   meta: TPackageMeta;
@@ -61,7 +61,7 @@ export abstract class PackageModule implements IPackageModule {
     this.path = path;
     this.pkg = pkg;
 
-    module = {...module, ...this.pkg.meta.metas[this.path]};
+    //module = {...module, ...this.pkg.meta.metas[this.path]};
 
     this.name = meta.name;
     this.version = meta.version;
@@ -199,12 +199,12 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   statusLine(title: string, description: string, issue: boolean) {
-    const color = issue ? CenvLog.colorType('incomplete') : CenvLog.colorType('deployed');
+    const color = issue ? CenvLog.single.colorType('incomplete') : CenvLog.single.colorType('deployed');
     return this.statusLineBase(title, description, color);
   }
 
   statusLineType(title: string, description: string, type: string) {
-    const color = CenvLog.colorType(type);
+    const color = CenvLog.single.colorType(type);
     return this.statusLineBase(title, description, color);
   }
 

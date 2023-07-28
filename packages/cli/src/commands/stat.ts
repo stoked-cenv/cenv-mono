@@ -1,6 +1,6 @@
 import {Command, Option} from 'nest-commander';
 import {BaseCommandOptions, CenvLog, Package, ProcessStatus} from '@stoked-cenv/lib'
-import {BaseCommand} from './base';
+import {BaseCommand} from './base.command';
 
 export interface StatCommandOptions extends BaseCommandOptions {
   targetMode?: string;
@@ -13,13 +13,8 @@ export interface StatCommandOptions extends BaseCommandOptions {
            aliases: ['status'],
          })
 export default class StatusCommand extends BaseCommand {
-
-  constructor() {
-    super()
-    this.allowUI = false;
-    this.localPackageAccepted = true;
-  }
-
+  allowUI = false;
+  localPackageAccepted = true;
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

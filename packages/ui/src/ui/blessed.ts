@@ -10,8 +10,6 @@ function getBlessedDeps() {
   return blessedDeps;
 }
 
-blessed.text.prototype.name = '';
-
 blessed.widget.List.prototype.move = async function (offset: number) {
   this.select(this.selected + offset);
 };
@@ -146,7 +144,7 @@ blessed.widget.Box.prototype.enableDrag = function (verify: (data: any) => boole
         blessedDeps.dashboard.splitter.style.bg = [80, 80, 80];
       }
 
-      blessedDeps.dashboard?.resizeWidgets(blessedDeps.dashboard?.calcTableInfo());
+      blessedDeps.dashboard?.resizeWidgets(blessedDeps.dashboard.calcTableInfo());
     }
     // blessedDeps.dashboard.render();
 

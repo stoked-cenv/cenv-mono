@@ -3,14 +3,14 @@ import * as path from 'path';
 import {
   BaseCommandOptions,
   CenvFiles,
-  errorInfo,
+  colors,
   getConfigVars,
   Package,
   PackageModule,
   packagePath,
   spawnCmd,
 } from '@stoked-cenv/lib';
-import {BaseCommand} from './base'
+import {BaseCommand} from './base.command'
 import chalk from "chalk";
 
 
@@ -76,7 +76,7 @@ export default class ExecCommand extends BaseCommand {
         await spawnCmd('./', params.join(' '), params.join(' '), {envVars: vars}, p);
       }));
     } catch (e) {
-      console.log(errorInfo(e));
+      console.log(colors.error(e));
     }
   }
 }

@@ -1,21 +1,15 @@
 import {Command, Option} from 'nest-commander';
 import {Cenv, CenvLog, InitCommandOptions, Package} from '@stoked-cenv/lib'
 
-import {BaseCommand} from './base';
+import {BaseCommand} from './base.command';
 
 
 @Command({
            name: 'init', description: `Initialize cenv in an existing monorepo`,
          })
 export default class InitCommand extends BaseCommand {
-
-  constructor() {
-    super()
-    this.allowUI = false;
-    this.localPackageAccepted = true;
-  }
-
-
+  allowUI = false;
+  localPackageAccepted = true;
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {
