@@ -3,7 +3,7 @@ import { CommandFactory } from 'nest-commander';
 import { join } from 'path';
 import { suite } from 'uvu';
 import { equal } from 'uvu/assert';
-import { CliModule } from '@stoked-cenv/cli';
+import { CliModule } from '../../../src/cli.module';
 
 type ExpectedParam =
   | Record<'help', boolean>

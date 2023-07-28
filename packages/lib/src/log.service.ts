@@ -1,13 +1,12 @@
 import chalk from 'chalk';
-import { yellowBright, green as chalkGreen, yellow} from 'chalk';
 import {Cenv} from './cenv';
 import {cleanup} from "./utils";
 import {Injectable} from '@nestjs/common';
 
 const colors = {
-  info: chalk.yellow,
-  infoDim: chalk.yellow,
-  infoBold: chalk.yellow, //
+  info: chalk.gray,
+  infoDim: chalk.dim,
+  infoBold: chalk.blueBright, //
   std: chalk.white,
   stdDim: chalk.dim,
   stdBold: chalk.whiteBright, //

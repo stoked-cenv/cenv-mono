@@ -239,6 +239,9 @@ importers:
       '@nestjs/testing':
         specifier: ^10.0.0
         version: 10.0.0(@nestjs/common@10.0.0)(@nestjs/core@10.0.0)(@nestjs/platform-express@10.0.0)
+      '@nrwl/nx-cloud':
+        specifier: 15.3.5
+        version: 15.3.5
       '@types/express':
         specifier: ^4.17.17
         version: 4.17.17

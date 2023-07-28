@@ -1,8 +1,9 @@
 import { CommandFactory } from 'nest-commander';
-import { join } from 'path';
+import path, { join } from 'path';
 import { equal } from 'uvu/assert';
 import { BasicModule } from '../../../src/basic.module';
 import { createMock } from '../../common/log.mock';
+import { CenvLog, colors, packagePath } from '@stoked-cenv/lib';
 
 const [firstArg] = process.argv;
 // overwrite the second arg to make commander happy
@@ -46,10 +47,22 @@ Commands:
 const stdSpyMock = createMock('stdLog', 'Cenv Version Flag', );
 export const CenvVersionFlagSuite = stdSpyMock.suite;
 
+const cliPath = packagePath('@stoked-cenv/cli')
+const libPath = packagePath('@stoked-cenv/lib')
+const uiPath = packagePath('@stoked-cenv/ui')
+if (!cliPath || !libPath || !uiPath) {
+  CenvLog.single.catchLog(`could not find one of the package paths for the version test - cli: ${cliPath}, lib ${libPath}, ui: ${uiPath}`);
+  process.exit(22);
+}
+const cliVersion = require(path.join(cliPath, 'package.json')).version;
+const libVersion = require(path.join(libPath, 'package.json')).version;
+const uiVersion = require(path.join(uiPath, 'package.json')).version;
+
 const version =
-  `@stoked-cenv/cli: 2.0.0-a.41
-  @stoked-cenv/lib: 2.0.0-a.41
-  @stoked-cenv/ui: 2.0.0-a.41`
+  `${colors.info('@stoked-cenv/cli')}: ${colors.infoBold(cliVersion)}
+${colors.info('@stoked-cenv/lib')}: ${colors.infoBold(libVersion)}
+${colors.info('@stoked-cenv/ui')}: ${colors.infoBold(uiVersion)}`
+
 CenvVersionFlagSuite('--version', async ({ logSpy }) => {
   setArgv('--version');
   await CommandFactory.run(BasicModule);

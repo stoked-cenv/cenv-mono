@@ -3,7 +3,7 @@ import { CommandTestFactory } from 'nest-commander-testing';
 import { spy, Stub } from 'hanbi';
 import { suite } from 'uvu';
 import { equal } from 'uvu/assert';
-import { CliModule } from '@stoked-cenv/cli';
+import { CliModule } from '../../../src/cli.module';
 import { CenvLog } from '@stoked-cenv/lib';
 import path from "path";
 
