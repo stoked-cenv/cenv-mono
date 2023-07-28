@@ -11,7 +11,7 @@ import {BaseCommand} from './base.command';
            aliases: ['u', 'uninstall'],
 
          })
-export default class DestroyCommand extends BaseCommand {
+export class DestroyCommand extends BaseCommand {
   deploymentMode = ProcessMode.DESTROY;
   allowUI = true;
   packageRequired = true;

@@ -1,7 +1,7 @@
 import { CommandFactory } from 'nest-commander';
 import path, { join } from 'path';
 import { equal } from 'uvu/assert';
-import { BasicModule } from '../../../src/basic.module';
+import { CliModule } from '../../../src/cli.module';
 import { createMock } from '../../common/log.mock';
 import { CenvLog, colors, packagePath } from '@stoked-cenv/lib';
 
@@ -12,40 +12,8 @@ function setArgv(...args: string[]) {
   process.argv = [firstArg, secondArg, ...args];
 }
 
-
-const outputHelp = `test-stoked-cenv:  String Command
-test-stoked-cenv: Usage: cenv [options] [command]
-
-Options:
-  -v, --version                          Display cenv's installed version
-  -h, --help                             display help for command
-
-Commands:
-  deploy|i [options] [...applications]   Deploy infrastructure
-  destroy|u [options] [...applications]  The destroyer of things (suites, environments, stacks, app config, parameters, and ecr)
-  ui|s [options]                         Launch UI
-  add|update [options] <key> [value]     Add parameter(s) to package
-  rm [options] [key] [moreKeys...]       Add parameter(s) to package
-  params [options]                       Init, deploy, and display package parameters
-  docker [options]                       Build and push docker containers to ecr
-  build [options]                        Build packages
-  init [options]                         Initialize cenv in an existing monorepo
-  new|n [options] <name>                 Create a new cenv project
-  exec [options]                         Execute command using cenv context
-  configure|config [options]             Configure the cli for a specific deployment.
-  stat|status [options]                  Get the state of a package's current code as it compares to the infrastructure
-  test [options]                         Build and push docker containers to ecr
-  pull [options] [options]               Pull the latest application configuration
-  push [options]                         Push locally updated application configuration variables
-  bump [options]                         Bump packages
-  clean [options]                        Clean currently configured local files related to data in the .cenv configuration
-  env [options] [environment]            Manage application environments with this command
-  lambda [options]                       Update lambda cenv params
-  docs [command]                         Display help UI
-`;
-
-const stdSpyMock = createMock('stdLog', 'Cenv Version Flag', );
-export const CenvVersionFlagSuite = stdSpyMock.suite;
+const versionTester = createMock('stdLog', 'Cenv Version Flag', );
+export const CenvVersionFlagSuite = versionTester.suite;
 
 const cliPath = packagePath('@stoked-cenv/cli')
 const libPath = packagePath('@stoked-cenv/lib')
@@ -65,15 +33,55 @@ ${colors.info('@stoked-cenv/ui')}: ${colors.infoBold(uiVersion)}`
 
 CenvVersionFlagSuite('--version', async ({ logSpy }) => {
   setArgv('--version');
-  await CommandFactory.run(BasicModule);
-  stdSpyMock.mock(version, logSpy);
+  await CommandFactory.run(CliModule);
+  versionTester.mock(version, logSpy);
 });
 
 CenvVersionFlagSuite('-v', async ({ logSpy }) => {
   setArgv('-v');
-  await CommandFactory.run(BasicModule);
-  stdSpyMock.mock(version, logSpy);
+  await CommandFactory.run(CliModule);
+  versionTester.mock(version, logSpy);
 });
+
+
+
+
+const outputHelp = `Usage: cenv [options] [command]
+
+Options:
+  -v, --version                          Display cenv's installed version
+  -h, --help                             display help for command
+
+Commands:
+  add|update [options] <key> [value]     Add parameter(s) to package
+  build [options]                        Build packages
+  clean [options]                        Clean currently configured local files related to data in the .cenv configuration
+  configure|config [options]             Configure the cli for a specific deployment.
+  deploy|i [options] [...applications]   Deploy infrastructure
+  destroy|u [options] [...applications]  The destroyer of things (suites, environments, stacks, app config, parameters, and ecr)
+  docker [options]                       Build and push docker containers to ecr
+  docs [command]                         Display help UI
+  env [options] [environment]            Manage application environments with this command
+  exec [options]                         Execute command using cenv context
+  init [options]                         Initialize cenv in an existing monorepo
+  lambda [options]                       Update lambda cenv params
+  new|n [options] <name>                 Create a new cenv project
+  params [options]                       Init, deploy, and display package parameters
+  pull [options] [options]               Pull the latest application configuration
+  push [options]                         Push locally updated application configuration variables
+  rm [options] [key] [moreKeys...]       Add parameter(s) to package
+  stat|status [options]                  Get the state of a package's current code as it compares to the infrastructure
+  test [options]                         Build and push docker containers to ecr
+  ui|s [options]                         Launch UI`;
+
+const helpTester = createMock('stdLog', 'Cenv Help Flag', );
+export const CenvHelpFlagSuite = helpTester.suite;
+CenvHelpFlagSuite(' --help', async ({ logSpy }) => {
+  setArgv('--help');
+  await CommandFactory.run(CliModule);
+  helpTester.mock(outputHelp, logSpy);
+});
+
 /*
 export const CenvHelpFlagSuite = logSpySuite('Cenv Help Command');
 CenvHelpFlagSuite(' --help=true', async ({ logSpy }) => {

@@ -7,7 +7,7 @@ import {BaseCommand} from './base.command';
 @Command({
            name: 'init', description: `Initialize cenv in an existing monorepo`,
          })
-export default class InitCommand extends BaseCommand {
+export class InitCommand extends BaseCommand {
   allowUI = false;
   localPackageAccepted = true;
   @Option({

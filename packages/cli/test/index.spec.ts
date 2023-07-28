@@ -1,9 +1,7 @@
 process.env.ENV = 'test';
-//import { BasicFactorySuite } from './commands/basic/basic.command.factory.spec';
-//BasicFactorySuite.run();
-import { CenvVersionFlagSuite } from './commands/cenv/cenv.command.spec';
-//CenvHelpFlagSuite.run()
+import { CenvVersionFlagSuite, CenvHelpFlagSuite } from './commands/cenv/cenv.command.spec';
 CenvVersionFlagSuite.run();
+CenvHelpFlagSuite.run()
 //UnknownCommandSuite.run();
 /*
 import {

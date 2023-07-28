@@ -11,7 +11,7 @@ import {BaseCommand} from './base.command';
            description: 'Deploy infrastructure',
            aliases: ['i', 'install']
          })
-export default class DeployCommand extends BaseCommand {
+export class DeployCommand extends BaseCommand {
   deploymentMode = ProcessMode.DEPLOY;
   allowUI = true;
   packageRequired = true;

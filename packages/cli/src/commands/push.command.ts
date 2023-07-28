@@ -13,7 +13,7 @@ interface PushCommandOptions extends BaseCommandOptions {
 @Command({
            name: 'push', description: 'Push locally updated application configuration variables'
          })
-export default class PushCommand extends BaseCommand {
+export class PushCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

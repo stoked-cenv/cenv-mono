@@ -5,7 +5,7 @@ import {BaseCommand} from './base.command'
 @Command({
            name: 'bump', description: `Bump packages`,
          })
-export default class BumpCommand extends BaseCommand {
+export class BumpCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

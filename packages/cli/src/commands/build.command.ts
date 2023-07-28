@@ -5,7 +5,7 @@ import {BaseCommand} from './base.command'
 @Command({
            name: 'build', description: `Build packages`,
          })
-export default class BuildCommand extends BaseCommand {
+export class BuildCommand extends BaseCommand {
 
   constructor(private readonly cenvLog: CenvLog) {
     super();

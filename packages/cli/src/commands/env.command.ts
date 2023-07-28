@@ -14,7 +14,7 @@ interface EnvCommandOptions extends BaseCommandOptions {
 @Command({
            name: 'env', arguments: '[environment]', description: 'Manage application environments with this command',
          })
-export default class EnvCommand extends BaseCommand {
+export class EnvCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

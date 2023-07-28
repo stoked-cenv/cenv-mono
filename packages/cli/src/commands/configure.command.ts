@@ -12,7 +12,7 @@ import {join} from 'path';
    description: 'Configure the cli for a specific deployment.',
    aliases: ['config', 'conf']
 })
-export default class ConfigureCommand extends BaseCommand {
+export class ConfigureCommand extends BaseCommand {
   @Option({
     flags: '-ll, --log-level, <logLevel>',
             description: `Logging mode 2`

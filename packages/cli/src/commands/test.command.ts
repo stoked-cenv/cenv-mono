@@ -7,7 +7,7 @@ import {CenvTest} from "@stoked-cenv/lib";
 @Command({
            name: 'test', description: 'Build and push docker containers to ecr'
          })
-export default class TestCommand extends BaseCommand {
+export class TestCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

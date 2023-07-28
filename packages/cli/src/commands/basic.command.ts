@@ -1,22 +1,24 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
-import { CenvLog } from '@stoked-cenv/lib';
+import { CenvLog, Package, BaseCommandOptions } from '@stoked-cenv/lib';
+import {BaseCommand} from './base.command'
 
-interface BasicCommandOptions {
+
+interface BasicCommandOptions extends BaseCommandOptions {
   string?: string;
   boolean?: boolean;
   number?: number;
 }
 
-@Command({ name: 'basic', description: 'A parameter parse' })
-export class BasicCommand extends CommandRunner {
+@Command({
+           name: 'basic',
+           description: 'A parameter parse'
+})
+export class BasicCommand extends BaseCommand {
   constructor(private readonly cenvLog: CenvLog) {
     super();
   }
 
-  async run(
-    passedParam: string[],
-    options?: BasicCommandOptions,
-  ): Promise<void> {
+  async runCommand(passedParam: string[], options: BasicCommandOptions, packages: Package[]): Promise<void> {
     if (options?.boolean !== undefined && options?.boolean !== null) {
       this.runWithBoolean(passedParam, options.boolean);
     } else if (options?.number) {

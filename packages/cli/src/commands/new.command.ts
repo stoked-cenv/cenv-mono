@@ -6,7 +6,7 @@ import {BaseCommand} from './base.command';
 @Command({
            name: 'new', description: `Create a new cenv project`, aliases: ['n'], arguments: '<name>',
          })
-export default class NewCommand extends BaseCommand {
+export class NewCommand extends BaseCommand {
   allowUI = false;
   localPackageAccepted = true;
   @Option({

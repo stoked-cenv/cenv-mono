@@ -24,7 +24,7 @@ interface RemoveCommandOptions extends BaseCommandOptions {
 @Command({
            name: 'rm', description: 'Add parameter(s) to package', arguments: '[key] [moreKeys...]'
          })
-export default class RemoveCommand extends BaseCommand {
+export class RemoveCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

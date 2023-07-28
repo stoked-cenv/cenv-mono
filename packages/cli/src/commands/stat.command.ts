@@ -12,7 +12,7 @@ export interface StatCommandOptions extends BaseCommandOptions {
            description: `Get the state of a package's current code as it compares to the infrastructure`,
            aliases: ['status'],
          })
-export default class StatusCommand extends BaseCommand {
+export class StatCommand extends BaseCommand {
   allowUI = false;
   localPackageAccepted = true;
   @Option({

@@ -22,7 +22,7 @@ enum ParamCommands {
 @Command({
            name: 'params', description: 'Init, deploy, and display package parameters',
          })
-export default class ParamsCommand extends BaseCommand {
+export class ParamsCommand extends BaseCommand {
   localPackageAccepted = true;
 
   @Option({

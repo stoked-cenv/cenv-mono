@@ -10,7 +10,7 @@ interface DocsCommandOptions {
 @Command({
            name: 'docs', arguments: '[command]', description: 'Display help UI'
          })
-export default class DocsCommand extends CommandRunner {
+export class DocsCommand extends CommandRunner {
   async run(params: string[], options?: DocsCommandOptions): Promise<void> {
     try {
       new HelpUI();

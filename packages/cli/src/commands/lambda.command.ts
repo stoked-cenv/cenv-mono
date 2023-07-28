@@ -10,7 +10,7 @@ interface LambdaCommandOptions extends BaseCommandOptions {
            name: 'lambda', description: 'Update lambda cenv params'
          })
 
-export default class LambdaCommand extends BaseCommand {
+export class LambdaCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

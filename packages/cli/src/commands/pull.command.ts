@@ -16,7 +16,7 @@ interface PullCommandOptions extends BaseCommandOptions {
 @Command({
            name: 'pull', description: 'Pull the latest application configuration', arguments: '[options]',
          })
-export default class PullCommand extends BaseCommand {
+export class PullCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

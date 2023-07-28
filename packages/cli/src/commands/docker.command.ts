@@ -7,7 +7,7 @@ import {BaseCommand} from './base.command'
 @Command({
            name: 'docker', description: 'Build and push docker containers to ecr'
          })
-export default class DockerCommand extends BaseCommand {
+export class DockerCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

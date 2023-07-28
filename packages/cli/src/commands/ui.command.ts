@@ -1,4 +1,4 @@
-import {Command, Option} from 'nest-commander';
+import { Command, CommandRunner, Help, Option } from 'nest-commander';
 import {CenvUI} from '@stoked-cenv/ui';
 import {BaseCommandOptions, Cenv, CenvLog, Package, Suite} from '@stoked-cenv/lib'
 
@@ -10,11 +10,9 @@ export interface UICommandOptions extends BaseCommandOptions {
 }
 
 @Command({
-           name: 'ui', description: `Launch UI`, aliases: ['s', 'suite'],
-
-
+           name: 'ui', description: `Launch UI to manage an environment's infrastructure`, aliases: ['s', 'suite'],
          })
-export default class UICommand extends BaseCommand {
+export class UICommand extends BaseCommand {
   allowUI = true;
   localPackageAccepted = false;
 

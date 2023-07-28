@@ -14,6 +14,7 @@ export abstract class BaseCommand extends CommandRunner {
   static log: CenvLog;
 
   @Option({
+    name: 'profile',
     flags: '--profile <profile>',
     description: `Profile to use for aws commands a.k.a. "AWS_PROFILE"`
   })
@@ -22,7 +23,12 @@ export abstract class BaseCommand extends CommandRunner {
   }
 
   async run(passedParams: string[], options?: BaseCommandOptions) {
-
+    console.log('help', options)
+    this.command.help();
+    if (options?.help) {
+      this.command.help();
+      process.exit();
+    }
     const cenvRootNotRequired = this.command.name() === 'init' || this.command.name() === 'new';
     const opt: any = options;
     await Cenv.cmdInit(opt, cenvRootNotRequired);

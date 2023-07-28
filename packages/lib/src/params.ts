@@ -60,13 +60,13 @@ export interface LambdaProcessResponse {
 
 export interface BaseCommandOptions {
   profile?: string;
+  help?: boolean;
   env?: string;
   cli?: boolean;
   logLevel?: string;
   localPackageAccepted?: boolean;
   defaultSuite?: string;
   scopeName?: string;
-  help?: boolean;
   skipBuild?: boolean;
   userInterface?: boolean;
 }

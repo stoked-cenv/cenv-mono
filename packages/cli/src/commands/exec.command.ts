@@ -22,7 +22,7 @@ interface ExecCommandOptions extends BaseCommandOptions {
 @Command({
            name: 'exec', description: 'Execute command using cenv context',
          })
-export default class ExecCommand extends BaseCommand {
+export class ExecCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

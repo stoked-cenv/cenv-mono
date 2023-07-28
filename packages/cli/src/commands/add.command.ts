@@ -17,7 +17,7 @@ interface AddParamCommandOptions extends BaseCommandOptions {
   arguments: '<key> [value]',
   aliases: ['update', 'upsert']
 })
-export default class AddCommand extends BaseCommand {
+export class AddCommand extends BaseCommand {
 
   constructor(private readonly cenvLog: CenvLog) {
     super();

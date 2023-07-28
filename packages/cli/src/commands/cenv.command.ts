@@ -1,4 +1,4 @@
-import {Option, RootCommand} from 'nest-commander';
+import { Help, Option, RootCommand } from 'nest-commander';
 import { BaseCommandOptions, CenvLog, Package } from '@stoked-cenv/lib';
 import {BaseCommand} from "./base.command";
 
@@ -15,7 +15,7 @@ interface CenvCommandOptions extends BaseCommandOptions {
     isDefault: true
   }
 })
-export default class CenvCommand extends BaseCommand {
+export class CenvCommand extends BaseCommand {
   constructor(private readonly cenvLog: CenvLog) {
     super();
   }

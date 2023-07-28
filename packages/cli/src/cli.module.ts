@@ -1,26 +1,27 @@
 import { Module } from '@nestjs/common';
-import AddParamsCommand from './commands/add.command';
-import BuildCommand from './commands/build.command';
-//import BumpCommand from './commands/bump';
-import CenvCommand from './commands/cenv.command';
-import CleanCommand from './commands/clean';
-import ConfigureCommand from './commands/configure';
-import DeployCommand from './commands/deploy';
-import DestroyCommand from './commands/destroy';
-import DockerCommand from './commands/docker';
-import DocsCommand from './commands/docs';
-import EnvCommand from './commands/env';
-import ExecCommand from './commands/exec';
-import InitCommand from './commands/init';
-import LambdaCommand from './commands/lambda';
-import NewCommand from './commands/new';
-import ParamsCommand from './commands/params';
-import PullCommand from './commands/pull';
-import PushCommand from './commands/push';
-import RemoveCommand from './commands/rm';
-import StatCommand from './commands/stat';
-import TestCommand from './commands/test';
-import UICommand from './commands/ui';
+import {
+  AddCommand,
+  BuildCommand,
+  CenvCommand,
+  CleanCommand,
+  ConfigureCommand,
+  DeployCommand,
+  DestroyCommand,
+  DockerCommand,
+  DocsCommand,
+  EnvCommand,
+  ExecCommand,
+  InitCommand,
+  LambdaCommand,
+  NewCommand,
+  ParamsCommand,
+  PullCommand,
+  PushCommand,
+  RemoveCommand,
+  StatCommand,
+  TestCommand,
+  UICommand
+} from './commands';
 
 import { CenvLog } from '@stoked-cenv/lib';
 
@@ -28,7 +29,7 @@ import { CenvLog } from '@stoked-cenv/lib';
           providers: [
             CenvLog,
             CenvCommand,
-            AddParamsCommand,
+            AddCommand,
             BuildCommand,
             CleanCommand,
             ConfigureCommand,

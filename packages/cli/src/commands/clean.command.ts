@@ -6,7 +6,7 @@ import {BaseCommand} from './base.command'
            name: 'clean',
            description: `Clean currently configured local files related to data in the ${configDefaults.appExt} configuration`,
          })
-export default class CleanCommand extends BaseCommand {
+export class CleanCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {
