@@ -83,9 +83,6 @@
     "configuration",
     "parameters"
   ],
-  "deployDependencies": [
-    "@stoked-cenv/cdk#lambda-api"
-  ],
   "homepage": "https://cenv.stokedconsulting.com",
   "peerDependencies": {
     "@stoked-cenv/lib": "^2.0.0-a.35 || ^2.0.1",

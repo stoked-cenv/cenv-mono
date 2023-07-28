@@ -36,8 +36,6 @@
   },
   "license": "MIT",
   "cenv": {
-    "stack": {
-      "buildPath": "stacks"
-    }
+    "templatePath": "stacks"
   }
 }
