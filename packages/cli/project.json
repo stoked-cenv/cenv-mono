@@ -33,8 +33,31 @@
       "options": {
         "rootDir": "./",
         "useSwc": true,
-        "coverage": false,
+        "coverage": true,
         "pattern": "packages/cli/test/index.spec.ts"
+      }
+    },
+    "e2e": {
+      "executor": "nx-uvu:uvu",
+      "options": {
+        "rootDir": "./",
+        "useSwc": true,
+        "coverage": true,
+        "pattern": "packages/cli/test/e2e.spec.ts"
+      }
+    },
+    "server": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/cli",
+        "command": "node dist/server.js"
+      }
+    },
+    "cli": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/cli",
+        "command": "node dist/main.js"
       }
     }
   },

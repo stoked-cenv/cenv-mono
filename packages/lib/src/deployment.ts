@@ -1,8 +1,8 @@
 import * as path from 'path';
 import chalk from 'chalk';
 import {Environments} from './environment'
-import {Cenv} from './cenv'
-import {BaseCommandOptions} from "./params";
+import {Cenv, BaseCommandOptions} from './cenv'
+import {} from "./params";
 import {EnvironmentStatus, IPackage, Package, PackageCmd, ProcessStatus} from "./package/package";
 import {execCmd, getMonoRoot, getOs, ICmdOptions, isOsSupported, sleep, validateEnvVars} from "./utils";
 import Fake from "./fake";
@@ -13,48 +13,6 @@ import {listStacks} from "./aws/cloudformation";
 import {ParamsModule} from "./package/params";
 import {DockerModule} from "./package/docker";
 import {StackSummary} from "@aws-sdk/client-cloudformation";
-
-
-export interface CdkCommandOptions extends BaseCommandOptions {
-  profile?: string;
-  dependencies?: boolean;
-  strictVersions?: boolean;
-  cli?: boolean;
-  failOnError?: boolean;
-  suite?: string;
-  test?: boolean;
-  stack?: boolean;
-  parameters?: boolean;
-  docker?: boolean;
-  cenv?: boolean;
-}
-
-export interface DockerCommandOptions extends BaseCommandOptions {
-  build?: boolean;
-  push?: boolean;
-  profile?: string;
-  application?: string;
-  dependencies?: boolean;
-  force?: boolean;
-}
-
-export interface DeployCommandOptions extends CdkCommandOptions {
-  key?: boolean;
-  addKeyAccount?: string;
-  verify?: boolean;
-  force?: boolean;
-  bump: string;
-}
-
-export interface DestroyCommandOptions extends CdkCommandOptions {
-  globalParameters?: boolean;
-  nonGlobalParameters?: boolean;
-  environment?: boolean;
-  allParameters?: boolean;
-  allDocker?: boolean;
-  all?: boolean;
-}
-
 
 interface DeploymentDependencies {
   package: Package;

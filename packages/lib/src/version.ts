@@ -3,9 +3,10 @@ import {CenvLog, colors} from './log.service';
 import {Package} from './package/package';
 import {eq, lt, parse, RangeOptions, SemVer} from "semver";
 import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
-import {getProfiles, ProfileData,} from "./stdIo";
+import {Cenv} from "./cenv";
 import { getMonoRoot, getProbableMonoRoot, search_sync, sureParse } from './utils';
 import {CenvFiles} from "./file";
+import { ProfileData } from './stdIo';
 
 export enum BumpMode {
   DISABLED = 'DISABLED',
@@ -284,7 +285,7 @@ export class Version {
   }
 
   static async Upgrade_1_9_0() {
-    const profileFileData = await getProfiles(false);
+    const profileFileData = await Cenv.stdio.getProfiles(false);
     profileFileData.forEach((profileData: ProfileData) => {
       renameSync(profileData.profilePath, path.join(CenvFiles.PROFILE_PATH, `${profileData.envConfig?.AWS_PROFILE}↔${profileData.envConfig?.ENV}`));
     });

@@ -1678,6 +1678,8 @@ export function sureParse(version: string | semver.SemVer | null, opt?: RangeOpt
 
 export class EnvVars {
   private _vars: Record<string, string> = {};
+  private _defaultHidden = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'];
+  private _hidden = this._defaultHidden;
 
   constructor(properties: Record<string, string> = {}) {
 
@@ -1686,6 +1688,21 @@ export class EnvVars {
         this._vars[entry[0]] = entry[1];
       }
     });
+  }
+
+  write(path: string) {
+
+    writeFileSync(path, JSON.stringify(this.allSafe, null, 2));
+  }
+
+  get allSafe() {
+    const tempVars = this._vars;
+    for (const key in this._hidden) {
+      if (tempVars[this._hidden[key]]) {
+        delete tempVars[this._hidden[key]];
+      }
+    }
+    return tempVars;
   }
 
   get all() {

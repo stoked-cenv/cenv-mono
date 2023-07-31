@@ -6,7 +6,7 @@ import {CenvLog, colors} from './log.service';
 import Ajv from "ajv";
 import {prettyPrint} from "@base2/pretty-print-object";
 import { fromDir, getMonoRoot, validateEnvVars } from './utils';
-import {BaseCommandOptions, CenvParams} from "./params";
+import {CenvParams} from "./params";
 import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
 import {encrypt} from './aws/kms';
 import {getConfig} from "./aws/appConfig";
@@ -359,13 +359,6 @@ export class GlobalEnvVarsFile extends File {
 }
 
 
-export interface CleanCommandOptions extends BaseCommandOptions {
-  mode?: string;
-  allApplications?: boolean;
-  globals?: boolean;
-  environment?: string;
-}
-
 
 export class CenvFiles {
   //static envVars = validateEnvVars(['APPLICATION_NAME', 'ENVIRONMENT_NAME', 'HOME', 'ENV', 'CDK_DEFAULT_ACCOUNT', 'AWS_ACCOUNT_ID'])
@@ -575,7 +568,7 @@ export class CenvFiles {
     }
   }
 
-  public static Clean(startPath: string = cenvRoot, options?: CleanCommandOptions) {
+  public static clean(startPath: string = cenvRoot, options?: Record<string, any>) {
     const cenvFiles = this.getLocalCenvFiles(undefined, options?.environment);
     const {vars, config, envVars, globalVars, envVarTemplate, globalEnvVars, globalEnvVarTemplate} = cenvFiles;
 
@@ -773,7 +766,11 @@ export class CenvFiles {
     }
 
     if (!process.env.CENV_PROFILE_PATH) {
-      process.env.CENV_PROFILE_PATH = path.join(process.env.HOME!, cenvRoot, 'profiles');
+      let final = 'profiles';
+      if (process.env.ENV === 'test') {
+        final = 'test-' + final;
+      }
+      process.env.CENV_PROFILE_PATH = path.join(process.env.HOME!, cenvRoot, final);
       this.ProfilePath = process.env.CENV_PROFILE_PATH;
       this.ensurePath(this.ProfilePath);
     }

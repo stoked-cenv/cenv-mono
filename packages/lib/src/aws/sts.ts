@@ -25,7 +25,6 @@ function getClient() {
 
 export async function getAccountId() {
   try {
-    console.log('AWS_PROFILE', process.env.AWS_PROFILE)
     const cmd = new GetCallerIdentityCommand({});
     const res = await getClient().send(cmd);
     if (res && res.Account) {

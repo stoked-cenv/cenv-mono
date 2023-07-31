@@ -1,4 +1,4 @@
-import { execCmd, getGuaranteedMonoRoot, getMonoRoot, packagePath, removeScope, spawnCmd, sureParse, Timer, validateEnvVars } from '../utils';
+import { execCmd, getGuaranteedMonoRoot, packagePath, removeScope, spawnCmd, sureParse, Timer } from '../utils';
 import {existsSync, readFileSync} from "fs";
 import * as path from 'path';
 import {PackageModule, PackageModuleType, PackageStatus} from './module'
@@ -7,8 +7,7 @@ import {coerce, inc, parse, SemVer} from 'semver';
 import {ParamsModule} from './params';
 import {DockerModule} from './docker';
 import {StackModule} from './stack';
-import {BaseCommandOptions} from '../params';
-import {Cenv} from '../cenv'
+import {Cenv, BaseCommandOptions} from '../cenv'
 import {AppVarsFile, EnvVarsFile} from '../file';
 import {LibModule} from './lib';
 import {ExecutableModule} from './executable';

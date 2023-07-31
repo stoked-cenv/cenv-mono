@@ -13,3 +13,5 @@ cenv.build.log
 *.js.map
 /packages/lib/.version.json
 /packages/cli/tsconfig.tsbuildinfo
+packages/cli/logs
+/basic/

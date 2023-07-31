@@ -2,9 +2,7 @@ import {blessed, contrib, getBlessedDeps} from './blessed';
 import Dialogs from './dialogs';
 import Menu from './menu';
 import {
-  CenvFiles,
   CenvLog,
-  CenvParams,
   clamp,
   Cmd,
   colors,
@@ -156,8 +154,8 @@ export class Dashboard {
         process.exit(349);
       }
 
-      this.suite = dashboardOptions?.suite ? dashboardOptions?.suite : undefined;
-      this.environment = dashboardOptions?.environment;
+      this.suite = dashboardOptions?.options?.suite ? dashboardOptions?.options?.suite : undefined;
+      this.environment = dashboardOptions?.options?.environment;
       this.cmd = dashboardOptions?.cmd;
 
 

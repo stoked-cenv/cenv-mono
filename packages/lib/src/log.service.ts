@@ -277,9 +277,15 @@ export class CenvLog {
     }
     this.logBase(message, colors.info, 'stdout', stackName, replicateToGlobal);
   }
+  static infoLog(message: any, stackName?: string, replicateToGlobal = false): void {
+    this.single.infoLog(message, stackName, replicateToGlobal);
+  }
 
   errorLog(message: any, stackName?: string, replicateToGlobal = false): void {
     this.logBase(message, colors.error, 'stderr', stackName, replicateToGlobal);
+  }
+  static errorLog(message: any, stackName?: string, replicateToGlobal = false): void {
+    this.single.errorLog(message, stackName, replicateToGlobal);
   }
 
   alertLog(message: any, stackName?: string, replicateToGlobal = false): void {
@@ -289,12 +295,19 @@ export class CenvLog {
     this.logBase(message, colors.alert, 'stdout', stackName, replicateToGlobal);
   }
 
+  static alertLog(message: any, stackName?: string, replicateToGlobal = false): void {
+    this.single.alertLog(message, stackName, replicateToGlobal);
+  }
   stdLog(message: any, stackName?: string, replicateToGlobal = false): void {
     if (!this.isStdout) {
       return;
     }
     this.logBase(message, undefined, 'stdout', stackName, replicateToGlobal);
   }
+  static stdLog(message: any, stackName?: string, replicateToGlobal = false): void {
+    this.single.stdLog(message, stackName, replicateToGlobal);
+  }
+
 
   catchLog(error: any): never {
 
@@ -309,6 +322,11 @@ export class CenvLog {
     }
 
     process.exit(23);
+  }
+
+  static catchLog(error: any): never {
+    this.single.catchLog(error);
+    process.exit(34);
   }
 }
 

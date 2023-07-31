@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as sms from 'source-map-support';
 import {CommandFactory} from 'nest-commander';
-import {CliModule} from './cli.module'
+import {CliModule} from './cli/cli.module'
 import {cleanup} from '@stoked-cenv/lib';
 
 sms.install();
@@ -16,7 +16,11 @@ sms.install();
 
 async function bootstrap() {
   try {
-    await CommandFactory.run(CliModule);
+    await CommandFactory.run(CliModule, {
+      enablePositionalOptions: true,
+      cliName: 'cenv',
+      usePlugins: true
+    });
   } catch (e) {
     console.error(e);
   }

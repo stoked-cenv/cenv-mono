@@ -17,7 +17,7 @@ import {invoke, updateLambdas} from './aws/lambda';
 import {CenvLog, colors} from './log.service';
 import chalk from "chalk";
 import {getConfigVars} from './aws/appConfigData';
-import {ioReadVarList, readAsync} from './stdIo';
+
 import {expandTemplateVars, sleep,} from './utils';
 import {AppVarsFile, CenvFiles, EnvConfig, EnvVarsFile, GlobalEnvVarsFile, GlobalVarsFile} from './file';
 import {existsSync,} from 'fs';
@@ -58,18 +58,9 @@ export interface LambdaProcessResponse {
   error?: Error
 }
 
-export interface BaseCommandOptions {
-  profile?: string;
-  help?: boolean;
-  env?: string;
-  cli?: boolean;
-  logLevel?: string;
-  localPackageAccepted?: boolean;
-  defaultSuite?: string;
-  scopeName?: string;
-  skipBuild?: boolean;
-  userInterface?: boolean;
+export declare class Dashboard {
 }
+
 
 export interface DashboardCreateOptions {
   packages?: Package[],
@@ -79,10 +70,7 @@ export interface DashboardCreateOptions {
   cmd?: ProcessMode
 }
 
-export declare class Dashboard {
-}
 
-export type DashboardCreator = (deployCreateOptions: DashboardCreateOptions) => Dashboard;
 
 export class CenvParams {
 
@@ -221,7 +209,7 @@ export class CenvParams {
     const paramsUpdated: string[] = [];
 
     if (options?.kill) {
-      const killItWithFire = await readAsync('The --kill flag removes the global parameter entirely. Any services that depend on it will be broken. Are you sure you want to delete the global parameter? (y/n): ', 'n');
+      const killItWithFire = await Cenv.stdio.readAsync('The --kill flag removes the global parameter entirely. Any services that depend on it will be broken. Are you sure you want to delete the global parameter? (y/n): ', 'n');
       if (killItWithFire !== 'y') {
         console.log(colors.error('The global parameter was not deleted. If you simply want to remove the reference from this application to the global parameter use the same command without --kill.'));
         process.exit(6);
@@ -407,7 +395,7 @@ export class CenvParams {
           delete fileData['ENVIRONMENT_NAME'];
         }
         if (!process.env.CENV_LOCAL && !process.env.CENV_DEFAULTS) {
-          fileData = await ioReadVarList(fileData, true);
+          fileData = await Cenv.stdio.ioReadVarList(fileData, true);
         }
         if (type === 'globalEnvTemplate') {
           fileData['ENVIRONMENT_NAME'] = process.env.ENV!;

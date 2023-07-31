@@ -9,7 +9,7 @@
         "rootDir": "packages/lib/src",
         "outputPath": "packages/lib/dist",
         "main": "packages/lib/src/index.ts",
-        "tsConfig": "packages/lib/tsconfig.lib.json",
+        "tsConfig": "packages/lib/tsconfig.build.json",
         "deleteOutputPath": true,
         "packageJson": "package/lib/package.json"
       }

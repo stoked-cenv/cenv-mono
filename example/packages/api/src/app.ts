@@ -39,7 +39,13 @@ export class Server {
                    });
 
     app.use(helmet({
-                     hsts: {maxAge: 31536000}, frameguard: {action: 'deny'}, contentSecurityPolicy: {
+                     hsts: {
+                       maxAge: 31536000
+                     },
+                     frameguard: {
+                       action: 'deny'
+                     },
+                     contentSecurityPolicy: {
         directives: {
           'default-src': ["'self'"], 'frame-ancestors': ["'none'"],
         },

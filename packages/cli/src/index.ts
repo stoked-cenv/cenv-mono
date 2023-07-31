@@ -1,4 +1,4 @@
-export * from './cli.module';
-export * from './commands';
+export * from './cli/cli.module';
+export * from './cli/commands';
 
 

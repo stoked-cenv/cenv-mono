@@ -1,7 +1,29 @@
 process.env.ENV = 'test';
-import { CenvVersionFlagSuite, CenvHelpFlagSuite } from './commands/cenv/cenv.command.spec';
-CenvVersionFlagSuite.run();
-CenvHelpFlagSuite.run()
+process.env.CENV_DEFAULTS='true';
+
+import { rmSync } from 'fs';
+import { CenvFiles } from '@stoked-cenv/lib';
+
+CenvFiles.setPaths();
+rmSync(CenvFiles.PROFILE_PATH, {recursive: true});
+
+import { CenvVersionFlagSuite, HelpUnknownCommandSuite } from './commands/cenv/cenv.command.spec';
+import { ConfigCommandSuite } from './commands/config/config.command.spec';
+
+
+
+async function bootstrap() {
+
+  await ConfigCommandSuite.run();
+  await CenvVersionFlagSuite.run();
+  await HelpUnknownCommandSuite.run();
+
+
+}
+bootstrap();
+
+
+//CenvHelpFlagSuite2.run()
 //UnknownCommandSuite.run();
 /*
 import {

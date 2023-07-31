@@ -27,18 +27,18 @@ import {
 } from './aws/appConfig'
 import * as chalk from 'chalk';
 import * as path from 'path';
-import {BaseCommandOptions, CenvParams, DashboardCreateOptions, DashboardCreator, validateOneType} from './params';
+import {CenvParams, validateOneType} from './params';
 import {Environment,} from './environment';
 import {Export} from '@aws-sdk/client-cloudformation';
 import { getExportValue, listExports } from './aws/cloudformation';
-import {CenvFiles, EnvConfig} from "./file";
+import { CenvFiles, cenvRoot, EnvConfig } from './file';
 import {upsertParameter} from "./aws/parameterStore";
-import { createParamsLibrary, EnvVars, execCmd, getMonoRoot, packagePath, search_sync, sleep, validateEnvVars } from './utils';
-import { getContextConfig, ConfigureCommandOptions, getMatchingProfileConfig, ioAppEnv, ioReadVarList } from './stdIo';
+import { createParamsLibrary, EnvVars, execCmd, getMonoRoot, packagePath, parseCmdParams, search_sync, sleep, validateEnvVars } from './utils';
+import { CenvStdio } from './stdIo';
 import { deleteHostedZone, listHostedZones } from './aws/route53';
-import { existsSync, mkdirSync, readFileSync, rmdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'fs';
 import * as child from 'child_process';
-import {PackageModule} from "./package/module";
+import { PackageModule, ProcessMode } from './package/module';
 import {Template} from "./templates";
 import { Suite } from './suite';
 import { Version } from './version';
@@ -58,6 +58,77 @@ interface IApplicationShiftExecutor {
   (envCtx: any, params: any, options: any): Promise<PackageCmd>;
 }
 
+export interface BaseCommandOptions {
+  profile?: string;
+  env?: string;
+  help?: boolean;
+  cli?: boolean;
+  logLevel?: string;
+  localPackageAccepted?: boolean;
+  defaultSuite?: string;
+  scopeName?: string;
+  skipBuild?: boolean;
+  userInterface?: boolean;
+}
+
+export interface ConfigCommandOptions extends BaseCommandOptions {
+  localstackApiKey?: string;
+  show?: boolean;
+  key?: boolean;
+}
+
+export interface ConfigRemoveCommandOptions extends ConfigCommandOptions {
+  default?: boolean;
+}
+
+export interface CleanCommandOptions extends BaseCommandOptions {
+  mode?: string;
+  allApplications?: boolean;
+  globals?: boolean;
+  environment?: string;
+}
+
+export interface CdkCommandOptions extends BaseCommandOptions {
+  profile?: string;
+  dependencies?: boolean;
+  strictVersions?: boolean;
+  cli?: boolean;
+  failOnError?: boolean;
+  suite?: string;
+  test?: boolean;
+  stack?: boolean;
+  parameters?: boolean;
+  docker?: boolean;
+  cenv?: boolean;
+}
+
+export interface DockerCommandOptions extends BaseCommandOptions {
+  build?: boolean;
+  push?: boolean;
+  profile?: string;
+  application?: string;
+  dependencies?: boolean;
+  force?: boolean;
+}
+
+export interface DeployCommandOptions extends CdkCommandOptions {
+  key?: boolean;
+  addKeyAccount?: string;
+  verify?: boolean;
+  force?: boolean;
+  bump: string;
+}
+
+export interface DestroyCommandOptions extends CdkCommandOptions {
+  globalParameters?: boolean;
+  nonGlobalParameters?: boolean;
+  environment?: boolean;
+  allParameters?: boolean;
+  allDocker?: boolean;
+  all?: boolean;
+}
+
+
 export interface ParamsCommandOptions extends BaseCommandOptions {
   app?: boolean;
   environment?: boolean;
@@ -72,6 +143,11 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   test?: boolean;
   defaults?: boolean;
   envToParams?: boolean;
+}
+
+export interface CmdInfo {
+  name: string;
+  parent?: CmdInfo;
 }
 
 export interface NewCommandOptions extends BaseCommandOptions {
@@ -90,13 +166,34 @@ export interface StackProc {
   stackName?: string
 }
 
+export class CommandInfo {
+  name: string;
+  rootName: string;
+  allowUI = false;
+  args: Record<string, string> = {};
+  deploymentMode?: ProcessMode = undefined;
+  localPackageAccepted = true;
+  packageRequired = false;
+  meta: any;
+
+  constructor(name: string, rootName?: string) {
+    this.name = name;
+    this.rootName = rootName ? rootName : name;
+  }
+
+  get fullName() {
+    if (this.name !== this.rootName) {
+      return `${this.rootName}${this.name[0].toUpperCase()}${this.name.substring(1)}`
+    }
+    return this.name;
+  }
+}
+
 export class Cenv {
   static runningProcesses?: { [stackName: string]: StackProc[] } = {};
   static processes: { [pid: number]: StackProc } = {};
   static dashboard: any = null;
   static cleanTags: (...text: string[]) => string[];
-  static dashboardCreator: DashboardCreator;
-  static dashboardCreateOptions: DashboardCreateOptions;
   static materializationPkg = '@stoked-cenv/params';
   static roleName = 'LambdaConfigRole';
   static policySsmFullAccessArn = 'arn:aws:iam::aws:policy/AmazonSSMFullAccess';
@@ -109,6 +206,14 @@ export class Cenv {
   static defaultSuite: string;
   static globalPackage: string;
   static primaryPackagePath: string;
+  static _stdio: CenvStdio;
+
+  static get stdio() {
+    if (!this._stdio) {
+      this._stdio = new CenvStdio();
+    }
+    return this._stdio;
+  }
 
   static async init(options: InitCommandOptions) {
 
@@ -224,23 +329,50 @@ export class Cenv {
     await Template.newWeb()
   }
 
-  static async cmdInit(options: any, cenvRootNotRequired = false): Promise<boolean> {
+  static async cenvSetup(cmdInfo: CommandInfo, params?: string[], options?: Record<string, any>) {
+    if (!params) {
+      params = [];
+    }
+
+    if (!options) {
+      options = {};
+    }
+
+    Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
+    Cenv.cleanTags = (...text: string[]) => {
+      return this.dashboard?.cleanTags(...text);
+    }
+
+    const cenvRootNotRequired = ['init', 'cenv', 'new', 'config'].indexOf(cmdInfo.name) > -1;
+    await Cenv.cmdInit(options, cenvRootNotRequired, !(cenvRootNotRequired || cmdInfo.fullName === 'configRemove'));
+
+    if (cenvRootNotRequired) {
+      return {params, options};
+    }
+
+
+    if (!cmdInfo.allowUI) {
+      options.cli = true;
+    }
+    options.localPackageAccepted = cmdInfo.localPackageAccepted;
+    const passThru = {skipBuild: options.skipBuild};
+
+    const {packages, parsedParams, validatedOptions} = await parseCmdParams(params, options, cmdInfo.deploymentMode);
+    return {params: parsedParams, options: {...validatedOptions, ...passThru}, packages, args: options?.args};
+  }
+
+  static async cmdInit(options: any, cenvRootNotRequired = false, loadConfig = true): Promise<boolean> {
     try {
-
       CenvFiles.setPaths();
-
-      Package.callbacks.cancelDependencies = Deployment.cancelDependencies.bind(Deployment);
-      Cenv.cleanTags = (...text: string[]) => {
-        return this.dashboard?.cleanTags(...text);
-      }
-
       if (cenvRootNotRequired) {
         if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
           options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
           const { logLevel }: { logLevel: keyof typeof LogLevel } = options;
           process.env.CENV_LOG_LEVEL = LogLevel[logLevel];
           CenvLog.logLevel = LogLevel[logLevel];
-          CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
+          if (CenvLog.logLevel !== LogLevel.INFO) {
+            CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel)
+          }
         } else {
           process.env.CENV_LOG_LEVEL = LogLevel.INFO
           CenvLog.logLevel = LogLevel.INFO;
@@ -253,7 +385,9 @@ export class Cenv {
         await Version.getVersion('@stoked-cenv/ui');
       }
 
-      options.args = await Cenv.configure(options as ConfigureCommandOptions);
+      if (loadConfig) {
+        options.args = await Cenv.configure(options as ConfigCommandOptions);
+      }
 
       const monoRoot = getMonoRoot();
       if (!monoRoot && cenvRootNotRequired) {
@@ -759,7 +893,7 @@ export class Cenv {
     if (!application || !environment || options?.force) {
       const appEntry = {value: application, defaultValue: pkg.name};
       const envEntry = {value: environment, defaultValue: 'local'};
-      const ioAppEnvRes = await ioAppEnv(envConfig, appEntry, envEntry, options?.force, options?.defaults,);
+      const ioAppEnvRes = await Cenv.stdio.ioAppEnv(envConfig, appEntry, envEntry, options?.force, options?.defaults,);
       if (!ioAppEnvRes) {
         return;
       }
@@ -861,30 +995,54 @@ export class Cenv {
     };
   }
 
-  static async configure(options: any, alwaysAsk = false) {
+  static async removeConfig(options?:any) {
+    const profile= CenvStdio.getProfile(options?.profile, options?.env);
+    let profilePath = path.join(CenvFiles.PROFILE_PATH, profile);
+    if (options?.default) {
+      if (profile !== 'default') {
+        CenvLog.single.errorLog('the default flag can only be passed in without the --profile and --env options');
+        process.exit(990);
+      }
+    } else {
+      const profileData = await Cenv.stdio.getMatchingProfileConfig(true, options?.profile, options?.env);
+      //console.log('profile data:', JSON.stringify(profileData, null, 2));
+      if (!profileData || !profileData.profilePath) {
+        CenvLog.single.alertLog('could not find a cenv profile that matched the query - ' + CenvStdio.printProfileQuery(options?.profile, options?.env));
+        process.exit(337);
+      }
+      CenvLog.single.infoLog(`removing profile - ${CenvStdio.printProfileQuery(profileData.envConfig?.AWS_PROFILE, profileData.envConfig?.ENV, profileData.profilePath)}}`)
+      profilePath = profileData.profilePath;
+    }
+    rmSync(profilePath);
+  }
 
+  static async configure(options: any, alwaysAsk = false) {
     // verify that we need a config at all
     if (!alwaysAsk) {
-      const contextConfig = getContextConfig();
+      const contextConfig = Cenv.stdio.getContextConfig();
       if (contextConfig) {
         return contextConfig;
       }
-
     }
-    const profileData = await getMatchingProfileConfig(true, options?.profile, options?.env);
-
-    let envConfig = profileData?.envConfig;
+    let profileData = await Cenv.stdio.getMatchingProfileConfig(true, options?.profile, options?.env);
+    if (!profileData) {
+      profileData = {
+        profilePath: path.join(CenvFiles.PROFILE_PATH, 'default'),
+        askUser: true,
+        name: 'default'
+      };
+    }
+    //console.log('profile data:', JSON.stringify(profileData, null, 2));
 
     const envVarList = new EnvVars({...profileData?.envConfig});
     envVarList.setEnvVars(['ROOT_DOMAIN', 'AWS_PROFILE', 'AWS_REGION', 'ENV']);
-    if (!envConfig || (alwaysAsk && !options?.show)) {
-      envVarList.setVars(envConfig || {
-        AWS_PROFILE: options?.profile || 'default', AWS_REGION: 'us-east-1', ENV: 'dev'
+    const ask = !profileData?.envConfig || (alwaysAsk && !options?.show);
+    if (ask) {
+      envVarList.setVars(profileData?.envConfig || {
+        AWS_PROFILE: options?.profile || 'default', AWS_REGION: 'us-east-1', ENV: options?.env || 'dev'
       });
 
-      if (!process.env.CENV_DEFAULTS || alwaysAsk) {
-        envVarList.setVars(await ioReadVarList(envVarList.all));
-      }
+      envVarList.setVars(await Cenv.stdio.ioReadVarList(envVarList.all));
       const accountInfo: any = await this.getAccountInfo();
       envVarList.add(accountInfo);
       //await setSession(envVarList.get(accountInfo.));
@@ -898,7 +1056,7 @@ export class Cenv {
       }
       if (!envVarList.check('KMS_KEY') && options?.key) {
         const kmsKey = await getKey();
-        envVarList.setVars(await ioReadVarList({KMS_KEY: kmsKey}));
+        envVarList.setVars(await Cenv.stdio.ioReadVarList({KMS_KEY: kmsKey}));
       }
 
       // TODO: cycle through the hosted zones instead of having the user type it in..
@@ -926,9 +1084,9 @@ export class Cenv {
               domain = hostedZones[0].Name!.slice(0, -1);
             }
           }
-          const userSelected = await ioReadVarList( { ROOT_DOMAIN: domain });
+          const userSelected = await Cenv.stdio.ioReadVarList( { ROOT_DOMAIN: domain });
           envVarList.set('ROOT_DOMAIN', userSelected.ROOT_DOMAIN);
-
+          writeFileSync(defaultRootDomainPath, userSelected.ROOT_DOMAIN);
           // TODO: does the zone they typed appear in our list of available zones?
         }
       }
@@ -936,11 +1094,14 @@ export class Cenv {
       if (!existsSync(CenvFiles.PROFILE_PATH)) {
         mkdirSync(CenvFiles.PROFILE_PATH, {recursive: true});
       }
-      writeFileSync(profileData.profilePath, JSON.stringify(envVarList.all, null, 2));
-      envConfig = envVarList.all;
+      const defaultProfilePath = path.join(CenvFiles.PROFILE_PATH, 'default');
+      if (profileData?.profilePath !== defaultProfilePath) {
+        envVarList.write(defaultProfilePath);
+      }
+      envVarList.write(profileData?.profilePath);
     }
 
-    for (const [key, value] of Object.entries(envConfig) as [string, string][]) {
+    for (const [key, value] of Object.entries(envVarList.all) as [string, string][]) {
       envVarList.set(key, value);
 
       if (key === 'AWS_REGION') {
@@ -976,9 +1137,13 @@ export class Cenv {
     envVarList.set('CI', 'true')
 
     if (options?.show) {
-      CenvLog.single.infoLog(`${JSON.stringify(envVarList.all, null, 2)}`);
+      CenvLog.single.infoLog(`${JSON.stringify(envVarList.allSafe, null, 2)}`);
     }
     return envVarList.all;
+  }
+
+  public static Clean(startPath: string = cenvRoot, options?: CleanCommandOptions) {
+    CenvFiles.clean(startPath, options as Record<string, any>);
   }
 
 }

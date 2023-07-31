@@ -5,16 +5,12 @@ import {
   CommandInfo,
   Package,
 } from '@stoked-cenv/lib';
-import { initCmd } from '../../utils'
-
+import { cenvSetup } from '../../utils';
+import { Command } from 'commander';
 
 export abstract class BaseCommand extends CommandRunner {
   config?: CommandInfo;
   packages: Package[] = []
-
-  constructor(private readonly cenvLog: CenvLog) {
-    super();
-  }
 
   get options(): Record<string, number | string | boolean> {
     const opts: Record<string, number | string | boolean> = {};
@@ -81,24 +77,24 @@ export abstract class BaseCommand extends CommandRunner {
 
   async run(params: string[], options?: BaseCommandOptions) {
     const optionVals = this.options;
-    if (optionVals['help']) {
-      this.command.outputHelp();
-      process.exit();
-    }
+
+
     this.config = new CommandInfo(this.command.name(), this.command.parent?.name());
-    const initRes = await initCmd(this.config, params, options)
+    const initRes = await cenvSetup(this.config, params, options)
     this.packages = initRes.packages ? initRes.packages : [];
-    console.log(`command: ${this.config.fullName}`);
-    if (this.packages && this.packages.length) {
-      console.log(`\tpackages: ${this.packages.map((p: Package) => p.packageName).join(', ')}`);
-    }
-    if (this.params && this.params.length) {
-      console.log(`\tparams: ${this.params.join(', ')}`);
-    }
-    const printableOptions = this.optionsPrintable;
-    if (printableOptions) {
-      console.log(`\toptions:`);
-      console.log(this.optionsPrintable)
+    if (process.env.CENV_CLI_DEBUG) {
+      console.log(`command: ${this.config.fullName}`);
+      if (this.packages && this.packages.length) {
+        console.log(`\tpackages: ${this.packages.map((p: Package) => p.packageName).join(', ')}`);
+      }
+      if (this.params && this.params.length) {
+        console.log(`\tparams: ${this.params.join(', ')}`);
+      }
+      const printableOptions = this.optionsPrintable;
+      if (printableOptions) {
+        console.log(`\toptions:`);
+        console.log(this.optionsPrintable)
+      }
     }
     await this.runCommand(initRes.params, {...initRes.options}, initRes.packages);
   }
