@@ -1,8 +1,8 @@
-import { Command, CommandRunner, Help, Option } from 'nest-commander';
-import {CenvUI} from '@stoked-cenv/ui';
-import {BaseCommandOptions, Cenv, CenvLog, Package, Suite} from '@stoked-cenv/lib'
+import { Command, Option } from 'nest-commander';
+import { CenvUI } from '@stoked-cenv/ui';
+import { BaseCommandOptions, Cenv, CenvLog, Package, Suite } from '@stoked-cenv/lib';
 
-import {BaseCommand} from './base.command';
+import { BaseCommand } from './base.command';
 
 export interface UICommandOptions extends BaseCommandOptions {
   suite?: string;
@@ -13,8 +13,10 @@ export interface UICommandOptions extends BaseCommandOptions {
            name: 'ui', description: `Launch UI to manage an environment's infrastructure`, aliases: ['s', 'suite'],
          })
 export class UICommand extends BaseCommand {
-  allowUI = true;
-  localPackageAccepted = false;
+  constructor() {
+    super();
+    this.config.allowLocalPackage = false;
+  }
 
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
@@ -23,15 +25,13 @@ export class UICommand extends BaseCommand {
   }
 
   @Option({
-            name: 'suite', flags: '-s, --suite <suite>', description: 'Load a suite into the UI'
+            name: 'suite', flags: '-s, --suite <suite>', description: 'Load a suite into the UI',
           }) parseSuite(val: string): string {
     return val;
   }
 
   @Option({
-            name: 'environment',
-            flags: '-e, --environment <environment>',
-            description: 'Load an environment into the UI',
+            name: 'environment', flags: '-e, --environment <environment>', description: 'Load an environment into the UI',
           }) parseEnvironment(val: string): string {
     return val;
   }
@@ -47,13 +47,13 @@ export class UICommand extends BaseCommand {
             process.exit(0);
           }
         }
-        const suite = new Suite(options.suite)
+        const suite = new Suite(options.suite);
         new CenvUI(options, suite.packages);
       } else {
         new CenvUI(options, packages);
       }
     } catch (e) {
-      CenvLog.single.catchLog(e)
+      CenvLog.single.catchLog(e);
     }
   }
 }

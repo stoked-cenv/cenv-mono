@@ -1,17 +1,17 @@
 import {configDefaults,} from "./configDefaults";
 import {join, relative} from "path";
 import * as yaml from 'js-yaml';
-import {existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync} from 'fs';
-import {CenvLog, colors} from './log.service';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'fs';
+import {CenvLog, colors} from './log';
 import Ajv from "ajv";
 import {prettyPrint} from "@base2/pretty-print-object";
-import { fromDir, getMonoRoot, validateEnvVars } from './utils';
 import {CenvParams} from "./params";
 import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
 import {encrypt} from './aws/kms';
 import {getConfig} from "./aws/appConfig";
 import * as path from 'path';
 import { Cenv } from './cenv';
+import { Package } from './package/package';
 
 
 const {appExt} = configDefaults;
@@ -190,6 +190,12 @@ export class SettingsFile extends File {
   }
 }
 
+export interface searchSyncFallbackResults {
+  results: string[],
+  fallbacks: string[]
+}
+
+
 export class EnvConfigFile extends File {
   public static get NAME(): string {
     const name = `${appExt}.[--env--]-[--accountId--].config`;
@@ -359,6 +365,153 @@ export class GlobalEnvVarsFile extends File {
 }
 
 
+export function search_sync(dir: string, first = false, searchDown = true, searchFile: string | RegExp = 'package.json', options: {
+  startsWith?: boolean;
+  endsWith?: boolean;
+  excludedDirs?: string[];
+  includedDirs?: string[];
+  regex?: boolean;
+  fallBack?: string;
+  depth?: number
+} = {
+  startsWith: false, endsWith: false, excludedDirs: [], includedDirs: [], regex: false, depth: -1
+}): searchSyncFallbackResults | string[] {
+  return search_sync_depth(dir, first, searchDown, searchFile, options, 1);
+}
+
+
+function parsedRet(retVal: searchSyncFallbackResults, res: searchSyncFallbackResults | string[], fallback = false) {
+  if (fallback) {
+    const resFallback = res as searchSyncFallbackResults;
+    if (resFallback.results.length) {
+      retVal.results = retVal.results.concat(resFallback.results);
+    }
+    if (resFallback.fallbacks.length) {
+      retVal.fallbacks = retVal.fallbacks.concat(resFallback.fallbacks);
+    }
+  } else {
+    retVal.results = retVal.results.concat(res as string[]);
+  }
+}
+
+function search_sync_depth(dir: string, first = false, searchDown = true, searchFile: string | RegExp = 'package.json', options: {
+  startsWith?: boolean;
+  endsWith?: boolean;
+  excludedDirs?: string[];
+  includedDirs?: string[];
+  regex?: boolean;
+  fallBack?: string;
+  depth?: number
+} = {
+  startsWith: false, endsWith: false, excludedDirs: [], includedDirs: [], regex: false, depth: -1
+}, currentDepth = 0): searchSyncFallbackResults | string[] {
+  if (!options?.depth) {
+    options.depth = -1;
+  }
+  const retVal: searchSyncFallbackResults = {results: [], fallbacks: []};
+  const list = readdirSync(dir);
+  const directories: string[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const fileName: string = list[i].toString();
+    const file = path.resolve(dir, fileName.toString());
+    const filenameList = file.split('\\');
+    const filename = filenameList[filenameList.length - 1];
+    const stat = statSync(file);
+    if (stat && stat.isDirectory() && searchDown) {
+      let addDir = true;
+      if (options?.excludedDirs?.length) {
+        const excludedMatches = options?.excludedDirs.filter((ed) => file.endsWith('/' + ed),);
+        addDir = !excludedMatches.length;
+      }
+      const folder = file.split('/').pop();
+      if (first && folder === searchFile) {
+        return [file];
+      } else if (addDir) {
+        directories.push(file);
+      }
+
+    } else {
+      if (options?.includedDirs?.length) {
+        const includedMatches = options?.includedDirs?.filter((id) => dir.endsWith('/' + id),);
+        if (!includedMatches.length) {
+          continue;
+        }
+      }
+
+      if (options.fallBack && fileName === options.fallBack) {
+        retVal.fallbacks.push(file);
+      }
+
+      let foundFile: string | undefined = undefined;
+      if (searchFile instanceof RegExp) {
+        const m = fileName.match(searchFile)?.length;
+        if (m) {
+          foundFile = file;
+        }
+      } else if (!options?.regex && fileName === searchFile) {
+        foundFile = file;
+      } else if (options?.startsWith && fileName.startsWith(searchFile)) {
+        foundFile = file;
+      } else if (options?.endsWith && fileName.endsWith(searchFile)) {
+        foundFile = file;
+      } else if (options?.regex) {
+        const m = fileName.match(searchFile)?.length;
+        if (m) {
+          foundFile = file;
+        }
+      }
+      if (foundFile) {
+        if (first) {
+          if (options.fallBack) {
+            return {results: [filename], fallbacks: []};
+          } else {
+            return [filename];
+          }
+
+        }
+        retVal.results.push(foundFile);
+      }
+    }
+  }
+
+  if (options.depth > 0 && currentDepth >= options.depth) {
+    if (options.fallBack) {
+      return retVal as searchSyncFallbackResults;
+    } else {
+      return retVal.results as string[];
+    }
+  }
+
+  if (searchDown) {
+    for (let i = 0; i < directories.length; i++) {
+      const dirPath = directories[i];
+      const res = search_sync_depth(dirPath, first, searchDown, searchFile, options, currentDepth + 1);
+      parsedRet(retVal, res, options?.fallBack !== undefined);
+    }
+  } else {
+    const numSlashes = path.resolve(dir).split('/').length - 1;
+    if (numSlashes > 1) {
+      const res = search_sync_depth(join(dir, '../'), first, searchDown, searchFile, options, currentDepth + 1);
+      parsedRet(retVal, res, options?.fallBack !== undefined);
+    }
+  }
+
+  if (options.fallBack) {
+    return retVal as searchSyncFallbackResults;
+  } else {
+    return retVal.results as string[];
+  }
+}
+
+interface LocalCenvFiles {
+  vars: boolean,
+  envVarTemplate: boolean,
+  globalVars: boolean,
+  globalEnvVarTemplate: boolean,
+  config: string[],
+  envVars: string[],
+  globalEnvVars: string[]
+}
 
 export class CenvFiles {
   //static envVars = validateEnvVars(['APPLICATION_NAME', 'ENVIRONMENT_NAME', 'HOME', 'ENV', 'CDK_DEFAULT_ACCOUNT', 'AWS_ACCOUNT_ID'])
@@ -447,7 +600,7 @@ export class CenvFiles {
     if (!Cenv.primaryPackagePath) {
       Cenv.primaryPackagePath = 'packages';
     }
-    const root = getMonoRoot();
+    const root = this.getMonoRoot();
     if (!root) {
       CenvLog.single.catchLog('can not find the primary package path because there is no mono repo');
       process.exit(799);
@@ -714,20 +867,20 @@ export class CenvFiles {
     }
   }
 
-  private static getLocalCenvFiles(startPath: string = cenvRoot, environment?: string) {
-
-    const config = fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})\.config$/) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, undefined);
-    const envVars = fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})$/) : /^\.cenv\.[a-zA-Z0-9]*$/, undefined);
-    const globalEnvVars = fromDir(CenvFiles.GLOBAL_PATH, environment ? new RegExp(/\.cenv\.(${environment})\.globals$/) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
+  private static getLocalCenvFiles(startPath: string = cenvRoot, environment?: string): LocalCenvFiles {
+    const result: LocalCenvFiles = { config: [], envVars: [], globalEnvVars: [], vars: false, envVarTemplate: false, globalVars: false, globalEnvVarTemplate: false   };
+    result.config = this.fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})\.config$/) : /^\.cenv\.[a-zA-Z0-9]*\.config$/, undefined);
+    result.envVars = this.fromDir(startPath, environment ? new RegExp(/^\.cenv\.(${environment})$/) : /^\.cenv\.[a-zA-Z0-9]*$/, undefined);
+    result.globalEnvVars = this.fromDir(CenvFiles.GLOBAL_PATH, environment ? new RegExp(/\.cenv\.(${environment})\.globals$/) : /\.cenv\.[a-zA-Z0-9]*\.globals$/, undefined);
     if (environment) {
-      return {config, envVars, globalEnvVars};
+      return result;
     }
 
-    const envVarTemplate = existsSync(EnvVarsFile.TEMPLATE_PATH.toString());
-    const vars = existsSync(AppVarsFile.PATH.toString());
-    const globalVars = existsSync(GlobalVarsFile.PATH.toString());
-    const globalEnvVarTemplate = existsSync(GlobalEnvVarsFile.TEMPLATE_PATH.toString());
-    return {vars, config, envVars, globalVars, envVarTemplate, globalEnvVars, globalEnvVarTemplate}
+    result.envVarTemplate = existsSync(EnvVarsFile.TEMPLATE_PATH.toString());
+    result.vars = existsSync(AppVarsFile.PATH.toString());
+    result.globalVars = existsSync(GlobalVarsFile.PATH.toString());
+    result.globalEnvVarTemplate = existsSync(GlobalEnvVarsFile.TEMPLATE_PATH.toString());
+    return result;
   }
 
   private static deleteFiles(files: string[]) {
@@ -757,6 +910,141 @@ export class CenvFiles {
     }
   }
 
+  static packagePaths: Record<string, string> = {};
+  static stackPath(codifiedName: string): string | false {
+    const pkgComp = Package.getPackageComponent(codifiedName);
+    const result = this.packagePath(pkgComp.package, __dirname);
+    if (!result || !result.length) {
+      CenvLog.alert(`could not find the related files for the codified package name ${codifiedName} `);
+      return false;
+    }
+
+    const compResults = search_sync(result, true, true, pkgComp.component, {excludedDirs: ['cdk.out', 'node_modules', 'dist']}) as string[];
+    if (!compResults || !compResults.length) {
+      CenvLog.alert(`found the package ${pkgComp.package} could not find the related files for the codified package name ${codifiedName} `);
+      return false;
+    }
+    return compResults[0]
+  }
+
+  static packagePath(packageName: string, workingDirectory?: string, useCache = true): string | false {
+    if (packageName === 'GLOBAL') {
+      const pkgPath = this.getMonoRoot(workingDirectory, useCache);
+      if (!pkgPath) {
+        return false;
+      }
+      return pkgPath;
+    }
+    if (useCache && this.packagePaths[packageName]) {
+      return this.packagePaths[packageName];
+    }
+
+    const cwd = this.getMonoRoot(workingDirectory, workingDirectory ? false : useCache);
+    if (!cwd) {
+      return false;
+    }
+    const packages = search_sync(cwd, false, true, 'package.json', {
+      excludedDirs: ['cdk.out', 'node_modules','dist'],
+    }) as string[];
+
+    for (let i = 0; i < packages.length; i++) {
+      let packagePath: any = packages[i].split('/');
+      packagePath.pop();
+      packagePath = packagePath.join('/');
+      const name = require(packages[i]).name;
+      if (!this.packagePaths[name]) {
+        this.packagePaths[name] = packagePath;
+      }
+    }
+
+    if (this.packagePaths[packageName]) {
+      return this.packagePaths[packageName];
+    }
+    return false;
+  }
+
+  static getMonoRoot(workingDirectory = './', useCache = true) {
+    if (useCache && this.packagePaths['root']) {
+      return this.packagePaths['root'];
+    }
+    const searchResults = search_sync(workingDirectory, true, false, 'cenv.json', {fallBack: 'package.json'}) as searchSyncFallbackResults;
+    if (!searchResults?.results.length && !searchResults.fallbacks.length) {
+      return false;
+    }
+    const root = searchResults?.results.length ? searchResults?.results[0].split('/') : searchResults?.fallbacks[0].split('/');
+    root.pop();
+    const rootPath = path.resolve(root.join('/'));
+    if (useCache) {
+      this.packagePaths['root'] = rootPath;
+    }
+    return rootPath;
+  }
+
+  static getGuaranteedMonoRoot(workingDirectory = './', useCache = true): string {
+    const rootPath = this.getMonoRoot(workingDirectory, useCache);
+    if (!rootPath) {
+      CenvLog.single.catchLog(`could not locate the suitePath because the cwd "${process.cwd()}" does not appear to be in a cenv repo`)
+      process.exit(750)
+    }
+    return rootPath;
+  }
+
+  static getMonoRootName() {
+    const root = this.getMonoRoot();
+    if (!root) {
+      // TODO: probably should throw error?
+      return false;
+    }
+    return root.split('/').pop();
+  }
+
+
+
+  static getProbableMonoRoot() {
+    const searchFallback = search_sync(process.cwd(), true, false, 'suites.json', { fallBack: 'package.json' }) as searchSyncFallbackResults;
+    if (searchFallback.results && searchFallback.results.length) {
+      return searchFallback.results[0];
+    }
+
+    if (searchFallback?.fallbacks?.length) {
+      return this.getShortestPathCount(searchFallback.fallbacks);
+    }
+    return false;
+  }
+
+  static getShortestPathCount(paths: string[]) {
+    if (!paths?.length) {
+      CenvLog.single.catchLog('can not get shortest path from an empty array');
+      process.exit(882);
+    }
+    const sortedPaths = paths.sort((a,b) => (a.split('/').length > b.split('/').length) ? 1 : ((b.split('/').length > a.split('/').length) ? -1 : 0))
+    return sortedPaths[0];
+  }
+
+
+  static fromDir(startPath: string, filter: string | RegExp, foundMsg = '-- found: ', recursive = false) {
+    if (!existsSync(startPath)) {
+      console.log('no dir ', startPath);
+      return [];
+    }
+
+    const files = readdirSync(startPath);
+    const foundFiles: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const filename = path.join(startPath, files[i].toString());
+      const stat = lstatSync(filename);
+      if (stat.isDirectory() && recursive) {
+        this.fromDir(filename, filter); //recurse
+      } else if (filename.match(filter)) {
+        if (foundMsg) {
+          console.log(foundMsg, filename);
+        }
+        foundFiles.push(filename);
+      }
+    }
+    return foundFiles;
+  }
+
   static setGlobalPath(globalPath: string) {
     this.GlobalPath = globalPath;
   }
@@ -784,6 +1072,19 @@ export class CenvFiles {
       this.ArtifactsPath = path.join(process.env.HOME!, cenvRoot, 'artifacts');
       this.ensurePath(this.ArtifactsPath);
     }
+  }
 
+  static async deleteFilesSearch(search: string | RegExp, options: any) {
+    const monoRoot = this.getMonoRoot();
+    if (!monoRoot) {
+      // TODO: probably should throw error here
+      return;
+    }
+    const results = search_sync(path.resolve(monoRoot), false, true, search, options,) as string[];
+    for (let i = 0; i < results.length; i++) {
+      const file = results[i];
+
+      rmSync(file);
+    }
   }
 }

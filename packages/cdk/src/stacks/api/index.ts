@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 import 'source-map-support/register.js';
-import {ECSServiceStack} from '../../index'
-import {validateEnvVars} from "@stoked-cenv/lib";
+import { ECSServiceStack } from '../../index';
 
-//const envVars = validateEnvVars(['ENV', 'ROOT_DOMAIN', 'CENV_STACK_NAME', 'CENV_DOCKER_NAME', 'ISSUER_BASE_URL', 'PORT', 'AUDIENCE', 'CLIENT_ORIGIN_URL', 'API_VERSION'])
-const envVars: Record<string, string> = {}
+const envVars: Record<string, string> = {};
 if (process.env.APPLICATION_NAME) {
   envVars['APPLICATION_NAME'] = process.env.APPLICATION_NAME;
 }
@@ -22,5 +20,5 @@ new ECSServiceStack({
                       healthCheck: {
                         path: process.env.HEALTH_CHECK_PATH ? process.env.HEALTH_CHECK_PATH : '/',
                       },
-                      envVariables: envVars
+                      envVariables: envVars,
                     });

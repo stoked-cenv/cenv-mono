@@ -2,7 +2,7 @@ import {Package, TPackageMeta} from './package';
 import {parse, SemVer} from 'semver';
 import {writeFileSync} from 'fs';
 import * as path from 'path';
-import {CenvLog, Mouth,} from '../log.service';
+import {CenvLog, Mouth,} from '../log';
 
 export enum PackageModuleType {
   PARAMS = 'PARAMS', DOCKER = 'DOCKER', STACK = 'STACK', LIB = 'LIB', EXEC = 'EXEC'

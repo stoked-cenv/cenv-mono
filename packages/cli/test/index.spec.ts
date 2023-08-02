@@ -8,17 +8,14 @@ CenvFiles.setPaths();
 rmSync(CenvFiles.PROFILE_PATH, {recursive: true});
 
 import { CenvVersionFlagSuite, HelpUnknownCommandSuite } from './commands/cenv/cenv.command.spec';
-import { ConfigCommandSuite } from './commands/config/config.command.spec';
-
-
+import { ConfigCommandSuite, ConfigShowCommandSuite, ConfigViaEnvVarsSuite } from './commands/config/config.command.spec';
 
 async function bootstrap() {
-
   await ConfigCommandSuite.run();
+  await ConfigShowCommandSuite.run();
+  await ConfigViaEnvVarsSuite.run();
   await CenvVersionFlagSuite.run();
   await HelpUnknownCommandSuite.run();
-
-
 }
 bootstrap();
 

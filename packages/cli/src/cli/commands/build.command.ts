@@ -1,6 +1,6 @@
-import {Command, Option} from 'nest-commander';
-import {Cenv, CenvLog, LibModule, Package, Suite} from '@stoked-cenv/lib'
-import {BaseCommand} from './base.command'
+import { Command, Option } from 'nest-commander';
+import { Cenv, CenvLog, LibModule, Package, Suite } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 @Command({
            name: 'build', description: `Build packages`,

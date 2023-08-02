@@ -1,16 +1,17 @@
 import { Option, SubCommand } from 'nest-commander';
-import {Cenv, CenvLog, InitCommandOptions, Package} from '@stoked-cenv/lib'
+import { CenvLog, InitCommandOptions, Package, Init } from '@stoked-cenv/lib';
 
-import {BaseCommand} from './base.command';
-
+import { BaseCommand } from './base.command';
 
 @SubCommand({
-  name: 'init',
-  description: `Initialize cenv in an existing monorepo`,
-})
-export class ParamsInitCommand extends BaseCommand {
-  allowUI = false;
-  localPackageAccepted = true;
+              name: 'init', description: `Initialize cenv in an existing monorepo`,
+            })
+export class InitCommand extends BaseCommand {
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {
@@ -25,9 +26,9 @@ export class ParamsInitCommand extends BaseCommand {
 
   async runCommand(passedParam: string[], options: InitCommandOptions, packages: Package[]): Promise<void> {
     try {
-      await Cenv.init(options);
+      await Init(options, this.config);
     } catch (e) {
-      CenvLog.single.catchLog(e)
+      CenvLog.single.catchLog(e);
     }
   }
 }

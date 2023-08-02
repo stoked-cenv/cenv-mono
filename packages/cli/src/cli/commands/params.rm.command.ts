@@ -1,15 +1,6 @@
-import { Command, Option, SubCommand } from 'nest-commander';
-import {
-  BaseCommandOptions,
-  CenvLog,
-  CenvParams,
-  deleteParametersByPath,
-  filteredCount,
-  colors,
-  Package,
-  variableTypes
-} from '@stoked-cenv/lib'
-import {BaseCommand} from './base.command'
+import { Option, SubCommand } from 'nest-commander';
+import { BaseCommandOptions, CenvLog, CenvParams, colors, deleteParametersByPath, filteredCount, Package, variableTypes } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 interface RemoveCommandOptions extends BaseCommandOptions {
   app?: boolean;
@@ -17,13 +8,13 @@ interface RemoveCommandOptions extends BaseCommandOptions {
   global?: boolean;
   globalEnv?: boolean;
   kill?: boolean;
-  all?: boolean
+  all?: boolean;
   path?: string;
 }
 
 @SubCommand({
-           name: 'rm', description: 'Add parameter(s) to package', arguments: '[key] [moreKeys...]'
-         })
+              name: 'rm', description: 'Add parameter(s) to package', arguments: '[key] [moreKeys...]',
+            })
 export class ParamsRemoveCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
@@ -74,24 +65,20 @@ export class ParamsRemoveCommand extends BaseCommand {
   @Option({
             name: 'all',
             flags: '--all',
-            description: 'Removes all parameters related to the service. Global links will be removed but the parameters will remain.'
+            description: 'Removes all parameters related to the service. Global links will be removed but the parameters will remain.',
           }) parseAll(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'path',
-            flags: '-P, --path, [path]',
-            description: 'Removes everything under the given paths hierarchy in AWS Parameter Store.'
+            name: 'path', flags: '-P, --path, [path]', description: 'Removes everything under the given paths hierarchy in AWS Parameter Store.',
           }) parsePath(val: string): string {
     return val;
   }
 
-
   printRm(key: string, type: string) {
-    colors.info('removing parameter ' + colors.infoBold(key) + ' from ' + colors.infoBold(type))
+    colors.info('removing parameter ' + colors.infoBold(key) + ' from ' + colors.infoBold(type));
   }
-
 
   async runCommand(params: string[], options?: RemoveCommandOptions, packages?: Package[]): Promise<void> {
     try {
@@ -126,6 +113,5 @@ export class ParamsRemoveCommand extends BaseCommand {
       CenvLog.single.errorLog(e as string);
     }
   }
-
 
 }

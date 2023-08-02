@@ -12,7 +12,7 @@ import {
 import {RateLimiter} from "limiter";
 
 import {getConfigVars} from './appConfigData';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 import {CenvFiles, EnvConfig, EnvVarsFile, File, GlobalEnvVarsFile, IParameter} from '../file';
 import {CenvParams} from "../params";
 import {existsSync} from 'fs';

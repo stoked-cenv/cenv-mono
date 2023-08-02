@@ -1,7 +1,7 @@
 import {
   CreateHostedZoneCommand, DeleteHostedZoneCommand, ListHostedZonesByNameCommand, Route53Client
 } from '@aws-sdk/client-route-53';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 
 let _client: Route53Client;
 

@@ -13,8 +13,10 @@ export interface StatCommandOptions extends BaseCommandOptions {
            aliases: ['status'],
          })
 export class StatCommand extends BaseCommand {
-  allowUI = false;
-  localPackageAccepted = true;
+  constructor() {
+    super();
+  }
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

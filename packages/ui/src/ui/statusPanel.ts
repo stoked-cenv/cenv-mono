@@ -1,5 +1,5 @@
 import blessed from 'blessed';
-import {Cenv, CenvLog, getMonoRoot, Package, PackageModule, ProcessMode} from "@stoked-cenv/lib";
+import {Cenv, CenvLog, CenvFiles, Package, PackageModule, ProcessMode} from "@stoked-cenv/lib";
 import * as contrib from 'blessed-contrib';
 import {CenvPanel} from './panel';
 import Groups from './group';
@@ -160,7 +160,7 @@ export default class StatusPanel extends CenvPanel {
           ch: ' ', inverse: true,
         }, autoScroll: false, template: {lines: true}, label: 'module info', columnWidth: [10, 10],
       });
-      this.monoRoot = getMonoRoot();
+      this.monoRoot = CenvFiles.getMonoRoot();
 
       this.modules.on('select item', (item: any, index: number) => {
         if (this.selectedIndex === index) {

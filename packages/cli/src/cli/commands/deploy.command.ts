@@ -1,42 +1,17 @@
-import {Command, Option} from 'nest-commander';
-
-import {
-  addKeyAccount, Cenv, CenvLog, createKey, DeployCommandOptions, Deployment, Package, ProcessMode,
-} from '@stoked-cenv/lib';
-import {BaseCommand} from './base.command';
+import { Command, Option } from 'nest-commander';
+import { addKeyAccount, Cenv, CenvLog, createKey, DeployCommandOptions, Deployment, Package, ProcessMode } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 @Command({
-           name: 'deploy',
-           arguments: '[...applications]',
-           description: 'Deploy infrastructure',
-           aliases: ['i', 'install']
+           name: 'deploy', arguments: '[...applications]', description: 'Deploy infrastructure', aliases: ['i', 'install'],
          })
 export class DeployCommand extends BaseCommand {
-  deploymentMode = ProcessMode.DEPLOY;
-  allowUI = true;
-  packageRequired = true;
 
-  /*
-    @Option({
-      flags: '-b, --bump, <increment>',
-      description: `Bump packages if changed by increment type and their dependencies`,
-    })
-    parseBump(val: string): string {
-      return val;
-    }
-
-   */
-
-  /*
-    @Option({
-      flags: '-s, --suite, <suite>',
-      description: `Install a named suite of packages (suites.json).`,
-    })
-    parseSuite(val: string): string {
-      return val;
-    }
-
-   */
+  constructor() {
+    super();
+    this.config.deploymentMode = ProcessMode.DEPLOY;
+    this.config.packagesRequired = true;
+  }
 
   @Option({
             flags: '-sb, --skip-build', description: `Skip build.`,
@@ -98,7 +73,6 @@ export class DeployCommand extends BaseCommand {
     return val;
   }
 
-
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {
@@ -113,14 +87,13 @@ export class DeployCommand extends BaseCommand {
 
   @Option({
             flags: '-d, --dependencies',
-            description: `This flag uses the settings in the deploy package.json for dockerDependencies and componentDependencies. It will build any docker dependencies listed and install and component dependencies listed before installing the specificed package.`
+            description: `This flag uses the settings in the deploy package.json for dockerDependencies and componentDependencies. It will build any docker dependencies listed and install and component dependencies listed before installing the specificed package.`,
           }) parseDependencies(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            flags: '-sv, --strict-versions',
-            description: `Do not create new docker containers if the current version number exists.`,
+            flags: '-sv, --strict-versions', description: `Do not create new docker containers if the current version number exists.`,
           }) parseStrictVersions(val: boolean): boolean {
     return val;
   }

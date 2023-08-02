@@ -1,22 +1,11 @@
-import {Command, Option} from 'nest-commander';
+import { Command, Option } from 'nest-commander';
 import {
-  Cenv,
-  CenvFiles,
-  CenvLog,
-  CenvParams,
-  colors,
-  getConfig,
-  getParams,
-  Package,
-  ParamsCommandOptions,
-  validateCount,
-  variableTypes
-} from '@stoked-cenv/lib'
-
-import {BaseCommand} from './base.command'
+  Cenv, CenvFiles, CenvLog, CenvParams, getConfig, getParams, Package, ParamsCommandOptions, validateCount, variableTypes,
+} from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 import { ParamsAddCommand } from './params.add.command';
 import { ParamsRemoveCommand } from './params.rm.command';
-import { ParamsInitCommand } from './params.init.command';
+import { InitCommand } from './init.command';
 import { ParamsPullCommand } from './params.pull.command';
 import { ParamsPushCommand } from './params.push.command';
 import { ParamsMaterializeCommand } from './params.materialize.command';
@@ -28,10 +17,9 @@ enum ParamCommands {
 @Command({
            name: 'params',
            description: 'Init, deploy, and display package parameters',
-  subCommands: [ParamsInitCommand, ParamsPullCommand, ParamsPushCommand, ParamsAddCommand, ParamsRemoveCommand, ParamsMaterializeCommand]
+           subCommands: [InitCommand, ParamsPullCommand, ParamsPushCommand, ParamsAddCommand, ParamsRemoveCommand, ParamsMaterializeCommand],
          })
 export class ParamsCommand extends BaseCommand {
-  localPackageAccepted = true;
 
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
@@ -72,34 +60,25 @@ export class ParamsCommand extends BaseCommand {
   }
 
   @Option({
-            name: 'detail',
-            flags: '-d, --detail',
-            description: 'Print all the variable meta data including path, value, and type.',
+            name: 'detail', flags: '-d, --detail', description: 'Print all the variable meta data including path, value, and type.',
           }) parseDetail(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'simple',
-            flags: '-s, --simple',
-            description: 'Print only environment variable and value.',
-            defaultValue: true
+            name: 'simple', flags: '-s, --simple', description: 'Print only environment variable and value.', defaultValue: true,
           }) parseSimple(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'envToParams',
-            flags: '-ep, --env-to-params',
-            description: 'Import .env file as system parameters on init.',
+            name: 'envToParams', flags: '-ep, --env-to-params', description: 'Import .env file as system parameters on init.',
           }) parseEnvToParams(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'decrypted',
-            flags: '-de, --decrypted',
-            description: 'Display decrypted values on SecureString blessed.',
+            name: 'decrypted', flags: '-de, --decrypted', description: 'Display decrypted values on SecureString blessed.',
           }) parseEncrypted(val: boolean): boolean {
     return val;
   }
@@ -128,7 +107,7 @@ export class ParamsCommand extends BaseCommand {
     }
 
     if (options?.deployed) {
-      config = {...config, AllValues: true};
+      config = { ...config, AllValues: true };
     }
 
     await getParams(config, type, format, options?.decrypted, options?.deployed);
@@ -138,20 +117,20 @@ export class ParamsCommand extends BaseCommand {
     try {
       if (params.length) {
         // force lowercase
-        params = params.map(p => p.toLowerCase())
+        params = params.map(p => p.toLowerCase());
 
         // eliminate dupes
         const commandSet = new Set(params);
 
         // sort command order
-        params = Array.from(commandSet)
+        params = Array.from(commandSet);
         const commandOrder = Object.values(ParamCommands);
         params = params.sort((a: string, b: string) => {
-          return commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)])
+          return commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)]);
         });
 
         if (params.length > 3) {
-          CenvLog.single.errorLog(`The cenv params command does not accept more than one additional argument. The following additional arguments were supplied in error: ${params.join(', ')}`)
+          CenvLog.single.errorLog(`The cenv params command does not accept more than one additional argument. The following additional arguments were supplied in error: ${params.join(', ')}`);
           process.exit(4);
         }
 
@@ -160,7 +139,7 @@ export class ParamsCommand extends BaseCommand {
             const param = params[i];
             options.defaults = true;
             for (const p of packages) {
-              if (p.params && p.chDir() ) {
+              if (p.params && p.chDir()) {
                 if (param === ParamCommands.init) {
                   await Cenv.initParams(options, []);
                 } else if (param === ParamCommands.fix) {
@@ -191,7 +170,7 @@ export class ParamsCommand extends BaseCommand {
           type = 'all';
         }
         if (packages) {
-          const opts = {...options, pkgCount: packages.length};
+          const opts = { ...options, pkgCount: packages.length };
           for (let i = 0; i < packages.length; i++) {
             if (packages[i].chDir()) {
               await this.callBase(opts, type, packages[i]);

@@ -1,11 +1,9 @@
-import {Command, Option} from 'nest-commander';
-import {CenvLog, DockerCommandOptions, Package} from '@stoked-cenv/lib';
-
-import {BaseCommand} from './base.command'
-
+import { Command, Option } from 'nest-commander';
+import { CenvLog, DockerCommandOptions, Package } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 @Command({
-           name: 'docker', description: 'Build and push docker containers to ecr'
+           name: 'docker', description: 'Build and push docker containers to ecr',
          })
 export class DockerCommand extends BaseCommand {
   @Option({
@@ -15,19 +13,19 @@ export class DockerCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '-b, --build', description: 'Build a docker container', defaultValue: true
+            flags: '-b, --build', description: 'Build a docker container', defaultValue: true,
           }) handleBuild(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            flags: '--push', description: 'Push a docker container to ecr', defaultValue: true
+            flags: '--push', description: 'Push a docker container to ecr', defaultValue: true,
           }) handlePush(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            flags: '-d, --dependencies', description: 'Build docker dependencies first'
+            flags: '-d, --dependencies', description: 'Build docker dependencies first',
           }) handleDependencies(val: boolean): boolean {
     return val;
   }

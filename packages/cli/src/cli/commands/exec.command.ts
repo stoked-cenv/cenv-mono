@@ -7,7 +7,6 @@ import {
   getConfigVars,
   Package,
   PackageModule,
-  packagePath,
   spawnCmd,
 } from '@stoked-cenv/lib';
 import {BaseCommand} from './base.command'
@@ -51,7 +50,7 @@ export class ExecCommand extends BaseCommand {
     try {
       let vars = {};
       await Promise.all(packages.map(async (p: Package) => {
-        const pkgPath = packagePath(p.packageName);
+        const pkgPath = CenvFiles.packagePath(p.packageName);
         if (pkgPath) {
           const relative = path.relative(process.cwd(), pkgPath);
           if (relative !== '') {

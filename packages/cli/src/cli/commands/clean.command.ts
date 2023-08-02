@@ -1,10 +1,9 @@
 import { Command, Help, Option } from 'nest-commander';
-import { Cenv, CenvFiles, CenvLog, configDefaults, Package, spawnCmd } from '@stoked-cenv/lib';
-import {BaseCommand} from './base.command'
+import { Cenv, CenvLog, configDefaults, Package, spawnCmd } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 @Command({
-           name: 'clean',
-           description: `Clean currently configured local files related to data in the ${configDefaults.appExt} configuration`,
+           name: 'clean', description: `Clean currently configured local files related to data in the ${configDefaults.appExt} configuration`,
          })
 export class CleanCommand extends BaseCommand {
   @Option({
@@ -14,19 +13,17 @@ export class CleanCommand extends BaseCommand {
   }
 
   @Option({
-            name: 'mode', flags: '-m, --mode [mode]', description: 'either cenv, cdk, or both', defaultValue: 'cenv'
+            name: 'mode', flags: '-m, --mode [mode]', description: 'either cenv, cdk, or both', defaultValue: 'cenv',
           }) parseMode(val: string): string {
     return val;
   }
 
-@Help("afterAll")
-  testIng() {
+  @Help('afterAll') testIng() {
     return 'true';
   }
+
   @Option({
-            name: 'environment',
-            flags: '-e, --environment <environment>',
-            description: 'clean specific environment only'
+            name: 'environment', flags: '-e, --environment <environment>', description: 'clean specific environment only',
           }) parseEnvironment(val: string): string {
     return val;
   }
@@ -42,7 +39,7 @@ export class CleanCommand extends BaseCommand {
 
       const modes = ['cenv', 'cdk', 'both'];
       if (!modes.includes(options?.mode)) {
-        CenvLog.single.errorLog(`The mode '${options?.mode} is not valid.`)
+        CenvLog.single.errorLog(`The mode '${options?.mode} is not valid.`);
         process.exit();
       }
 
@@ -57,7 +54,7 @@ export class CleanCommand extends BaseCommand {
       }));
 
     } catch (e) {
-      CenvLog.single.catchLog(e)
+      CenvLog.single.catchLog(e);
     }
   }
 }

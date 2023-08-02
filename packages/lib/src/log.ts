@@ -34,6 +34,14 @@ export enum ColorSet {
   ERR = 0, INFO, GO
 }
 
+
+export const cleanTags = function(text: string) {
+  if (!text) return '';
+  return text
+  .replace(/{(\/?)([\w\-,;!#]*)}/g, '')
+  .replace(/\x1b\[[\d;]*m/g, '');
+};
+
 @Injectable()
 export class CenvLog {
   static instance: CenvLog;

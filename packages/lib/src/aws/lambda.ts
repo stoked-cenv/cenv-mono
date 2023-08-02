@@ -10,7 +10,7 @@ import {
   FunctionConfiguration
 } from '@aws-sdk/client-lambda';
 import {fromUtf8, toUtf8} from '@aws-sdk/util-utf8-node';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 
 let _client: LambdaClient;
 

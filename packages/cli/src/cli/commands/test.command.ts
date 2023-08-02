@@ -1,11 +1,9 @@
-import {Command, Option} from 'nest-commander';
-import {BaseCommandOptions, Cenv, CenvLog, EnvironmentStatus, getMonoRoot, colors, Package, spawn, Suite} from "@stoked-cenv/lib";
-import {BaseCommand} from './base.command'
-import {CenvTest} from "@stoked-cenv/lib";
-
+import { Command, Option } from 'nest-commander';
+import { BaseCommandOptions, CenvLog, CenvTest, colors, Package } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 @Command({
-           name: 'test', description: 'Build and push docker containers to ecr'
+           name: 'test', description: 'Build and push docker containers to ecr',
          })
 export class TestCommand extends BaseCommand {
   @Option({
@@ -22,7 +20,7 @@ export class TestCommand extends BaseCommand {
         CenvLog.single.catchLog('must supply a test to the test function');
         process.exit(3429);
       }
-      await CenvTest.exec(params.join(' '), packages)
+      await CenvTest.exec(params.join(' '), packages);
     } catch (e) {
       //CenvLog.single.catchLog(e);
     }

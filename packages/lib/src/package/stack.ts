@@ -1,11 +1,13 @@
-import {IPackageModule, PackageModule, PackageModuleType, ProcessMode} from './module';
-import {Stack, StackSummary} from '@aws-sdk/client-cloudformation';
-import {deleteStack, describeStacks} from '../aws/cloudformation';
-import {SemVer, parse} from 'semver';
-import {CenvLog, colors} from '../log.service';
-import {getMonoRoot, removeScope, runScripts, spawnCmd, stackPath, sureParse, validateEnvVars} from "../utils";
-import {CommandEvents, Package, PackageCmd, TPackageMeta} from "./package";
-import * as path from "path";
+import { PackageModule, PackageModuleType, ProcessMode } from './module';
+import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
+import { deleteStack, describeStacks } from '../aws/cloudformation';
+import { parse, SemVer } from 'semver';
+import { CenvLog, colors } from '../log';
+import { removeScope, semVerParse } from '../utils';
+import { CommandEvents, Package, PackageCmd, TPackageMeta } from './package';
+import * as path from 'path';
+import { CenvFiles } from '../file'
+import { runScripts } from '../proc';
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -17,6 +19,12 @@ interface NameReplacer {
 }
 
 export class StackModule extends PackageModule {
+
+  public static get cdkExe(): string {
+    return 'cdk';
+  }
+
+  static commands = [`${this.cdkExe} deploy --require-approval never --no-color -m direct`, `${this.cdkExe} destroy --force --no-color`, `${this.cdkExe} synth`];
   detail?: Stack;
   verified = false;
   summary?: StackSummary;
@@ -28,11 +36,6 @@ export class StackModule extends PackageModule {
     this.stackType = this.pkg.fullType === 'services' ? StackType.ECS : StackType.LAMBDA;
   }
 
-  public static get cdkExe(): string {
-    return 'cdk';
-  }
-
-  static commands = [`${this.cdkExe} deploy --require-approval never --no-color -m direct`, `${this.cdkExe} destroy --force --no-color`, `${this.cdkExe} synth`,];
 
   get statusText(): string {
     if (this.upToDate()) {
@@ -90,9 +93,9 @@ export class StackModule extends PackageModule {
 
   async destroy(packageCmd?: PackageCmd) {
     let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
-    actualCommand += ` -o ${this.getCdkOut()}`
+    actualCommand += ` -o ${this.getCdkOut()}`;
 
-    let opt: any = {cenvVars: {}};
+    let opt: any = { cenvVars: {} };
     opt = await this.getOptions(opt, ProcessMode.DESTROY);
     opt.parentCmd = packageCmd;
     await this.pkg.pkgCmd(actualCommand, opt);
@@ -100,9 +103,9 @@ export class StackModule extends PackageModule {
 
   async synth() {
     let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.SYNTH)];
-    actualCommand += ` -o ${this.getCdkOut()}`
+    actualCommand += ` -o ${this.getCdkOut()}`;
 
-    const opt: any = await this.getOptions({cenvVars: {}}, ProcessMode.DESTROY);
+    const opt: any = await this.getOptions({ cenvVars: {} }, ProcessMode.DESTROY);
     await this.pkg.pkgCmd(actualCommand, opt);
   }
 
@@ -120,7 +123,7 @@ export class StackModule extends PackageModule {
 
       const opt = await this.getOptions(deployOptions, ProcessMode.DEPLOY);
       opt.parentCmd = deployCmd;
-      await this.resetVolatileKeys(opt)
+      await this.resetVolatileKeys(opt);
 
       if (this.meta.deployStack) {
         return await this.pkg.pkgCmd(this.meta.deployStack, opt);
@@ -130,7 +133,7 @@ export class StackModule extends PackageModule {
       if (deployOptions.force) {
         deployCommand += ' --force';
       }
-      deployCommand += ` -o ${this.getCdkOut()}`
+      deployCommand += ` -o ${this.getCdkOut()}`;
 
       await this.pkg.pkgCmd(deployCommand, opt);
     }
@@ -148,16 +151,16 @@ export class StackModule extends PackageModule {
         key = key.replace('ENV', process.env.ENV);
         await this.pkg.pkgCmd(`cdk context --reset ${key}`, { ...opt, pkgPath: this.path, failOnError: false });
       }));*/
-      await this.pkg.pkgCmd('cdk context --clear', {pkgPath: this.path});
+      await this.pkg.pkgCmd('cdk context --clear', { pkgPath: this.path });
     }
   }
 
   getCdkOut() {
     let cdkOutPath = this.path;
     if (this.pkg.component) {
-      cdkOutPath = getMonoRoot() + '/packages/' + this.pkg.component;
+      cdkOutPath = CenvFiles.getMonoRoot() + '/packages/' + this.pkg.component;
     }
-    return cdkOutPath + '/cdk.out'
+    return cdkOutPath + '/cdk.out';
   }
 
   async getOptions(opt: any, processType: ProcessMode) {
@@ -166,28 +169,28 @@ export class StackModule extends PackageModule {
         if (!this.pkg?.params?.varsLoaded) {
           await this.pkg.params.loadVars();
         }
-        opt.cenvVars = {...this.pkg.params.cenvVars, ...opt.cenvVars};
+        opt.cenvVars = { ...this.pkg.params.cenvVars, ...opt.cenvVars };
       }
 
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {
-        const componentPackage = this.meta.cenv?.stack?.package || this.pkg.codifiedName
-        opt.pkgPath = stackPath(`${componentPackage}`);
+        const componentPackage = this.meta.cenv?.stack?.package || this.pkg.codifiedName;
+        opt.pkgPath = CenvFiles.stackPath(`${componentPackage}`);
 
         const componentPackageParts = Package.getPackageComponent(componentPackage);
         if (componentPackageParts.component === 'spa') {
-          opt.cenvVars = {CENV_BUCKET_NAME: this.pkg.bucketName, ...opt.cenvVars};
+          opt.cenvVars = { CENV_BUCKET_NAME: this.pkg.bucketName, ...opt.cenvVars };
         }
         if (this.meta?.cenv?.stack?.buildPath) {
-          opt.cenvVars = {CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack.buildPath), ...opt.cenvVars};
+          opt.cenvVars = { CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack.buildPath), ...opt.cenvVars };
         }
       } else {
         opt.packageModule = this.pkg.stack;
       }
 
       const pkgVars = {
-        CENV_PKG_VERSION: this.pkg.rollupVersion, CENV_STACK_NAME: removeScope(this.pkg.packageName)
-      }
-      opt.cenvVars = {...opt.cenvVars, ...pkgVars};
+        CENV_PKG_VERSION: this.pkg.rollupVersion, CENV_STACK_NAME: removeScope(this.pkg.packageName),
+      };
+      opt.cenvVars = { ...opt.cenvVars, ...pkgVars };
       if (this.pkg.docker) {
         /*const latestImage = await getTag(this.pkg.docker.dockerName, 'latest');
         if (!latestImage) {
@@ -199,11 +202,11 @@ export class StackModule extends PackageModule {
         opt.cenvVars.CENV_DOCKER_NAME = this.pkg.docker.dockerName;
       }
       if (this.meta?.cenv?.stack?.assignedSubDomain) {
-        opt.cenvVars['CENV_SUBDOMAIN'] = this.meta.cenv.stack.assignedSubDomain
+        opt.cenvVars['CENV_SUBDOMAIN'] = this.meta.cenv.stack.assignedSubDomain;
       }
 
       opt.redirectStdErrToStdOut = true;
-      opt.commandEvents = this.getCommandEvents(opt, processType)
+      opt.commandEvents = this.getCommandEvents(opt, processType);
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
@@ -219,8 +222,8 @@ export class StackModule extends PackageModule {
           this.info(opt.cenvVars.CENV_PKG_DIGEST, 'CENV_PKG_DIGEST');
           this.info(opt.cenvVars.CENV_DOCKER_NAME, 'CENV_DOCKER_NAME');
         }
-      }
-    }
+      },
+    };
     if (processType === ProcessMode.DESTROY) {
       commandEvents.failureCommandFunc = async () => {
         this.alert('the cdk destroy function failed.. attempting to destroy the cloudformation stack via api instead');
@@ -237,7 +240,7 @@ export class StackModule extends PackageModule {
     this.stackVersion = undefined;
     this.detail = undefined;
     this.checked = false;
-    this.status = {needsFix: [], deployed: [], incomplete: []};
+    this.status = { needsFix: [], deployed: [], incomplete: [] };
   }
 
   statusIssues() {
@@ -261,7 +264,7 @@ export class StackModule extends PackageModule {
 
     if (this.pkg) {
       if (this.pkg?.meta?.data.verifyStack) {
-        const verifyRes = await this.pkg.pkgCmd(this.pkg.meta?.data.verifyStack, {returnOutput: true, silent: true});
+        const verifyRes = await this.pkg.pkgCmd(this.pkg.meta?.data.verifyStack, { returnOutput: true, silent: true });
         this.verified = verifyRes.result === 0;
         this.printCheckStatusComplete();
         return;
@@ -274,7 +277,7 @@ export class StackModule extends PackageModule {
       const versionTag = this.getTag(`CENV_PKG_VERSION`, this.pkg.stackName);
 
       if (versionTag) {
-        this.stackVersion = sureParse(versionTag);
+        this.stackVersion = semVerParse(versionTag);
       }
 
       if (this.detail?.Outputs) {
@@ -292,7 +295,7 @@ export class StackModule extends PackageModule {
     }
 
     if (this.deployedDigest) {
-      this.pkg.links.push(`ECR (deployed image) https://${process.env.AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.name}e/_/image/${this.deployedDigest}/details?region=${process.env.AWS_REGION}`,);
+      this.pkg.links.push(`ECR (deployed image) https://${process.env.AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.name}e/_/image/${this.deployedDigest}/details?region=${process.env.AWS_REGION}`);
     }
 
     this.printCheckStatusComplete();
@@ -334,10 +337,10 @@ export class StackModule extends PackageModule {
     }
     if (this.upToDate()) {
       if (this.pkg.docker) {
-        this.status.deployed.push(this.statusLine('up to date', `latest version [${this.pkg.rollupVersion.toString()}] deployed with digest [${this.pkg.docker.latestDigestShort}]`, false,));
+        this.status.deployed.push(this.statusLine('up to date', `latest version [${this.pkg.rollupVersion.toString()}] deployed with digest [${this.pkg.docker.latestDigestShort}]`, false));
         return;
       } else {
-        this.status.deployed.push(this.statusLine('up to date', `latest version [${this.pkg.rollupVersion.toString()}] deployed`, false,));
+        this.status.deployed.push(this.statusLine('up to date', `latest version [${this.pkg.rollupVersion.toString()}] deployed`, false));
         return;
       }
     }
@@ -362,24 +365,24 @@ export class StackModule extends PackageModule {
 
     if (this.pkg.docker) {
       if (!this.pkg.docker.latestImage) {
-        this.status.incomplete.push(this.statusLine('docker missing', `no docker image found in repo ${this.pkg.docker?.dockerName}`, true,));
+        this.status.incomplete.push(this.statusLine('docker missing', `no docker image found in repo ${this.pkg.docker?.dockerName}`, true));
       }
       if (!this.hasLatestDeployedDigest && this.pkg?.docker) {
-        this.status.incomplete.push(this.statusLine("incorrect digest", `latest digest [${this.pkg?.docker.latestDigestShort}] deployed digest [${this.deployedDigestShort}]`, true,));
+        this.status.incomplete.push(this.statusLine('incorrect digest', `latest digest [${this.pkg?.docker.latestDigestShort}] deployed digest [${this.deployedDigestShort}]`, true));
       }
     }
   }
 
   getTag(tag: string, stackName: string): string | false {
-    if (stackName) {
-      const pkg = Package.fromStackName(stackName)
-      if (!pkg || !pkg.stack) {
-        return false;
-      }
-      return pkg.stack.getTag('VPCID', stackName)
-    }
+    //if (stackName) {
+    //  const pkg = Package.fromStackName(stackName);
+    //  if (!pkg || !pkg.stack) {
+    //    return false;
+    //  }
+    //  return pkg.stack.getTag('VPCID', stackName);
+    //}
 
-    const tags = this.detail?.Tags?.filter((t) => t.Key === tag)
+    const tags = this.detail?.Tags?.filter((t) => t.Key === tag);
     return tags?.length && tags[0].Value ? tags[0].Value : false;
   }
 
@@ -408,7 +411,7 @@ export class StackModule extends PackageModule {
   }
 
   getNetworkUrl() {
-    let url = "https://AWS_REGION.console.aws.amazon.com/vpc/home?region=AWS_REGION#VpcDetails:VpcId=VPC_ID";
+    let url = 'https://AWS_REGION.console.aws.amazon.com/vpc/home?region=AWS_REGION#VpcDetails:VpcId=VPC_ID';
     url = this.updateRegion(url);
 
     const id = this.getOutput(`${process.env.ENV}-network-id`);
@@ -420,13 +423,13 @@ export class StackModule extends PackageModule {
 
   getLambdaUrl() {
     const functionName = `${process.env.ENV}-${this.pkg.name}-fn}`;
-    let url = "https://AWS_REGION.console.aws.amazon.com/lambda/home?region=AWS_REGION#/functions/FUNCTION_NAME";
+    let url = 'https://AWS_REGION.console.aws.amazon.com/lambda/home?region=AWS_REGION#/functions/FUNCTION_NAME';
     url = this.updateRegion(url);
     return url.replace(/FUNCTION_NAME/g, functionName);
   }
 
   getAcmUrl() {
-    let url = "https://AWS_REGION.console.aws.amazon.com/acm/home?region=AWS_REGION#/certificates/ARN_GUID";
+    let url = 'https://AWS_REGION.console.aws.amazon.com/acm/home?region=AWS_REGION#/certificates/ARN_GUID';
     url = this.updateRegion(url);
 
     const arn = this.getOutput('CertificateArn');
@@ -438,12 +441,12 @@ export class StackModule extends PackageModule {
 
   getEcsUrls() {
     const cluster: NameReplacer = {
-      name: `${process.env.ENV}-${removeScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g
-    }
+      name: `${process.env.ENV}-${removeScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g,
+    };
     const service: NameReplacer = {
       name: `${process.env.ENV}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : ''}svc`,
-      regex: /ECS_SERVICE/g
-    }
+      regex: /ECS_SERVICE/g,
+    };
     const urls: string[] = [];
     urls.push(this.getEcsClusterUrl(cluster));
     urls.push(this.getEcsServiceUrl(cluster, service));
@@ -452,19 +455,19 @@ export class StackModule extends PackageModule {
   }
 
   getEcsClusterUrl(cluster: NameReplacer) {
-    let url = "https://AWS_REGION.console.aws.amazon.com/ecs/v2/clusters/CLUSTER_NAME/services?region=AWS_REGION";
+    let url = 'https://AWS_REGION.console.aws.amazon.com/ecs/v2/clusters/CLUSTER_NAME/services?region=AWS_REGION';
     url = this.updateRegion(url);
     return url.replace(cluster.regex, cluster.name);
   }
 
   getEcsServiceUrl(cluster: NameReplacer, service: NameReplacer) {
-    let url = "https://AWS_REGION.console.aws.amazon.com/ecs/v2/clusters/ECS_CLUSTER/services/ECS_SERVICE/";
+    let url = 'https://AWS_REGION.console.aws.amazon.com/ecs/v2/clusters/ECS_CLUSTER/services/ECS_SERVICE/';
     url = this.updateRegion(url);
     return url.replace(cluster.regex, cluster.name);
   }
 
   getEcsTaskUrl(cluster: NameReplacer, service: NameReplacer) {
-    return this.getEcsServiceUrl(cluster, service) + "tasks?region=us-east-1";
+    return this.getEcsServiceUrl(cluster, service) + 'tasks?region=us-east-1';
   }
 
   getSpaUrls() {
@@ -475,8 +478,8 @@ export class StackModule extends PackageModule {
     const distroId = this.getOutput(`DistributionId`);
     if (distroId) {
       const distro: NameReplacer = {
-        name: distroId.OutputValue as string, regex: /DISTRIBUTION_ID/g
-      }
+        name: distroId.OutputValue as string, regex: /DISTRIBUTION_ID/g,
+      };
       urls.push(this.getCloudFrontDistroUrl(distro));
     }
 
@@ -484,8 +487,8 @@ export class StackModule extends PackageModule {
     const bucketOutput = this.getOutput(`Bucket`);
     if (bucketOutput) {
       const bucket: NameReplacer = {
-        name: bucketOutput.OutputValue as string, regex: /BUCKET_NAME/g
-      }
+        name: bucketOutput.OutputValue as string, regex: /BUCKET_NAME/g,
+      };
       urls.push(this.getBucketUrl(bucket));
     }
 
@@ -500,19 +503,15 @@ export class StackModule extends PackageModule {
   }
 
   getBucketUrl(bucket: NameReplacer) {
-    let url = "https://s3.console.aws.amazon.com/s3/buckets/BUCKET_NAME?region=AWS_REGION&tab=objects"
+    let url = 'https://s3.console.aws.amazon.com/s3/buckets/BUCKET_NAME?region=AWS_REGION&tab=objects';
     url = this.updateRegion(url);
     return url.replace(bucket.regex, bucket.name);
   }
 
   getCloudFrontDistroUrl(cluster: NameReplacer) {
-    let url = `https://AWS_REGION.console.aws.amazon.com/cloudfront/v3/home?region=AWS_REGION#/distributions/DISTRIBUTION_ID`
+    let url = `https://AWS_REGION.console.aws.amazon.com/cloudfront/v3/home?region=AWS_REGION#/distributions/DISTRIBUTION_ID`;
     url = this.updateRegion(url);
     return url.replace(cluster.regex, cluster.name);
-  }
-
-  getEcsSpaUrl() {
-    let url = `https://AWS_REGION.console.aws.amazon.com/cloudfront/v3/home?region=AWS_REGION#/distributions/DISTRIBUTION_ID`
   }
 
   updateRegion(urlTemplate: string) {

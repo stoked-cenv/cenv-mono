@@ -1,7 +1,6 @@
 import { Option, RootCommand } from 'nest-commander';
 import { BaseCommandOptions, CenvLog, Package } from '@stoked-cenv/lib';
-import {BaseCommand} from "./base.command";
-import { Command } from "commander";
+import { BaseCommand } from './base.command';
 
 interface CenvCommandOptions extends BaseCommandOptions {
   version?: boolean;
@@ -9,32 +8,24 @@ interface CenvCommandOptions extends BaseCommandOptions {
 }
 
 @RootCommand({
-  name: 'cenv',
-  options: {
-    isDefault: true
-  }
-})
+    name: 'cenv',
+    options: {
+      isDefault: true,
+  }})
 export class CenvCommand extends BaseCommand {
 
-  meta: any = {
-    _allowExcessArguments: false
-  }
-
-  constructor(private readonly cenvLog: CenvLog) {
+  constructor() {
     super();
+    this.config.allowUI = false;
+    this.config.configRequired = false;
+    this.config.allowPackages = false;
+    this.config.cenvRootRequired = true;
   }
 
   @Option({
-            flags: '-v, --version', description: 'Display cenv\'s installed version'
+            flags: '-v, --version', description: 'Display cenv\'s installed version',
           })
   parseVersion(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
-            flags: '-h, --help', description: 'Display help for command'
-          })
-  parseHelp(val: boolean): boolean {
     return val;
   }
 

@@ -21,7 +21,7 @@ import {
   RemoveUserFromGroupCommand, Role,
   User,
 } from '@aws-sdk/client-iam';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 
 let _client: IAMClient;
 

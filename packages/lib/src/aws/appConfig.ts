@@ -21,8 +21,8 @@ import {
 } from '@aws-sdk/client-appconfig';
 import * as yaml from 'js-yaml';
 import {deleteParametersByPath, stripPath} from './parameterStore';
-import {CenvLog, colors} from '../log.service';
-import {isString, validateEnvVars} from '../utils';
+import {CenvLog, colors} from '../log';
+import {isString} from '../utils';
 import {CenvFiles, EnvConfig} from '../file';
 
 let _client: AppConfigClient;

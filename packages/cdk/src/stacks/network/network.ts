@@ -1,7 +1,7 @@
-import {Stack, StackProps} from 'aws-cdk-lib';
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import {Construct} from 'constructs';
-import {tagStack} from '../../index';
+import { Stack, StackProps } from 'aws-cdk-lib';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { Construct } from 'constructs';
+import { tagStack } from '../../index';
 
 const {
   ENV,
@@ -41,22 +41,21 @@ export class NetworkStack extends Stack {
     const cidr = generateAwsCidr();
     const vpc = new ec2.Vpc(this, `${ENV}-net`, {
       vpcName: `${ENV}-net`, gatewayEndpoints: {
-        S3: {service: ec2.GatewayVpcEndpointAwsService.S3},
-        DYNAMODB: {service: ec2.GatewayVpcEndpointAwsService.DYNAMODB},
-      }, cidr
+        S3: { service: ec2.GatewayVpcEndpointAwsService.S3 }, DYNAMODB: { service: ec2.GatewayVpcEndpointAwsService.DYNAMODB },
+      }, cidr,
     });
 
     vpc.addInterfaceEndpoint(`${ENV}-erc-docker-ep`, {
-      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER
+      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
     });
 
     vpc.addInterfaceEndpoint(`${ENV}-erc-api-ep`, {
-      service: ec2.InterfaceVpcEndpointAwsService.ECR
+      service: ec2.InterfaceVpcEndpointAwsService.ECR,
     });
 
     this.exportValue(cidr, {
       name: `${ENV}-cidr`,
-    })
+    });
 
     this.exportValue(vpc.vpcDefaultSecurityGroup, {
       name: `${environment}-vpc-sg`,
@@ -64,7 +63,7 @@ export class NetworkStack extends Stack {
 
     this.exportValue(vpc.vpcId, {
       name: `${ENV}-network-id`,
-    })
+    });
 
     tagStack(this);
   }

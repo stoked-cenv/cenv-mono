@@ -4,7 +4,7 @@ import {
   STSClient,
   AssumeRoleCommandOutput
 } from '@aws-sdk/client-sts';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 import { createRole, getRole } from './iam';
 import { hostname } from 'os';
 import { Role } from '@aws-sdk/client-iam';

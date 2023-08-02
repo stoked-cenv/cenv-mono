@@ -20,24 +20,26 @@ import {
 import { CenvLog } from '@stoked-cenv/lib';
 
 @Module({
-          providers: [
-            CenvLog,
-            CenvCommand,
-            BuildCommand,
-            CleanCommand,
-            ...ConfigCommand.registerWithSubCommands(),
-            DeployCommand,
-            DestroyCommand,
-            DockerCommand,
-            DocsCommand,
-            EnvCommand,
-            ExecCommand,
-            LambdaCommand,
-            NewCommand,
-            ...ParamsCommand.registerWithSubCommands(),
-            StatCommand,
-            TestCommand,
-            UICommand
-        ]
-})
-export class CliModule {}
+          providers:
+            [
+              CenvLog,
+              CenvCommand,
+              BuildCommand,
+              CleanCommand,
+              ...ConfigCommand.registerWithSubCommands(),
+              DeployCommand,
+              DestroyCommand,
+              DockerCommand,
+              DocsCommand,
+              EnvCommand,
+              ExecCommand,
+              LambdaCommand,
+              NewCommand,
+              ...ParamsCommand.registerWithSubCommands(),
+              StatCommand,
+              TestCommand,
+              UICommand
+            ],
+        })
+export class CliModule {
+}

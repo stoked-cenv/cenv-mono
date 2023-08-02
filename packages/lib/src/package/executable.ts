@@ -1,11 +1,11 @@
-import {IPackageModule, PackageModule, PackageModuleType} from './module';
+import {PackageModule, PackageModuleType} from './module';
 import {existsSync} from "fs";
-import {execCmd} from "../utils";
+import {execCmd} from "../proc";
 import {Package, TPackageMeta} from "./package";
 
 export class ExecutableModule extends PackageModule {
   installPath?: string;
-  installed: boolean = false;
+  installed = false;
 
   constructor(pkg: Package, path: string, meta: TPackageMeta) {
     super(pkg, path, meta, PackageModuleType.EXEC);
@@ -76,7 +76,7 @@ export class ExecutableModule extends PackageModule {
     this.printCheckStatusStart();
     const execWhich = `which ${this.exec}`;
     const cmd = await this.pkg.createCmd(execWhich);
-    const execPath = await execCmd('./', execWhich);
+    const execPath = await execCmd(execWhich);
     if (execPath?.length && existsSync(execPath)) {
       this.installPath = execPath;
       this.installed = true;

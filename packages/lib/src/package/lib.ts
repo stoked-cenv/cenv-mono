@@ -1,11 +1,12 @@
-import {BuildCommandOptions, Package, ProcessStatus, TPackageMeta} from './package';
-import {IPackageModule, PackageModule, PackageModuleType} from './module';
-import {CenvLog} from '../log.service';
-import {Deployment} from "../deployment";
-import {BumpMode, Version} from "../version";
-import { computeMetaHash, getGuaranteedMonoRoot, getMonoRoot } from '../utils';
-import {join} from "path";
-import {existsSync, readFileSync, writeFileSync} from "fs";
+import { BuildCommandOptions, Package, ProcessStatus, TPackageMeta } from './package';
+import { PackageModule, PackageModuleType } from './module';
+import { CenvLog } from '../log';
+import { Deployment } from '../deployment';
+import { BumpMode, Version } from '../version';
+import { computeMetaHash } from '../utils';
+import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { CenvFiles } from '../file';
 
 export enum LibStatus {
   SUCCESS = 'SUCCESS', FAILED = 'FAILED', UNBUILT = 'UNBUILT'
@@ -40,13 +41,13 @@ export class LibModule extends PackageModule {
   }
 
   static loadBuildLog() {
-    this.buildLogPath = join(getGuaranteedMonoRoot(), './cenv.build.log');
+    this.buildLogPath = join(CenvFiles.getGuaranteedMonoRoot(), './cenv.build.log');
     if (existsSync(this.buildLogPath)) {
       this.buildLog = JSON.parse(readFileSync(this.buildLogPath, 'utf-8'));
     } else {
       this.buildLog = {
-        builds: []
-      }
+        builds: [],
+      };
     }
   }
 
@@ -99,21 +100,21 @@ export class LibModule extends PackageModule {
 
   getDetails() {
     if (this.buildStatus === LibStatus.SUCCESS) {
-      this.status.deployed.push(this.statusLine('build succeeded', `build succeeded at [${this.timestamp?.toLocaleString()}]`, false,));
+      this.status.deployed.push(this.statusLine('build succeeded', `build succeeded at [${this.timestamp?.toLocaleString()}]`, false));
       return;
     } else if (this.hasBeenBuilt) {
-      this.status.deployed.push(this.statusLine('build succeeded', `previously a build succeeded at [${this.previousBuildTs?.toLocaleString()}]`, false,));
+      this.status.deployed.push(this.statusLine('build succeeded', `previously a build succeeded at [${this.previousBuildTs?.toLocaleString()}]`, false));
       return;
     }
     if (this.buildStatus === LibStatus.FAILED) {
-      this.status.needsFix.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true,));
+      this.status.needsFix.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true));
     } else {
-      this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true,));
+      this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true));
     }
   }
 
   reset() {
-    this.status = {needsFix: [], deployed: [], incomplete: []};
+    this.status = { needsFix: [], deployed: [], incomplete: [] };
     this.checked = false;
   }
 
@@ -124,8 +125,8 @@ export class LibModule extends PackageModule {
   writeBuildLog() {
     LibModule.loadBuildLog();
     LibModule.buildLog.builds.push({
-                                     package: this.pkg.packageName, ts: new Date()
-                                   })
+                                     package: this.pkg.packageName, ts: new Date(),
+                                   });
     writeFileSync(LibModule.buildLogPath, JSON.stringify(LibModule.buildLog, null, 2));
   }
 
@@ -137,15 +138,14 @@ export class LibModule extends PackageModule {
       this.pkg.processStatus = ProcessStatus.BUILDING;
       if (!this.pkg.isRoot) {
         const buildCmdString = `cenv build ${this.name}`;
-        const buildCmd = this.pkg.createCmd(buildCmdString)
+        const buildCmd = this.pkg.createCmd(buildCmdString);
         try {
-          const opt = {cenvVars: {}, pkgCmd: buildCmd};
+          const opt = { cenvVars: {}, pkgCmd: buildCmd };
           if (this.pkg.params && this.meta?.cenv?.lib?.loadVars) {
             await this.pkg.params.loadVars();
           }
           const res = await this.pkg.pkgCmd(`pnpm --filter ${this.name} build`, {
-            packageModule: this,
-            redirectStdErrToStdOut: true, ...opt
+            packageModule: this, redirectStdErrToStdOut: true, ...opt,
           });
           buildCmd.result(res.res !== undefined ? res.res : res);
         } catch (e) {
@@ -162,7 +162,7 @@ export class LibModule extends PackageModule {
         this.pkg.processStatus = ProcessStatus.HASHING;
         await this.hash();
       }
-      this.writeBuildLog()
+      this.writeBuildLog();
       if (completedWhenDone) {
         this.pkg.processStatus = ProcessStatus.COMPLETED;
       } else {
@@ -177,7 +177,7 @@ export class LibModule extends PackageModule {
       if (e instanceof Error) {
         CenvLog.single.errorLog(e.stack || 'build failed', this.pkg.stackName, true);
       }
-      return false
+      return false;
     }
   }
 

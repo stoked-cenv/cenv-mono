@@ -1,4 +1,4 @@
-import {CenvLog} from './log.service';
+import {CenvLog} from './log';
 import {Package} from './package/package';
 import {listStacks} from './aws/cloudformation'
 import {Suite} from './suite';
@@ -35,7 +35,15 @@ export class Environment {
   }
 
   static async getStacks(environment: string): Promise<StackSummary[]> {
-    const existingStacks: any = await listStacks(['CREATE_COMPLETE', 'ROLLBACK_COMPLETE', 'UPDATE_COMPLETE', 'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS', 'DELETE_FAILED', 'UPDATE_ROLLBACK_COMPLETE']);
+    const existingStacks: any = await listStacks([
+      'CREATE_COMPLETE',
+      'ROLLBACK_COMPLETE',
+      'UPDATE_COMPLETE',
+      'CREATE_IN_PROGRESS',
+      'DELETE_IN_PROGRESS',
+      'DELETE_FAILED',
+      'UPDATE_ROLLBACK_COMPLETE'
+    ]);
 
     return existingStacks.filter((s: any) => {
       return s.StackName.startsWith(environment + '-');

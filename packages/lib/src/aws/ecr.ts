@@ -7,7 +7,7 @@ import {
   ListImagesCommand,
   Repository,
 } from '@aws-sdk/client-ecr';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 
 let _client: ECRClient;
 

@@ -1,5 +1,5 @@
 import {DescribeVpcsCommand, EC2Client} from '@aws-sdk/client-ec2';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 import {Cenv} from "../cenv";
 
 let _client: EC2Client;

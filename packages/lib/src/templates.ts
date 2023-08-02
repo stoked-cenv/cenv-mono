@@ -1,9 +1,9 @@
 import * as path from "path";
 import {Cenv} from "./cenv";
-import {getMonoRoot} from "./utils";
-import {CenvLog, LogLevel} from './log.service';
+import {CenvLog, LogLevel} from './log';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'fs';
 import { CenvFiles } from './file';
+import { execCmd } from './proc';
 
 export class Template {
 
@@ -56,7 +56,7 @@ export class Template {
     }
 
     // remove the final destination folder
-    await Cenv.execCmd(`rm -rf ${finalTempPath}`, {silent});
+    await execCmd(`rm -rf ${finalTempPath}`, {silent});
 
     const branchFlag = branch ? `--branch ${branch} ` : '';
     if (typeof repoDir === "string") {
@@ -65,11 +65,11 @@ export class Template {
       return;
     }
 
-    await Cenv.execCmd(`git clone ${branchFlag}${repo} --no-checkout ${finalTempPath}`, {silent});
+    await execCmd(`git clone ${branchFlag}${repo} --no-checkout ${finalTempPath}`, {silent});
     process.chdir(path.join(gitDomain, gitPackage));
-    await Cenv.execCmd(`git sparse-checkout init --cone`, {silent});
-    await Cenv.execCmd(`git sparse-checkout set ${repoDir.join(' ')}`, {silent});
-    await Cenv.execCmd(`git checkout`, {silent});
+    await execCmd(`git sparse-checkout init --cone`, {silent});
+    await execCmd(`git sparse-checkout set ${repoDir.join(' ')}`, {silent});
+    await execCmd(`git checkout`, {silent});
 
     repoDir?.forEach((rDir) => {
       const repoDirLocal = path.parse(rDir).name;
@@ -78,7 +78,7 @@ export class Template {
   }
 
   static async newWeb() {
-    getMonoRoot();
+    CenvFiles.getMonoRoot();
     await this.cloneRepo(CenvFiles.PRIMARY_PACKAGE_PATH, 'https://github.com/stoked-cenv/cenv-mono.git', ['example/packages/api', 'example/packages/spa'], 'version/2.0.0');
   }
 }

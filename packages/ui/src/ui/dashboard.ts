@@ -303,7 +303,7 @@ export class Dashboard {
             if (Math.abs(click.ts - this.clickQueue[0].ts) < 300) {
               CenvLog.info(`statusBar::click() - ${JSON.stringify(click, null, 2)}`);
               this.debounceCallback('deploy', async () => {
-                await execCmd('/', `open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`)
+                await execCmd(`open -a "Google Chrome" ${Package.fromStackName(Dashboard.stackName).getConsoleUrl()}`);
               });
             }
           }

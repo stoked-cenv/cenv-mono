@@ -1,5 +1,5 @@
 import blessed from 'blessed';
-import { getGuaranteedMonoRoot, IPackage, Package } from '@stoked-cenv/lib';
+import { CenvFiles, IPackage, Package } from '@stoked-cenv/lib';
 import * as path from 'path';
 import {existsSync, readFileSync, writeFileSync} from 'fs';
 import {Dashboard} from './dashboard';
@@ -92,7 +92,7 @@ export default class Dialogs {
 
     form.on('submit', function (data: any) {
       //output.setContent(JSON.stringify(data, null, 2));
-      const rootPath = getGuaranteedMonoRoot();
+      const rootPath = CenvFiles.getGuaranteedMonoRoot();
       let suites: any = {};
       const suitesPath = path.join(rootPath, 'suites.json');
       if (existsSync(suitesPath)) {
@@ -201,7 +201,7 @@ export default class Dialogs {
 
     form.on('submit', function (data: any) {
       //output.setContent(JSON.stringify(data, null, 2));
-      const rootPath = getGuaranteedMonoRoot();
+      const rootPath = CenvFiles.getGuaranteedMonoRoot();
       const suitesPath = path.join(rootPath, 'dump.json');
       writeFileSync(suitesPath, JSON.stringify(dump, null, 2));
       form.destroy();

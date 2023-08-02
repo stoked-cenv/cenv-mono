@@ -1,9 +1,7 @@
-import { Command, Option, SubCommand } from 'nest-commander';
-import {
-  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, createEnvironment, colors, getEnvironment
-} from '@stoked-cenv/lib'
+import { Option, SubCommand } from 'nest-commander';
+import { BaseCommandOptions, CenvFiles, CenvLog, CenvParams, colors, createEnvironment, getEnvironment } from '@stoked-cenv/lib';
 
-import {BaseCommand} from './base.command'
+import { BaseCommand } from './base.command';
 
 interface PushCommandOptions extends BaseCommandOptions {
   deploy?: boolean;
@@ -11,9 +9,8 @@ interface PushCommandOptions extends BaseCommandOptions {
 }
 
 @SubCommand({
-  name: 'push',
-  description: 'Push locally updated application configuration variables'
-})
+              name: 'push', description: 'Push locally updated application configuration variables',
+            })
 export class ParamsPushCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
@@ -62,7 +59,7 @@ export class ParamsPushCommand extends BaseCommand {
         config.EnvironmentName = options.environment;
       }
       if (options.deploy) {
-        await CenvParams.push(options.deploy)
+        await CenvParams.push(options.deploy);
       }
     } catch (e) {
       console.log(colors.error(e));

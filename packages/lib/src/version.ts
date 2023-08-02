@@ -1,12 +1,13 @@
 import * as path from 'path';
-import {CenvLog, colors} from './log.service';
+import {CenvLog, colors} from './log';
 import {Package} from './package/package';
 import {eq, lt, parse, RangeOptions, SemVer} from "semver";
 import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
 import {Cenv} from "./cenv";
-import { getMonoRoot, getProbableMonoRoot, search_sync, sureParse } from './utils';
-import {CenvFiles} from "./file";
-import { ProfileData } from './stdIo';
+import {CenvFiles, search_sync} from "./file";
+import { ProfileData } from './stdio';
+import { getProfiles } from './config';
+import { semVerParse } from './utils'
 
 export enum BumpMode {
   DISABLED = 'DISABLED',
@@ -143,7 +144,7 @@ export class Version {
       pkgPath = path.join(pkgPath, '../', libraryId);
     }
     this.currentVersion = require(path.join(pkgPath, './package.json')).version;
-    this.currentVersion = sureParse(this.currentVersion, this.opt);
+    this.currentVersion = semVerParse(this.currentVersion, this.opt);
     const versionFile = path.join(pkgPath, './.version.json');
     this.versionFileData = {
       version: '0.1.0', lastTs: Date.now(),
@@ -192,7 +193,7 @@ export class Version {
   }
 
   static async UpgradeIncrement(incrementVersion: string, upgradeIncrementFunc: () => Promise<void>) {
-    this.nextIncrementVersion = sureParse(incrementVersion, this.opt);
+    this.nextIncrementVersion = semVerParse(incrementVersion, this.opt);
 
     if (lt(this.installedVersion, this.nextIncrementVersion, this.opt)) {
       CenvLog.single.infoLog(`incremental upgrade from ${this.installedVersion.toString()} to ${this.nextIncrementVersion.toString()}`, 'GLOBAL');
@@ -209,9 +210,9 @@ export class Version {
   }
 
   static async Upgrade_1_0_0() {
-    let monoRoot = getMonoRoot();
+    let monoRoot = CenvFiles.getMonoRoot();
     if (!monoRoot) {
-      monoRoot = getProbableMonoRoot();
+      monoRoot = CenvFiles.getProbableMonoRoot();
       CenvLog.single.catchLog('could not upgrade from a version before 1.0.0 automatically.. try putting a suites.json or cenv.json file in the root directory');
       process.exit(391);
     }
@@ -285,7 +286,7 @@ export class Version {
   }
 
   static async Upgrade_1_9_0() {
-    const profileFileData = await Cenv.stdio.getProfiles(false);
+    const profileFileData = await getProfiles(undefined, undefined, true, true);
     profileFileData.forEach((profileData: ProfileData) => {
       renameSync(profileData.profilePath, path.join(CenvFiles.PROFILE_PATH, `${profileData.envConfig?.AWS_PROFILE}↔${profileData.envConfig?.ENV}`));
     });

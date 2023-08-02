@@ -1,5 +1,5 @@
 import {Command, Option} from 'nest-commander';
-import {Cenv, CenvLog, NewCommandOptions, Package} from '@stoked-cenv/lib'
+import {New, CenvLog, NewCommandOptions, Package} from '@stoked-cenv/lib'
 
 import {BaseCommand} from './base.command';
 
@@ -7,8 +7,14 @@ import {BaseCommand} from './base.command';
            name: 'new', description: `Create a new cenv project`, aliases: ['n'], arguments: '<name>',
          })
 export class NewCommand extends BaseCommand {
-  allowUI = false;
-  localPackageAccepted = true;
+  constructor() {
+    super();
+    this.config.allowLocalPackage = true;
+    this.config.allowUI = false;
+    this.config.cenvRootRequired = false;
+  }
+
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {
@@ -36,7 +42,7 @@ export class NewCommand extends BaseCommand {
         CenvLog.single.catchLog('The new command only accepts a single argument for the new project name');
       }
 
-      await Cenv.new(passedParam[0], options);
+      await New(passedParam[0], options, this.config);
     } catch (e) {
       CenvLog.single.catchLog(e)
     }

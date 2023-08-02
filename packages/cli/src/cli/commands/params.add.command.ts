@@ -1,6 +1,6 @@
-import { Command, Option, SubCommand } from 'nest-commander';
-import {BaseCommandOptions, Cenv, CenvLog, Package,} from '@stoked-cenv/lib';
-import {BaseCommand} from './base.command'
+import { Option, SubCommand } from 'nest-commander';
+import { BaseCommandOptions, Cenv, CenvLog, Package } from '@stoked-cenv/lib';
+import { BaseCommand } from './base.command';
 
 interface AddParamCommandOptions extends BaseCommandOptions {
   app?: boolean;
@@ -12,13 +12,9 @@ interface AddParamCommandOptions extends BaseCommandOptions {
 }
 
 @SubCommand({
-  name: 'add',
-  description: 'Add parameter(s) to package',
-  arguments: '<key> [value]',
-  aliases: ['update', 'upsert']
-})
+              name: 'add', description: 'Add parameter(s) to package', arguments: '<key> [value]', aliases: ['update', 'upsert'],
+            })
 export class ParamsAddCommand extends BaseCommand {
-
 
   @Option({
             name: 'app type',
@@ -67,8 +63,8 @@ export class ParamsAddCommand extends BaseCommand {
   async runCommand(params: string[], options?: AddParamCommandOptions, packages?: Package[]): Promise<void> {
     try {
       if (!packages) {
-        CenvLog.single.mouth.err('could not determine which package to upsert this param to', 'add failed')
-        process.exit(0)
+        CenvLog.single.mouth.err('could not determine which package to upsert this param to', 'add failed');
+        process.exit(0);
       }
       await Promise.all(packages.map(async (p: Package) => {
         await Cenv.addParam(p, params, options as Record<string, string>);
@@ -76,7 +72,7 @@ export class ParamsAddCommand extends BaseCommand {
     } catch (e) {
       CenvLog.single.catchLog(e as string);
       process.exit(6);
-      return
+      return;
     }
   }
 }

@@ -8,7 +8,7 @@ import {
   waitUntilStackDeleteComplete,
 } from '@aws-sdk/client-cloudformation';
 
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 import {Package} from "../package/package";
 import {checkExceptions} from '@aws-sdk/util-waiter'
 

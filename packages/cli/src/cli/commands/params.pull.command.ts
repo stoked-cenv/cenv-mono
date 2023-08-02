@@ -1,11 +1,8 @@
-import { Command, Option, SubCommand } from 'nest-commander';
-import {
-  BaseCommandOptions, CenvFiles, CenvLog, CenvParams, Cenv, colors, getEnvironment
-} from '@stoked-cenv/lib'
+import { Option, SubCommand } from 'nest-commander';
+import { BaseCommandOptions, CenvFiles, CenvLog, CenvParams, colors, getEnvironment } from '@stoked-cenv/lib';
 
-import {BaseCommand} from './base.command'
-import chalk from "chalk";
-
+import { BaseCommand } from './base.command';
+import chalk from 'chalk';
 
 interface PullCommandOptions extends BaseCommandOptions {
   deployed?: boolean;
@@ -14,10 +11,8 @@ interface PullCommandOptions extends BaseCommandOptions {
 }
 
 @SubCommand({
-  name: 'pull',
-  description: 'Pull the latest application configuration',
-  arguments: '[options]'
-})
+              name: 'pull', description: 'Pull the latest application configuration', arguments: '[options]',
+            })
 export class ParamsPullCommand extends BaseCommand {
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
@@ -26,9 +21,7 @@ export class ParamsPullCommand extends BaseCommand {
   }
 
   @Option({
-            name: 'deployed',
-            flags: '-d, --deployed',
-            description: 'Pull the most up to date variables that have been deployed.',
+            name: 'deployed', flags: '-d, --deployed', description: 'Pull the most up to date variables that have been deployed.',
           }) parseDeployed(val: boolean): boolean {
     return val;
   }
@@ -52,7 +45,7 @@ export class ParamsPullCommand extends BaseCommand {
 
       const config = CenvFiles.GetConfig();
       if (!config) {
-        CenvLog.single.errorLog('pull: could not load config')
+        CenvLog.single.errorLog('pull: could not load config');
         process.exit(7);
       }
       if (options.environment) {

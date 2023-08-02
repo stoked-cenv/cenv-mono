@@ -1,6 +1,5 @@
-import {CloudFrontToS3} from '@aws-solutions-constructs/aws-cloudfront-s3';
-import {validateEnvVars} from "@stoked-cenv/lib";
-import * as cdk from "aws-cdk-lib";
+import { CloudFrontToS3 } from '@aws-solutions-constructs/aws-cloudfront-s3';
+import * as cdk from 'aws-cdk-lib';
 /*
 import * as kms from "aws-cdk-lib/aws-kms";
 import {RemovalPolicy} from "aws-cdk-lib/core";
@@ -15,13 +14,11 @@ import {
 } from "aws-cdk-lib/aws-s3/lib/bucket";
  */
 
-const {ENV, CENV_STACK_NAME} = process.env;
+const { ENV, CENV_STACK_NAME } = process.env;
 
 //const envVars = validateEnvVars(['ENV', 'CENV_STACK_NAME']);
 
-
 const app = new cdk.App();
-
 
 // const bucketProps: BucketProps = {
 //   /**
@@ -215,6 +212,6 @@ const app = new cdk.App();
 
 new CloudFrontToS3(app, `${process.env.ENV}-${process.env.CENV_STACK_NAME}`, {
   bucketProps: {
-    publicReadAccess: true, bucketName: `${process.env.ENV}-${process.env.CENV_STACK_NAME}-media`, transferAcceleration: true
-  }
+    publicReadAccess: true, bucketName: `${process.env.ENV}-${process.env.CENV_STACK_NAME}-media`, transferAcceleration: true,
+  },
 });

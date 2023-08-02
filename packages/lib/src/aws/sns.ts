@@ -2,7 +2,7 @@ import {
   CreateTopicCommand, GetTopicAttributesCommand, ListTopicsCommand, SNSClient, SubscribeCommand,
 } from '@aws-sdk/client-sns';
 
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 
 
 let _client: SNSClient;

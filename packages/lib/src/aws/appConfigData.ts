@@ -5,7 +5,7 @@ import {
 import * as YAML from 'yaml';
 import * as chalk from 'chalk';
 import {CenvParams} from '../params';
-import {CenvLog, colors} from '../log.service';
+import {CenvLog, colors} from '../log';
 import {CenvFiles} from '../file';
 import {decryptValue, isEncrypted} from './parameterStore';
 import {getConfig} from "./appConfig";
