@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cdk",
-  "version": "2.0.0-a.41",
+  "version": "2.0.0-a.42",
   "scripts": {
     "build": "echo 'build configured through nx project.json'",
     "dev": "tsc -w",
