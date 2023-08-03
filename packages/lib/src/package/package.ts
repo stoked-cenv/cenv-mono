@@ -224,6 +224,7 @@ export interface CenvMeta {
     certArnName?: string
     clearContext: boolean;
   };
+  stackTemplatePath: string;
   docker: {
     context: string; file: string;
   },

@@ -17,5 +17,6 @@ packages/cli/logs
 /basic/
 .idea
 cdk.out
-.cenv/.cenv.*-*.config
+.cenv.*-*.config
 cdk.context.json
+example/packages/spa/build/**/*

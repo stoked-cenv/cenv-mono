@@ -377,6 +377,6 @@ export class Mouth {
   }
 
   stdPlain(...text: string[]) {
-    CenvLog.single.stdLog(text, this.stackName || this.noun);
+    CenvLog.single.stdLog(text.join(' '), this.stackName || this.noun);
   }
 }
