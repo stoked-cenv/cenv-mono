@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.43",
+  "version": "2.0.0-a.44",
   "description": "",
   "bin": {
     "cenv": "./dist/main.js"
