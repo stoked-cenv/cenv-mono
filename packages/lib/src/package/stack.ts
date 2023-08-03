@@ -180,8 +180,8 @@ export class StackModule extends PackageModule {
         if (componentPackageParts.component === 'spa') {
           opt.cenvVars = { CENV_BUCKET_NAME: this.pkg.bucketName, ...opt.cenvVars };
         }
-        if (this.meta?.cenv?.stack?.buildPath) {
-          opt.cenvVars = { CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack.buildPath), ...opt.cenvVars };
+        if (this.meta?.cenv?.stack?.buildPath || this.meta?.cenv?.stackTemplatePath) {
+          opt.cenvVars = { CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack?.buildPath || this.meta?.cenv?.stackTemplatePath), ...opt.cenvVars };
         }
       } else {
         opt.packageModule = this.pkg.stack;

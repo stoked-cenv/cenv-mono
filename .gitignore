@@ -15,3 +15,7 @@ cenv.build.log
 /packages/cli/tsconfig.tsbuildinfo
 packages/cli/logs
 /basic/
+.idea
+cdk.out
+.cenv/.cenv.*-*.config
+cdk.context.json

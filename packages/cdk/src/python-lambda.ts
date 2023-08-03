@@ -3,8 +3,8 @@ import { Construct } from 'constructs';
 import { PythonFunction } from '@aws-cdk/aws-lambda-python-alpha';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import { LambdaProps } from './lambda-props.js';
-import { tagStack } from './utils.js';
+import { LambdaProps } from './lambda-props';
+import { tagStack } from './utils';
 
 const { ENV } = process.env;
 

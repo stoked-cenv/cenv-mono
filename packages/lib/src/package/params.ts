@@ -2,7 +2,7 @@ import {IPackageModule, PackageModule, PackageModuleType} from './module';
 import {AppVars, AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList} from '../file';
 import * as path from 'path';
 import {join} from 'path';
-import {existsSync} from 'fs';
+import { existsSync, rmSync } from 'fs';
 import {destroyAppConfig, destroyRemainingConfigs, getConfig} from '../aws/appConfig';
 import {CenvParams} from '../params';
 import {CenvLog, colors} from '../log';
@@ -67,12 +67,16 @@ export class ParamsModule extends PackageModule {
   varsLoaded = false;
   cenvVars: any = {};
   duplicates: { key: string; types: string[] }[] = [];
+  configPath: string;
+  varsPath: string;
 
   constructor(pkg: Package, path: string, meta: TPackageMeta) {
     super(pkg, path, meta, PackageModuleType.PARAMS);
     CenvFiles.ENVIRONMENT = process.env.ENV!;
-    this.hasCenvVars = existsSync(join(this.path, CenvFiles.PATH, AppVarsFile.NAME));
-    this.hasLocalConfig = existsSync(join(this.path, CenvFiles.PATH, EnvConfigFile.NAME));
+    this.varsPath = join(this.path, CenvFiles.PATH, AppVarsFile.NAME);
+    this.hasCenvVars = existsSync(this.varsPath);
+    this.configPath = join(this.path, CenvFiles.PATH, EnvConfigFile.NAME);
+    this.hasLocalConfig = existsSync(this.configPath);
     if (this.hasLocalConfig) {
       if (process.cwd() !== this.path) {
         process.chdir(this.path);
@@ -188,10 +192,10 @@ export class ParamsModule extends PackageModule {
       }
 
       // load config
-      CenvFiles.LoadEnvConfig(process.env.ENV);
       const config = CenvFiles.GetConfig();
 
       // get deployed vars
+      this.pkg.stdPlain('loading deployed vars:', this.pkg.packageName);
       this.cenvVars = await getConfigVars(true);
     }
     if (CenvLog.isInfo) {
@@ -206,7 +210,82 @@ export class ParamsModule extends PackageModule {
     this.varsLoaded = true;
   }
 
+  /*async deploy() {
+    // switch dir
+    if (process.cwd() !== this.path) {
+      const toDirVars = path.relative(process.cwd(), this.path);
+      process.chdir(toDirVars);
+    }
+    // push local vars to parameter store
+    await CenvParams.push(true);
+  }
+
+   */
+
+  async materialize() {
+    // switch dir
+    if (process.cwd() !== this.path) {
+      const toDirVars = path.relative(process.cwd(), this.path);
+      process.chdir(toDirVars);
+    }
+
+    // deploy paramter store vars to app config
+    await CenvParams.Materialize(false);
+  }
+
+
+  async getParams() {
+    await this.checkStatus();
+    await this.loadVars();
+    const stagedParams = {
+      local: this.localVarsTyped,
+    }
+    if (this.localVarsTyped) {
+      console.log('local', this.localVarsTyped);
+    }
+    if (this.pushedVarsTyped) {
+      console.log('deployed', this.pushedVarsTyped);
+    }
+    if (this.materializedVars) {
+      console.log('materialized', this.materializedVars);
+    }
+  }
+
+  async init(options: any) {
+    // switch dir
+    if (process.cwd() !== this.path) {
+      const toDirVars = path.relative(process.cwd(), this.path);
+      process.chdir(toDirVars);
+    }
+
+    // deploy paramter store vars to app config
+    await CenvParams.initParams({ ...options, application: this.pkg.packageName, environment: process.env.ENV });
+  }
+
   async deploy(options: any) {
+    const [value, release] = await ParamsModule.semaphore.acquire();
+
+    let deploy = false;
+    if (!options?.init) {
+      const config = await getConfig(this.pkg.packageName);
+      if (config) {
+        deploy = true;
+        await CenvParams.push(options?.materialize);
+      } else {
+        if (this.hasLocalConfig) {
+          rmSync(this.configPath);
+        }
+      }
+    }
+    if (!deploy) {
+      options.push = true;
+      options.materialize = true;
+      await this.init(options);
+    }
+
+    release();
+  }
+  /*async deploy(options: any) {
     const [value, release] = await ParamsModule.semaphore.acquire();
 
 
@@ -227,6 +306,8 @@ export class ParamsModule extends PackageModule {
 
     release();
   }
+
+   */
 
   async checkVarsUpToDate(): Promise<boolean> {
     if (this.varsUpToDateFlag) {

@@ -13,6 +13,7 @@ import { ParamsModule } from './package/params';
 import { DockerModule } from './package/docker';
 import { StackSummary } from '@aws-sdk/client-cloudformation';
 import { execCmd, ICmdOptions } from './proc';
+import { CenvParams } from './params';
 
 interface DeploymentDependencies {
   package: Package;
@@ -246,7 +247,7 @@ export class Deployment {
         this.asyncProcesses.map((p) => CenvLog.info(p, 'child process'));
         await Promise.all(this.asyncProcesses);
         if (this.options?.suite || this.options?.environment) {
-          await Cenv.destroyAppConfig(Package.getRootPackageName(), {
+          await CenvParams.destroyAppConfig(Package.getRootPackageName(), {
             global: true, ecr: true,
           });
           await this.uninstallAnythingLeft();
@@ -403,6 +404,9 @@ export class Deployment {
 
   static async checkDockerStatus() {
     const res = await execCmd('docker version -f json', { silent:  true });
+    if (res.toString().includes('Command failed')) {
+      return { active: false };
+    }
     const info = JSON.parse(res);
     return { active: info.Server !== null, info };
   }

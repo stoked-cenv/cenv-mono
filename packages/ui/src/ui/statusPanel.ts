@@ -1,10 +1,10 @@
 import blessed from 'blessed';
-import {Cenv, CenvLog, CenvFiles, Package, PackageModule, ProcessMode} from "@stoked-cenv/lib";
+import { Cenv, CenvFiles, CenvLog, Package, PackageModule, ProcessMode } from '@stoked-cenv/lib';
 import * as contrib from 'blessed-contrib';
-import {CenvPanel} from './panel';
+import { CenvPanel } from './panel';
 import Groups from './group';
 import chalk from 'chalk';
-import {Dashboard} from './dashboard';
+import { Dashboard } from './dashboard';
 
 contrib.table.prototype.baseRender = contrib.table.prototype.render;
 
@@ -65,7 +65,7 @@ export default class StatusPanel extends CenvPanel {
   init() {
     try {
 
-      this.bottom = 0
+      this.bottom = 0;
 
       const modulesOptions = {
         keys: true, mouse: true, selectedBg: [30, 30, 30], style: {
@@ -73,29 +73,21 @@ export default class StatusPanel extends CenvPanel {
             bold: true, fg: [255, 255, 255], bg: [15, 40, 15],
           }, item: {
             fg: [140, 140, 140],
-          }, border: {fg: 'gray'}, label: {side: 'right', top: '20%-10', fg: 'gray'}, header: {height: 0}
-        }, template: {lines: true}
+          }, border: { fg: 'gray' }, label: { side: 'right', top: '20%-10', fg: 'gray' }, header: { height: 0 },
+        }, template: { lines: true },
       };
 
-      this.modules = this.addGridWidget(blessed.list, modulesOptions, [0, 2, 1, 1], true,);
+      this.modules = this.addGridWidget(blessed.list, modulesOptions, [0, 2, 1, 1], true);
 
       this.modules.name = 'modules';
 
       this.dependencies = this.addGridWidget(blessed.box, {
-        top: 'center',
-        left: 'center',
-        width: '50%',
-        height: '50%',
-        content: '',
-        tags: true,
-        label: 'dependencies',
-        border: {
-          type: 'line'
+        top: 'center', left: 'center', width: '50%', height: '50%', content: '', tags: true, label: 'dependencies', border: {
+          type: 'line',
+        }, style: {
+          border: { fg: 'gray' }, label: { fg: 'gray' },
         },
-        style: {
-          border: {fg: 'gray'}, label: {fg: 'gray'}
-        }
-      }, [1, 2, 2, 3], true,);
+      }, [1, 2, 2, 3], true);
       this.dependencies.name = 'dependencies';
 
       this.app = this.addParamCtrl('app', [2, 2, 3, 3]);
@@ -103,11 +95,8 @@ export default class StatusPanel extends CenvPanel {
       this.global = this.addParamCtrl('global', [2, 3, 3, 3]);
       this.globalEnv = this.addParamCtrl('globalEnv', [2, 3, 3, 3]);
       this.paramCtrlMap = {
-        app: this.app,
-        environment: this.environment,
-        global: this.global,
-        globalEnv: this.globalEnv
-      }
+        app: this.app, environment: this.environment, global: this.global, globalEnv: this.globalEnv,
+      };
 
       /*
       Groups['details'] = [
@@ -155,10 +144,10 @@ export default class StatusPanel extends CenvPanel {
 
       this.moduleInfo = this.dashboard.grid.set(0, 3, 1, 2, blessed.list, {
         mouse: true, keys: true, style: {
-          text: 'red', border: {fg: 'gray'}, label: {side: 'right', fg: 'gray'},
+          text: 'red', border: { fg: 'gray' }, label: { side: 'right', fg: 'gray' },
         }, scrollable: true, scrollbar: {
           ch: ' ', inverse: true,
-        }, autoScroll: false, template: {lines: true}, label: 'module info', columnWidth: [10, 10],
+        }, autoScroll: false, template: { lines: true }, label: 'module info', columnWidth: [10, 10],
       });
       this.monoRoot = CenvFiles.getMonoRoot();
 
@@ -191,76 +180,67 @@ export default class StatusPanel extends CenvPanel {
       });
 
       this.paramForm = blessed.form({
-                                      parent: this.dashboard.screen,
-                                      mouse: true,
-                                      keys: true,
-                                      vi: true,
-                                      left: 0,
-                                      top: 0,
-                                      width: '100%',
-                                      style: {
-                                        bg: 'black', scrollbar: {
-                                          inverse: true
-                                        }
-                                      },
-                                      scrollable: true,
-                                      scrollbar: {
-                                        ch: ' '
-                                      },
-                                      hidden: true
-                                    });
+        parent: this.dashboard.screen, mouse: true, keys: true, vi: true, left: 0, top: 0, width: '100%', style: {
+          bg: 'black', scrollbar: {
+            inverse: true,
+          },
+        }, scrollable: true, scrollbar: {
+          ch: ' ',
+        }, hidden: true,
+      });
 
-      this.paramForm.on('submit', function (data: any) {
+      this.paramForm.on('submit', function(data: any) {
         //output.setContent(JSON.stringify(data, null, 2));
         //screen.render();
       });
 
       this.paramTextbox = blessed.textbox({
-                                            parent: this.paramForm, mouse: true, keys: true, style: {
+        parent: this.paramForm,
+        mouse: true,
+        keys: true,
+        style: {
           border: {
-            fg: [200, 200, 200]
+            fg: [200, 200, 200],
           },
-        }, border: {
+        },
+        border: {
           type: 'line',
-        }, padding: {
-          right: 2, left: 2
-        }, height: 3, width: 20, left: 1, top: 1, name: 'text', hidden: true
-                                          });
+        },
+        padding: {
+          right: 2, left: 2,
+        },
+        height: 3,
+        width: 20,
+        left: 1,
+        top: 1,
+        name: 'text',
+        hidden: true,
+      });
       this.paramTextbox.type = 'paramsUI';
+      this.paramTextbox.hide();
 
       this.paramTextbox.on('focus', () => {
         // this.paramTextbox.readInput();
       });
 
       this.paramLabel = blessed.text({
-                                       parent: this.paramForm, content: 'Key:', hidden: true
-                                     });
+        parent: this.paramForm, content: 'Key:', hidden: true,
+      });
 
       if (this.saveEnabled) {
         this.paramSave = blessed.button({
-                                          parent: this.paramForm,
-                                          mouse: true,
-                                          keys: true,
-                                          shrink: true,
-                                          top: 0,
-                                          name: 'SAVE',
-                                          content: 'SAVE',
-                                          bold: true,
-                                          padding: {
-                                            right: 2, left: 2
-                                          },
-                                          style: {
-                                            bold: true, fg: 'white', bg: 'black', focus: {
-                                              inverse: true
-                                            }, border: {
-                                              fg: 'white'
-                                            }
-                                          },
-                                          border: {
-                                            type: 'line',
-                                          },
-                                          hidden: true
-                                        });
+          parent: this.paramForm, mouse: true, keys: true, shrink: true, top: 0, name: 'SAVE', content: 'SAVE', bold: true, padding: {
+            right: 2, left: 2,
+          }, style: {
+            bold: true, fg: 'white', bg: 'black', focus: {
+              inverse: true,
+            }, border: {
+              fg: 'white',
+            },
+          }, border: {
+            type: 'line',
+          }, hidden: true,
+        });
         this.paramSave.hide();
 
         this.paramSave.type = 'paramsUI';
@@ -281,21 +261,12 @@ export default class StatusPanel extends CenvPanel {
 
   getParameterWidgetOptions(type: string, bg = 'black') {
 
-    const columnWidth = [this.parameterColumnWidth, this.parameterColumnWidth,];
+    const columnWidth = [this.parameterColumnWidth, this.parameterColumnWidth];
 
     return {
-      mouse: true,
-      keys: true,
-      fg: 'white',
-      selectedFg: 'black',
-      selectedBg: [24, 242, 24],
-      columnSpacing: 2,
-      type,
-      columnWidth,
-      style: {
-        bg: bg, border: {fg: 'gray'}, label: {fg: 'gray',}
-      },
-      label: type
+      mouse: true, keys: true, fg: 'white', selectedFg: 'black', selectedBg: [24, 242, 24], columnSpacing: 2, type, columnWidth, style: {
+        bg: bg, border: { fg: 'gray' }, label: { fg: 'gray' },
+      }, label: type,
     };
   }
 
@@ -316,10 +287,12 @@ export default class StatusPanel extends CenvPanel {
     this.paramTextbox.setValue(pkg.params?.localVarsTyped[name as keyof object][this.selectedParamKey]);
     this.paramLabel.content = ' ' + this.selectedParamKey;
 
-    this.paramLabel.show();
-    this.paramTextbox.show();
-    this.paramForm.show();
-    this.paramForm.render();
+    Dashboard.debug('selectParam', name);
+    if (!!this.showParams) {
+      this.paramLabel.show();
+      this.paramTextbox.show();
+      this.paramForm.show();
+    }
     if (Dashboard.instance) {
       const index = Dashboard.instance?.focusPool.indexOf(this[name as keyof object]);
       this.updateParamUI();
@@ -327,13 +300,12 @@ export default class StatusPanel extends CenvPanel {
     }
   }
 
-
   addParamCtrl(type: string, gridOptions: number[]) {
     const paramCtrl = this.addGridWidget(contrib.table, this.getParameterWidgetOptions(type), gridOptions, true);
     paramCtrl.type = 'params';
     paramCtrl.name = type;
     paramCtrl.rows.top = 0;
-    paramCtrl.active = paramCtrl.hidden
+    paramCtrl.active = paramCtrl.hidden;
 
     paramCtrl.hide = () => {
       if (paramCtrl.hidden) {
@@ -360,7 +332,7 @@ export default class StatusPanel extends CenvPanel {
       pkg.info('term term');
     });
 
-    paramCtrl.on('element click', (item: any)=> {
+    paramCtrl.on('element click', (item: any) => {
       this.selectParam(paramCtrl.name, item);
       if (Dashboard.instance) {
         const index = Dashboard.instance.focusPool.indexOf(this.paramCtrlMap[paramCtrl.name]);
@@ -375,7 +347,6 @@ export default class StatusPanel extends CenvPanel {
         this.setFocus(index);
       }
     });
-
 
     paramCtrl.render = () => {
       if (this.dashboard.screen.focused == paramCtrl.rows) {
@@ -454,7 +425,7 @@ export default class StatusPanel extends CenvPanel {
         data.push([name]);
       }
     }
-    paramCtrl.setData({headers: [], data});
+    paramCtrl.setData({ headers: [], data });
     paramCtrl.rows.selected = -1;
     paramCtrl.show();
 
@@ -497,7 +468,7 @@ export default class StatusPanel extends CenvPanel {
       } else if (this.dashboard.cmd === ProcessMode.DEPLOY && !pkg.meta?.data.destroyDependencies?.length) {
         return false;
       } else if (!pkg.meta?.data.destroyDependencies?.length && !pkg.meta?.data.deployDependencies?.length) {
-        return false
+        return false;
       }
       return true;
     }
@@ -527,7 +498,6 @@ export default class StatusPanel extends CenvPanel {
         this.modules.left = this.dashboard.screen.width + 1;
         this.moduleInfo.left = this.dashboard.screen.width + 1;
       }
-
 
       if (this.dependenciesVisable()) {
         this.dependencies.width = width;
@@ -560,7 +530,7 @@ export default class StatusPanel extends CenvPanel {
           this.app.setFront();
         }
 
-        widthMultiplier++
+        widthMultiplier++;
 
         if (paramWidthValid && this.environment) {
           this.environment.left = leftWidth;
@@ -570,7 +540,7 @@ export default class StatusPanel extends CenvPanel {
           leftWidth = this.environment.left + this.environment.width;
         }
 
-        widthMultiplier++
+        widthMultiplier++;
 
         if (paramWidthValid && this.global) {
           this.global.left = leftWidth;
@@ -594,20 +564,19 @@ export default class StatusPanel extends CenvPanel {
         this.parameterWidth = Math.floor(width / visibleParamTypeCount);
         this.parameterColumnWidth = this.parameterWidth - 1;
         if (this.app) {
-          this.app.options.columnWidth = [this.parameterWidth]
+          this.app.options.columnWidth = [this.parameterWidth];
         }
         if (this.global) {
-          this.global.options.columnWidth = [this.parameterWidth]
+          this.global.options.columnWidth = [this.parameterWidth];
         }
         if (this.environment) {
-          this.environment.options.columnWidth = [this.parameterWidth]
+          this.environment.options.columnWidth = [this.parameterWidth];
         }
         if (this.globalEnv) {
-          this.globalEnv.options.columnWidth = [this.parameterWidth]
+          this.globalEnv.options.columnWidth = [this.parameterWidth];
         }
 
         top += parameterHeight + (this.selectedParamKey && !this.paramTextbox.hidden ? 3 : 0);
-
 
       } else {
         if (this.app && this.environment && this.global && this.globalEnv) {
@@ -626,7 +595,7 @@ export default class StatusPanel extends CenvPanel {
       }
 
       if (Cenv.dashboard.statusOptions.active) {
-        this.dashboard.statusOptions?.setFront()
+        this.dashboard.statusOptions?.setFront();
       }
       this.bottom = top;
     } catch (e) {
@@ -648,12 +617,11 @@ export default class StatusPanel extends CenvPanel {
     this.paramForm.left = Dashboard.instance?.packages.width + 2;
     this.paramForm.top = this.app.top + this.app.height;
     this.paramForm.height = 3;
-    this.paramForm.width = this.dependencies.width;
-    this.paramForm.hidden = false;
+    this.paramForm.width = this.dependencies.width - 1;
     this.paramTextbox.left = this.selectedParamKey?.length + 2;
     this.paramTextbox.top = 0;
-    this.paramTextbox.style.border.fg = 'gray'
-    this.paramTextbox.height = 3
+    this.paramTextbox.style.border.fg = 'gray';
+    this.paramTextbox.height = 3;
     this.paramTextbox.width = this.panelWidth - this.paramTextbox.left - 11;
 
     this.paramLabel.top = 1;
@@ -677,6 +645,8 @@ export default class StatusPanel extends CenvPanel {
     this.global?.render();
     this.globalEnv?.render();
     this.paramForm.render();
+    this.paramTextbox.render();
+    this.paramLabel.render();
   }
 
   hide() {
@@ -690,6 +660,9 @@ export default class StatusPanel extends CenvPanel {
     this.global.hide();
     this.globalEnv.hide();
     this.environment.hide();
+    this.paramForm.hide();
+    this.paramTextbox.hide();
+    this.paramLabel.hide();
     Groups.detailWidgets?.map((w: any) => w.hide());
     Groups.fullScreenFocus?.hide();
     this.active = false;
@@ -737,8 +710,10 @@ export default class StatusPanel extends CenvPanel {
       this.showType('globalEnv');
       this.showType('environment');
 
-      if (!this.selectedParamKey && !Dashboard.paramsToggle) {
-        this.paramForm.hide()
+      if (!!this.showParams && !this.selectedParamKey && !Dashboard.paramsToggle) {
+        Dashboard.debug(`!this.selectedParamKey: ${!this.selectedParamKey}, !Dashboard.paramsToggle: ${!Dashboard.paramsToggle}`);
+        this.paramForm.hide();
+        this.paramForm.left = this.screen.width -10
         this.paramTextbox.hide();
         this.paramLabel.hide();
       }

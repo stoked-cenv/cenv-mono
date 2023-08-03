@@ -21,7 +21,7 @@ ENV NODE_ENV dev
 COPY ./pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm fetch
 
-COPY ./cenv.json ./package.json ./pnpm-workspace.yaml ./
+COPY ./cenv.json ./package.json ./pnpm-workspace.yaml ./tsconfig.base.json ./
 COPY ./packages/globals ./packages/globals
 
 ## Copy source code into app folder

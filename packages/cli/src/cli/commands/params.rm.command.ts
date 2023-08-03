@@ -16,41 +16,43 @@ interface RemoveCommandOptions extends BaseCommandOptions {
               name: 'rm', description: 'Add parameter(s) to package', arguments: '[key] [moreKeys...]',
             })
 export class ParamsRemoveCommand extends BaseCommand {
+
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
+
   @Option({
-            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
-          }) parseLogLevel(val: string): string {
+            name: 'app type',
+            flags: '-A, --app-type',
+            description: 'Adds an app parameter. App parameters are the same across all environments and are not used in other applications.',
+          }) parseConfig(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'app',
-            flags: '-a, --app',
-            description: 'Removes an app parameter. App parameters are the same across all environments and are not used in other applications.',
-          }) parseConfig(val: string): string {
-    return val;
-  }
-
-  @Option({
-            name: 'environment',
-            flags: '-e, --environment',
-            description: 'Removes an environment parameter. Environment parameters are unique to each environment and are not used in other applications.',
+            name: 'environment type',
+            flags: '-E, --environment-type',
+            description: 'Adds an environment parameter. Environment parameters are unique to each environment and are not used in other applications.',
           }) parseEnvironment(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'global',
-            flags: '-g, --global',
-            description: 'Removes a global parameter. Global parameters are available to all applications in all environments.',
-          }) parseGlobal(val: boolean): boolean {
+            name: 'global type',
+            flags: '-G, --global-type',
+            description: 'Adds a global parameter. Global parameters are available to all applications in all environments.',
+          })
+  parseGlobal(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            name: 'global environment',
-            flags: '-ge, --global-env',
+            name: 'globalEnv type',
+            flags: '-GE, --global-env-type',
             description: 'Adds a global environment parameter. Global environment parameters are available to all applications in a single environment.',
-          }) parseGlobalEnv(val: boolean): boolean {
+          })
+  parseGlobalEnv(val: boolean): boolean {
     return val;
   }
 
@@ -58,7 +60,8 @@ export class ParamsRemoveCommand extends BaseCommand {
             name: 'kill',
             flags: '-k, --kill',
             description: 'Forces the system to actually delete the parameter. This is not recommended. This parameter may be used by another service.',
-          }) parseKill(val: boolean): boolean {
+          })
+  parseKill(val: boolean): boolean {
     return val;
   }
 
@@ -66,13 +69,15 @@ export class ParamsRemoveCommand extends BaseCommand {
             name: 'all',
             flags: '--all',
             description: 'Removes all parameters related to the service. Global links will be removed but the parameters will remain.',
-          }) parseAll(val: boolean): boolean {
+          })
+  parseAll(val: boolean): boolean {
     return val;
   }
 
   @Option({
             name: 'path', flags: '-P, --path, [path]', description: 'Removes everything under the given paths hierarchy in AWS Parameter Store.',
-          }) parsePath(val: string): string {
+          })
+  parsePath(val: string): string {
     return val;
   }
 
@@ -94,7 +99,7 @@ export class ParamsRemoveCommand extends BaseCommand {
 
       const types = filteredCount(Object.keys(options), variableTypes);
       if (types.length > 1) {
-        CenvLog.single.errorLog('You must specify zero or one parameter blessed: --app, --global, --global-env or --environment');
+        CenvLog.single.errorLog(`Must only contain zero or one type flag (${colors.infoBold('--app-type')}, ${colors.infoBold('--environment-type')}, ${colors.infoBold('--global-type')}, ${colors.infoBold('--global-env-type')}`);
         return;
       }
 

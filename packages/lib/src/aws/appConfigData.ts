@@ -25,7 +25,7 @@ function getClient() {
 }
 
 export async function startSession() {
-  if (CenvFiles.EnvConfig.ApplicationId === undefined || CenvFiles.EnvConfig.EnvironmentId === undefined || CenvFiles.EnvConfig.ConfigurationProfileId === undefined) {
+  if (CenvFiles.EnvConfig?.ApplicationId === undefined || CenvFiles.EnvConfig?.EnvironmentId === undefined || CenvFiles.EnvConfig?.ConfigurationProfileId === undefined) {
     const configRes = await getConfig(process.env.APPLICATION_NAME!);
     if (!configRes) {
       CenvLog.single.catchLog(['startSession error', 'No config found']);

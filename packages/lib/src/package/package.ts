@@ -504,7 +504,7 @@ export class Package implements IPackage {
           this.params = new ParamsModule(this, pkgPath, this.meta.data);
         }
 
-        if (existsSync(path.join(pkgPath, './cdk.json')) || pathMeta.deployStack || this.meta?.data?.cenv?.stack) {
+        if (existsSync(path.join(pkgPath, './cdk.json')) || pathMeta.deployStack || this.meta?.data?.cenv?.stack || (this.meta?.data?.cenv?.stackTemplatePath && this.component)) {
           this.stack = new StackModule(this, pkgPath, this.meta.data);
         }
 

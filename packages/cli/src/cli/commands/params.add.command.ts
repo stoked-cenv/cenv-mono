@@ -1,5 +1,5 @@
 import { Option, SubCommand } from 'nest-commander';
-import { BaseCommandOptions, Cenv, CenvLog, Package } from '@stoked-cenv/lib';
+import { BaseCommandOptions, CenvLog, CenvParams, Package } from '@stoked-cenv/lib';
 import { BaseCommand } from './base.command';
 
 interface AddParamCommandOptions extends BaseCommandOptions {
@@ -15,6 +15,11 @@ interface AddParamCommandOptions extends BaseCommandOptions {
               name: 'add', description: 'Add parameter(s) to package', arguments: '<key> [value]', aliases: ['update', 'upsert'],
             })
 export class ParamsAddCommand extends BaseCommand {
+
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
 
   @Option({
             name: 'app type',
@@ -54,12 +59,6 @@ export class ParamsAddCommand extends BaseCommand {
     return val;
   }
 
-  @Option({
-            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
-          }) parseLogLevel(val: string): string {
-    return val;
-  }
-
   async runCommand(params: string[], options?: AddParamCommandOptions, packages?: Package[]): Promise<void> {
     try {
       if (!packages) {
@@ -67,7 +66,7 @@ export class ParamsAddCommand extends BaseCommand {
         process.exit(0);
       }
       await Promise.all(packages.map(async (p: Package) => {
-        await Cenv.addParam(p, params, options as Record<string, string>);
+        await CenvParams.addParam(p, params, options as Record<string, string>);
       }));
     } catch (e) {
       CenvLog.single.catchLog(e as string);

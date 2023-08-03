@@ -1,5 +1,5 @@
 import { Option, SubCommand } from 'nest-commander';
-import { CenvLog, Init, InitCommandOptions, Package } from '@stoked-cenv/lib';
+import { CenvLog, Init, InitCommandOptions, Package, CenvParams } from '@stoked-cenv/lib';
 
 import { BaseCommand } from './base.command';
 
@@ -27,7 +27,9 @@ export class ParamsMaterializeCommand extends BaseCommand {
 
   async runCommand(passedParam: string[], options: InitCommandOptions, packages: Package[]): Promise<void> {
     try {
-      await Init(options, this.config);
+      packages?.map(async (p: Package) => {
+        await p.params?.materialize();
+      });
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

@@ -1,20 +1,19 @@
 {
-  "compileOnSave": false,
   "compilerOptions": {
-    "rootDir": ".",
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "node",
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "importHelpers": true,
-    "target": "es2015",
-    "module": "esnext",
-    "lib": ["es2020", "dom"],
+    "target": "es2017",
+    "outDir": "./dist",
+    "baseUrl": "./src",
+    "strict": true,
     "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "baseUrl": ".",
-    "paths": {}
+    "noUnusedLocals": false,
+    "sourceMap": true,
+    "lib": ["ES7"],
+    "esModuleInterop": true
   },
-  "exclude": ["**/node_modules", "tmp", "cdk.out"]
+  "exclude": ["node_modules", "dist", "example"]
 }

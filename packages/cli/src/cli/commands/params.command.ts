@@ -7,7 +7,8 @@ import { ParamsAddCommand } from './params.add.command';
 import { ParamsRemoveCommand } from './params.rm.command';
 import { InitCommand } from './init.command';
 import { ParamsPullCommand } from './params.pull.command';
-import { ParamsPushCommand } from './params.push.command';
+import { ParamsDeployCommand } from './params.deploy.command';
+import { ParamsDestroyCommand } from './params.destroy.command';
 import { ParamsMaterializeCommand } from './params.materialize.command';
 
 enum ParamCommands {
@@ -17,9 +18,15 @@ enum ParamCommands {
 @Command({
            name: 'params',
            description: 'Init, deploy, and display package parameters',
-           subCommands: [InitCommand, ParamsPullCommand, ParamsPushCommand, ParamsAddCommand, ParamsRemoveCommand, ParamsMaterializeCommand],
+           subCommands: [InitCommand, ParamsPullCommand, ParamsDeployCommand, ParamsDestroyCommand, ParamsAddCommand, ParamsRemoveCommand, ParamsMaterializeCommand],
          })
 export class ParamsCommand extends BaseCommand {
+
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
+
 
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
@@ -72,12 +79,6 @@ export class ParamsCommand extends BaseCommand {
   }
 
   @Option({
-            name: 'envToParams', flags: '-ep, --env-to-params', description: 'Import .env file as system parameters on init.',
-          }) parseEnvToParams(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
             name: 'decrypted', flags: '-de, --decrypted', description: 'Display decrypted values on SecureString blessed.',
           }) parseEncrypted(val: boolean): boolean {
     return val;
@@ -98,9 +99,10 @@ export class ParamsCommand extends BaseCommand {
       return;
     }
     let format = 'simple';
-    if (options?.detail) {
-      format = 'detail';
-    }
+    format = 'stages';
+    //if (options?.detail) {
+    //  format = 'detail';
+    //}
 
     if (options?.pkgCount > 1) {
       format += '-pkg';
@@ -115,70 +117,80 @@ export class ParamsCommand extends BaseCommand {
 
   async runCommand(params: string[], options: ParamsCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      if (params.length) {
-        // force lowercase
-        params = params.map(p => p.toLowerCase());
-
-        // eliminate dupes
-        const commandSet = new Set(params);
-
-        // sort command order
-        params = Array.from(commandSet);
-        const commandOrder = Object.values(ParamCommands);
-        params = params.sort((a: string, b: string) => {
-          return commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)]);
-        });
-
-        if (params.length > 3) {
-          CenvLog.single.errorLog(`The cenv params command does not accept more than one additional argument. The following additional arguments were supplied in error: ${params.join(', ')}`);
-          process.exit(4);
+      options.detail = true;
+      packages?.map(async (p: Package) => {
+        if (p.params) {
+          await p.params.getParams();
         }
+      });
 
-        if (packages) {
-          for (let i = 0; i < params.length; i++) {
-            const param = params[i];
-            options.defaults = true;
-            for (const p of packages) {
-              if (p.params && p.chDir()) {
-                if (param === ParamCommands.init) {
-                  await Cenv.initParams(options, []);
-                } else if (param === ParamCommands.fix) {
-                  await p.checkStatus();
-                  if (p.params.status.needsFix?.length) {
-                    console.log('package', p.packageName);
-                    await p.params.fixDupes();
+
+      //await getParams(options, 'all', 'simple', options?.decrypted, options?.deployed);
+      /*
+
+            if (params.length) {
+              // force lowercase
+              params = params.map(p => p.toLowerCase());
+
+              // eliminate dupes
+              const commandSet = new Set(params);
+
+              // sort command order
+              params = Array.from(commandSet);
+              const commandOrder = Object.values(ParamCommands);
+              params = params.sort((a: string, b: string) => {
+                return commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(a)]) - commandOrder.indexOf(Object.values(ParamCommands)[Object.keys(ParamCommands).indexOf(b)]);
+              });
+
+              if (params.length > 3) {
+                CenvLog.single.errorLog(`The cenv params command does not accept more than one additional argument. The following additional arguments were supplied in error: ${params.join(', ')}`);
+                process.exit(4);
+              }
+              if (packages) {
+                for (let i = 0; i < params.length; i++) {
+                  const param = params[i];
+                  options.defaults = true;
+                  for (const p of packages) {
+                    if (p.params && p.chDir()) {
+                      if (param === ParamCommands.init) {
+                        await Cenv.initParams(options, []);
+                      } else if (param === ParamCommands.fix) {
+                        await p.checkStatus();
+                        if (p.params.status.needsFix?.length) {
+                          console.log('package', p.packageName);
+                          await p.params.fixDupes();
+                        }
+                      } else if (param === ParamCommands.deploy) {
+                        await CenvParams.push(false);
+                      } else if (param === ParamCommands.pull) {
+                        const depRes = await getConfig(p.params.name);
+                        if (depRes) {
+                          await CenvParams.pull(true, false, true, false, false, false, depRes.config, true);
+                        }
+                      } else if (param === ParamCommands.materialize) {
+                        await CenvParams.Materialize(options.test);
+                      }
+                    }
                   }
-                } else if (param === ParamCommands.deploy) {
-                  await CenvParams.push(false);
-                } else if (param === ParamCommands.pull) {
-                  const depRes = await getConfig(p.params.name);
-                  if (depRes) {
-                    await CenvParams.pull(true, false, true, false, false, false, depRes.config, true);
+                }
+              }
+            } else {
+
+              let type: string | false = validateCount(Object.keys(options), [...variableTypes, 'all'], true);
+
+              if (!type) {
+                type = 'all';
+              }
+              if (packages) {
+                const opts = { ...options, pkgCount: packages.length };
+                for (let i = 0; i < packages.length; i++) {
+                  if (packages[i].chDir()) {
+                    await this.callBase(opts, type, packages[i]);
                   }
-                } else if (param === ParamCommands.materialize) {
-                  await CenvParams.Materialize(options.test);
                 }
               }
             }
-          }
-        }
-      } else {
-
-        let type: string | false = validateCount(Object.keys(options), [...variableTypes, 'all'], true);
-
-        if (!type) {
-          type = 'all';
-        }
-        if (packages) {
-          const opts = { ...options, pkgCount: packages.length };
-          for (let i = 0; i < packages.length; i++) {
-            if (packages[i].chDir()) {
-              await this.callBase(opts, type, packages[i]);
-            }
-          }
-        }
-      }
-
+      */
     } catch (e) {
       CenvLog.single.errorLog(e as string);
     }

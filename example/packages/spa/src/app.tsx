@@ -9,7 +9,6 @@ import { HomePage } from "./pages/home-page";
 import { NotFoundPage } from "./pages/not-found-page";
 import { ProfilePage } from "./pages/profile-page";
 import { ProtectedPage } from "./pages/protected-page";
-import { PublicPage } from "./pages/public-page";
 import {GettingStartedPage} from "./pages/getting-started-page";
 import {DockerPage} from "./pages/docker-page";
 import {ParamsPage} from "./pages/params-page";

@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { App, Stack } from 'aws-cdk-lib';
 import { CenvLog } from '@stoked-cenv/lib';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
-import { SiteCertificateStack } from './stacks/cert/site-certificate-stack.js';
+import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 
 export function tagStack(stack: Stack) {
   tagIfExists(stack, 'CENV_PKG_VERSION');

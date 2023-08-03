@@ -1,9 +1,8 @@
 {
   "name": "@stoked-cenv/web-spa",
-  "version": "2.0.0-a.38",
+  "version": "2.0.0-a.42",
   "dependencies": {
     "@auth0/auth0-react": "^2.0.0",
-    "@stoked-cenv/cdk": "2.0.0-a.38",
     "axios": "^0.27.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -63,5 +62,10 @@
   ],
   "cli": {
     "packageManager": "pnpm"
-  }
+  },
+  "description": "This TypeScript code sample demonstrates **how to implement user authentication** in React applications using Auth0. This React code sample builds the Single-Page Application (SPA) using the React Router 6 library.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

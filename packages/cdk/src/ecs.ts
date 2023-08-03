@@ -10,7 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, tagStack } from './utils.js';
+import { ensureValidCerts, tagStack } from './utils';
 
 export interface ECSServiceDeploymentParams {
   env: string;

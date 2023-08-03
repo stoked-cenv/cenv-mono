@@ -21,18 +21,6 @@ export class DestroyCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '-p, --parameters', description: `Destroy parameters`,
-          }) parseParameters(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
-            flags: '-pa, --parameters-all', description: `Destroy all parameters and configs`,
-          }) parseParametersAll(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
             flags: '-s, --stack', description: `Destroy stack`,
           }) parseStack(val: boolean): boolean {
     return val;
@@ -50,6 +38,19 @@ export class DestroyCommand extends BaseCommand {
     return val;
   }
 
+
+  @Option({
+            flags: '-p, --parameters', description: `Destroy parameters`,
+          }) parseParameters(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+            flags: '-pa, --parameters-all', description: `Destroy all parameters and configs`,
+          }) parseParametersAll(val: boolean): boolean {
+    return val;
+  }
+
   @Option({
             flags: '-gp, --global-parameters', description: `Destroy all global parameters`,
           }) parseGlobalParameters(val: boolean): boolean {
@@ -61,6 +62,27 @@ export class DestroyCommand extends BaseCommand {
           }) parseNonGlobalParameters(val: boolean): boolean {
     return val;
   }
+
+
+  @Option({
+            flags: '-p, --parameters', description: `Only run  parameter related commands.`,
+          }) parsePA(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+            flags: '-ap, --all-parameters',
+            description: `Destroy all global and non global parameters from parameter store as well as all configs from app config.`,
+          }) parseAp(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+            flags: '--all', description: `Destroy everything`,
+          }) parseAll(val: boolean): boolean {
+    return val;
+  }
+
 
   @Option({
             flags: '-d, --dependencies',
@@ -94,27 +116,8 @@ export class DestroyCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '-p, --parameters', description: `Only run  parameter related commands.`,
-          }) parsePA(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
-            flags: '-ap, --all-parameters',
-            description: `Destroy all global and non global parameters from parameter store as well as all configs from app config.`,
-          }) parseAp(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
             flags: '-ad, --all-docker', description: `Destroy all docker images from every ecr repo as well as the ecr repos themselves`,
           }) parseAd(val: boolean): boolean {
-    return val;
-  }
-
-  @Option({
-            flags: '--all', description: `Destroy everything`,
-          }) parseAll(val: boolean): boolean {
     return val;
   }
 

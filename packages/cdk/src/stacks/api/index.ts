@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import 'source-map-support/register.js';
+import 'source-map-support/register';
 import { ECSServiceStack } from '../../index';
 
 const envVars: Record<string, string> = {};

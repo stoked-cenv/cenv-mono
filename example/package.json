@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv-web",
-  "version": "2.0.0-a.38",
+  "version": "2.0.0-a.42",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -18,5 +18,8 @@
   },
   "cli": {
     "packageManager": "pnpm"
+  },
+  "dependencies": {
+    "nest": "^0.1.6"
   }
 }

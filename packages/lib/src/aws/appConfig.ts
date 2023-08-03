@@ -75,23 +75,26 @@ export async function createEnvironment(applicationId: string, name: string): Pr
   }
 }
 
-export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<any> {
-  const response = await getConfigurationProfile(applicationId, name);
-  if (response && response.ConfigurationProfileId) {
-    return {Id: response.ConfigurationProfileId, exists: true};
-  }
-
-  const createConfigProfileParams = {
-    ApplicationId: applicationId, Name: name, LocationUri: 'hosted'
-  }
-  const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
+export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<{ Id: string, Name: string, Existed: boolean } | false> {
   try {
+    const responseConf = await getConfigurationProfile(applicationId, name);
+    if (responseConf && responseConf.ConfigurationProfileId) {
+      return {Id: responseConf.ConfigurationProfileId, Name: name, Existed: true};
+    }
+
+    const createConfigProfileParams = {
+      ApplicationId: applicationId, Name: name, LocationUri: 'hosted'
+    }
+    const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
     const response = await getClient().send(command);
-    return response;
+    if (response.Id) {
+      return { Id: response.Id, Name: name, Existed: false };
+    }
+    return false;
   } catch (e) {
     CenvLog.single.errorLog(['CreateConfigurationProfileCommand error', e as string])
-    return null;
   }
+  return false;
 }
 
 export async function createHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string, content: any): Promise<any> {
@@ -695,11 +698,14 @@ export async function createAppEnvConf(applicationName: any, environmentName: an
     return false;
   }
   const confRes = await createConfigurationProfile(appRes.Id, configurationProfileName);
-  return {
-    ApplicationName: applicationName,
-    EnvironmentName: environmentName,
-    ApplicationId: appRes.Id,
-    EnvironmentId: envRes.Id,
-    ConfigurationProfileId: confRes.Id,
+  if (confRes) {
+    return {
+      ApplicationName: applicationName,
+      EnvironmentName: environmentName,
+      ApplicationId: appRes.Id,
+      EnvironmentId: envRes.Id,
+      ConfigurationProfileId: confRes.Id,
+    }
   }
+  return false;
 }

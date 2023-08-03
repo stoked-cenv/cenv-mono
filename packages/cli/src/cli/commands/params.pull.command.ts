@@ -14,6 +14,11 @@ interface PullCommandOptions extends BaseCommandOptions {
               name: 'pull', description: 'Pull the latest application configuration', arguments: '[options]',
             })
 export class ParamsPullCommand extends BaseCommand {
+
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

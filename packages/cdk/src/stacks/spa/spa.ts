@@ -17,6 +17,7 @@ import {BucketDeployment, Source} from 'aws-cdk-lib/aws-s3-deployment';
 import {Construct} from 'constructs';
 import * as process from 'process';
 import {tagStack} from '../../index';
+import {validateEnvVars} from "@stoked-cenv/lib";
 
 export class SpaStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {

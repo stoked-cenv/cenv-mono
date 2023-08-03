@@ -1,0 +1,21 @@
+{
+  "name": "@stoked-cenv/web-spa",
+  "sourceRoot": "example/packages/spa/src",
+  "type": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "example/packages/spa/src",
+        "command": "pnpm run build"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "dist/@stoked-cenv/lib",
+        "command": "pnpm publish"
+      }
+    }
+  }
+}

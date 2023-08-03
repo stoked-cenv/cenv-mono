@@ -13,13 +13,12 @@
         }
       ],
       "options": {
-        "rootDir": "./packages/cdk/src",
-        "outputPath": "./packages/cdk/dist",
-        "main": "./packages/cdk/src/index.ts",
-        "tsConfig": "./packages/cdk/tsconfig.build.json",
+        "rootDir": "packages/cdk/src",
+        "outputPath": "packages/cdk/dist",
+        "main": "packages/cdk/src/index.ts",
+        "tsConfig": "packages/cdk/tsconfig.build.json",
         "deleteOutputPath": true,
-        "packageJson": "./packages/cdk/package.json",
-        "assets": ["./*.md"]
+        "packageJson": "packages/cdk/package.json"
       }
     },
     "publish": {
