@@ -1,4 +1,3 @@
-import {Dashboard} from './dashboard'
 import {Deployment, Environment, Package, ProcessMode, Suite, Suites} from '@stoked-cenv/lib';
 
 export class CenvUI {

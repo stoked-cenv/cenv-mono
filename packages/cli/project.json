@@ -13,8 +13,7 @@
         }
       ],
       "options": {
-        "rootDir": "packages/cli/src",
-        "outputPath": "packages/cli/dist",
+        "outputPath": "dist/cli",
         "main": "packages/cli/index.ts",
         "tsConfig": "packages/cli/tsconfig.build.json",
         "deleteOutputPath": true,

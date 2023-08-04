@@ -191,7 +191,7 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0(@nestjs/common@10.0.0)(@nestjs/core@10.0.0)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.42 || ^2.0.1
+        specifier: ^2.0.0-a.45 || ^2.0.1
         version: link:../lib
       '@stoked-cenv/ui':
         specifier: ^2.0.0-a.42 || ^2.0.1
@@ -439,7 +439,7 @@ importers:
         specifier: ^3.259.0
         version: 3.259.0
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.44 || ^2.0.1
+        specifier: ^2.0.0-a.45 || ^2.0.1
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0
@@ -2763,6 +2763,7 @@ packages:
   /@colors/colors@1.5.0:
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
+    requiresBuild: true
 
   /@commitlint/config-validator@17.6.7:
     resolution: {integrity: sha512-vJSncmnzwMvpr3lIcm0I8YVVDJTzyjy7NZAeXbTXy+MPUdAr9pKyyg7Tx/ebOQ9kqzE6O9WT6jg2164br5UdsQ==}

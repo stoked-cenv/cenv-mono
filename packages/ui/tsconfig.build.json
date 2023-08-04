@@ -1,13 +1,7 @@
 {
   "extends": "../../tsconfig.build.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "paths": {
-      "@stoked-cenv/lib": ["../lib/dist/index.js"],
-    }
-  },
   "include": [
     "./src",
-    "../../types/blessed"
+    "./types/blessed"
   ]
 }

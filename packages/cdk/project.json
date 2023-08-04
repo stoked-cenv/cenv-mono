@@ -13,8 +13,7 @@
         }
       ],
       "options": {
-        "rootDir": "packages/cdk/src",
-        "outputPath": "packages/cdk/dist",
+        "outputPath": "dist/cdk",
         "main": "packages/cdk/src/index.ts",
         "tsConfig": "packages/cdk/tsconfig.build.json",
         "deleteOutputPath": true,

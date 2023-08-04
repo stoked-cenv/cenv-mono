@@ -1,3 +1,4 @@
+/// <reference types="../../types/blessed"/>
 import blessed from 'blessed';
 import * as contrib from 'blessed-contrib';
 import {Package, PackageCmd, PackageModule} from '@stoked-cenv/lib';

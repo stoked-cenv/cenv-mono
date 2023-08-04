@@ -63,5 +63,12 @@
   "cli": {
     "packageManager": "pnpm"
   },
+  "contributors": [
+    {
+      "name": "Brian Stoker",
+      "url": "https://github.com/brian-stoker",
+      "githubUsername": "brian-stoker"
+    }
+  ],
   "license": "UNLICENSED"
 }

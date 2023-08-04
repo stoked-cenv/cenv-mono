@@ -1,9 +1,9 @@
 {
   "name": "@stoked-cenv/cli",
-  "version": "2.0.0-a.44",
-  "description": "",
+  "version": "2.0.0-a.45",
+  "description": "A well considered cli and Node.js library for helping manage application, infrastructure, and configuration management.",
   "bin": {
-    "cenv": "./dist/main.js"
+    "cenv": "./main"
   },
   "author": "Brian Stoker",
   "license": "MIT",
@@ -87,7 +87,7 @@
   ],
   "homepage": "https://cenv.stokedconsulting.com",
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.42 || ^2.0.1",
+    "@stoked-cenv/lib": "^2.0.0-a.45 || ^2.0.1",
     "@stoked-cenv/ui": "^2.0.0-a.42 || ^2.0.1"
   }
 }

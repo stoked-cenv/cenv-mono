@@ -6,8 +6,7 @@
     "build": {
       "executor": "@nx/js:tsc",
       "options": {
-        "rootDir": "packages/lib",
-        "outputPath": "packages/lib/dist",
+        "outputPath": "dist/lib",
         "baseUrl": "packages/lib/src",
         "main": "packages/lib/src/index.ts",
         "tsConfig": "packages/lib/tsconfig.build.json",

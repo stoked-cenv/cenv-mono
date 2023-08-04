@@ -12,21 +12,20 @@
         }
       ],
       "options": {
-        "rootDir": "packages/ui/src",
-        "outputPath": "packages/ui/dist",
+        "outputPath": "dist/ui",
         "main": "packages/ui/src/index.ts",
         "tsConfig": "packages/ui/tsconfig.build.json",
         "deleteOutputPath": true,
-        "packageJson": "packages/ui/package.json"
+        "packageJson": "packages/ui/package.json",
+        "assets": ["packages/ui/types/**/*.d.ts"]
       }
     },
     "publish": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "dist/@stoked-cenv/ui",
+        "cwd": "dist/ui",
         "command": "pnpm publish"
       }
     }
-  },
-  "implicitDependencies": ["@stoked-cenv/lib"]
+  }
 }

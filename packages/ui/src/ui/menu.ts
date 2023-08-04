@@ -1,3 +1,4 @@
+/// <reference types="../../types/blessed"/>
 import blessed from 'blessed';
 
 

@@ -1,10 +1,11 @@
+/// <reference types="../../types/blessed"/>
 import blessed from 'blessed';
 import { Cenv, CenvFiles, CenvLog, Package, PackageModule, ProcessMode } from '@stoked-cenv/lib';
 import * as contrib from 'blessed-contrib';
 import { CenvPanel } from './panel';
 import Groups from './group';
 import chalk from 'chalk';
-import { Dashboard } from './dashboard';
+import { Dashboard, ParamsMode } from './dashboard';
 
 contrib.table.prototype.baseRender = contrib.table.prototype.render;
 
@@ -257,22 +258,23 @@ export default class StatusPanel extends CenvPanel {
   paramTypeVisible(type: string): boolean {
     const pkg = this.getPkg();
     let typeHasValues;
+    const params = pkg.params;
     switch(Dashboard.paramsToggle) {
       case ParamsMode.MATERIALIZED:
-        typeHasValues = pkg.params.materializedVars && Object.keys(pkg.params.materializedVars).length > 0;
+        typeHasValues = params?.materializedVars && Object.keys(params.materializedVars).length > 0;
         break;
       case ParamsMode.DEPLOYED:
-        typeHasValues = pkg.params.deployedVarsTyped && pkg.params.deployedVarsTyped[type as keyof object] && Object.keys(pkg.params.deployedVarsTyped[type as keyof object]).length > 0
+        typeHasValues = params?.pushedVarsTyped && params.pushedVarsTyped[type as keyof object] && Object.keys(params.pushedVarsTyped[type as keyof object]).length > 0
         break;
       case ParamsMode.LOCAL:
-        typeHasValues = pkg.params?.localVarsTyped[type as keyof object] && Object.keys(pkg.params.localVarsTyped[type as keyof object]).length > 0;
+        typeHasValues = params?.localVarsTyped[type as keyof object] && Object.keys(params.localVarsTyped[type as keyof object]).length > 0;
         break;
       case ParamsMode.OFF:
       default:
         typeHasValues = false;
         break;
     }
-    return !!this.showParams && typeHasValues;
+    return !!this.showParams && !!typeHasValues;
   }
 
   getParameterWidgetOptions(type: string, bg = 'black') {
@@ -290,16 +292,16 @@ export default class StatusPanel extends CenvPanel {
     let value = '';
     switch(Dashboard.paramsToggle) {
       case ParamsMode.MATERIALIZED:
-        value = pkg.params.materializedVars[key];
+        value = pkg.params?.materializedVars[key];
         break;
       case ParamsMode.DEPLOYED:
         if (type) {
-          value = pkg.params.deployedVarsTyped[type as keyof object][key];
+          value = pkg.params?.pushedVarsTyped[type as keyof object][key];
         }
         break;
       case ParamsMode.LOCAL:
         if (type) {
-          value = pkg.params.localVarsTyped[type as keyof object][key];
+          value = pkg.params?.localVarsTyped[type as keyof object][key];
         }
         break;
       case ParamsMode.OFF:
@@ -328,7 +330,7 @@ export default class StatusPanel extends CenvPanel {
     this.paramLabel.content = ' ' + this.selectedParamKey;
 
     Dashboard.debug('selectParam', name);
-    if (!!this.showParams) {
+    if (this.showParams) {
       this.paramLabel.show();
       this.paramTextbox.show();
       this.paramForm.show();

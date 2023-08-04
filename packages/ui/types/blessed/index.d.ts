@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /// <reference types="node" />
-/// <reference types="node" />
 declare module "blessed" {
     const _exports: typeof import("blessed");
     _exports.test = "hi five";

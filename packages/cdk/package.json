@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cdk",
-  "version": "2.0.0-a.44",
+  "version": "2.0.0-a.45",
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
     "dev": "tsc -w",

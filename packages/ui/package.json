@@ -1,11 +1,9 @@
 {
   "name": "@stoked-cenv/ui",
-  "version": "2.0.0-a.44",
+  "version": "2.0.0-a.45",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
-  "main": "./dist/index.js",
   "scripts": {
-    "start": "node dist/index.js",
-    "build": "echo 'build configured through nx project.json'",
+    "build": "tsc --project tsconfig.build.json",
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm run lint -- --fix",
     "watch": "tsc --watch",
@@ -50,6 +48,7 @@
     "parameters"
   ],
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.44 || ^2.0.1"
-  }
+    "@stoked-cenv/lib": "^2.0.0-a.45 || ^2.0.1"
+  },
+  "main": "./src/index"
 }

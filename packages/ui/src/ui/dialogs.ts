@@ -1,3 +1,4 @@
+/// <reference types="../../types/blessed"/>
 import blessed from 'blessed';
 import { CenvFiles, IPackage, Package } from '@stoked-cenv/lib';
 import * as path from 'path';

@@ -30,14 +30,7 @@
   },
   "targetDefaults": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "{projectRoot}/dist"
-      ]
+      "inputs": ["production", "^production"]
     }
-  },
-  "defaultBase": "main",
-  "$schema": "./node_modules/nx/schemas/nx-schema.json"
+  }
 }
