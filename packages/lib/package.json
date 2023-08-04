@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.44",
+  "version": "2.0.0-a.45",
   "description": "Library responsible for cenv params.",
   "scripts": {
     "build": "nx run @stoked-cenv/lib:build",
