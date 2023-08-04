@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.44",
+  "version": "2.0.0-a.45",
   "private": true,
   "scripts": {
     "build": "nx affected:build --parallel",
@@ -14,7 +14,7 @@
     "clean": "rimraf --glob src/**/*.js",
     "test": "nx run @stoked-cenv/cli:test",
     "cli": "nx run @stoked-cenv/cli:cli",
-    "version": "echo pnpm $(pnpm --version); echo tsc $(tsc --version); echo node $(node --version); nx --version; cenv --version",
+    "version:deps": "echo pnpm $(pnpm --version); echo tsc $(tsc --version); echo node $(node --version); nx --version; cenv --version",
     "version:bump": "pnpm -r run version:bump prerelease --force && pnpm -r up \"@stoked-cenv/*\" && git add package.json packages/cli/package.json packages/ui/package.json packages/lib/package.json packages/cdk/package.json pnpm-lock.yaml && git commit -m \"push bump packages\" && git push && pnpm version prerelease && git push",
     "publish:bump": "pnpm run version:bump && pnpm --filter \"@stoked-cenv/*\" run publish:bump --publish-branch $(git rev-parse --abbrev-ref HEAD)"
   },
