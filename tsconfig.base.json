@@ -15,7 +15,7 @@
     "lib": ["ES7"],
     "esModuleInterop": true,
     "paths": {
-      "@stoked-cenv/lib": ["packages/lib/src/index.ts"],
+      "@stoked-cenv/lib": ["packages/lib/dist/index.js"],
       "@stoked-cenv/ui": ["packages/ui/src/index.ts"],
       "@stoked-cenv/cdk": ["packages/cdk/src/index.ts"],
       "@stoked-cenv/cli": ["packages/cli/src/index.ts"]

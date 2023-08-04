@@ -88,6 +88,9 @@ export async function createConfigurationProfile(applicationId: string, name = '
     const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
     const response = await getClient().send(command);
     if (response.Id) {
+      createConfigProfileParams.Name = createConfigProfileParams.Name + '_meta';
+      const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
+      await getClient().send(command);
       return { Id: response.Id, Name: name, Existed: false };
     }
     return false;

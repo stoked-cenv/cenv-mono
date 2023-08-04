@@ -209,9 +209,9 @@ export class PackageCmd implements Cmd {
     this.code = code;
     if (this.index > 0) {
       const prevCmd = this.pkg.cmds[this.index - 1];
-      if (prevCmd.res === this.res && prevCmd.cmd === this.cmd && prevCmd.code === this.code && prevCmd.stderr === this.stderr && prevCmd.stdout === this.stdout) {
-        this.pkg.cmds.splice(this.index - 1, 1);
-      }
+      //if (prevCmd.res === this.res && prevCmd.cmd === this.cmd && prevCmd.code === this.code && prevCmd.stderr === this.stderr && prevCmd.stdout === this.stdout) {
+        //this.pkg.cmds.splice(this.index - 1, 1);
+      //}
     }
     return this.res;
   }

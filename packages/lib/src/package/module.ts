@@ -106,16 +106,19 @@ export abstract class PackageModule implements IPackageModule {
   get moduleBaseStrings(): string[] {
     const items: string[] = [];
     items.push(`version: v${this.version}`);
-    if (this.buildVersion) {
+    /*
+    if (this.buildVersion && this.buildVersion) {
       items.push(`build version: v${this.buildVersion}`);
     }
-    if (this.currentVersion) {
+    if (this.currentVersion && this.currentVersion !== parse('0.0.0')) {
       items.push(`current version: v${this.currentVersion}`);
     }
-
-    if (this.pkg?.stackVersion && this.version !== parse(this.pkg.stackVersion)) {
+   */
+    if (this.pkg?.stackVersion) {
       items.push(`deployed version: v${this.pkg.stackVersion}`);
     }
+
+
     return items;
   }
 

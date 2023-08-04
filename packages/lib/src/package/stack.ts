@@ -183,6 +183,9 @@ export class StackModule extends PackageModule {
         if (this.meta?.cenv?.stack?.buildPath || this.meta?.cenv?.stackTemplatePath) {
           opt.cenvVars = { CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack?.buildPath || this.meta?.cenv?.stackTemplatePath), ...opt.cenvVars };
         }
+        if (this.pkg.instance && !opt.cenvVars.APP) {
+          opt.cenvVars.APP = this.pkg.instance;
+        }
       } else {
         opt.packageModule = this.pkg.stack;
       }

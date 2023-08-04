@@ -59,7 +59,7 @@ export default class StatusPanel extends CenvPanel {
 
   get showParams() {
     const pkg = this.getPkg();
-    return pkg?.params?.hasCenvVars && pkg.params?.localCounts && Dashboard.paramsToggle;
+    return pkg?.params?.hasCenvVars && pkg.params?.localCounts && Dashboard.paramsToggle === ParamsMode.OFF;
   }
 
   init() {
@@ -256,7 +256,23 @@ export default class StatusPanel extends CenvPanel {
 
   paramTypeVisible(type: string): boolean {
     const pkg = this.getPkg();
-    return !!this.showParams && !!pkg.params?.localVarsTyped[type as keyof object] && Object.keys(pkg.params.localVarsTyped[type as keyof object]).length > 0;
+    let typeHasValues;
+    switch(Dashboard.paramsToggle) {
+      case ParamsMode.MATERIALIZED:
+        typeHasValues = pkg.params.materializedVars && Object.keys(pkg.params.materializedVars).length > 0;
+        break;
+      case ParamsMode.DEPLOYED:
+        typeHasValues = pkg.params.deployedVarsTyped && pkg.params.deployedVarsTyped[type as keyof object] && Object.keys(pkg.params.deployedVarsTyped[type as keyof object]).length > 0
+        break;
+      case ParamsMode.LOCAL:
+        typeHasValues = pkg.params?.localVarsTyped[type as keyof object] && Object.keys(pkg.params.localVarsTyped[type as keyof object]).length > 0;
+        break;
+      case ParamsMode.OFF:
+      default:
+        typeHasValues = false;
+        break;
+    }
+    return !!this.showParams && typeHasValues;
   }
 
   getParameterWidgetOptions(type: string, bg = 'black') {
@@ -268,6 +284,30 @@ export default class StatusPanel extends CenvPanel {
         bg: bg, border: { fg: 'gray' }, label: { fg: 'gray' },
       }, label: type,
     };
+  }
+
+  getParamValue(key: string, pkg: any, type?: string) {
+    let value = '';
+    switch(Dashboard.paramsToggle) {
+      case ParamsMode.MATERIALIZED:
+        value = pkg.params.materializedVars[key];
+        break;
+      case ParamsMode.DEPLOYED:
+        if (type) {
+          value = pkg.params.deployedVarsTyped[type as keyof object][key];
+        }
+        break;
+      case ParamsMode.LOCAL:
+        if (type) {
+          value = pkg.params.localVarsTyped[type as keyof object][key];
+        }
+        break;
+      case ParamsMode.OFF:
+      default:
+        value = '';
+        break;
+    }
+    return value;
   }
 
   selectParam(name: string, item: any) {
@@ -284,7 +324,7 @@ export default class StatusPanel extends CenvPanel {
     }
 
     const pkg = this.getPkg();
-    this.paramTextbox.setValue(pkg.params?.localVarsTyped[name as keyof object][this.selectedParamKey]);
+    this.paramTextbox.setValue(this.getParamValue(this.selectedParamKey, pkg));
     this.paramLabel.content = ' ' + this.selectedParamKey;
 
     Dashboard.debug('selectParam', name);
@@ -400,6 +440,7 @@ export default class StatusPanel extends CenvPanel {
     await this.updateParameters(this.globalEnv, pkg, mostKeys);
     this.dashboard.setFocusIndex(fi);
   }
+
 
   async updateParameters(paramCtrl: any, pkg: Package, height = -1) {
     if (!pkg.params?.localVarsTyped) {
@@ -710,7 +751,7 @@ export default class StatusPanel extends CenvPanel {
       this.showType('globalEnv');
       this.showType('environment');
 
-      if (!!this.showParams && !this.selectedParamKey && !Dashboard.paramsToggle) {
+      if (!!this.showParams && !this.selectedParamKey && Dashboard.paramsToggle !== ParamsMode.OFF) {
         Dashboard.debug(`!this.selectedParamKey: ${!this.selectedParamKey}, !Dashboard.paramsToggle: ${!Dashboard.paramsToggle}`);
         this.paramForm.hide();
         this.paramForm.left = this.screen.width -10

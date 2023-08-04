@@ -27,8 +27,7 @@ export async function runScripts(pkgModule: PackageModule, scripts: (string | { 
 
 function spawnInfo(options: any, chunk: string, output: string) {
   // match cdk status output
-  // stackName | cloudformation sequence number | time | cf status | aws object | aws type (stack id) cf event
-  // (.*?) \|.*([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} (?>AM)|(?>PM)) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:]*) *\| ([a-z_A-Z_\:\/-]*) \((.*)\)]? ?(.*)?$
+
   if (options.returnOutput) {
     output += chunk;
   }  else {
@@ -41,10 +40,13 @@ function log(options: any, cmdLog?: PackageCmd, packageInfo?: Package, ...text: 
     return;
   }
   if (cmdLog) {
+    text.unshift('cmdLog');
     cmdLog.info(...text);
   } else if (packageInfo) {
+    text.unshift('packageInfo');
     packageInfo.info(...text);
   } else if (!options.silent) {
+    text.unshift('infoLog');
     CenvLog.single.infoLog(text)
   }
 }
@@ -338,7 +340,7 @@ export async function execCmd(cmd: string, options: {
   envVars: {}, cenvVars: {}, redirectStdErrToStdOut: false, output: false, silent: false,
 }): Promise<string> {
   try {
-
+    const silent = options?.silent === true;
     const module = options?.packageModule;
     const pkg = module ? module.pkg : Package.global;
     let pkgPath = module ? module.path : options?.path
@@ -367,7 +369,7 @@ export async function execCmd(cmd: string, options: {
     const consoleFolder = path.resolve(newCwd).split('/').pop();
     const cons = `${process.env.USER}@${hostname()} ${consoleFolder} %`;
     try {
-      if (pkg.name && !options?.silent) {
+      if (pkg.name && !silent) {
         //log(`${cons} cd ${infoBold(folder)}`);
         CenvLog.single.stdLog(envVarDisplay ? envVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '', pkg.stackName);
         CenvLog.single.infoLog(`${colors.info(cons)} ${cmd}`, pkg?.stackName);
@@ -386,7 +388,7 @@ export async function execCmd(cmd: string, options: {
 
     const outputBuffer = child.execSync(cmd);
     const output = outputBuffer.toString()
-    if (options?.silent !== false) {
+    if (!silent) {
       CenvLog.single.infoLog(output);
     }
     return output;

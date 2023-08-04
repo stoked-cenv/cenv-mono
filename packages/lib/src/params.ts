@@ -523,9 +523,13 @@ export class CenvParams {
             }
           }
         }
-        CenvLog.single.verboseLog('materialization results:\n' + output, data.ApplicationName);
+        CenvLog.single.infoLog('materialization results:\n' + output, data.ApplicationName);
       }
     }
+  }
+
+  public static getMaterializedMeta(materializedVars: Record<string, string>, before: Record<string, string>) {
+
   }
 
   public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
@@ -542,6 +546,13 @@ export class CenvParams {
       const appConfig = {
         ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
       };
+      const configMeta = await getConfigurationProfile(ApplicationId, 'config_meta');
+      let appConfigMeta;
+      if (configMeta && configMeta.ConfigurationProfileId) {
+        appConfigMeta = {
+          ApplicationId, EnvironmentId, ConfigurationProfileId: configMeta.ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
+        };
+      }
       if (process.env.VERBOSE_LOGS) {
         console.log('appConfig', appConfig)
       }
@@ -565,6 +576,12 @@ export class CenvParams {
       // deploy the materialized vars to a new config profile version
       await deployConfig(materializedVars, appConfig);
       await updateLambdas(materializedVars, `${EnvironmentName}-${ApplicationName.replace(Cenv.scopeName, '')}`);
+
+      if (appConfigMeta) {
+        // deploy the materialized vars to a new config profile version
+        this.getMaterializedMeta(materializedVars, before);
+        await deployConfig(materializedVars, appConfigMeta);
+      }
       return {before, after}
     } catch (e) {
       CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + e as string)

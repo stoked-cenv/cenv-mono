@@ -1,6 +1,7 @@
 APPLICATION_NAME: '@stoked-cenv/web-api'
 HEALTH_CHECK_PATH: /<{CENV_API_VERSION}>
 ISSUER_BASE_URL: https://<{CENV_AUTH0_DOMAIN}>
+APP: <{CENV_APP}>
 global:
   - DOMAIN
   - CENV_APP

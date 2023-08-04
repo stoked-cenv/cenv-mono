@@ -11,6 +11,7 @@ import {decryptValue, deleteParametersByPath, isEncrypted, stripPath} from '../a
 import {Semaphore} from 'async-mutex';
 import {getConfigVars} from "../aws/appConfigData";
 import {Package, TPackageMeta} from "./package";
+import {deepDiffMapper} from "../types/Object";
 
 //
 
@@ -243,11 +244,11 @@ export class ParamsModule extends PackageModule {
     if (this.localVarsTyped) {
       console.log('local', this.localVarsTyped);
     }
-    if (this.pushedVarsTyped) {
-      console.log('deployed', this.pushedVarsTyped);
+    if (this.localVarsTyped && this.pushedVarsTyped) {
+      deepDiffMapper.map(this.localVarsTyped, this.pushedVarsTyped);
     }
     if (this.materializedVars) {
-      console.log('materialized', this.materializedVars);
+      console.log('materialized', simplify(this.materializedVars));
     }
   }
 

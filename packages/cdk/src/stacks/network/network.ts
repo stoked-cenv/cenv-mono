@@ -21,9 +21,9 @@ const generateAwsCidr = () => {
   if (process.env.CENV_NETWORK_CIDR) {
     return process.env.CENV_NETWORK_CIDR;
   }
-  const octet2 = Math.floor(Math.random() * 255);
-  const subnet = Math.floor(Math.random() * 255);
-  return `10.${octet2}.${subnet}.0/24`;
+  const octet2 = Math.floor(Math.random() * 127);
+  const subnet = Math.floor(Math.random() * 127);
+  return `10.${octet2}.${subnet}.0/25`;
 };
 
 export class NetworkStack extends Stack {
@@ -38,11 +38,17 @@ export class NetworkStack extends Stack {
     // Network routing for the private subnets will be configured to
     // allow outbound access via a set of resilient NAT Gateways (one per AZ).
     // https://docs.aws.amazon.com/cdk/api/v1/docs/@aws-cdk_aws-ec2.Vpc.html
-    const cidr = generateAwsCidr();
+    const cidr = '10.0.0.0/16';
     const vpc = new ec2.Vpc(this, `${ENV}-net`, {
       vpcName: `${ENV}-net`, gatewayEndpoints: {
-        S3: { service: ec2.GatewayVpcEndpointAwsService.S3 }, DYNAMODB: { service: ec2.GatewayVpcEndpointAwsService.DYNAMODB },
-      }, cidr,
+        S3: {
+          service: ec2.GatewayVpcEndpointAwsService.S3
+        },
+        DYNAMODB: {
+          service: ec2.GatewayVpcEndpointAwsService.DYNAMODB
+        },
+      },
+      ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/16'),
     });
 
     vpc.addInterfaceEndpoint(`${ENV}-erc-docker-ep`, {

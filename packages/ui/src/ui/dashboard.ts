@@ -50,6 +50,13 @@ export interface Click {
   y: number
 }
 
+export enum ParamsMode {
+  OFF,
+  MATERIALIZED,
+  DEPLOYED,
+  LOCAL
+}
+
 export class Dashboard {
 
   // static state
@@ -58,7 +65,8 @@ export class Dashboard {
   static stackName = 'GLOBAL';
   static moduleToggle = true;
   static dependencyToggle = true;
-  static paramsToggle = false;
+  static paramsToggle = ParamsMode.OFF;
+  static cdkToggle = true;
   static horizontalSplitterUserCtrl = false;
   static enableMenuCommands = true;
 
@@ -781,7 +789,7 @@ export class Dashboard {
                 p.cmds = [];
               })
               Dashboard.dependencyToggle = true;
-              Dashboard.paramsToggle = true;
+              Dashboard.paramsToggle = ParamsMode.OFF;
               Dashboard.moduleToggle = true;
               this.cmdPanel?.stdout.setContent('');
               this.cmdPanel?.stderr.setContent('');
@@ -874,16 +882,29 @@ export class Dashboard {
         }, params: {
           keys: ['p'], callback: () => {
             this.debounceCallback('toggle params', async () => {
-              Dashboard.paramsToggle = !Dashboard.paramsToggle;
+              Dashboard.paramsToggle = Dashboard.paramsToggle++;
               if (this.screen.height < this.maxProcessOptionsHeight) {
                 this.autoHidePanelHeight = false;
               }
               this.resizeWidgets(this.calcTableInfo());
               await this.statusPanel?.updatePackage();
-              this.setStatusBar('toggle panel', this.statusText(`toggle panel`, 'params'));
+              const mode = Object.keys(ParamsMode)[Dashboard.paramsToggle]
+              this.setStatusBar('cycle params', this.statusText(`cycle param mode`, mode));
             });
           }
-        },
+        }, cdk: {
+          keys: ['k'], callback: () => {
+            this.debounceCallback('toggle cdk mode', async () => {
+              Dashboard.cdkToggle = !Dashboard.cdkToggle;
+              if (this.screen.height < this.maxProcessOptionsHeight) {
+                this.autoHidePanelHeight = false;
+              }
+              this.resizeWidgets(this.calcTableInfo());
+              await this.statusPanel?.updatePackage();
+              this.setStatusBar('toggle output mode', this.statusText(`toggle mode`, Dashboard.cdkToggle ? 'cdk' : 'stdout'));
+            });
+          }
+        }
       }
 
       this.statusOptions = new Menu(this.statusPanel?.screen, statusButtons, {top: 0, left: 0, right: 0});
@@ -1092,25 +1113,6 @@ export class Dashboard {
     const nextMode = this.nextMode();
     this.setMode(nextMode);
     return nextMode;
-  }
-
-  logTemp(stackName: string, ...text: string[]) {
-    if (process.env.CENV_STDTEMP) {
-      stackName = blessed.helpers.cleanTags(stackName);
-
-      const finalMsg = text.join(' ');
-      this.storeLog(stackName, finalMsg, 'stdtemp');
-      if (stackName !== Dashboard.stackName) {
-        return;
-      }
-      this.cmdPanel?.out(stackName, finalMsg);
-
-      //if (this.cmdPanel?.stdout?.hidden) {
-      this.cmdPanel?.updateVis();
-      //}
-    } else {
-      this.log(stackName, ...text);
-    }
   }
 
   log(stackName: string, ...text: string[]) {
@@ -2019,7 +2021,7 @@ export class Dashboard {
       if (this.autoHidePanelHeight) {
         Dashboard.dependencyToggle = false;
         Dashboard.moduleToggle = false;
-        Dashboard.paramsToggle = false;
+        Dashboard.paramsToggle = ParamsMode.OFF;
       }
       this.statusOptions?.hide();
     } else {
@@ -2151,6 +2153,17 @@ export class Dashboard {
   }
 
   private debug(...text: string[]) {
+    if (!this.debugLog) {
+      return;
+    }
+    const scroll = this.debugLog.getScrollPerc();
+    this.debugLog.insertBottom(chalk.green(text.join(' ')));
+    if (scroll > 90) {
+      this.debugLog.setScrollPerc(100);
+    }
+  }
+
+  debugLocal(...text: string[]) {
     if (!this.debugLog) {
       return;
     }

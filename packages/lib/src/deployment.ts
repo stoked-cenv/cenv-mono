@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { Environments } from './environment';
 import { Cenv } from './cenv';
 import { EnvironmentStatus, IPackage, Package, ProcessStatus } from './package/package';
-import { getOs, isOsSupported, sleep } from './utils';
+import { getOs, isOsSupported, simplify, sleep } from './utils';
 
 import Fake from './fake';
 import { ProcessMode } from './package/module';
@@ -403,7 +403,7 @@ export class Deployment {
   }
 
   static async checkDockerStatus() {
-    const res = await execCmd('docker version -f json', { silent:  true });
+    const res = await execCmd('docker version -f json', { silent: true });
     if (res.toString().includes('Command failed')) {
       return { active: false };
     }

@@ -98,6 +98,34 @@ export default class CmdPanel extends CenvPanel {
       });
 
 
+      const cdkOutput = (stdout?: string) => {
+
+        if (!stdout) {
+          return;
+        }
+        Dashboard.debug('stdout', stdout)
+
+        const regex = /(.*?) \|   ([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} [(?>AM)|(?>PM)]{2}) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:3]*) *\| ([a-z_A-Z_0-9_\:\/-]*) \((.*)\)]? ?(.*)?.\n/gm;
+
+        // Alternative syntax using RegExp constructor
+        // const regex = new RegExp('(.*?) \\|   ([0-9]+) \\| ([0-9]{1,2}\\:[0-9]{2}\\:[0-9]{2} [(?>AM)|(?>PM)]{2}) \\| ([A-Z_\\_]*) *\\| ([a-z_A-Z_\\:3]*) *\\| ([a-z_A-Z_0-9_\\:\\/-]*) \\((.*)\\)]? ?(.*)?.\\n', 'gm')
+
+        let m;
+
+        while ((m = regex.exec(stdout)) !== null) {
+          // This is necessary to avoid infinite loops with zero-width matches
+          if (m.index === regex.lastIndex) {
+            regex.lastIndex++;
+          }
+
+          // The result can be accessed through the `m`-variable.
+          m.forEach((match, groupIndex) => {
+            Dashboard.debug(`Found match, group ${groupIndex}: ${match}`);
+          });
+        }
+
+        return stdout;
+      }
       this.cmdList.on('select item', (item: any, index: number) => {
         if (this.selectedCmdIndex === index) {
           return;
@@ -108,8 +136,11 @@ export default class CmdPanel extends CenvPanel {
           return;
         }
         this.stderr.setContent(cmd.stderr);
-        if (process.env.CENV_STDTEMP) {
-          //  this.stdout.setContent(cmd.stdtemp || cmd.stdout);
+
+        const isCdk = cmd.cmd.startsWith('cdk');
+        if (isCdk && Dashboard.cdkToggle) {
+          Dashboard.debug('cdkToggle');
+          this.stdout.setContent(cdkOutput(cmd.stdout));
         } else {
           this.stdout.setContent(cmd.stdout);
         }
