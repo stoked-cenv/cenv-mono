@@ -10,8 +10,7 @@
         "baseUrl": "packages/lib/src",
         "main": "packages/lib/src/index.ts",
         "tsConfig": "packages/lib/tsconfig.build.json",
-        "deleteOutputPath": true,
-        "generateExportsField": true
+        "deleteOutputPath": true
       }
     },
     "publish": {
