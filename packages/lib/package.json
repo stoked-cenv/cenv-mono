@@ -2,7 +2,7 @@
   "name": "@stoked-cenv/lib",
   "version": "2.0.0-a.46",
   "description": "Library responsible for cenv params.",
-  "main": "src/index",
+  "main": "src/index.ts",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "watch": "tsc --watch",
@@ -11,7 +11,7 @@
     "docker": "cenv docker @stoked-cenv/lib -d",
     "test": "echo \"Error: no test specified\" && exit 1",
     "version:bump": "pnpm version",
-    "publish:bump": "pnpm publish --access public"
+    "publish:bump": "cd ../../dist/lib && pnpm publish --access public"
   },
   "author": "Brian Stoker",
   "license": "MIT",

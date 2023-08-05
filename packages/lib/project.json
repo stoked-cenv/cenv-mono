@@ -11,7 +11,7 @@
         "main": "packages/lib/src/index.ts",
         "tsConfig": "packages/lib/tsconfig.build.json",
         "deleteOutputPath": true,
-        "packageJson": "packages/lib/package.json"
+        "generateExportsField": true
       }
     },
     "publish": {

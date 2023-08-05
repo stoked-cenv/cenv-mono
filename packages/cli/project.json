@@ -5,7 +5,7 @@
   "sourceRoot": "packages/cli/src",
   "targets": {
     "build": {
-      "executor": "@nrwl/js:tsc",
+      "executor": "@nx/js:tsc",
       "dependsOn": [
         {
           "target": "build",
@@ -17,7 +17,7 @@
         "main": "packages/cli/index.ts",
         "tsConfig": "packages/cli/tsconfig.build.json",
         "deleteOutputPath": true,
-        "packageJson": "packages/cli/package.json"
+        "generateExportsField": true
       }
     },
     "publish": {

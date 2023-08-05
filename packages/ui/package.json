@@ -2,6 +2,7 @@
   "name": "@stoked-cenv/ui",
   "version": "2.0.0-a.46",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
+  "main": "dist/index.ts",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "lint": "eslint src --ext .ts",
@@ -9,7 +10,7 @@
     "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
     "version:bump": "pnpm version",
-    "publish:bump": "pnpm publish --access public"
+    "publish:bump": "cd ../../dist/ui && pnpm publish --access public"
   },
   "author": "Brian Stoker",
   "license": "MIT",
@@ -48,7 +49,6 @@
     "parameters"
   ],
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.45 || ^2.0.1"
-  },
-  "main": "./src/index"
+    "@stoked-cenv/lib": "^2.0.0-a.46 || ^2.0.0"
+  }
 }

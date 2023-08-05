@@ -5,7 +5,7 @@
     "build": "tsc --project ./tsconfig.build.json",
     "dev": "tsc -w",
     "version:bump": "pnpm version",
-    "publish:bump": "pnpm publish --access public"
+    "publish:bump": "cd ../../dist/cdk && pnpm publish --access public"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.119",
@@ -36,6 +36,6 @@
     "stackTemplatePath": "stacks"
   },
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.42 || ^2.0.1"
+    "@stoked-cenv/lib": "^2.0.0-a.46 || ^2.0.0"
   }
 }
