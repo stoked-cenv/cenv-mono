@@ -10,8 +10,6 @@
         {
           "target": "build",
           "projects": "dependencies"
-
-
         }
       ],
       "options": {
@@ -28,8 +26,6 @@
       "options": {
         "commands": [
           "./git-check.sh",
-          "pnpm run build",
-          "ts-node fixup-dist.ts",
           "pnpm run publish:bump"
         ],
         "parallel": false
