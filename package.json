@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.50",
+  "version": "2.0.0-a.51",
   "private": true,
   "scripts": {
     "make": "pnpm run build && cp -R dist/cli ../cli && cd ../cli && npm i && cp -R ../cenv-mono/dist/ui node_modules/@stoked-cenv/ui && cp -R ../cenv-mono/dist/lib node_modules/@stoked-cenv/lib",
