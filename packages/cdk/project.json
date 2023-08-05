@@ -18,7 +18,8 @@
         "main": "packages/cdk/src/index.ts",
         "tsConfig": "packages/cdk/tsconfig.build.json",
         "deleteOutputPath": true,
-        "packageJson": "packages/cdk/package.json"
+        "packageJson": "packages/cdk/package.json",
+        "generateExportsField": true
       }
     },
     "publish": {

@@ -18,7 +18,8 @@
         "main": "packages/cli/src/main.ts",
         "lib": "packages/cli/src/index.ts",
         "tsConfig": "packages/cli/tsconfig.build.json",
-        "deleteOutputPath": true
+        "deleteOutputPath": true,
+        "generateExportsField": true
       }
     },
     "cenv": {

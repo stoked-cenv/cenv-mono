@@ -16,7 +16,8 @@
         "main": "packages/ui/src/index.ts",
         "tsConfig": "packages/ui/tsconfig.build.json",
         "deleteOutputPath": true,
-        "assets": ["packages/ui/types/**/*.d.ts"]
+        "assets": ["packages/ui/types/**/*.d.ts"],
+        "generateExportsField": true
       }
     },
     "publish": {
