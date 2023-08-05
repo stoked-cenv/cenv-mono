@@ -3,7 +3,6 @@
   "version": "2.0.0-a.59",
   "description": "Library responsible for cenv params.",
   "main": "src/index.ts",
-  "type": "module",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "watch": "tsc --watch",
@@ -35,7 +34,7 @@
     "@nestjs/common": "^10.0.0",
     "ajv": "^8.12.0",
     "async-mutex": "^0.4.0",
-    "chalk": "^5.3.0",
+    "chalk": "^4.1.2",
     "js-yaml": "^4.1.0",
     "limiter": "^2.1.0",
     "node-cron": "^3.0.2",

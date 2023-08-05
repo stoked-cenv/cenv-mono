@@ -1,7 +1,7 @@
 import {Cenv} from './cenv';
 import {cleanup} from "./utils";
 import {Injectable} from '@nestjs/common';
-
+import chalk, {Chalk} from 'chalk';
 
 export enum LogLevel {
   NONE = 'NONE', MINIMAL = 'MINIMAL', DEBUG = 'DEBUG', INFO = 'INFO', VERBOSE = 'VERBOSE'
@@ -24,9 +24,27 @@ export const cleanTags = function(text: string) {
 @Injectable()
 export class CenvLog {
   static instance: CenvLog;
-  static colors: any;
-  static chalk: any;
-  static colorSets: any;
+  static colors = {
+    info: chalk.gray,
+    infoDim: chalk.dim,
+    infoBold: chalk.gray.bold, //
+    std: chalk.white,
+    stdDim: chalk.dim,
+    stdBold: chalk.white.bold, //
+    error: chalk.red,
+    errorDim: chalk.red.dim,
+    errorBold: chalk.red.bold, //
+    errorHighlight: chalk.redBright,
+    success: chalk.green,
+    successDim: chalk.green.dim,
+    successBold: chalk.green.bold,
+    successHighlight: chalk.greenBright,
+    alert: chalk.yellow,
+    alertDim: chalk.yellow, //
+    alertBold: chalk.yellow.bold //
+  }
+  static chalk: Chalk = chalk;
+  static colorSets = [[CenvLog.colors.error, CenvLog.colors.errorDim, CenvLog.colors.errorBold], [CenvLog.colors.info, CenvLog.colors.infoDim, CenvLog.colors.infoBold], [CenvLog.colors.success, CenvLog.colors.successDim, CenvLog.colors.successBold]]
   logLevel: LogLevel = LogLevel.INFO;
   static get logLevel() {
     return this.single.logLevel;
@@ -39,34 +57,6 @@ export class CenvLog {
   public constructor() {
     this.mouth = new Mouth('log', 'GLOBAL');
     CenvLog.instance = this;
-  }
-  static async init() {
-
-    const { Chalk } = await import('chalk');
-    this.chalk = Chalk;
-    const colors = {
-      info: this.chalk.gray,
-      infoDim: this.chalk.dim,
-      infoBold: this.chalk.gray.bold, //
-      std: this.chalk.white,
-      stdDim: this.chalk.dim,
-      stdBold: this.chalk.white.bold, //
-      error: this.chalk.red,
-      errorDim: this.chalk.red.dim,
-      errorBold: this.chalk.red.bold, //
-      errorHighlight: this.chalk.redBright,
-      success: this.chalk.green,
-      successDim: this.chalk.green.dim,
-      successBold: this.chalk.green.bold,
-      successHighlight: this.chalk.greenBright,
-      alert: this.chalk.yellow,
-      alertDim: this.chalk.yellow, //
-      alertBold: this.chalk.yellow.bold //
-    }
-    const colorSets = [[colors.error, colors.errorDim, colors.errorBold], [colors.info, colors.infoDim, colors.infoBold], [colors.success, colors.successDim, colors.successBold]]
-  }
-  async init() {
-    await CenvLog.init();
   }
 
   /*

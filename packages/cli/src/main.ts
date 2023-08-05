@@ -2,7 +2,7 @@
 import * as sms from 'source-map-support';
 import { CommandFactory } from 'nest-commander';
 import { CliModule } from './cli/cli.module';
-import { CenvLog, cleanup } from '@stoked-cenv/lib';
+import { cleanup } from '@stoked-cenv/lib';
 
 sms.install();
 
@@ -14,8 +14,6 @@ sms.install();
 
 async function bootstrap() {
   try {
-    await CenvLog.single.init();
-
     await CommandFactory.run(CliModule, {
       cliName: 'cenv', usePlugins: true, enablePositionalOptions: true
     });

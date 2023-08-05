@@ -142,7 +142,7 @@ export class ECSServiceStack extends Stack {
     // attach inline policy for interacting with AppConfig
     this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${env}-${subdomainId}-app-config`, {
       statements: [new iam.PolicyStatement({
-                                             actions: ['appconfig:StartConfigurationSession', 'appconfig:ListApplications', 'appconfig:ListEnvironments', 'appconfig:ListConfigurationProfiles', 'appconfig:ListDeploymentStrategies', 'appconfig:GetLatestConfiguration'],
+                                             actions: ['appconfig:ListHostedConfigurationVersions', 'appconfig:StartConfigurationSession', 'appconfig:ListApplications', 'appconfig:ListEnvironments', 'appconfig:ListConfigurationProfiles', 'appconfig:ListDeploymentStrategies', 'appconfig:GetLatestConfiguration'],
                                              resources: ['*'],
                                            })],
     }));
