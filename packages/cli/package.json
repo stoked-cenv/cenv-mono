@@ -6,6 +6,7 @@
     "cenv": "src/ts-main.js"
   },
   "main": "src/index.ts",
+  "type": "module",
   "author": "Brian Stoker",
   "license": "MIT",
   "scripts": {

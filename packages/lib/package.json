@@ -3,6 +3,7 @@
   "version": "2.0.0-a.57",
   "description": "Library responsible for cenv params.",
   "main": "src/index.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "watch": "tsc --watch",

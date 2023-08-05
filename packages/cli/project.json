@@ -41,7 +41,11 @@
           "nx run @stoked-cenv/cdk:build",
           "ts-node ./fixup-dist.ts",
           "pnpm run publish:bump:all",
-          "pnpm run link:cli"
+          "pnpm run link:cli",
+          "rimraf ../cli",
+          "cp -R dist/cli ../",
+          "cd ../cli",
+          "pnpm i"
         ],
         "parallel": false
       }
