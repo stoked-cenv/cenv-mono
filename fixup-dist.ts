@@ -2,7 +2,7 @@ import path from 'path';
 import { writeFileSync } from 'fs';
 
 function fixMain(dir: string) {
-  console.log(process.cwd());
+  console.log('fixing: ', dir);
   const rootPath = path.join(process.cwd(), 'dist', dir);
   const pkgPath = path.join(rootPath, 'package.json');
   const pkg = require(pkgPath);

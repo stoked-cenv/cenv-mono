@@ -1,8 +1,5 @@
 import { Option, SubCommand } from 'nest-commander';
-import {
-  BaseCommandOptions, Cenv, CenvFiles, CenvLog, CenvParams, colors, createEnvironment, Deployment, DockerModule, getEnvironment, ParamsModule, Suite,
-  Package
-} from '@stoked-cenv/lib';
+import { BaseCommandOptions, CenvLog, Deployment, Package, ParamsModule } from '@stoked-cenv/lib';
 
 import { BaseCommand } from './base.command';
 
@@ -13,7 +10,7 @@ interface DestroyCommandOptions extends BaseCommandOptions {
 }
 
 @SubCommand({
-  name: 'destroy', description: 'Deploy local params to AWS Parameter Store', aliases: ['des', 'u']
+  name: 'destroy', description: 'Deploy local params to AWS Parameter Store', aliases: ['des', 'u'],
 })
 export class ParamsDestroyCommand extends BaseCommand {
 
@@ -23,20 +20,20 @@ export class ParamsDestroyCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '-gp, --global-parameters', description: `Destroy all global parameters`,
-          }) parseGlobalParameters(val: boolean): boolean {
+    flags: '-gp, --global-parameters', description: `Destroy all global parameters`,
+  }) parseGlobalParameters(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            flags: '-ngp, --non-global-parameters', description: `Destroy all non global parameters`,
-          }) parseNonGlobalParameters(val: boolean): boolean {
+    flags: '-ngp, --non-global-parameters', description: `Destroy all non global parameters`,
+  }) parseNonGlobalParameters(val: boolean): boolean {
     return val;
   }
 
   @Option({
-            flags: '--all', description: `Destroy all global and non global parameters from parameter store as well as all configs from app config`,
-          }) parseDestroyParamsAll(val: boolean): boolean {
+    flags: '--all', description: `Destroy all global and non global parameters from parameter store as well as all configs from app config`,
+  }) parseDestroyParamsAll(val: boolean): boolean {
     return val;
   }
 
@@ -62,9 +59,9 @@ export class ParamsDestroyCommand extends BaseCommand {
       }
 
       options = Deployment.deployDestroyOptions(options);
-      await Deployment.Destroy(packages, {...options, stack: false, docker: false, parameters: false});
+      await Deployment.Destroy(packages, { ...options, stack: false, docker: false, parameters: false });
     } catch (e) {
-      console.log(colors.error(e));
+      console.log(CenvLog.colors.error(e));
     }
   }
 }

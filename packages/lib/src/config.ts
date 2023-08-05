@@ -6,7 +6,7 @@ import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync 
 import { listHostedZones } from './aws/route53';
 import { HostedZone } from '@aws-sdk/client-route-53';
 import { getExportValue } from './aws/cloudformation';
-import { CenvLog, colors } from './log';
+import { CenvLog } from './log';
 import { getAccountId } from './aws/sts';
 import { createDirIfNotExists, getContextConfig, ioReadVarList, printProfileQuery, ProfileData } from './stdio';
 
@@ -313,7 +313,7 @@ async function loadCenvProfile(profileName = 'default', options?: Record<string,
   if (existsSync(profilePath)) {
     envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
   } else if (options?.show) {
-    CenvLog.single.alertLog(`no configuration currently setup to show run '${colors.alertBold('cenv configure')}'`);
+    CenvLog.single.alertLog(`no configuration currently setup to show run '${CenvLog.colors.alertBold('cenv configure')}'`);
     process.exit(231);
   } else {
     alwaysAsk = true;

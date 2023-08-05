@@ -3,7 +3,6 @@ import {blessed, contrib} from './blessed';
 import colors from 'colors/safe';
 import {Dashboard} from './dashboard';
 import {CenvPanel} from './panel';
-import chalk from 'chalk';
 import {CenvLog, Cmd, PackageCmd} from '@stoked-cenv/lib';
 
 blessed.text.prototype.name = '';
@@ -71,7 +70,7 @@ export default class CmdPanel extends CenvPanel {
         }, autoScroll: false, padding: {left: 1, right: 1, top: 0, bottom: 0}
       }, [4, 2, 2, 3], true,);
       this.stderr.name = 'stderr'
-      this.stderr.setLabel(chalk.gray(`stderr`));
+      this.stderr.setLabel(CenvLog.chalk.gray(`stderr`));
 
       this.stderr.on('click', () => {
         const index = this.focusPool.indexOf(this.stderr);
@@ -105,7 +104,7 @@ export default class CmdPanel extends CenvPanel {
         }
         Dashboard.debug('stdout', stdout)
 
-        const regex = /(.*?) \|   ([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} [(?>AM)|(?>PM)]{2}) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:3]*) *\| ([a-z_A-Z_0-9_\:\/-]*) \((.*)\)]? ?(.*)?.\n/gm;
+        const regex = /(.*?) \| {3}([0-9]+) \| ([0-9]{1,2}\:[0-9]{2}\:[0-9]{2} [(?>AM)|(?>PM)]{2}) \| ([A-Z_\_]*) *\| ([a-z_A-Z_\:3]*) *\| ([a-z_A-Z_0-9_\:\/-]*) \((.*)\)]? ?(.*)?.\n/gm;
 
         // Alternative syntax using RegExp constructor
         // const regex = new RegExp('(.*?) \\|   ([0-9]+) \\| ([0-9]{1,2}\\:[0-9]{2}\\:[0-9]{2} [(?>AM)|(?>PM)]{2}) \\| ([A-Z_\\_]*) *\\| ([a-z_A-Z_\\:3]*) *\\| ([a-z_A-Z_0-9_\\:\\/-]*) \\((.*)\\)]? ?(.*)?.\\n', 'gm')

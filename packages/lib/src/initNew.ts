@@ -1,6 +1,6 @@
 import path from 'path';
 import { existsSync, mkdirSync, rmdirSync, writeFileSync } from 'fs';
-import { CenvLog, colors, LogLevel } from './log';
+import { CenvLog, LogLevel } from './log';
 import { Template } from './templates';
 import { search_sync } from './file'
 import { Cenv, CommandInfo, InitCommandOptions, NewCommandOptions } from './cenv';
@@ -29,9 +29,9 @@ export async function Init(options: InitCommandOptions, cmdInfo: CommandInfo) {
 
   const configOutput = JSON.stringify(cenvConfig, null, 2) + '\n';
   writeFileSync(path.join(process.cwd(), 'cenv.json'), configOutput);
-  console.log(`${colors.info('generated')} ${colors.infoBold('cenv.json')}`)
+  console.log(`${CenvLog.colors.info('generated')} ${CenvLog.colors.infoBold('cenv.json')}`)
   if (CenvLog.logLevel === LogLevel.VERBOSE) {
-    console.log(colors.info(JSON.stringify(cenvConfig, null, 2)))
+    console.log(CenvLog.colors.info(JSON.stringify(cenvConfig, null, 2)))
   }
 
   await execCmd(`npm init -y`, {silent: true});
@@ -64,10 +64,10 @@ function createGlobalsPackage(projectName: string, primaryPackagePath: string, s
   };
 
   writeFileSync(path.join(globalsPath, 'package.json'), JSON.stringify(globalMeta, null, 2) + '\n');
-  console.log(`${colors.info('generated')} ${colors.infoBold('globals package')}`);
+  console.log(`${CenvLog.colors.info('generated')} ${CenvLog.colors.infoBold('globals package')}`);
 
   if (CenvLog.logLevel === LogLevel.VERBOSE) {
-    console.log(colors.info(JSON.stringify(globalMeta, null, 2)))
+    console.log(CenvLog.colors.info(JSON.stringify(globalMeta, null, 2)))
     console.log(' ')
   }
   return globalsName;

@@ -23,8 +23,7 @@ import {
   upsertParameter
 } from './aws/parameterStore';
 import {invoke, updateLambdas} from './aws/lambda';
-import {CenvLog, colors} from './log';
-import chalk from "chalk";
+import {CenvLog} from './log';
 import {getConfigVars} from './aws/appConfigData';
 
 import {expandTemplateVars, sleep,} from './utils';
@@ -60,9 +59,9 @@ export function validateCount(options: string[], types: string[], silent = false
   const valid = filtered.length === 1;
   if (!valid && !silent) {
     if (filtered.length === 0) {
-      console.log(colors.error('The command did not include parameter type.'));
+      console.log(CenvLog.colors.error('The command did not include parameter type.'));
     } else {
-      console.log(colors.error('The command included more than one type - included: ' + filtered.join(', ')));
+      console.log(CenvLog.colors.error('The command included more than one type - included: ' + filtered.join(', ')));
     }
   }
   return valid ? filtered[0].replace('Type', '') : false;
@@ -118,7 +117,7 @@ export class CenvParams {
         if (paths.length) {
           await deleteParameters(paths);
           totalRemoved += paths.length;
-          CenvLog.single.infoLog(`removed all ${colors.infoBold(paths.length)} ${colors.infoBold(varType)} parameters${' related to ' + pkg}`);
+          CenvLog.single.infoLog(`removed all ${CenvLog.colors.infoBold(paths.length)} ${CenvLog.colors.infoBold(varType)} parameters${' related to ' + pkg}`);
         } else if (type) {
           CenvLog.single.alertLog(`attempted to remove all the ${type} parameters but none were found`)
         }
@@ -235,7 +234,7 @@ export class CenvParams {
     if (options?.kill) {
       const killItWithFire = await readAsync('The --kill flag removes the global parameter entirely. Any services that depend on it will be broken. Are you sure you want to delete the global parameter? (y/n): ', 'n');
       if (killItWithFire !== 'y') {
-        console.log(colors.error('The global parameter was not deleted. If you simply want to remove the reference from this application to the global parameter use the same command without --kill.'));
+        console.log(CenvLog.colors.error('The global parameter was not deleted. If you simply want to remove the reference from this application to the global parameter use the same command without --kill.'));
         process.exit(6);
       }
     }
@@ -280,14 +279,14 @@ export class CenvParams {
       await updateTemplates(false, params[i], pdata.type);
     }
     if (linksUpdated.length > 0) {
-      CenvLog.single.infoLog(`deleted link(s): [${colors.infoBold(linksUpdated.join(', '))}]`);
+      CenvLog.single.infoLog(`deleted link(s): [${CenvLog.colors.infoBold(linksUpdated.join(', '))}]`);
     }
     if (linksUpdated.length !== linksAttempted.length) {
       const remaining = linksAttempted.filter(p => !linksUpdated.includes(p));
-      CenvLog.single.alertLog(`attempted to remove link(s) [${colors.alertBold(remaining.join(', '))}] from ${cenvPackage} but ${remaining.length > 1 ? 'they were' : 'it was'} not found`)
+      CenvLog.single.alertLog(`attempted to remove link(s) [${CenvLog.colors.alertBold(remaining.join(', '))}] from ${cenvPackage} but ${remaining.length > 1 ? 'they were' : 'it was'} not found`)
     }
     if (paramsUpdated.length > 0) {
-      CenvLog.single.infoLog(`deleted: [${colors.infoBold(paramsUpdated.join(', '))}]`);
+      CenvLog.single.infoLog(`deleted: [${CenvLog.colors.infoBold(paramsUpdated.join(', '))}]`);
     }
     if (!options?.kill) {
       if (paramsUpdated.length || linksUpdated.length) {
@@ -344,7 +343,7 @@ export class CenvParams {
       return;
     }
 
-    CenvLog.single.infoLog(`pushing ${colors.infoBold(config.EnvironmentName)} variables to cloud`);
+    CenvLog.single.infoLog(`pushing ${CenvLog.colors.infoBold(config.EnvironmentName)} variables to cloud`);
 
     let updatedCount = 0;
     const data = await CenvFiles.GetVars(true, decrypted);
@@ -391,7 +390,7 @@ export class CenvParams {
       CenvLog.single.infoLog(`${process.env.ENV} application configuration parameters are up to date`);
       return;
     } else {
-      console.log(chalk.green(`updated ${updatedCount} parameters`));
+      console.log(CenvLog.chalk.green(`updated ${updatedCount} parameters`));
     }
 
     if (materialize) {
@@ -493,7 +492,7 @@ export class CenvParams {
         CenvFiles.SaveVars(variables, data.EnvironmentName, false);
       }
     } else {
-      CenvLog.single.alertLog(`no variables configured for the ${colors.alertBold(data.EnvironmentName)} environment`)
+      CenvLog.single.alertLog(`no variables configured for the ${CenvLog.colors.alertBold(data.EnvironmentName)} environment`)
     }
     return variables;
   }
@@ -519,7 +518,7 @@ export class CenvParams {
         for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
           for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
             if (afterKey === beforeKey) {
-              output += `'${colors.infoBold(afterKey)}': '${colors.infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${chalk.green(beforeValue)}` : ''}\n`;
+              output += `'${CenvLog.colors.infoBold(afterKey)}': '${CenvLog.colors.infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${CenvLog.chalk.green(beforeValue)}` : ''}\n`;
             }
           }
         }
@@ -529,7 +528,22 @@ export class CenvParams {
   }
 
   public static getMaterializedMeta(materializedVars: Record<string, string>, before: Record<string, string>) {
-
+    const from: Record<string, string> = {};
+    for (const [key, value] of Object.entries(materializedVars) as [string, string][]) {
+      if (before?.app[key as keyof object] !== value) {
+        from[key] = 'app';
+      }
+      if (before?.environment[key as keyof object] !== value) {
+        from[key] = 'environment';
+      }
+      if (before?.globalEnv[key as keyof object] !== value) {
+        from[key] = 'globalEnv';
+      }
+      if (before?.global[key as keyof object] !== value) {
+        from[key] = 'global';
+      }
+    }
+    return from;
   }
 
   public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
@@ -579,8 +593,8 @@ export class CenvParams {
 
       if (appConfigMeta) {
         // deploy the materialized vars to a new config profile version
-        this.getMaterializedMeta(materializedVars, before);
-        await deployConfig(materializedVars, appConfigMeta);
+        const materializedMeta = this.getMaterializedMeta(materializedVars, before);
+        await deployConfig(materializedMeta, appConfigMeta);
       }
       return {before, after}
     } catch (e) {
@@ -613,8 +627,8 @@ export class CenvParams {
     const cmd = pkg.createCmd(getAddParam(pkg.packageName));
     const type = validateOneType(Object.keys(options));
     if (!type) {
-      cmd.err(`Must contain at least one type flag (${colors.infoBold('--app-type')}, ${colors.infoBold('--environment-type')}, 
-        ${colors.infoBold('--global-type')}, ${colors.infoBold('--global-env-type')}`);
+      cmd.err(`Must contain at least one type flag (${CenvLog.colors.infoBold('--app-type')}, ${CenvLog.colors.infoBold('--environment-type')}, 
+        ${CenvLog.colors.infoBold('--global-type')}, ${CenvLog.colors.infoBold('--global-env-type')}`);
       cmd.result(2);
       return cmd;
     }
@@ -644,7 +658,7 @@ export class CenvParams {
     const keyPath = CenvParams.GetRootPath(ctx.EnvConfig.ApplicationName, ctx.EnvConfig.EnvironmentName, type);
     const alreadyExistingType = await CenvFiles.KeyExists(key, keyPath, type);
     if (alreadyExistingType) {
-      const error = `Attempted to add key "${colors.errorBold(key)}" as ${type === 'global' ? 'a' : 'an'} "${colors.errorBold(type)}" param type, but this key already exists as ${alreadyExistingType === 'global' ? 'a' : 'an'} "${colors.errorBold(alreadyExistingType)}" param`;
+      const error = `Attempted to add key "${CenvLog.colors.errorBold(key)}" as ${type === 'global' ? 'a' : 'an'} "${CenvLog.colors.errorBold(type)}" param type, but this key already exists as ${alreadyExistingType === 'global' ? 'a' : 'an'} "${CenvLog.colors.errorBold(alreadyExistingType)}" param`;
       cmd.err(error);
       cmd.result(4);
       return cmd;
@@ -658,7 +672,7 @@ export class CenvParams {
       await CenvParams.pull(false, false, false);
     }
     if (options?.stack) {
-      cmd.out(`deploying ${colors.infoBold(config.ApplicationName)} configuration to environment ${chalk.blueBright(config.EnvironmentName)}`);
+      cmd.out(`deploying ${CenvLog.colors.infoBold(config.ApplicationName)} configuration to environment ${CenvLog.chalk.blueBright(config.EnvironmentName)}`);
       await CenvParams.Materialize();
     }
     cmd.out('success');

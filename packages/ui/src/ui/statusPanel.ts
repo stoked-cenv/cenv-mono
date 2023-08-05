@@ -4,7 +4,6 @@ import { Cenv, CenvFiles, CenvLog, Package, PackageModule, ProcessMode } from '@
 import * as contrib from 'blessed-contrib';
 import { CenvPanel } from './panel';
 import Groups from './group';
-import chalk from 'chalk';
 import { Dashboard, ParamsMode } from './dashboard';
 
 contrib.table.prototype.baseRender = contrib.table.prototype.render;
@@ -457,9 +456,9 @@ export default class StatusPanel extends CenvPanel {
         let name = k.substring(0, this.parameterColumnWidth - 1);
         if (hasStatus) {
           if (pkg.params.needsDeploy) {
-            color = chalk.red;
+            color = CenvLog.chalk.red;
           } else if (pkg.params.needsMaterialization) {
-            color = chalk.red;
+            color = CenvLog.chalk.red;
           }
           if (color) {
             name = color(name);

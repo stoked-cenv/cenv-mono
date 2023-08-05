@@ -3,14 +3,13 @@ import * as path from 'path';
 import {
   BaseCommandOptions,
   CenvFiles,
-  colors,
+  CenvLog,
   getConfigVars,
   Package,
   PackageModule,
   spawnCmd,
 } from '@stoked-cenv/lib';
 import {BaseCommand} from './base.command'
-import chalk from "chalk";
 
 
 interface ExecCommandOptions extends BaseCommandOptions {
@@ -60,12 +59,12 @@ export class ExecCommand extends BaseCommand {
           if (config) {
             vars = await getConfigVars(true, false, 'ENVIRONMENT VARIABLES', true);
             Object.entries(options.args).forEach(([key, value]) => {
-              console.log(`export ${chalk.whiteBright(key)}=${chalk.whiteBright(value)}`)
+              console.log(`export ${CenvLog.chalk.whiteBright(key)}=${CenvLog.chalk.whiteBright(value)}`)
             });
           }
           options.module = options.module?.toLowerCase();
           if (options.module) {
-            let pkgModule: PackageModule = p.packageModules[options.module]
+            const pkgModule: PackageModule = p.packageModules[options.module]
             const modulePath = path.relative(process.cwd(), pkgModule.path);
             if (modulePath !== process.cwd()) {
               process.chdir(path.relative(process.cwd(), pkgModule.path));
@@ -75,7 +74,7 @@ export class ExecCommand extends BaseCommand {
         await spawnCmd('./', params.join(' '), params.join(' '), {envVars: vars}, p);
       }));
     } catch (e) {
-      console.log(colors.error(e));
+      console.log(CenvLog.colors.error(e));
     }
   }
 }

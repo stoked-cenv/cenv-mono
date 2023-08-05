@@ -2,7 +2,7 @@ import {configDefaults,} from "./configDefaults";
 import {join, relative} from "path";
 import * as yaml from 'js-yaml';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'fs';
-import {CenvLog, colors} from './log';
+import {CenvLog} from './log';
 import Ajv from "ajv";
 import {prettyPrint} from "@base2/pretty-print-object";
 import {CenvParams} from "./params";
@@ -95,7 +95,7 @@ export class File {
     }
     if (!existsSync(path)) {
       if (!silent) {
-        CenvLog.single.alertLog(`could not read ${process.cwd()}/${colors.alertBold(name)} the file doesn't exist`)
+        CenvLog.single.alertLog(`could not read ${process.cwd()}/${CenvLog.colors.alertBold(name)} the file doesn't exist`)
       }
       return undefined;
     }
@@ -124,7 +124,7 @@ export class File {
 
   public static save(data: any, silent = false, name: string = this.NAME, path: string = CenvFiles.PATH) {
     if (!silent) {
-      CenvLog.info(` - saving ${colors.infoBold(name)}`);
+      CenvLog.info(` - saving ${CenvLog.colors.infoBold(name)}`);
     }
     if (!existsSync(path)) {
       mkdirSync(path);
@@ -149,9 +149,9 @@ export class File {
     const typeTitle = description.toLowerCase().split(' ').map((word) => {
       return word.charAt(0).toUpperCase() + word.slice(1);
     }).join(' ');
-    const errorTitle = colors.error(`${colors.errorBold(typeTitle)}: [${colors.errorBold(name)}] Parse Failed`);
+    const errorTitle = CenvLog.colors.error(`${CenvLog.colors.errorBold(typeTitle)}: [${CenvLog.colors.errorBold(name)}] Parse Failed`);
     const logLine = '-'.repeat(80);
-    const pathLine = colors.error(`Path: ${join(path, name)}`);
+    const pathLine = CenvLog.colors.error(`Path: ${join(path, name)}`);
     let log = `${pathLine}\n${logLine}\n${errorTitle}\n${logLine}\n\n`;
     for (let i = 0; i < errors.length; i++) {
       const error: any = errors[i];
@@ -161,14 +161,14 @@ export class File {
         }, singleQuotes: false
       });
       pretty = pretty.split('\n').join('\n\t\t');
-      log += `\t\t${colors.errorBold(error.message)}\n`;
+      log += `\t\t${CenvLog.colors.errorBold(error.message)}\n`;
       log += `\t\t${'-'.repeat(50)}\n`;
-      log += '\t\t' + colors.error(pretty);
+      log += '\t\t' + CenvLog.colors.error(pretty);
       log += `\n\n`;
 
       log += logLine + '\n\n';
     }
-    console.log(colors.errorDim(log));
+    console.log(CenvLog.colors.errorDim(log));
   }
 }
 
@@ -311,7 +311,7 @@ export class GlobalVarsFile extends File {
       merged = {...globalData, ...data};
     }
     if (!silent) {
-      CenvLog.info(` - saving ${colors.infoBold(name)}`);
+      CenvLog.info(` - saving ${CenvLog.colors.infoBold(name)}`);
     }
     const sortedObject: any = this.sortObjectKeys(merged);
     writeFileSync(join(path, name), yaml.dump(sortedObject));
@@ -357,7 +357,7 @@ export class GlobalEnvVarsFile extends File {
     }
 
     if (!silent) {
-      CenvLog.info(` - saving ${colors.infoBold(name)}`);
+      CenvLog.info(` - saving ${CenvLog.colors.infoBold(name)}`);
     }
     const sortedObject: any = this.sortObjectKeys(merged);
     writeFileSync(join(path, name), yaml.dump(sortedObject));
@@ -862,7 +862,7 @@ export class CenvFiles {
 
   private static deleteLocalFile(path: string) {
     if (existsSync(path)) {
-      CenvLog.info(` - deleting ${colors.infoBold(relative(cenvRoot, path))}`)
+      CenvLog.info(` - deleting ${CenvLog.colors.infoBold(relative(cenvRoot, path))}`)
       unlinkSync(path);
     }
   }

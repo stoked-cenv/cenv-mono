@@ -4,7 +4,7 @@ import {
   STSClient,
   AssumeRoleCommandOutput
 } from '@aws-sdk/client-sts';
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 import { createRole, getRole } from './iam';
 import { hostname } from 'os';
 import { Role } from '@aws-sdk/client-iam';
@@ -32,7 +32,7 @@ export async function getAccountId() {
     }
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`failed to get account id: ${colors.errorBold(e.message)}`);
+      CenvLog.single.errorLog(`failed to get account id: ${CenvLog.colors.errorBold(e.message)}`);
     }
   }
   return false

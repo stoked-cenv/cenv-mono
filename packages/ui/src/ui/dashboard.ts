@@ -5,7 +5,6 @@ import {
   CenvLog,
   clamp,
   Cmd,
-  colors,
   DashboardCreateOptions,
   deleteStack,
   Deployment,
@@ -25,8 +24,6 @@ import {
 } from "@stoked-cenv/lib";
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
-import {ChalkFunction} from 'chalk';
-import chalk from 'chalk'
 import {isFunction} from "lodash";
 import {HelpUI} from "./help";
 import Groups from "./group";
@@ -118,7 +115,7 @@ export class Dashboard {
   hoverRowIndex = -1;
   selectedRowIndex = -1;
   selectedFully = false;
-  blue = chalk.blue;
+  blue = CenvLog.chalk.blue;
   blueBright = [0, 150, 255];
   red = [255, 0, 0];
   gray = [140, 140, 140];
@@ -959,7 +956,7 @@ export class Dashboard {
     if (Dashboard.instance) {
       Dashboard.instance?.debug(...text);
     } else {
-      CenvLog.single.infoLog(colors.alert('DEBUG DATA -> ') + text.join(' '));
+      CenvLog.single.infoLog(CenvLog.colors.alert('DEBUG DATA -> ') + text.join(' '));
     }
   }
 
@@ -993,7 +990,7 @@ export class Dashboard {
   }
 
   statusText(titleText: string, descriptionText: string) {
-    return `${chalk.blueBright.bold(titleText)}: ${descriptionText}`;
+    return `${CenvLog.chalk.blueBright.bold(titleText)}: ${descriptionText}`;
   }
 
   printCmd(cmd: Cmd) {
@@ -1386,7 +1383,7 @@ export class Dashboard {
       this.selectedPackage = Package.getPackageFromVis(stackNameVis);
       if (this.selectedPackage) {
         Dashboard.stackName = this.selectedPackage.stackName;
-        const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as ChalkFunction;
+        const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as typeof CenvLog.chalk;
         let env = '';
         let envQuote = '';
         if (this.selectedPackage?.packageName !== 'GLOBAL') {
@@ -1491,8 +1488,8 @@ export class Dashboard {
       const tableCalcs = this.calcTableInfo();
       const headers: any[] = [tableCalcs.columns];
       const data: Array<string[]> = [];
-      const selectedColor = chalk.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
-      const selectedHoverColor = chalk.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
+      const selectedColor = CenvLog.chalk.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
+      const selectedHoverColor = CenvLog.chalk.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
 
       const currentlySelected = {stackName: '', index: -1};
       for (let i = 0; i < packages.length; i++) {
@@ -1511,8 +1508,8 @@ export class Dashboard {
         }
         const isHoverRow = i === this.hoverRowIndex;
         const isSelectedRow = i === this.selectedRowIndex;
-        const envColor = this.getStatusColor(pkg.environmentStatus, isHoverRow) as ChalkFunction;
-        const processColor = this.getStatusColor(pkg.processStatus, isHoverRow) as ChalkFunction;
+        const envColor = this.getStatusColor(pkg.environmentStatus, isHoverRow) as typeof CenvLog.chalk;
+        const processColor = this.getStatusColor(pkg.processStatus, isHoverRow) as typeof CenvLog.chalk;
         if (!global) {
           complete = false;
         }
@@ -1531,7 +1528,7 @@ export class Dashboard {
         const hover = i === this.hoverRowIndex;
         let rowColor: any = envColor;
         if (pkg.stackName === 'GLOBAL') {
-          rowColor = this.getChalkColor(this.yellow, false, 0, isHoverRow) as ChalkFunction;
+          rowColor = this.getChalkColor(this.yellow, false, 0, isHoverRow) as typeof CenvLog.chalk;
 
         } else if (selected && hover) {
           rowColor = selectedHoverColor;
@@ -1542,7 +1539,7 @@ export class Dashboard {
         }
 
         if (!isFunction(rowColor)) {
-          rowColor = chalk.rgb(rowColor[0], rowColor[1], rowColor[2])
+          rowColor = CenvLog.chalk.rgb(rowColor[0], rowColor[1], rowColor[2])
         }
         row.push(rowColor(pkg.stackName));
         row.push(rowColor(global ? '-----' : pkg.version));
@@ -1580,7 +1577,7 @@ export class Dashboard {
     if (rgb) {
       return [r, g, b];
     }
-    const color = chalk.rgb(r, g, b);
+    const color = CenvLog.chalk.rgb(r, g, b);
     if (!hover) {
       return color.dim;
     }
@@ -1635,13 +1632,13 @@ export class Dashboard {
     }
     if (pkg?.deployDependencies) {
       const deps = pkg?.deployDependencies?.map((dep: Package) => {
-        const color = this.getStatusColor(dep.environmentStatus, true) as ChalkFunction;
+        const color = this.getStatusColor(dep.environmentStatus, true) as typeof CenvLog.chalk;
         return color(dep.packageName)
       }).join(', ');
       this.dependencies = `${deps}`;
     } else if (pkg?.meta?.data.deployDependencies) {
       const deps = pkg?.meta?.data.deployDependencies?.map((dep: Package) => {
-        const color = this.getStatusColor(dep.environmentStatus, true) as ChalkFunction;
+        const color = this.getStatusColor(dep.environmentStatus, true) as typeof CenvLog.chalk;
         return color(dep.packageName)
       }).join(', ');
       this.dependencies = deps;
@@ -1705,13 +1702,13 @@ export class Dashboard {
   }
 
   statusMetric(num: number, type: string, longestNumberLength: number) {
-    return `\t${chalk.bold(num.toString().padStart(longestNumberLength))} ${type}\n`
+    return `\t${CenvLog.chalk.bold(num.toString().padStart(longestNumberLength))} ${type}\n`
   }
 
   packageStatus(packages: Package[], environmentStatus: EnvironmentStatus) {
-    const color = this.getStatusColor(environmentStatus, true) as ChalkFunction;
+    const color = this.getStatusColor(environmentStatus, true) as typeof CenvLog.chalk;
     const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
-    return `[${color(environmentStatus)}]: ${chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
+    return `[${color(environmentStatus)}]: ${CenvLog.chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
   }
 
   updateStatus() {
@@ -1723,11 +1720,11 @@ export class Dashboard {
     const multiplePackagesLoaded = packages.length > 1;
 
     if (opt.suite) {
-      noun = `${chalk.bold(opt.suite)}`;
+      noun = `${CenvLog.chalk.bold(opt.suite)}`;
     } else if (packages.length > 1) {
-      noun = `${chalk.bold(packages.length)} packages`;
+      noun = `${CenvLog.chalk.bold(packages.length)} packages`;
     } else if (packages?.length === 1) {
-      noun = `${chalk.bold(packages[0].packageName)}`;
+      noun = `${CenvLog.chalk.bold(packages[0].packageName)}`;
     }
 
     let status = '';
@@ -1780,23 +1777,23 @@ export class Dashboard {
       }
     } else {
       if (validStatus) {
-        const color = this.getStatusColor(selectedPackage.environmentStatus, true) as ChalkFunction;
-        const colorDark = this.getStatusColor(selectedPackage.environmentStatus, false) as ChalkFunction;
+        const color = this.getStatusColor(selectedPackage.environmentStatus, true) as typeof CenvLog.chalk;
+        const colorDark = this.getStatusColor(selectedPackage.environmentStatus, false) as typeof CenvLog.chalk;
         const env = selectedPackage.packageName !== 'GLOBAL' ? `[${color(selectedPackage.environmentStatus)}] ` : '';
         const envComment = selectedPackage.getEnvironmentStatusDescription();
-        this.status.setLabel(`${chalk.bold(selectedPackage.packageName)} ${env}`);
+        this.status.setLabel(`${CenvLog.chalk.bold(selectedPackage.packageName)} ${env}`);
         this.splitter.setFront();
         this.statusBar.setFront();
 
         if (selectedPackage.status?.needsFix?.length) {
-          status += '\n' + this.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, chalk.bgRed, chalk.whiteBright.underline);
+          status += '\n' + this.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, CenvLog.chalk.bgRed, CenvLog.chalk.whiteBright.underline);
         }
         if (selectedPackage.status?.incomplete?.length) {
-          status += `\n${colors.error.underline.bold('NEEDS DEPLOY:')}\n\n`;
+          status += `\n${CenvLog.colors.error.underline.bold('NEEDS DEPLOY:')}\n\n`;
           status += `\t${selectedPackage.status.incomplete.join('\n\t')}\n`
         }
         if (selectedPackage.status?.deployed?.length) {
-          status += `\n${colors.success.underline.bold('UP_TO_DATE:')}\n\n`;
+          status += `\n${CenvLog.colors.success.underline.bold('UP_TO_DATE:')}\n\n`;
           status += `\t${selectedPackage.status.deployed.join('\n\t')}\n\n`;
         }
 
@@ -2157,7 +2154,7 @@ export class Dashboard {
       return;
     }
     const scroll = this.debugLog.getScrollPerc();
-    this.debugLog.insertBottom(chalk.green(text.join(' ')));
+    this.debugLog.insertBottom(CenvLog.chalk.green(text.join(' ')));
     if (scroll > 90) {
       this.debugLog.setScrollPerc(100);
     }
@@ -2168,7 +2165,7 @@ export class Dashboard {
       return;
     }
     const scroll = this.debugLog.getScrollPerc();
-    this.debugLog.insertBottom(chalk.green(text.join(' ')));
+    this.debugLog.insertBottom(CenvLog.chalk.green(text.join(' ')));
     if (scroll > 90) {
       this.debugLog.setScrollPerc(100);
     }

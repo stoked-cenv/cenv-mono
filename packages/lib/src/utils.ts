@@ -1,26 +1,16 @@
-
 import * as path from 'path';
-import {join} from 'path';
+import { join } from 'path';
 import * as child from 'child_process';
-import {ClientMode, startCenv} from './aws/appConfigData';
-import {cpSync, copyFileSync, existsSync, readFileSync, rmSync, lstatSync, statSync, mkdirSync, writeFileSync, readdirSync} from 'fs';
+import { lstatSync, readdirSync, readFileSync } from 'fs';
 import * as os from 'os';
-import {hostname} from 'os';
-import {DashboardCreateOptions} from './params';
-import {CommandEvents, Package, PackageCmd, ProcessStatus} from './package/package';
+import { Package, PackageCmd, ProcessStatus } from './package/package';
 import * as fsp from 'fs/promises';
 import * as semver from 'semver';
-import {createHash} from 'crypto';
-import {PackageModule} from "./package/module";
-import {CenvFiles} from "./file";
-import {deleteCenvData} from "./aws/appConfig";
-import {Suite} from "./suite";
-import {Environment} from "./environment";
-import { Cenv, CommandInfo, StackProc } from './cenv';
-import {cancelUpdateStack, deleteStack, describeStacks} from "./aws/cloudformation";
-import {RangeOptions} from "semver";
-import {CenvLog, colors } from './log';
-
+import { RangeOptions } from 'semver';
+import { createHash } from 'crypto';
+import { Cenv, StackProc } from './cenv';
+import { cancelUpdateStack, deleteStack, describeStacks } from './aws/cloudformation';
+import { CenvLog } from './log';
 
 function stringOrStringArrayValid(value: string | string[]): boolean {
   return typeof value === 'string' ? !!value : value && value.length > 0;
@@ -46,7 +36,6 @@ export function stringToArray(value: string | string[]): string[] {
   return isString(value) ? [value as string] : (value as string[]);
 }
 
-
 export function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
   return Object.keys(obj).filter(k => Number.isNaN(+k)) as K[];
 }
@@ -59,9 +48,9 @@ function printIfExists(color = true, envVar: string) {
     }
 
     if (color) {
-      CenvLog.single.infoLog(`export ${envVar}=${colors.infoBold(isClear ? process.env[envVar] : '****')}`,);
+      CenvLog.single.infoLog(`export ${envVar}=${CenvLog.colors.infoBold(isClear ? process.env[envVar] : '****')}`);
     } else {
-      console.log(`export ${envVar}=${colors.infoBold(isClear ? process.env[envVar] : '****')}`,);
+      console.log(`export ${envVar}=${CenvLog.colors.infoBold(isClear ? process.env[envVar] : '****')}`);
     }
   }
 }
@@ -78,7 +67,6 @@ export function printConfigurationExports(color = true) {
   printIfExists(color, 'CDK_DEFAULT_ACCOUNT');
   printIfExists(color, 'CDK_DEFAULT_REGION');
 }
-
 
 function elapsedBase(start: [number, number], format = 'seconds', note: string, silent = false) {
   let e: any = process.hrtime(start);
@@ -134,7 +122,7 @@ export class Timer {
     } else if (this.finalElapsed) {
       return `${this.finalElapsed}${this.format[0]}`;
     } else {
-      return ''
+      return '';
     }
   }
 
@@ -283,7 +271,6 @@ export function expandTemplateVars(baseVars: any) {
   return baseVars;
 }
 
-
 export function randomRange(min: number, max: number) {
   min = Math.ceil(min);
   max = Math.floor(max);
@@ -291,7 +278,7 @@ export function randomRange(min: number, max: number) {
 }
 
 export function printFlag(options: Record<string, any>, flag: string) {
-  return options[flag] ? ` --${flag}` : ''
+  return options[flag] ? ` --${flag}` : '';
 }
 
 export async function showPkgCmdsResult(cmds: PackageCmd[]) {
@@ -301,7 +288,7 @@ export async function showPkgCmdsResult(cmds: PackageCmd[]) {
   const failures = cmds.filter((c) => c?.code !== 0);
   const success = cmds.filter((c) => c?.code === 0);
   success.map((f) => {
-    f ? CenvLog.single.infoLog(`${f?.cmd} exit(${f?.code})\n`, f?.stackName) : ''
+    f ? CenvLog.single.infoLog(`${f?.cmd} exit(${f?.code})\n`, f?.stackName) : '';
   });
   if (failures?.length) {
     failures.map((f) => f ? CenvLog.single.errorLog(`${f?.cmd} ${f?.code}\n`, f?.stackName) : '');
@@ -318,20 +305,20 @@ const killedStackCmds: Record<string, string[]> = {};
 export async function killStackProcesses(StackName: string) {
   for (const [pid, stackProc] of Object.entries(Cenv.processes) as [string, StackProc][]) {
     if (stackProc.stackName === StackName) {
-      CenvLog.alert(`${colors.errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
+      CenvLog.alert(`${CenvLog.colors.errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
       const killSuccess = stackProc.proc.kill();
 
       if (stackProc.cmd.startsWith('cdk deploy')) {
         const stacks = await describeStacks(StackName);
         if (stacks) {
           const status = stacks[0].StackStatus;
-          CenvLog.single.alertLog(`the current status is ${status}`, 'killed cdk deploy process')
-          if (status === "UPDATE_IN_PROGRESS") {
-            CenvLog.single.alertLog(`now attempting to cancel the cloudformation update`, 'killed cdk deploy process')
-            await cancelUpdateStack(StackName)
-          } else if (status === "CREATE_IN_PROGRESS") {
-            CenvLog.single.alertLog(`now attempting to destroy the cloud formation creation`, 'killed cdk deploy process')
-            await deleteStack(StackName)
+          CenvLog.single.alertLog(`the current status is ${status}`, 'killed cdk deploy process');
+          if (status === 'UPDATE_IN_PROGRESS') {
+            CenvLog.single.alertLog(`now attempting to cancel the cloudformation update`, 'killed cdk deploy process');
+            await cancelUpdateStack(StackName);
+          } else if (status === 'CREATE_IN_PROGRESS') {
+            CenvLog.single.alertLog(`now attempting to destroy the cloud formation creation`, 'killed cdk deploy process');
+            await deleteStack(StackName);
           }
         }
       }
@@ -347,7 +334,7 @@ export async function killStackProcesses(StackName: string) {
 
 export function killRunningProcesses() {
   for (const [pid, stackProc] of Object.entries(Cenv.processes)) {
-    CenvLog.err(`${colors.errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
+    CenvLog.err(`${CenvLog.colors.errorBold(stackProc.cmd)} pid: ${stackProc.proc.pid}`, 'kill child process');
     const killSuccess = stackProc.proc.kill();
     if (killSuccess) {
       if (!killedStackCmds[stackProc.stackName as string]) {
@@ -456,7 +443,7 @@ export async function computeMetaHash(pkg: Package, input: string, inputHash: an
   const hash = inputHash ? inputHash : createHash('sha256');
   let fileInfo;
   if (lstatSync(input).isDirectory()) {
-    const info = await fsp.readdir(input, {withFileTypes: true});
+    const info = await fsp.readdir(input, { withFileTypes: true });
 
     // construct a string from the modification date, the filename and the filesize
     for (const item of info) {
@@ -514,22 +501,22 @@ export function deepClone(obj: any, hash = new WeakMap()): any {
   }
   // Optional: support for some standard constructors (extend as desired)
   if (obj instanceof Map) {
-    Array.from(obj, ([key, val]) => result.set(deepClone(key, hash), deepClone(val, hash)),);
+    Array.from(obj, ([key, val]) => result.set(deepClone(key, hash), deepClone(val, hash)));
   } else if (obj instanceof Set) {
     Array.from(obj, (key) => result.add(deepClone(key, hash)));
   }
   // Register in hash
   hash.set(obj, result);
   // Clone and assign enumerable own properties recursively
-  return Object.assign(result, ...Object.keys(obj).map((key) => ({[key]: deepClone(obj[key], hash)})),);
+  return Object.assign(result, ...Object.keys(obj).map((key) => ({ [key]: deepClone(obj[key], hash) })));
 }
 
 export function readFiles(dirname: string, onFileContent: (dirname: string, filename: string) => void) {
   try {
-    const filenames = readdirSync(dirname)
+    const filenames = readdirSync(dirname);
 
     if (filenames) {
-      filenames.forEach(function (filename) {
+      filenames.forEach(function(filename) {
         const content = readFileSync(join(dirname, filename.toString()), 'utf-8');
         onFileContent(filename.toString(), content);
       });
@@ -590,7 +577,7 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
     return false;
   }
 
-  return {packages};
+  return { packages };
 }
 
 export function isOsSupported() {
@@ -604,7 +591,7 @@ export function isOsSupported() {
 }
 
 export function getOs() {
-  return {platform: os.platform(), arch: os.arch(), version: os.version(), release: os.release(), type: os.type()}
+  return { platform: os.platform(), arch: os.arch(), version: os.version(), release: os.release(), type: os.type() };
 }
 
 export function pbcopy(data: any) {
@@ -621,7 +608,6 @@ export function removeScope(packageName: string) {
   const regex = /\@.*?\//m;
   return packageName.replace(regex, '');
 }
-
 
 export function semVerParse(version: string | semver.SemVer | null, opt?: RangeOptions) {
   const parsed = semver.parse(version, opt);

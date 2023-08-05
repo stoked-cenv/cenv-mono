@@ -193,9 +193,6 @@ importers:
       '@stoked-cenv/ui':
         specifier: ^2.0.0-a.51 || ^2.0.0
         version: link:../ui
-      chalk:
-        specifier: ^4.1.2
-        version: 4.1.2
       eslint:
         specifier: ^8.45.0
         version: 8.45.0
@@ -447,9 +444,6 @@ importers:
       blessed-contrib:
         specifier: ^4.11.0
         version: 4.11.0
-      chalk:
-        specifier: ^4.1.2
-        version: 4.1.2
       colors:
         specifier: ^1.4.0
         version: 1.4.0

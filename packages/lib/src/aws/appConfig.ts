@@ -21,7 +21,7 @@ import {
 } from '@aws-sdk/client-appconfig';
 import * as yaml from 'js-yaml';
 import {deleteParametersByPath, stripPath} from './parameterStore';
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 import {isString} from '../utils';
 import {CenvFiles, EnvConfig} from '../file';
 
@@ -269,7 +269,7 @@ export async function getApplication(applicationName: string, silent = true, env
     }
     if (!ApplicationId) {
       if (!silent) {
-        CenvLog.single.errorLog(`application ${colors.errorBold(applicationName)} does not exist.`);
+        CenvLog.single.errorLog(`application ${CenvLog.colors.errorBold(applicationName)} does not exist.`);
       }
       return false;
     }
@@ -280,7 +280,7 @@ export async function getApplication(applicationName: string, silent = true, env
         const environments = await listEnvironments(ApplicationId);
         if (!environments || environments.length === 0) {
           if (!silent) {
-            CenvLog.single.errorLog(`environment ${colors.errorBold(environment)} does not exist`);
+            CenvLog.single.errorLog(`environment ${CenvLog.colors.errorBold(environment)} does not exist`);
           }
           return false;
         }
@@ -288,7 +288,7 @@ export async function getApplication(applicationName: string, silent = true, env
         const env = await getEnvironment(ApplicationId, environment as string, silent);
         if (!env) {
           if (!silent) {
-            CenvLog.single.errorLog(`Environment ${colors.errorBold(environment)} does not exist`);
+            CenvLog.single.errorLog(`Environment ${CenvLog.colors.errorBold(environment)} does not exist`);
           }
         } else {
           EnvironmentId = env.EnvironmentId;
@@ -304,7 +304,7 @@ export async function getApplication(applicationName: string, silent = true, env
         const configurationProfiles = await listConfigurationProfiles(ApplicationId);
         if (!configurationProfiles || configurationProfiles.length === 0) {
           if (!silent) {
-            CenvLog.single.errorLog(`configuration profile ${colors.errorBold(configurationProfile)} has no configurations.`);
+            CenvLog.single.errorLog(`configuration profile ${CenvLog.colors.errorBold(configurationProfile)} has no configurations.`);
           }
           return false;
         }
@@ -312,7 +312,7 @@ export async function getApplication(applicationName: string, silent = true, env
         const env = await getConfigurationProfile(ApplicationId, configurationProfile as string, silent);
         if (!env || !env.ConfigurationProfileId) {
           if (!silent) {
-            CenvLog.single.errorLog(`configuration profile ${colors.errorBold(configurationProfile)} does not exist.`);
+            CenvLog.single.errorLog(`configuration profile ${CenvLog.colors.errorBold(configurationProfile)} does not exist.`);
           }
         } else {
           ConfigurationProfileId = env.ConfigurationProfileId;
@@ -354,14 +354,14 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
     }
     if (!ApplicationId) {
       if (!Silent) {
-        CenvLog.single.errorLog(`application ${colors.errorBold(ApplicationName)} does not exist.`);
+        CenvLog.single.errorLog(`application ${CenvLog.colors.errorBold(ApplicationName)} does not exist.`);
       }
       return false;
     }
     const env = await getEnvironment(ApplicationId, EnvironmentName, Silent);
     if (!env) {
       if (!Silent) {
-        CenvLog.single.errorLog(`Environment ${colors.errorBold(EnvironmentName)} does not exist`);
+        CenvLog.single.errorLog(`Environment ${CenvLog.colors.errorBold(EnvironmentName)} does not exist`);
       }
       return false;
     }
@@ -370,7 +370,7 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
     const confRes = await getConfigurationProfile(ApplicationId, ConfigurationProfileName, Silent);
     if (!confRes) {
       if (!Silent) {
-        CenvLog.single.errorLog(`configuration profile ${colors.errorBold(ConfigurationProfileName)} does not exist.`);
+        CenvLog.single.errorLog(`configuration profile ${CenvLog.colors.errorBold(ConfigurationProfileName)} does not exist.`);
       }
       return false;
     }
@@ -451,7 +451,7 @@ export async function getEnvironment(applicationId: string, environmentName: str
     }
     if (!envId) {
       if (!silent) {
-        CenvLog.single.errorLog(`environment ${colors.errorBold(environmentName)} does not exist.`);
+        CenvLog.single.errorLog(`environment ${CenvLog.colors.errorBold(environmentName)} does not exist.`);
       }
       return false;
     }
@@ -581,10 +581,10 @@ export async function deleteHostedConfigurationVersions({
   ConfigurationProfileId: string
 }, versions: any) {
   if (!versions || versions.length === 0) {
-    CenvLog.info(`  - no configuration versions for ${colors.infoBold(ApplicationName)} [${colors.infoBold(ApplicationId)}] and configuration profile ${colors.infoBold(ConfigurationProfileName)} [${colors.infoBold(ConfigurationProfileId)}]`);
+    CenvLog.info(`  - no configuration versions for ${CenvLog.colors.infoBold(ApplicationName)} [${CenvLog.colors.infoBold(ApplicationId)}] and configuration profile ${CenvLog.colors.infoBold(ConfigurationProfileName)} [${CenvLog.colors.infoBold(ConfigurationProfileId)}]`);
     return;
   }
-  CenvLog.info(`  - deleting configuration versions for ${colors.infoBold(ApplicationName)} and configuration profile ${colors.infoBold(ConfigurationProfileName)}`);
+  CenvLog.info(`  - deleting configuration versions for ${CenvLog.colors.infoBold(ApplicationName)} and configuration profile ${CenvLog.colors.infoBold(ConfigurationProfileName)}`);
 
   try {
     for (let idx = 0; idx < versions.length; idx++) {
@@ -628,7 +628,7 @@ export async function destroyAppConfig(applicationName: string, silentErrors = f
   const application = await getApplication(applicationName);
   if (!application || !application.ApplicationId) {
     if (!silentErrors) {
-      CenvLog.single.errorLog(`Could not delete application ${colors.errorBold(applicationName)} resources because the application doesn't exist`)
+      CenvLog.single.errorLog(`Could not delete application ${CenvLog.colors.errorBold(applicationName)} resources because the application doesn't exist`)
     }
     return;
   }
@@ -641,7 +641,7 @@ export async function destroyAppConfig(applicationName: string, silentErrors = f
         if (profile.Id) {
           const versions = await listHostedConfigurationVersions(application.ApplicationId, profile.Id);
           if (versions && profile.Id && profile.Name) {
-            CenvLog.single.infoLog(`  - deleting application ${colors.infoBold(applicationName)} configuration versions`);
+            CenvLog.single.infoLog(`  - deleting application ${CenvLog.colors.infoBold(applicationName)} configuration versions`);
             await deleteHostedConfigurationVersions({
                                                       ApplicationId: application.ApplicationId,
                                                       ApplicationName: applicationName,
@@ -651,16 +651,16 @@ export async function destroyAppConfig(applicationName: string, silentErrors = f
           }
         }
       }
-      CenvLog.single.infoLog(`  - deleting configuration profile for application ${colors.infoBold(applicationName)}`);
+      CenvLog.single.infoLog(`  - deleting configuration profile for application ${CenvLog.colors.infoBold(applicationName)}`);
       await deleteConfigurationProfiles(application.ApplicationId, configurationProfiles);
     }
 
     const environments = await listEnvironments(application.ApplicationId);
     if (environments && environments.length) {
-      CenvLog.single.infoLog(`  - deleting environments for application ${colors.infoBold(applicationName)}`);
+      CenvLog.single.infoLog(`  - deleting environments for application ${CenvLog.colors.infoBold(applicationName)}`);
       await deleteEnvironments(application.ApplicationId, environments);
     }
-    CenvLog.single.infoLog(`  - deleting application ${colors.infoBold(applicationName)}`);
+    CenvLog.single.infoLog(`  - deleting application ${CenvLog.colors.infoBold(applicationName)}`);
 
     await deleteApplication(application.ApplicationId);
   } catch (e) {
@@ -681,7 +681,7 @@ export async function deleteCenvData(applicationName: string, parameters: any, a
   }
 
   if (parameters) {
-    CenvLog.single.infoLog(`  - deleting application ${colors.infoBold(applicationName)} parameters`, applicationName);
+    CenvLog.single.infoLog(`  - deleting application ${CenvLog.colors.infoBold(applicationName)} parameters`, applicationName);
     await deleteParametersByPath(`/service/${stripPath(applicationName)}`, '    -', applicationName);
   }
   if (globalParameters) {

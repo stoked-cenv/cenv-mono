@@ -3,9 +3,8 @@ import {
   AppConfigDataClient, GetLatestConfigurationCommand, StartConfigurationSessionCommand
 } from "@aws-sdk/client-appconfigdata";
 import * as YAML from 'yaml';
-import chalk from 'chalk';
 import {CenvParams} from '../params';
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 import {CenvFiles} from '../file';
 import {decryptValue, isEncrypted} from './parameterStore';
 import {getConfig} from "./appConfig";
@@ -88,11 +87,11 @@ interface StartConfigPollingParams {
 }
 
 function startConfigPolling(options: StartConfigPollingParams) {
-  console.log(chalk.green(`polling cron: ${options?.cronExpression}`));
+  console.log(CenvLog.colors.success(`polling cron: ${options?.cronExpression}`));
   let count = 0;
   cron.schedule(options?.cronExpression ? options?.cronExpression : '0 * * * *', async () => {
     count += 1;
-    console.log(count % 2 === 0 ? chalk.gray('poll') : colors.info('poll'));
+    console.log(count % 2 === 0 ? CenvLog.colors.info('poll') : CenvLog.colors.info('poll'));
     if (process.env.NextPollConfigurationToken) {
       const res = await getLatestConfiguration(process.env.NextPollConfigurationToken, true);
       displayConfigVars('UPDATED CONFIG VARS', res);
@@ -117,14 +116,14 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
   }
 
   CenvLog.info('*******************************************************************');
-  CenvLog.info(`*********************** ${chalk.whiteBright.underline(title)} ***********************`);
+  CenvLog.info(`*********************** ${CenvLog.chalk.whiteBright.underline(title)} ***********************`);
   CenvLog.info('*******************************************************************\n');
   if (exports) {
     Object.entries(configVarsDisplay).forEach(([key, value]) => {
-      console.log(`export ${chalk.whiteBright(key)}=${chalk.whiteBright(value)}`)
+      console.log(`export ${CenvLog.chalk.whiteBright(key)}=${CenvLog.chalk.whiteBright(value)}`)
     });
   } else {
-    console.log(chalk.white(YAML.stringify(configVars)));
+    console.log(CenvLog.chalk.white(YAML.stringify(configVars)));
   }
   CenvLog.info('*******************************************************************');
 }
@@ -191,6 +190,6 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
 
     return await pollDeployedVars(clientType === ClientMode.REMOTE_POLLING ? cronExpression : '0 * * * *', silent);
   } catch (e) {
-    CenvLog.single.alertLog(`startConfigPolling failed: ${colors.alertBold(`${e instanceof Error ? e.message : e as string}`)}\n ${JSON.stringify(e, null, 4)}`);
+    CenvLog.single.alertLog(`startConfigPolling failed: ${CenvLog.colors.alertBold(`${e instanceof Error ? e.message : e as string}`)}\n ${JSON.stringify(e, null, 4)}`);
   }
 }

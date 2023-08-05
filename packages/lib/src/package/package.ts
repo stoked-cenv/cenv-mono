@@ -2,7 +2,7 @@ import { removeScope, semVerParse, Timer } from '../utils';
 import { existsSync, readFileSync } from 'fs';
 import * as path from 'path';
 import { PackageModule, PackageModuleType, PackageStatus } from './module';
-import { CenvLog, colors, LogLevel, Mouth } from '../log';
+import { CenvLog, LogLevel, Mouth } from '../log';
 import { coerce, inc, parse, SemVer } from 'semver';
 import { ParamsModule } from './params';
 import { DockerModule } from './docker';
@@ -535,7 +535,7 @@ export class Package implements IPackage {
       }
 
       if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {
-        const errString = `${colors.alertBold(this.codifiedName)} is not a valid package`;
+        const errString = `${CenvLog.colors.alertBold(this.codifiedName)} is not a valid package`;
         //CenvLog.single.catchLog(new Error(errString));
         CenvLog.single.infoLog(errString);
         console.log(errString);
@@ -1147,7 +1147,7 @@ export class Package implements IPackage {
     try {
       this.processStatus = ProcessStatus.BUMP;
       if (type === 'reset') {
-        this.info(colors.success(`v${this.moduleVersion}`));
+        this.info(CenvLog.colors.success(`v${this.moduleVersion}`));
         this.modules.map((m) => {
           m.bump(type);
         });

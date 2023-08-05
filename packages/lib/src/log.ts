@@ -1,35 +1,12 @@
-import chalk from 'chalk';
-import ChalkFunction from 'chalk';
 import {Cenv} from './cenv';
 import {cleanup} from "./utils";
 import {Injectable} from '@nestjs/common';
 
-const colors = {
-  info: chalk.gray,
-  infoDim: chalk.dim,
-  infoBold: chalk.gray.bold, //
-  std: chalk.white,
-  stdDim: chalk.dim,
-  stdBold: chalk.white.bold, //
-  error: chalk.red,
-  errorDim: chalk.red.dim,
-  errorBold: chalk.red.bold, //
-  errorHighlight: chalk.redBright,
-  success: chalk.green,
-  successDim: chalk.green.dim,
-  successBold: chalk.green.bold,
-  successHighlight: chalk.greenBright,
-  alert: chalk.yellow,
-  alertDim: chalk.yellow, //
-  alertBold: chalk.yellow.bold //
-}
-export {colors};
 
 export enum LogLevel {
   NONE = 'NONE', MINIMAL = 'MINIMAL', DEBUG = 'DEBUG', INFO = 'INFO', VERBOSE = 'VERBOSE'
 }
 
-const colorSets = [[colors.error, colors.errorDim, colors.errorBold], [colors.info, colors.infoDim, colors.infoBold], [colors.success, colors.successDim, colors.successBold]]
 
 export enum ColorSet {
   ERR = 0, INFO, GO
@@ -47,7 +24,9 @@ export const cleanTags = function(text: string) {
 @Injectable()
 export class CenvLog {
   static instance: CenvLog;
-  static colors = colors;
+  static colors: any;
+  static chalk: any;
+  static colorSets: any;
   logLevel: LogLevel = LogLevel.INFO;
   static get logLevel() {
     return this.single.logLevel;
@@ -60,6 +39,34 @@ export class CenvLog {
   public constructor() {
     this.mouth = new Mouth('log', 'GLOBAL');
     CenvLog.instance = this;
+  }
+  static async init() {
+
+    const { Chalk } = await import('chalk');
+    this.chalk = Chalk;
+    const colors = {
+      info: this.chalk.gray,
+      infoDim: this.chalk.dim,
+      infoBold: this.chalk.gray.bold, //
+      std: this.chalk.white,
+      stdDim: this.chalk.dim,
+      stdBold: this.chalk.white.bold, //
+      error: this.chalk.red,
+      errorDim: this.chalk.red.dim,
+      errorBold: this.chalk.red.bold, //
+      errorHighlight: this.chalk.redBright,
+      success: this.chalk.green,
+      successDim: this.chalk.green.dim,
+      successBold: this.chalk.green.bold,
+      successHighlight: this.chalk.greenBright,
+      alert: this.chalk.yellow,
+      alertDim: this.chalk.yellow, //
+      alertBold: this.chalk.yellow.bold //
+    }
+    const colorSets = [[colors.error, colors.errorDim, colors.errorBold], [colors.info, colors.infoDim, colors.infoBold], [colors.success, colors.successDim, colors.successBold]]
+  }
+  async init() {
+    await CenvLog.init();
   }
 
   /*
@@ -140,11 +147,11 @@ export class CenvLog {
   colorType(type: string) {
     switch (type) {
       case 'incomplete':
-        return {bold: colors.errorBold, color: colors.error, highlight: chalk.hex('#FFAAAA')};
+        return {bold: CenvLog.colors.errorBold, color: CenvLog.colors.error, highlight: CenvLog.chalk.hex('#FFAAAA')};
       case 'deployed':
-        return {bold: colors.successBold, color: colors.success, highlight: chalk.hex('#AAFFAA')};
+        return {bold: CenvLog.colors.successBold, color: CenvLog.colors.success, highlight: CenvLog.chalk.hex('#AAFFAA')};
       case 'needsFix':
-        return {bold: chalk.whiteBright, color: chalk.white, highlight: chalk.white.dim};
+        return {bold: CenvLog.chalk.whiteBright, color: CenvLog.chalk.white, highlight: CenvLog.chalk.white.dim};
     }
   }
 
@@ -153,7 +160,7 @@ export class CenvLog {
   }
 
   getColorSet(colorSet: ColorSet = ColorSet.INFO) {
-    const set = colorSets[colorSet];
+    const set = CenvLog.colorSets[colorSet];
     return {color: set[0], dim: set[1], bold: set[2]}
   }
 
@@ -222,7 +229,7 @@ export class CenvLog {
     return Array.isArray(strArray) ? strArray.join(' ') : `${strArray}`;
   }
 
-  logBase(message: any, logColor: typeof ChalkFunction | undefined, logType: string, stackName?: string, replicateToGlobal = false) {
+  logBase(message: any, logColor: typeof CenvLog.chalk | undefined, logType: string, stackName?: string, replicateToGlobal = false) {
     message = this.joinArray(message) as string;
     if (message === '' || !message) {
       return;
@@ -232,7 +239,7 @@ export class CenvLog {
     }
     if (process.env.EXIT_ON_LOG && process.env.EXIT_ON_LOG === message) {
       const err = new Error();
-      console.log(colors.info(err.stack));
+      console.log(CenvLog.colors.info(err.stack));
       process.exit(10)
     }
 
@@ -275,7 +282,7 @@ export class CenvLog {
     if (!this.isVerbose) {
       return
     }
-    this.logBase(message, colors.std, 'stdout', stackName, replicateToGlobal);
+    this.logBase(message, CenvLog.colors.std, 'stdout', stackName, replicateToGlobal);
   }
 
   log(message: any) {
@@ -285,14 +292,14 @@ export class CenvLog {
     if (!this.isInfo) {
       return;
     }
-    this.logBase(message, colors.info, 'stdout', stackName, replicateToGlobal);
+    this.logBase(message, CenvLog.colors.info, 'stdout', stackName, replicateToGlobal);
   }
   static infoLog(message: any, stackName?: string, replicateToGlobal = false): void {
     this.single.infoLog(message, stackName, replicateToGlobal);
   }
 
   errorLog(message: any, stackName?: string, replicateToGlobal = false): void {
-    this.logBase(message, colors.error, 'stderr', stackName, replicateToGlobal);
+    this.logBase(message, CenvLog.colors.error, 'stderr', stackName, replicateToGlobal);
   }
   static errorLog(message: any, stackName?: string, replicateToGlobal = false): void {
     this.single.errorLog(message, stackName, replicateToGlobal);
@@ -302,7 +309,7 @@ export class CenvLog {
     if (!this.isAlert) {
       return;
     }
-    this.logBase(message, colors.alert, 'stdout', stackName, replicateToGlobal);
+    this.logBase(message, CenvLog.colors.alert, 'stdout', stackName, replicateToGlobal);
   }
 
   static alertLog(message: any, stackName?: string, replicateToGlobal = false): void {

@@ -1,5 +1,5 @@
 import { Option, SubCommand } from 'nest-commander';
-import { BaseCommandOptions, CenvLog, CenvParams, colors, deleteParametersByPath, filteredCount, Package, variableTypes } from '@stoked-cenv/lib';
+import { BaseCommandOptions, CenvLog, CenvParams, deleteParametersByPath, filteredCount, Package, variableTypes } from '@stoked-cenv/lib';
 import { BaseCommand } from './base.command';
 
 interface RemoveCommandOptions extends BaseCommandOptions {
@@ -82,7 +82,7 @@ export class ParamsRemoveCommand extends BaseCommand {
   }
 
   printRm(key: string, type: string) {
-    colors.info('removing parameter ' + colors.infoBold(key) + ' from ' + colors.infoBold(type));
+    CenvLog.colors.info('removing parameter ' + CenvLog.colors.infoBold(key) + ' from ' + CenvLog.colors.infoBold(type));
   }
 
   async runCommand(params: string[], options?: RemoveCommandOptions, packages?: Package[]): Promise<void> {
@@ -99,7 +99,7 @@ export class ParamsRemoveCommand extends BaseCommand {
 
       const types = filteredCount(Object.keys(options), variableTypes);
       if (types.length > 1) {
-        CenvLog.single.errorLog(`Must only contain zero or one type flag (${colors.infoBold('--app-type')}, ${colors.infoBold('--environment-type')}, ${colors.infoBold('--global-type')}, ${colors.infoBold('--global-env-type')}`);
+        CenvLog.single.errorLog(`Must only contain zero or one type flag (${CenvLog.colors.infoBold('--app-type')}, ${CenvLog.colors.infoBold('--environment-type')}, ${CenvLog.colors.infoBold('--global-type')}, ${CenvLog.colors.infoBold('--global-env-type')}`);
         return;
       }
 

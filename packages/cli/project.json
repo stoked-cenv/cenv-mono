@@ -39,7 +39,8 @@
           "nx run @stoked-cenv/cli:build",
           "nx run @stoked-cenv/cdk:build",
           "ts-node ./fixup-dist.ts",
-          "pnpm run publish:bump:all"
+          "pnpm run publish:bump:all",
+          "pnpm run link:cli"
         ],
         "parallel": false
       }

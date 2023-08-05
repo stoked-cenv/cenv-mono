@@ -2,7 +2,6 @@ import {blessed, contrib} from './blessed';
 import {Commands} from '../commands';
 import {CenvLog,} from '@stoked-cenv/lib';
 import StatusPanel from './statusPanel';
-import chalk from 'chalk';
 import {existsSync, readFileSync} from "fs";
 import {join} from "path"
 
@@ -29,14 +28,14 @@ export class HelpUI {
   cmdOptions: any;
   selectedCommandFg = [255, 255, 255];
   selectedCommandBg = [30, 30, 30];
-  blue = chalk.blue;
+  blue = CenvLog.chalk.blue;
   blueBright = [0, 150, 255];
   red = [255, 0, 0];
   gray = [140, 140, 140];
   yellow = [225, 225, 0];
   white = [255, 255, 255];
   green = [0, 255, 0];
-  packageHover: boolean = false;
+  packageHover = false;
   providers;
   currentProvider: any;
   cmdInfo;

@@ -10,7 +10,7 @@ import {
   FunctionConfiguration
 } from '@aws-sdk/client-lambda';
 import {fromUtf8, toUtf8} from '@aws-sdk/util-utf8-node';
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 import { readFileSync } from 'fs';
 
 let _client: LambdaClient;
@@ -56,7 +56,7 @@ export async function createFunction(name: string, zipFile: string, lambdaRole: 
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`createFunction [${name}] error: ${colors.errorBold(e as string)}`);
+    CenvLog.single.errorLog(`createFunction [${name}] error: ${CenvLog.colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -70,7 +70,7 @@ export async function deleteFunction(FunctionName: string) {
       return res;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`deleteFunction error: ${colors.errorBold(e as string)}`);
+    CenvLog.single.errorLog(`deleteFunction error: ${CenvLog.colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -87,7 +87,7 @@ export async function invoke(FunctionName: string, PayloadString: string) {
       return parsedPayload;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`invoke ${FunctionName} error: ${colors.errorBold(e as string)}`);
+    CenvLog.single.errorLog(`invoke ${FunctionName} error: ${CenvLog.colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -101,7 +101,7 @@ export async function getFunction(FunctionName: string, silent = true) {
     }
   } catch (e) {
     if (!silent) {
-      CenvLog.single.errorLog(`get function error: ${colors.errorBold(e as string)}`);
+      CenvLog.single.errorLog(`get function error: ${CenvLog.colors.errorBold(e as string)}`);
     }
   }
   return false
@@ -129,7 +129,7 @@ export async function listFunctions(tags = {}, silent = true) {
     return [];
   } catch (e) {
     if (!silent) {
-      CenvLog.single.errorLog(`list functions error: ${colors.errorBold(e as string)}`);
+      CenvLog.single.errorLog(`list functions error: ${CenvLog.colors.errorBold(e as string)}`);
     }
   }
   return []

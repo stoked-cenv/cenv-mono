@@ -1,7 +1,7 @@
 import {
   CreateHostedZoneCommand, DeleteHostedZoneCommand, ListHostedZonesByNameCommand, Route53Client
 } from '@aws-sdk/client-route-53';
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 
 let _client: Route53Client;
 
@@ -23,12 +23,12 @@ export async function createHostedZone(Name: string) {
     const cmd = new CreateHostedZoneCommand({Name, CallerReference: Date.now().toString()});
     const res = await getClient().send(cmd);
     if (res && res.HostedZone) {
-      CenvLog.info(`hosted zone ${colors.infoBold(res.HostedZone.Name)} created`)
+      CenvLog.info(`hosted zone ${CenvLog.colors.infoBold(res.HostedZone.Name)} created`)
       return res.HostedZone.Id;
     }
     return false;
   } catch (e) {
-    CenvLog.single.errorLog(`createHostedZone error: ${colors.errorBold(e as string)}`);
+    CenvLog.single.errorLog(`createHostedZone error: ${CenvLog.colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -46,7 +46,7 @@ export async function deleteHostedZone(Name: string) {
     }
     return true;
   } catch (e) {
-    CenvLog.single.errorLog(`createHostedZone error: ${colors.errorBold(e as string)}`);
+    CenvLog.single.errorLog(`createHostedZone error: ${CenvLog.colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -61,7 +61,7 @@ export async function listHostedZones() {
       return res.HostedZones;
     }
   } catch (e) {
-    CenvLog.single.errorLog(`listHostedZone error: ${colors.errorBold(e as string)}`);
+    CenvLog.single.errorLog(`listHostedZone error: ${CenvLog.colors.errorBold(e as string)}`);
   }
   return false
 }
@@ -74,7 +74,7 @@ export async function hostedZoneExists(Name: string) {
   for (let i = 0; i < hostedZones.length; i++) {
     const zone = hostedZones[i];
     if (zone.Name === Name + '.') {
-      CenvLog.info(`hosted zone ${colors.infoBold(zone.Name)} found`)
+      CenvLog.info(`hosted zone ${CenvLog.colors.infoBold(zone.Name)} found`)
       return zone.Id;
     }
   }

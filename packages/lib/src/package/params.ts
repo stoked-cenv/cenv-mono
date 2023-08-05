@@ -1,17 +1,17 @@
-import {IPackageModule, PackageModule, PackageModuleType} from './module';
-import {AppVars, AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList} from '../file';
+import { PackageModule, PackageModuleType } from './module';
+import { AppVars, AppVarsFile, CenvFiles, CenvVars, EnvConfig, EnvConfigFile, VarList } from '../file';
 import * as path from 'path';
-import {join} from 'path';
+import { join } from 'path';
 import { existsSync, rmSync } from 'fs';
-import {destroyAppConfig, destroyRemainingConfigs, getConfig} from '../aws/appConfig';
-import {CenvParams} from '../params';
-import {CenvLog, colors} from '../log';
-import {expandTemplateVars, simplify} from '../utils';
-import {decryptValue, deleteParametersByPath, isEncrypted, stripPath} from '../aws/parameterStore';
-import {Semaphore} from 'async-mutex';
-import {getConfigVars} from "../aws/appConfigData";
-import {Package, TPackageMeta} from "./package";
-import {deepDiffMapper} from "../types/Object";
+import { destroyAppConfig, destroyRemainingConfigs, getConfig } from '../aws/appConfig';
+import { CenvParams } from '../params';
+import { CenvLog } from '../log';
+import { expandTemplateVars, simplify } from '../utils';
+import { decryptValue, deleteParametersByPath, isEncrypted, stripPath } from '../aws/parameterStore';
+import { Semaphore } from 'async-mutex';
+import { getConfigVars } from '../aws/appConfigData';
+import { Package, TPackageMeta } from './package';
+import { deepDiffMapper } from '../types/Object';
 
 //
 
@@ -25,17 +25,17 @@ export class CenvVarsCount {
 export class ParamsModule extends PackageModule {
   static semaphore = new Semaphore(2);
   static showDuplicateParams = false;
-  localConfig: EnvConfig = new EnvConfig()
-  deployedConfig: EnvConfig = new EnvConfig()
+  localConfig: EnvConfig = new EnvConfig();
+  deployedConfig: EnvConfig = new EnvConfig();
   pushedVarsTyped?: CenvVars;
   pushedVars?: VarList;
   localVars?: VarList;
   localVarsTyped = new CenvVars();
   materializedVars: VarList = {};
   materializedVarsVersion?: number;
-  hasCenvVars: boolean = false;
-  hasLocalConfig: boolean= false;
-  varsUpToDateFlag: boolean = false;
+  hasCenvVars = false;
+  hasLocalConfig = false;
+  varsUpToDateFlag = false;
   processStatus = '[PARAMS] needs update: vars not deployed';
   materializationStatus = '[PARAMS] needs update: vars not materialized';
   // not found in parameter store and has not been materialized
@@ -91,7 +91,7 @@ export class ParamsModule extends PackageModule {
   }
 
   public get localConfigValid() {
-    const mergedConfig = {...this.localConfig, ...this.deployedConfig};
+    const mergedConfig = { ...this.localConfig, ...this.deployedConfig };
     return (this.localConfig && this.deployedConfig && JSON.stringify(mergedConfig) === JSON.stringify(this.localConfig));
   }
 
@@ -102,19 +102,19 @@ export class ParamsModule extends PackageModule {
   get moduleStrings(): string[] {
     let items = super.moduleBaseStrings;
     if (this.duplicates.length && ParamsModule.showDuplicateParams) {
-      items = items.concat(this.printAllDuplicates().map((d) => colors.error(d)));
+      items = items.concat(this.printAllDuplicates().map((d) => CenvLog.colors.error(d)));
     }
 
     if (!this.pushedCounts) {
       return items;
     }
 
-    const getColor = (valid: boolean) => valid ? colors.std : colors.error;
-    const getColorBold = (valid: boolean) => valid ? colors.stdBold : colors.errorBold;
+    const getColor = (valid: boolean) => valid ? CenvLog.colors.std : CenvLog.colors.error;
+    const getColorBold = (valid: boolean) => valid ? CenvLog.colors.stdBold : CenvLog.colors.errorBold;
 
     const appColor = getColor(this.appValid);
     const appBold = getColorBold(this.appValid);
-    const envColor = getColor(this.envValid)
+    const envColor = getColor(this.envValid);
     const envBold = getColorBold(this.envValid);
     const geColor = getColor(this.geValid);
     const geBold = getColorBold(this.geValid);
@@ -124,11 +124,11 @@ export class ParamsModule extends PackageModule {
     const tBold = getColorBold(this.totalsMatch);
 
     if (this.pushedCounts) {
-      items.push(appColor(`[${appBold('app')}] local: ${appBold(this.localCounts?.app,)}, pushed: ${appBold(this.pushedCounts?.app)}`,),);
-      items.push(envColor(`[${envBold('environment')}] local: ${envBold(this.localCounts?.environment,)}, pushed: ${envBold(this.pushedCounts?.environment)}`,),);
-      items.push(geColor(`[${geBold('globalEnv')}] local: ${geBold(this.localCounts?.globalEnv,)}, pushed: ${geBold(this.pushedCounts?.globalEnv)}`,),);
-      items.push(gColor(`[${gBold('global')}] local: ${gBold(this.localCounts?.global,)}, pushed: ${gBold(this.pushedCounts?.global)}`,),);
-      items.push(tColor(`totals - local: ${tBold(this.localTotal)} pushed: ${tBold(this.pushedTotal,)} materialized: ${tBold(this.materializedTotal)}`,),);
+      items.push(appColor(`[${appBold('app')}] local: ${appBold(this.localCounts?.app)}, pushed: ${appBold(this.pushedCounts?.app)}`));
+      items.push(envColor(`[${envBold('environment')}] local: ${envBold(this.localCounts?.environment)}, pushed: ${envBold(this.pushedCounts?.environment)}`));
+      items.push(geColor(`[${geBold('globalEnv')}] local: ${geBold(this.localCounts?.globalEnv)}, pushed: ${geBold(this.pushedCounts?.globalEnv)}`));
+      items.push(gColor(`[${gBold('global')}] local: ${gBold(this.localCounts?.global)}, pushed: ${gBold(this.pushedCounts?.global)}`));
+      items.push(tColor(`totals - local: ${tBold(this.localTotal)} pushed: ${tBold(this.pushedTotal)} materialized: ${tBold(this.materializedTotal)}`));
     }
 
     return items;
@@ -200,13 +200,13 @@ export class ParamsModule extends PackageModule {
       this.cenvVars = await getConfigVars(true);
     }
     if (CenvLog.isInfo) {
-      this.pkg.stdPlain('# cenv vars')
-      this.pkg.printEnvVars(this.cenvVars)
+      this.pkg.stdPlain('# cenv vars');
+      this.pkg.printEnvVars(this.cenvVars);
     }
 
     if (CenvLog.isVerbose && process.env.CENV_ENV_VARS_VERBOSE) {
-      this.pkg.stdPlain('# env vars')
-      this.pkg.printEnvVars(process.env as Record<string, string>)
+      this.pkg.stdPlain('# env vars');
+      this.pkg.printEnvVars(process.env as Record<string, string>);
     }
     this.varsLoaded = true;
   }
@@ -234,13 +234,12 @@ export class ParamsModule extends PackageModule {
     await CenvParams.Materialize(false);
   }
 
-
   async getParams() {
     await this.checkStatus();
     await this.loadVars();
     const stagedParams = {
       local: this.localVarsTyped,
-    }
+    };
     if (this.localVarsTyped) {
       console.log('local', this.localVarsTyped);
     }
@@ -286,6 +285,7 @@ export class ParamsModule extends PackageModule {
 
     release();
   }
+
   /*async deploy(options: any) {
     const [value, release] = await ParamsModule.semaphore.acquire();
 
@@ -317,13 +317,13 @@ export class ParamsModule extends PackageModule {
     try {
       let expandedMaterializedVars: any = {};
       if (this.materializedVars) {
-        expandedMaterializedVars = expandTemplateVars(JSON.parse(JSON.stringify(this.materializedVars)),);
+        expandedMaterializedVars = expandTemplateVars(JSON.parse(JSON.stringify(this.materializedVars)));
       }
       let expandedPushedVars: any = {};
       if (this.pushedVars) {
-        expandedPushedVars = expandTemplateVars(JSON.parse(JSON.stringify(this.pushedVars)),);
+        expandedPushedVars = expandTemplateVars(JSON.parse(JSON.stringify(this.pushedVars)));
       }
-      const expandedLocalVars = expandTemplateVars(JSON.parse(JSON.stringify(this.localVars)),);
+      const expandedLocalVars = expandTemplateVars(JSON.parse(JSON.stringify(this.localVars)));
 
       let match = true;
 
@@ -345,14 +345,14 @@ export class ParamsModule extends PackageModule {
           pushVal = await decryptValue(expandedPushedVars[key]);
         }
         if (pushVal !== val) {
-          this.pkg.info(`[${this.pkg.stackName}] local -> {${key}: ${val}} does not match pushed -> {${key}: ${pushVal}}`,);
+          this.pkg.info(`[${this.pkg.stackName}] local -> {${key}: ${val}} does not match pushed -> {${key}: ${pushVal}}`);
           this.needsDeploy = true;
           match = false;
           valueMatch = false;
           this.unmatchedDeployedVars.push(key);
         }
         if (expandedMaterializedVars[key] !== val) {
-          this.pkg.info(`[${this.pkg.stackName}] local -> {${key}: ${val}} does not match materialized -> {${key}: ${expandedMaterializedVars[key]}}`,);
+          this.pkg.info(`[${this.pkg.stackName}] local -> {${key}: ${val}} does not match materialized -> {${key}: ${expandedMaterializedVars[key]}}`);
           this.needsMaterialization = true;
           match = false;
           valueMatch = false;
@@ -373,7 +373,7 @@ export class ParamsModule extends PackageModule {
           this.localNotFoundVars.push(key);
         }
         if (expandedMaterializedVars[key] !== val) {
-          this.pkg.info(`[${this.pkg.stackName}] pushed -> {${key}: ${val}} does not match materialized -> {${key}: ${expandedMaterializedVars[key]}}`,);
+          this.pkg.info(`[${this.pkg.stackName}] pushed -> {${key}: ${val}} does not match materialized -> {${key}: ${expandedMaterializedVars[key]}}`);
           this.needsMaterialization = true;
           match = false;
           this.unmatchedMaterializedVars.push(key);
@@ -384,13 +384,13 @@ export class ParamsModule extends PackageModule {
       }
 
       if (Object.keys(expandedPushedVars)?.length !== Object.keys(expandedLocalVars)?.length) {
-        this.processStatus = this.statusLine('deployed vars not in sync', "deployed var count doesn't match local", true,);
+        this.processStatus = this.statusLine('deployed vars not in sync', 'deployed var count doesn\'t match local', true);
       } else if (Object.keys(expandedMaterializedVars)?.length !== Object.keys(expandedPushedVars)?.length && !this.duplicates.length) {
-        this.materializationStatus = this.statusLine(`materialized vars not in sync`, "materialized var count doesn't match deployed", true,);
+        this.materializationStatus = this.statusLine(`materialized vars not in sync`, 'materialized var count doesn\'t match deployed', true);
       } else if (this.unmatchedDeployedVars?.length) {
-        this.processStatus = this.statusLine(`orphaned deployed vars`, "deployed var values don't match local or materialized vars", true,);
+        this.processStatus = this.statusLine(`orphaned deployed vars`, 'deployed var values don\'t match local or materialized vars', true);
       } else if (this.unmatchedMaterializedVars?.length) {
-        this.materializationStatus = this.statusLine(`orphaned materialized vars`, "materialized var values don't match local or pushed vars", true,);
+        this.materializationStatus = this.statusLine(`orphaned materialized vars`, 'materialized var values don\'t match local or pushed vars', true);
       }
 
       this.materializedTotal = this.materializedVars ? Object.keys(this.materializedVars).length : 0;
@@ -436,7 +436,7 @@ export class ParamsModule extends PackageModule {
       for (const key of Object.keys(this.localVarsTyped.global) as string[]) {
         if (this.localVarsTyped.app[key]) {
           this.pkg.alert(`${key} from app and keep the version in global`, 'remove parameter');
-          await CenvParams.removeParameters([key], {}, ['app'], false)
+          await CenvParams.removeParameters([key], {}, ['app'], false);
         }
         if (this.localVarsTyped.environment[key]) {
           this.pkg.alert(`${key} from environment and keep the version in global`, 'remove parameter');
@@ -456,22 +456,22 @@ export class ParamsModule extends PackageModule {
 
   getDetails() {
     if (this.duplicates.length && ParamsModule.showDuplicateParams) {
-      this.status.needsFix.push(this.statusLineType('duplicates', `param(s) exist in more than one param type\n\t${this.printAllDuplicates().join('\n\t',)}`, 'needsFix',),);
+      this.status.needsFix.push(this.statusLineType('duplicates', `param(s) exist in more than one param type\n\t${this.printAllDuplicates().join('\n\t')}`, 'needsFix'));
     }
 
     if (this.varsUpToDate() && this.hasCenvVars) {
-      this.status.deployed.push(this.statusLineType('up to date', 'local vars, pushed vars, and deployed vars are in sync', 'deployed',),);
+      this.status.deployed.push(this.statusLineType('up to date', 'local vars, pushed vars, and deployed vars are in sync', 'deployed'));
     } else {
 
       if (!this.localConfigValid) {
-        this.status.incomplete.push(this.statusLineType('needs deploy', 'no config or config invalid', 'incomplete',));
+        this.status.incomplete.push(this.statusLineType('needs deploy', 'no config or config invalid', 'incomplete'));
       } else if (!this.totalsMatch) {
         if (this.localTotal !== this.pushedTotal) {
-          this.status.incomplete.push(this.statusLineType('pushed param count mismatch', `local param count: ${this.localTotal} pushed param count: ${this.pushedTotal}`, 'incomplete',));
+          this.status.incomplete.push(this.statusLineType('pushed param count mismatch', `local param count: ${this.localTotal} pushed param count: ${this.pushedTotal}`, 'incomplete'));
         } else if (this.materializedTotal === 0) {
-          this.status.incomplete.push(this.statusLineType('params not materialized', `none of the ${this.localTotal} params have been materialized`, 'incomplete',));
+          this.status.incomplete.push(this.statusLineType('params not materialized', `none of the ${this.localTotal} params have been materialized`, 'incomplete'));
         } else if (this.materializedTotal !== this.materializedTotalExpected && !this.duplicates.length) {
-          this.status.incomplete.push(this.statusLineType('materialized mismatch', `pushed count: ${this.pushedTotal} materialized count: ${this.materializedTotal}`, 'incomplete',));
+          this.status.incomplete.push(this.statusLineType('materialized mismatch', `pushed count: ${this.pushedTotal} materialized count: ${this.materializedTotal}`, 'incomplete'));
         }
       }
     }
@@ -524,28 +524,28 @@ export class ParamsModule extends PackageModule {
     this.materializedTotal = 0;
     this.duplicates = [];
     this.materializedVarsVersion = undefined;
-    this.deployedConfig = new EnvConfig()
-    this.status = {needsFix: [], deployed: [], incomplete: []};
+    this.deployedConfig = new EnvConfig();
+    this.status = { needsFix: [], deployed: [], incomplete: [] };
   }
 
   statusIssues() {
-    const paramsUpToDate = !this?.hasCenvVars || this?.varsUpToDateFlag
+    const paramsUpToDate = !this?.hasCenvVars || this?.varsUpToDateFlag;
     this.verbose(`hasCenvVars: [${this?.hasCenvVars}] varsUpToDateFlag: [${this?.varsUpToDateFlag}] paramsUpToDate: ${paramsUpToDate}`, 'params status debug');
   }
 
   printCheckStatusComplete(): void {
-    let status = `loaded local params file: ${EnvConfigFile.PATH}\n`
+    let status = `loaded local params file: ${EnvConfigFile.PATH}\n`;
     let end = '';
     if (this.localVars) {
       status += `local params count [${Object.keys(this.localVars).length}]`;
-      end = '\n'
+      end = '\n';
     }
     if (this.pushedVars) {
       status += end + `pushed params count [${Object.keys(this.pushedVars).length}]`;
-      end = '\n'
+      end = '\n';
     }
     if (this.materializedVars) {
-      status += end + `materialized params count [${Object.keys(this.materializedVars).length}]`
+      status += end + `materialized params count [${Object.keys(this.materializedVars).length}]`;
     }
     this.info(status);
     this.checked = true;
@@ -560,7 +560,7 @@ export class ParamsModule extends PackageModule {
       this.printCheckStatusStart();
       const depRes = await getConfig(this.name);
       if (depRes) {
-        this.deployedConfig = depRes.config
+        this.deployedConfig = depRes.config;
         this.materializedVarsVersion = depRes.version;
       }
       const relative = path.relative(process.cwd(), this.path);
@@ -592,13 +592,13 @@ export class ParamsModule extends PackageModule {
           this.pushedCounts = this.getVarCounts(this.pushedVarsTyped);
           this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);
           if (this.materializedVarsVersion) {
-            this.materializedVars = await CenvParams.pull(true, false, true, false, false, false, this.deployedConfig, true,);
+            this.materializedVars = await CenvParams.pull(true, false, true, false, false, false, this.deployedConfig, true);
           }
           await this.checkVarsUpToDate();
         }
       }
 
-      this.printCheckStatusComplete()
+      this.printCheckStatusComplete();
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
@@ -610,14 +610,14 @@ export class ParamsModule extends PackageModule {
       exists.types.push(dupeSection);
       exists.types = [...new Set(exists.types)];
     } else {
-      this.duplicates.push({key, types: [section, dupeSection]});
+      this.duplicates.push({ key, types: [section, dupeSection] });
     }
   }
 
   checkForDuplicates() {
     if (this.localVarsTyped.app) {
       Object.keys(this.localVarsTyped?.app).forEach((v, i) => {
-        const section = 'app'
+        const section = 'app';
         if (this.localVarsTyped?.environment[v]) {
           this.pushDuplicate(v, section, 'environment');
         }
@@ -632,7 +632,7 @@ export class ParamsModule extends PackageModule {
 
     if (this.localVarsTyped.environment) {
       Object.keys(this.localVarsTyped.environment).forEach((v, i) => {
-        const section = 'environment'
+        const section = 'environment';
         if (this.localVarsTyped?.globalEnv[v]) {
           this.pushDuplicate(v, section, 'globalEnv');
         }
@@ -651,7 +651,7 @@ export class ParamsModule extends PackageModule {
     }
 
     if (this.duplicates.length && ParamsModule.showDuplicateParams) {
-      this.pkg.setBroken(`[${this.pkg.packageName}] duplicate param(s)`)
+      this.pkg.setBroken(`[${this.pkg.packageName}] duplicate param(s)`);
     }
   }
 
@@ -660,6 +660,6 @@ export class ParamsModule extends PackageModule {
     const environment = typedVars?.environment ? Object.keys(typedVars?.environment)?.length : 0;
     const globalEnv = typedVars?.globalEnv ? Object.keys(typedVars?.globalEnv)?.length : 0;
     const global = typedVars?.global ? Object.keys(typedVars?.global)?.length : 0;
-    return {app, environment, globalEnv, global};
+    return { app, environment, globalEnv, global };
   }
 }

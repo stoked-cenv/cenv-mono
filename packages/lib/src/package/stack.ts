@@ -2,7 +2,7 @@ import { PackageModule, PackageModuleType, ProcessMode } from './module';
 import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
 import { deleteStack, describeStacks } from '../aws/cloudformation';
 import { parse, SemVer } from 'semver';
-import { CenvLog, colors } from '../log';
+import { CenvLog } from '../log';
 import { removeScope, semVerParse } from '../utils';
 import { CommandEvents, Package, PackageCmd, TPackageMeta } from './package';
 import * as path from 'path';
@@ -360,7 +360,7 @@ export class StackModule extends PackageModule {
         }
       }
       if (!this.stackVersion) {
-        this.status.incomplete.push(this.statusLine('not fully deployed', `the stack [${colors.errorBold(this.pkg.stackName)}] exists in environment ${process.env.ENV} but has not been tagged with a CENV_PKG_VERSION`, true));
+        this.status.incomplete.push(this.statusLine('not fully deployed', `the stack [${CenvLog.colors.errorBold(this.pkg.stackName)}] exists in environment ${process.env.ENV} but has not been tagged with a CENV_PKG_VERSION`, true));
       } else if (parse(this.stackVersion) !== this.pkg.rollupVersion) {
         this.status.incomplete.push(this.versionMismatch(this.stackVersion.toString()));
       }

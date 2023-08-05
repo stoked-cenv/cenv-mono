@@ -1,5 +1,5 @@
 import * as path from 'path';
-import {CenvLog, colors} from './log';
+import {CenvLog} from './log';
 import {Package} from './package/package';
 import {eq, lt, parse, RangeOptions, SemVer} from "semver";
 import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} from "fs";
@@ -280,7 +280,7 @@ export class Version {
         if (process.env.KILL_IT_WITH_FIRE) {
           rmSync(file);
         } else {
-          CenvLog.single.alertLog(`attempting to upgrade file ${colors.alertBold(file,)} but the file ${colors.alertBold(newFile)} already exists`,);
+          CenvLog.single.alertLog(`attempting to upgrade file ${CenvLog.colors.alertBold(file,)} but the file ${CenvLog.colors.alertBold(newFile)} already exists`,);
         }
         continue;
       }

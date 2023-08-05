@@ -3,7 +3,7 @@ import path, { join } from 'path';
 import { equal } from 'uvu/assert';
 import { CliModule } from '../../../src/cli/cli.module';
 import { createMock } from '../../common/log.mock';
-import { CenvFiles, CenvLog, colors } from '@stoked-cenv/lib';
+import { CenvFiles, CenvLog } from '@stoked-cenv/lib';
 import { suite } from 'uvu';
 import { Stub, stubMethod } from 'hanbi';
 import * as Console from 'console';
@@ -31,9 +31,9 @@ const cliVersion = require(path.join(cliPath, 'package.json')).version;
 const libVersion = require(path.join(libPath, 'package.json')).version;
 const uiVersion = require(path.join(uiPath, 'package.json')).version;
 
-const version = `${colors.info('@stoked-cenv/cli')}: ${colors.infoBold(cliVersion)}
-${colors.info('@stoked-cenv/lib')}: ${colors.infoBold(libVersion)}
-${colors.info('@stoked-cenv/ui')}: ${colors.infoBold(uiVersion)}`;
+const version = `${CenvLog.colors.info('@stoked-cenv/cli')}: ${CenvLog.colors.infoBold(cliVersion)}
+${CenvLog.colors.info('@stoked-cenv/lib')}: ${CenvLog.colors.infoBold(libVersion)}
+${CenvLog.colors.info('@stoked-cenv/ui')}: ${CenvLog.colors.infoBold(uiVersion)}`;
 
 const versionTester = createMock('Cenv Version Flag', 'stdLog');
 export const CenvVersionFlagSuite = versionTester.suite;

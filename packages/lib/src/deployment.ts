@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { Environments } from './environment';
 import { Cenv } from './cenv';
 import { EnvironmentStatus, IPackage, Package, ProcessStatus } from './package/package';
@@ -6,7 +5,7 @@ import { getOs, isOsSupported, simplify, sleep } from './utils';
 
 import Fake from './fake';
 import { ProcessMode } from './package/module';
-import { CenvLog, colors, LogLevel } from './log';
+import { CenvLog, LogLevel } from './log';
 import { Version } from './version';
 import { listStacks } from './aws/cloudformation';
 import { ParamsModule } from './package/params';
@@ -333,7 +332,7 @@ export class Deployment {
     });
 
     if (Cenv.dashboard) {
-      return Cenv.dashboard.createBox(ctrl, title, [lines.join('\n')], chalk.bgBlue, colors.infoBold);
+      return Cenv.dashboard.createBox(ctrl, title, [lines.join('\n')], CenvLog.chalk.bgBlue, CenvLog.colors.infoBold);
     } else {
       return lines.join('\n');
 
@@ -429,7 +428,7 @@ export class Deployment {
         }
 
         if (!dockerStatus.active) {
-          CenvLog.err('docker daemon not active after 30 seconds:\n' + colors.info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
+          CenvLog.err('docker daemon not active after 30 seconds:\n' + CenvLog.colors.info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
           return;
         } else {
           CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
@@ -506,7 +505,7 @@ export class Deployment {
           }
         }
         cancelledDependencies?.forEach((f) => {
-          CenvLog.single.alertLog(`${colors.alertBold(f)} service cancelled because it was depending on ${colors.alertBold(pkg.packageName)} which failed`, f);
+          CenvLog.single.alertLog(`${CenvLog.colors.alertBold(f)} service cancelled because it was depending on ${CenvLog.colors.alertBold(pkg.packageName)} which failed`, f);
           delete this.toProcess[f];
           this.cancelDependencies(Package.fromStackName(f));
         });

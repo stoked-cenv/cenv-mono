@@ -10,7 +10,7 @@ import {
   PutKeyPolicyCommand,
 } from '@aws-sdk/client-kms';
 
-import {CenvLog, colors} from '../log';
+import {CenvLog} from '../log';
 import {getAccountId} from './sts';
 // import { isArray } from 'aws-cdk/lib/util';
 
@@ -150,7 +150,7 @@ export async function createKey() {
     return res.KeyMetadata?.KeyId?.toString();
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`failed to create key: ${colors.errorBold(e.message)}, ${e}`)
+      CenvLog.single.errorLog(`failed to create key: ${CenvLog.colors.errorBold(e.message)}, ${e}`)
     }
     return false;
   }
@@ -193,7 +193,7 @@ export async function addKeyAccount(Account: string) {
     return await getClient().send(putPolicyKeyCmd);
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.errorLog(`failed to add account ${Account} to the curb-key: ${colors.errorBold(e.message)}, ${e}`)
+      CenvLog.single.errorLog(`failed to add account ${Account} to the curb-key: ${CenvLog.colors.errorBold(e.message)}, ${e}`)
     }
     return false;
   }
@@ -202,7 +202,7 @@ export async function addKeyAccount(Account: string) {
 export async function encrypt(Plaintext: any) {
   try {
     if (!process.env.KMS_KEY) {
-      CenvLog.single.catchLog(`no KMS_KEY configured run ${colors.errorBold('cenv install -k')} to install a key on this account or ${colors.errorBold('cenv config -k')} to configure a key from another account`);
+      CenvLog.single.catchLog(`no KMS_KEY configured run ${CenvLog.colors.errorBold('cenv install -k')} to install a key on this account or ${CenvLog.colors.errorBold('cenv config -k')} to configure a key from another account`);
       process.exit(883);
     }
     const input = {
@@ -215,7 +215,7 @@ export async function encrypt(Plaintext: any) {
     return buff.toString('base64');
   } catch (e) {
     if (e instanceof Error) {
-      CenvLog.single.catchLog(`kms encrypt failed: ${colors.errorBold(e.message)}\n${e}`)
+      CenvLog.single.catchLog(`kms encrypt failed: ${CenvLog.colors.errorBold(e.message)}\n${e}`)
     }
     process.exit(884);
   }
@@ -231,7 +231,7 @@ export async function decrypt(CiphertextBlob: any) {
     const decryptedData = String.fromCharCode.apply(null, Array.from(new Uint16Array(decryptedBinaryData.Plaintext as Uint8Array)));
     return decryptedData.replace(/['"]+/g, '');
   } catch (e) {
-    CenvLog.single.catchLog(`kms decrypt failed: ${colors.errorBold(e as string)}`)
+    CenvLog.single.catchLog(`kms decrypt failed: ${CenvLog.colors.errorBold(e as string)}`)
     process.exit(333);
   }
 }

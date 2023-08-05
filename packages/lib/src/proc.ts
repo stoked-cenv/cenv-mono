@@ -9,7 +9,7 @@ import child from 'child_process';
 import { Cenv } from './cenv';
 import { CenvFiles } from './file';
 import { deleteCenvData } from './aws/appConfig';
-import {  CenvLog, colors } from './log'
+import {  CenvLog } from './log'
 
 export async function runScripts(pkgModule: PackageModule, scripts: (string | { exec: string, options: object })[] | undefined) {
   if (scripts) {
@@ -194,13 +194,13 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
       const cons = `${hostname()}:${consoleFolder} ${process.env.USER}$`;
       if (!packageInfo) {
         if (envVarDisplay && envVarDisplay.trim().length > 0) {
-          log(options, cmdLog, packageInfo, envVarDisplay ? envVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo, envVarDisplay ? envVarDisplay.split(' ').join(CenvLog.colors.info(`\n`) + `export `).replace('\n', '') : '');
         }
         if (configVarDisplay && configVarDisplay.trim().length > 0) {
           log(options, cmdLog, packageInfo, '# cenv config vars');
-          log(options, cmdLog, packageInfo, configVarDisplay ? configVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '');
+          log(options, cmdLog, packageInfo, configVarDisplay ? configVarDisplay.split(' ').join(CenvLog.colors.info(`\n`) + `export `).replace('\n', '') : '');
         }
-        log(options, cmdLog, packageInfo, `${colors.info(`${cons} `)}${colors.infoBold(cmd)}`)
+        log(options, cmdLog, packageInfo, `${CenvLog.colors.info(`${cons} `)}${CenvLog.colors.infoBold(cmd)}`)
       }
 
       const spawnArgs = cmd.split(' ');
@@ -371,8 +371,8 @@ export async function execCmd(cmd: string, options: {
     try {
       if (pkg.name && !silent) {
         //log(`${cons} cd ${infoBold(folder)}`);
-        CenvLog.single.stdLog(envVarDisplay ? envVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '', pkg.stackName);
-        CenvLog.single.infoLog(`${colors.info(cons)} ${cmd}`, pkg?.stackName);
+        CenvLog.single.stdLog(envVarDisplay ? envVarDisplay.split(' ').join(CenvLog.colors.info(`\n`) + `export `).replace('\n', '') : '', pkg.stackName);
+        CenvLog.single.infoLog(`${CenvLog.colors.info(cons)} ${cmd}`, pkg?.stackName);
       }
     } catch (e) {
       if (e) {
@@ -403,7 +403,7 @@ export async function processEnvFile(envFile: string, envName: string) {
   if (result?.length === 5) {
     const [, servicePath, , configEnvironment] = result;
     if (configEnvironment === envName || configEnvironment === "" || configEnvironment === 'globals') {
-      CenvLog.info(colors.infoBold(servicePath), 'service path');
+      CenvLog.info(CenvLog.colors.infoBold(servicePath), 'service path');
       return {valid: true, servicePath, environment: envName};
     }
   }
@@ -500,8 +500,8 @@ export function execCmd(folder: string, cmd: string, name?: string, envVars: obj
     try {
       if (name && !silent) {
         //log(`${cons} cd ${infoBold(folder)}`);
-        log(envVarDisplay ? envVarDisplay.split(' ').join(colors.info(`\n`) + `export `).replace('\n', '') : '')
-        CenvLog.single.infoLog(`${colors.info(cons)} ${cmd}`, pkg?.stackName);
+        log(envVarDisplay ? envVarDisplay.split(' ').join(CenvLog.colors.info(`\n`) + `export `).replace('\n', '') : '')
+        CenvLog.single.infoLog(`${CenvLog.colors.info(cons)} ${cmd}`, pkg?.stackName);
       }
     } catch (e) {
       if (e) {

@@ -1,4 +1,4 @@
-import { CenvLog, colors } from './log';
+import { CenvLog } from './log';
 import {
   addUserToGroup,
   attachPolicyToGroup,
@@ -25,8 +25,6 @@ import {
   getDeploymentStrategy,
   getEnvironment,
 } from './aws/appConfig';
-import * as chalk from 'chalk';
-import * as path from 'path';
 import { CenvParams, validateOneType } from './params';
 import { Environment } from './environment';
 import { Export } from '@aws-sdk/client-cloudformation';
@@ -235,7 +233,7 @@ export class Cenv {
 
   static async env(params: string[], options: Record<string, any>) {
     if (!params.length) {
-      CenvLog.info(`current environment: ${colors.infoBold(process.env.ENV)}`);
+      CenvLog.info(`current environment: ${CenvLog.colors.infoBold(process.env.ENV)}`);
     }
     if (options.exports) {
       let exports: any = await listExports();
@@ -247,7 +245,7 @@ export class Cenv {
       }
       CenvLog.info('exports');
       const coloredLines = exports.map((e: Export) => {
-        return `\t${e.Name}: ${colors.infoBold(e.Value)}`;
+        return `\t${e.Name}: ${CenvLog.colors.infoBold(e.Value)}`;
       });
       CenvLog.info(coloredLines.join('\n'));
       return;
@@ -290,7 +288,7 @@ export class Cenv {
       if (!silent) {
         if (!verified) {
           CenvLog.info(`cenv failed validation with the following missing components:`);
-          componentsMissing.map((component) => CenvLog.info(` - ${component[0]} (${colors.infoBold(component[1])})`));
+          componentsMissing.map((component) => CenvLog.info(` - ${component[0]} (${CenvLog.colors.infoBold(component[1])})`));
         } else {
           CenvLog.info('cenv www has been verified');
         }
@@ -388,7 +386,7 @@ export class Cenv {
         return;
       }
 
-      //CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${colors.infoBold('🙄')}`);
+      //CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${CenvLog.colors.infoBold('🙄')}`);
       await sleep(8);
       // iam client => waitUntilRoleExists
 

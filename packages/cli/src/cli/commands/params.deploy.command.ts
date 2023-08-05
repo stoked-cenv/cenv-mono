@@ -1,5 +1,5 @@
 import { Option, SubCommand } from 'nest-commander';
-import { BaseCommandOptions, colors, getConfig, Package } from '@stoked-cenv/lib';
+import { BaseCommandOptions, CenvLog, getConfig, Package } from '@stoked-cenv/lib';
 import { rmSync } from 'fs';
 import { BaseCommand } from './base.command';
 
@@ -34,7 +34,7 @@ export class ParamsDeployCommand extends BaseCommand {
 
       //}
     } catch (e) {
-      console.log(colors.error(e));
+      console.log(CenvLog.colors.error(e));
     }
   }
 }
