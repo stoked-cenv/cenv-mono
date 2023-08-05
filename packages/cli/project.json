@@ -10,6 +10,8 @@
         {
           "target": "build",
           "projects": "dependencies"
+
+
         }
       ],
       "options": {
@@ -25,10 +27,10 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "ss $(pwd) ",
+          "./git-check.sh",
           "pnpm run build",
-          "ts-node fixup-dist.ts"
-
+          "ts-node fixup-dist.ts",
+          "pnpm run publish:bump"
         ],
         "parallel": false
       }
