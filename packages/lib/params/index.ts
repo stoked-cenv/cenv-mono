@@ -1,11 +1,11 @@
 import { CenvParams, LambdaProcessResponse } from '@stoked-cenv/lib';
 
-export async function handler(event: any, context: any, callback: (error: Error, output?: LambdaProcessResponse) => void) {
+export async function handler(event: any, context: any, callback: (error: Error | unknown, output?: LambdaProcessResponse) => void) {
   try {
     const output: LambdaProcessResponse = await CenvParams.MaterializeCore(event);
     callback(null, output);
-  } catch (err) {
+  } catch (err: Error | unknown) {
     console.log('error:\n', JSON.stringify(err, null, 2));
     callback(err);
   }
-};
+}

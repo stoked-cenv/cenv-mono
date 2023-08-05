@@ -14,7 +14,7 @@ import {
   getRole,
 } from './aws/iam';
 import { Package, PackageCmd } from './package/package';
-import { deleteFunction, getFunction } from './aws/lambda';
+import { createFunction, deleteFunction, getFunction } from './aws/lambda';
 import {
   createApplication,
   createDeploymentStrategy,
@@ -388,13 +388,14 @@ export class Cenv {
         return;
       }
 
-      CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${colors.infoBold('🙄')}`);
+      //CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${colors.infoBold('🙄')}`);
       await sleep(8);
       // iam client => waitUntilRoleExists
 
       const materializationExists = await getFunction('cenv-params');
       if (!materializationExists) {
-        await CenvParams.createParamsLibrary();
+        const cenvParamsZip = await CenvParams.createParamsLibrary();
+        await createFunction('cenv-params', cenvParamsZip, roleArn, {}, {  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV! })
         //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV },);
       }
     } catch (e) {

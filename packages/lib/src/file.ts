@@ -904,6 +904,13 @@ export class CenvFiles {
     return undefined;
   }
 
+  static freshPath(path: string) {
+    if (!existsSync(path)) {
+      rmSync(path, { recursive: true, force: true });
+    }
+
+    mkdirSync(path, { recursive: true });
+  }
   static ensurePath(path: string) {
     if (!existsSync(path)) {
       mkdirSync(path, {recursive: true});

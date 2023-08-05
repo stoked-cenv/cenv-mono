@@ -29,7 +29,7 @@ import {getConfigVars} from './aws/appConfigData';
 
 import {expandTemplateVars, sleep,} from './utils';
 import { AppVarsFile, CenvFiles, EnvConfig, EnvVarsFile, GlobalEnvVarsFile, GlobalVarsFile, search_sync } from './file';
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import {Package} from './package/package';
 import {Environment} from "./environment";
 import {ProcessMode} from "./package/module";
@@ -858,36 +858,47 @@ export class CenvParams {
 
   public static async createParamsLibrary() {
 
-    if (!existsSync(CenvFiles.GIT_TEMP_PATH)) {
-      mkdirSync(CenvFiles.GIT_TEMP_PATH);
-    }
-
-    const libPathModule = CenvFiles.GIT_TEMP_PATH + '/node_modules/@stoked-cenv/lib';
-    if (!existsSync(libPathModule)) {
-      mkdirSync(libPathModule, { recursive: true });
-    }
-
-    const libPath = path.join(__dirname, '../');
-    const pkg = '/package.json';
-    const tsconfig = '/tsconfig.json';
-    const index = '/index.ts';
-
-    cpSync(libPath + 'dist', libPathModule, { recursive: true });
-    copyFileSync(libPath + tsconfig, libPathModule + tsconfig);
-    const pkgMeta = require(libPath + 'package.json');
-    delete pkgMeta.dependencies['stoked-cenv'];
-    writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
+    console.log('create params library')
+    const cenvParamsPath = path.join(CenvFiles.ARTIFACTS_PATH, 'cenvParams');
+    CenvFiles.freshPath(cenvParamsPath);
     const paramsPath = path.join(__dirname, '../params');
-    copyFileSync(paramsPath + pkg + '.build', CenvFiles.GIT_TEMP_PATH + pkg);
-    copyFileSync(paramsPath + tsconfig + '.build', CenvFiles.GIT_TEMP_PATH + tsconfig);
-    copyFileSync(paramsPath + index + '.build', CenvFiles.GIT_TEMP_PATH + index);
+    cpSync(paramsPath, cenvParamsPath, { recursive: true, dereference: true });
+    await execCmd('npm i', { path: cenvParamsPath });
+    await execCmd('tsc', { path: cenvParamsPath });
+    await execCmd(`zip -r materializationLambda.zip * > zip.log`, { path: cenvParamsPath });
+    return path.join(cenvParamsPath, `materializationLambda.zip`);
+    /*
+        const libPathModule = cenvParamsPath + '/node_modules/@stoked-cenv/lib';
+        CenvFiles.freshPath(libPathModule);
 
-    await execCmd('npm i', { path: libPathModule });
-    await execCmd('npm i', { path: CenvFiles.GIT_TEMP_PATH });
-    await execCmd('tsc', { path: CenvFiles.GIT_TEMP_PATH });
+        const libPath = path.join(__dirname, '../');
+        const pkg = '/package.json';
+        const tsconfig = 'tsconfig.json';
+        const index = '/index.ts';
+        console.log(1, libPath, libPathModule);
+        cpSync(path.join(libPath, 'src'), libPathModule, { recursive: true, dereference: true });
+        console.log(2);
+        cpSync(path.join(libPath,  'tsconfig.build.json' ), path.join(libPathModule, tsconfig), { recursive: true });
+        const pkgMeta = require(libPath + 'package.json');
+        writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
+        const paramsPath = path.join(__dirname, '../params');
+        cpSync(paramsPath + pkg + '.build', cenvParamsPath + pkg, { recursive: true });
+        cpSync(path.join(paramsPath, tsconfig + '.build'), path.join(cenvParamsPath, tsconfig), { recursive: true });
+        cpSync(paramsPath + index + '.build', cenvParamsPath + index, { recursive: true });
 
-    await execCmd(`zip -r materializationLambda.zip * > zip.log`, { path: CenvFiles.GIT_TEMP_PATH });
-    return path.join(CenvFiles.GIT_TEMP_PATH, `materializationLambda.zip`);
+
+        await execCmd('npm i', { path: libPathModule });
+        await execCmd('npm i', { path: cenvParamsPath });
+        const tmpParamsPath = path.join(cenvParamsPath, '../tmp');
+        CenvFiles.freshPath(tmpParamsPath);
+        await execCmd(`tsc --project tsconfig.build.json -outDir ${tmpParamsPath}`)
+        console.log(2);
+        cpSync(cenvParamsPath + '/lib', libPathModule, { recursive: true, dereference: true });
+        await execCmd(`zip -r materializationLambda.zip * > zip.log`, { path: cenvParamsPath });
+        return path.join(cenvParamsPath, `materializationLambda.zip`);
+
+         */
+    return "stuff";
   }
 
   private static initFlagValidation(options?: Record<string, any>): FlagValidation {

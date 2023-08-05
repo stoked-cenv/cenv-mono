@@ -7,8 +7,8 @@
     "allowSyntheticDefaultImports": true,
     "target": "es2017",
     "sourceMap": true,
-    "outDir": "",
-    "baseUrl": "src",
+    "outDir": "./",
+    "baseUrl": "./",
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": true,
@@ -20,7 +20,7 @@
     "typeRoots": ["./types", "./node_modules/@types", "../dist"]
   },
   "include": [
-    "index.ts.bak.broken"
+    "index.ts"
   ],
-  "exclude": []
+  "exclude": ["node_modules"]
 }

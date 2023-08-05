@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/params",
-  "version": "2.0.0-a.19",
+  "version": "2.0.0-a.52",
   "private": true,
   "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
   "main": "index.js",
@@ -20,19 +20,13 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "dependencies": {
-    "@stoked-cenv/lib": "2.0.0-a.19",
+    "@stoked-cenv/lib": "^2.0.0-a.53",
     "async-mutex": "^0.4.0",
     "build": "^0.1.4",
     "js-yaml": "^4.1.0",
     "rimraf": "^4.4.1"
   },
   "devDependencies": {
-  },
-  "workspaces": {
-    "packages": [],
-    "nohoist": [
-      "**"
-    ]
   },
   "skipDeployBuild": true,
   "verifyStack": "cenv i --verify",

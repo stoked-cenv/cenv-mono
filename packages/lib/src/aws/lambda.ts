@@ -11,6 +11,7 @@ import {
 } from '@aws-sdk/client-lambda';
 import {fromUtf8, toUtf8} from '@aws-sdk/util-utf8-node';
 import {CenvLog, colors} from '../log';
+import { readFileSync } from 'fs';
 
 let _client: LambdaClient;
 
@@ -34,21 +35,21 @@ export async function updateConfiguration(FunctionName: string, envVars: any) {
   }
 }
 
-export async function createFunction(name: string, functionCode: FunctionCode, lambdaRole: string, envVars: any = {}, tags: Record<string, string> = {}) {
+export async function createFunction(name: string, zipFile: string, lambdaRole: string, envVars: any = {}, tags: Record<string, string> = {}) {
   try {
 
     if (process.env.AWS_ENDPOINT) {
       envVars['AWS_ENDPOINT'] = process.env.AWS_ENDPOINT;
     }
     const cmd = new CreateFunctionCommand({
-                                            Runtime: 'nodejs18.x',
-                                            Code: functionCode,
-                                            Handler: 'index.handler',
-                                            Role: lambdaRole,
-                                            FunctionName: name,
-                                            Environment: envVars,
-                                            Tags: tags,
-                                            Timeout: 20
+      Runtime: 'nodejs18.x',
+      Code: { ZipFile: readFileSync(zipFile) },
+      Handler: 'index.handler',
+      Role: lambdaRole,
+      FunctionName: name,
+      Environment: envVars,
+      Tags: tags,
+      Timeout: 20
                                           });
     const res = await getClient().send(cmd);
     if (res) {

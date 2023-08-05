@@ -21,11 +21,23 @@
         "deleteOutputPath": true
       }
     },
+    "cenv": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "ts-node packages/cli/src/main.ts i -cenv"
+        ],
+        "parallel": false
+      }
+    },
     "package": {
       "executor": "nx:run-commands",
       "options": {
         "commands": [
           "./git-check.sh",
+          "pnpm run publish:bump",
+          "pnpm run build",
+          "ts-node ./fixup-dist.ts",
           "pnpm run publish:bump"
         ],
         "parallel": false

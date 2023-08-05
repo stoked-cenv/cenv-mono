@@ -88,7 +88,7 @@
   ],
   "homepage": "https://cenv.stokedconsulting.com",
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.46 || ^2.0.0",
-    "@stoked-cenv/ui": "^2.0.0-a.46 || ^2.0.0"
+    "@stoked-cenv/lib": "^2.0.0-a.51 || ^2.0.0",
+    "@stoked-cenv/ui": "^2.0.0-a.51 || ^2.0.0"
   }
 }
