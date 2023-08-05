@@ -3,8 +3,9 @@
   "version": "2.0.0-a.50",
   "description": "A well considered cli and Node.js library for helping manage application, infrastructure, and configuration management.",
   "bin": {
-    "cenv": "./src/main.js"
+    "cenv": "src/ts-main.js"
   },
+  "main": "src/index.ts",
   "author": "Brian Stoker",
   "license": "MIT",
   "scripts": {

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "make": "pnpm run build && cp -R dist/cli ../cli && cd ../cli && npm i && cp -R ../cenv-mono/dist/ui node_modules/@stoked-cenv/ui && cp -R ../cenv-mono/dist/lib node_modules/@stoked-cenv/lib",
-    "build": "nx affected:build --parallel",
+    "package": "nx run @stoked-cenv/cli:package",
+    "build": "nx build @stoked-cenv/cli @stoked-cenv/cdk",
     "rebuild": "pnpm -r exec npx rimraf node_modules pnpm-lock.yaml; pnpm i; pnpm run build",
     "build:all": "pnpm -r run build",
     "lint": "pnpm -r run lint",

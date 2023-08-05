@@ -21,6 +21,18 @@
         "deleteOutputPath": true
       }
     },
+    "package": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "ss $(pwd) ",
+          "pnpm run build",
+          "ts-node fixup-dist.ts"
+
+        ],
+        "parallel": false
+      }
+    },
     "publish": {
       "executor": "nx:run-commands",
       "options": {
