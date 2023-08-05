@@ -14,10 +14,11 @@
       ],
       "options": {
         "outputPath": "dist/cli",
-        "main": "packages/cli/index.ts",
+        "baseUrl": "packages/cli/src",
+        "main": "packages/cli/src/main.ts",
+        "lib": "packages/cli/src/index.ts",
         "tsConfig": "packages/cli/tsconfig.build.json",
-        "deleteOutputPath": true,
-        "generateExportsField": true
+        "deleteOutputPath": true
       }
     },
     "publish": {

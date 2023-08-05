@@ -5,7 +5,7 @@
   "sourceRoot": "packages/cdk/src",
   "targets": {
     "build": {
-      "executor": "@nrwl/js:tsc",
+      "executor": "@nx/js:tsc",
       "dependsOn": [
         {
           "target": "build",
@@ -14,6 +14,7 @@
       ],
       "options": {
         "outputPath": "dist/cdk",
+        "baseUrl": "packages/cdk/src",
         "main": "packages/cdk/src/index.ts",
         "tsConfig": "packages/cdk/tsconfig.build.json",
         "deleteOutputPath": true,

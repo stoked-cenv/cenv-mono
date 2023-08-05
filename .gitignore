@@ -21,3 +21,4 @@ cdk.out
 cdk.context.json
 example/packages/spa/build/**/*
 tmp
+cli

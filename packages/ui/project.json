@@ -4,7 +4,7 @@
   "type": "library",
   "targets": {
     "build": {
-      "executor": "@nrwl/js:tsc",
+      "executor": "@nx/js:tsc",
       "dependsOn": [
         {
           "target": "build",
@@ -16,9 +16,7 @@
         "main": "packages/ui/src/index.ts",
         "tsConfig": "packages/ui/tsconfig.build.json",
         "deleteOutputPath": true,
-        "packageJson": "packages/ui/package.js.json",
-        "assets": ["packages/ui/types/**/*.d.ts"],
-        "generateExportsField": true
+        "assets": ["packages/ui/types/**/*.d.ts"]
       }
     },
     "publish": {
