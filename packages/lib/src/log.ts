@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import ChalkFunction from 'chalk';
 import {Cenv} from './cenv';
 import {cleanup} from "./utils";
 import {Injectable} from '@nestjs/common';
@@ -6,21 +7,21 @@ import {Injectable} from '@nestjs/common';
 const colors = {
   info: chalk.gray,
   infoDim: chalk.dim,
-  infoBold: chalk.blueBright, //
+  infoBold: chalk.gray.bold, //
   std: chalk.white,
   stdDim: chalk.dim,
-  stdBold: chalk.whiteBright, //
+  stdBold: chalk.white.bold, //
   error: chalk.red,
-  errorDim: chalk.yellow,
-  errorBold: chalk.redBright, //
-  errorHighlight: chalk.yellow,
+  errorDim: chalk.red.dim,
+  errorBold: chalk.red.bold, //
+  errorHighlight: chalk.redBright,
   success: chalk.green,
-  successDim: chalk.yellow,
-  successBold: chalk.greenBright,
-  successHighlight: chalk.yellow,
+  successDim: chalk.green.dim,
+  successBold: chalk.green.bold,
+  successHighlight: chalk.greenBright,
   alert: chalk.yellow,
   alertDim: chalk.yellow, //
-  alertBold: chalk.yellowBright //
+  alertBold: chalk.yellow.bold //
 }
 export {colors};
 
@@ -39,6 +40,7 @@ export const cleanTags = function(text: string) {
   if (!text) return '';
   return text
   .replace(/{(\/?)([\w\-,;!#]*)}/g, '')
+  // eslint-disable-next-line no-control-regex
   .replace(/\x1b\[[\d;]*m/g, '');
 };
 
@@ -220,7 +222,7 @@ export class CenvLog {
     return Array.isArray(strArray) ? strArray.join(' ') : `${strArray}`;
   }
 
-  logBase(message: any, logColor: chalk.Chalk | undefined, logType: string, stackName?: string, replicateToGlobal = false) {
+  logBase(message: any, logColor: typeof ChalkFunction | undefined, logType: string, stackName?: string, replicateToGlobal = false) {
     message = this.joinArray(message) as string;
     if (message === '' || !message) {
       return;
