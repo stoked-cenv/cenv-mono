@@ -36,7 +36,8 @@
         "commands": [
           "./git-check.sh",
           "pnpm run publish:bump",
-          "pnpm run build",
+          "nx run @stoked-cenv/cli:build",
+          "nx run @stoked-cenv/cdk:build",
           "ts-node ./fixup-dist.ts",
           "pnpm run publish:bump"
         ],
