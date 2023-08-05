@@ -390,7 +390,7 @@ export class CenvParams {
       CenvLog.single.infoLog(`${process.env.ENV} application configuration parameters are up to date`);
       return;
     } else {
-      console.log(CenvLog.chalk.green(`updated ${updatedCount} parameters`));
+      console.log(CenvLog.colors.success(`updated ${updatedCount} parameters`));
     }
 
     if (materialize) {
@@ -518,7 +518,7 @@ export class CenvParams {
         for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
           for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
             if (afterKey === beforeKey) {
-              output += `'${CenvLog.colors.infoBold(afterKey)}': '${CenvLog.colors.infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${CenvLog.chalk.green(beforeValue)}` : ''}\n`;
+              output += `'${CenvLog.colors.infoBold(afterKey)}': '${CenvLog.colors.infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${CenvLog.colors.success(beforeValue)}` : ''}\n`;
             }
           }
         }
@@ -672,7 +672,7 @@ export class CenvParams {
       await CenvParams.pull(false, false, false);
     }
     if (options?.stack) {
-      cmd.out(`deploying ${CenvLog.colors.infoBold(config.ApplicationName)} configuration to environment ${CenvLog.chalk.blueBright(config.EnvironmentName)}`);
+      cmd.out(`deploying ${CenvLog.colors.infoBold(config.ApplicationName)} configuration to environment ${CenvLog.colors.smoothHighlight(config.EnvironmentName)}`);
       await CenvParams.Materialize();
     }
     cmd.out('success');

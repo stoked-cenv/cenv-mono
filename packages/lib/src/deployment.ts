@@ -332,7 +332,7 @@ export class Deployment {
     });
 
     if (Cenv.dashboard) {
-      return Cenv.dashboard.createBox(ctrl, title, [lines.join('\n')], CenvLog.chalk.bgBlue, CenvLog.colors.infoBold);
+      return Cenv.dashboard.createBox(ctrl, title, [lines.join('\n')], CenvLog.colors.smoothBg, CenvLog.colors.infoBold);
     } else {
       return lines.join('\n');
 

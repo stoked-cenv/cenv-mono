@@ -27,21 +27,32 @@ export class CenvLog {
   static colors = {
     info: chalk.gray,
     infoDim: chalk.dim,
-    infoBold: chalk.gray.bold, //
+    infoBold: chalk.gray.bold,
+    infoHighlight: chalk.hex("#222222"),
     std: chalk.white,
     stdDim: chalk.dim,
-    stdBold: chalk.white.bold, //
+    stdBold: chalk.white.bold,
+    stdHighlight: chalk.whiteBright,
+    stdHighlightUnderline: chalk.whiteBright.underline,
     error: chalk.red,
     errorDim: chalk.red.dim,
-    errorBold: chalk.red.bold, //
+    errorBold: chalk.red.bold,
     errorHighlight: chalk.redBright,
+    errorBg: chalk.bgRed,
     success: chalk.green,
     successDim: chalk.green.dim,
     successBold: chalk.green.bold,
     successHighlight: chalk.greenBright,
     alert: chalk.yellow,
-    alertDim: chalk.yellow, //
-    alertBold: chalk.yellow.bold //
+    alertDim: chalk.yellow,
+    alertBold: chalk.yellow.bold,
+    alertHighlight: chalk.yellowBright,
+    smooth: chalk.blue,
+    smoothDim: chalk.blue.dim,
+    smoothBold: chalk.blue.bold,
+    smoothHighlight: chalk.blueBright,
+    smoothBg: chalk.bgBlue,
+    bold: chalk.bold
   }
   static chalk: Chalk = chalk;
   static colorSets = [[CenvLog.colors.error, CenvLog.colors.errorDim, CenvLog.colors.errorBold], [CenvLog.colors.info, CenvLog.colors.infoDim, CenvLog.colors.infoBold], [CenvLog.colors.success, CenvLog.colors.successDim, CenvLog.colors.successBold]]
@@ -59,6 +70,9 @@ export class CenvLog {
     CenvLog.instance = this;
   }
 
+  static rgb(r: number, g: number, b: number) {
+    return chalk.rgb(r, g, b);
+  }
   /*
   static incrementColor() {
     this[this.colors[this.currentColor]] += 5;
@@ -141,7 +155,7 @@ export class CenvLog {
       case 'deployed':
         return {bold: CenvLog.colors.successBold, color: CenvLog.colors.success, highlight: CenvLog.chalk.hex('#AAFFAA')};
       case 'needsFix':
-        return {bold: CenvLog.chalk.whiteBright, color: CenvLog.chalk.white, highlight: CenvLog.chalk.white.dim};
+        return {bold: CenvLog.colors.stdHighlight, color: CenvLog.colors.std, highlight: CenvLog.colors.stdDim};
     }
   }
 

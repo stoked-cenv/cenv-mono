@@ -59,7 +59,7 @@ export class ExecCommand extends BaseCommand {
           if (config) {
             vars = await getConfigVars(true, false, 'ENVIRONMENT VARIABLES', true);
             Object.entries(options.args).forEach(([key, value]) => {
-              console.log(`export ${CenvLog.chalk.whiteBright(key)}=${CenvLog.chalk.whiteBright(value)}`)
+              console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`)
             });
           }
           options.module = options.module?.toLowerCase();

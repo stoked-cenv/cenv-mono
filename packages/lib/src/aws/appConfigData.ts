@@ -116,14 +116,14 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
   }
 
   CenvLog.info('*******************************************************************');
-  CenvLog.info(`*********************** ${CenvLog.chalk.whiteBright.underline(title)} ***********************`);
+  CenvLog.info(`*********************** ${CenvLog.colors.stdHighlightUnderline(title)} ***********************`);
   CenvLog.info('*******************************************************************\n');
   if (exports) {
     Object.entries(configVarsDisplay).forEach(([key, value]) => {
-      console.log(`export ${CenvLog.chalk.whiteBright(key)}=${CenvLog.chalk.whiteBright(value)}`)
+      console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`)
     });
   } else {
-    console.log(CenvLog.chalk.white(YAML.stringify(configVars)));
+    console.log(CenvLog.colors.std(YAML.stringify(configVars)));
   }
   CenvLog.info('*******************************************************************');
 }

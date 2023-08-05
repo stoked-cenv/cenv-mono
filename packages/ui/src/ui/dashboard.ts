@@ -115,7 +115,7 @@ export class Dashboard {
   hoverRowIndex = -1;
   selectedRowIndex = -1;
   selectedFully = false;
-  blue = CenvLog.chalk.blue;
+  blue = CenvLog.colors.smooth;
   blueBright = [0, 150, 255];
   red = [255, 0, 0];
   gray = [140, 140, 140];
@@ -990,7 +990,7 @@ export class Dashboard {
   }
 
   statusText(titleText: string, descriptionText: string) {
-    return `${CenvLog.chalk.blueBright.bold(titleText)}: ${descriptionText}`;
+    return `${CenvLog.colors.smoothHighlight.bold(titleText)}: ${descriptionText}`;
   }
 
   printCmd(cmd: Cmd) {
@@ -1488,10 +1488,10 @@ export class Dashboard {
       const tableCalcs = this.calcTableInfo();
       const headers: any[] = [tableCalcs.columns];
       const data: Array<string[]> = [];
-      const selectedColor = CenvLog.chalk.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
-      const selectedHoverColor = CenvLog.chalk.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
+      const selectedColor = CenvLog.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
+      const selectedHoverColor = CenvLog.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
 
-      const currentlySelected = {stackName: '', index: -1};
+      const currentlySelected = {stac kName: '', index: -1};
       for (let i = 0; i < packages.length; i++) {
         if (i === 0) {
           for (let j = 0; j < tableCalcs.columns; j++) {
@@ -1539,7 +1539,7 @@ export class Dashboard {
         }
 
         if (!isFunction(rowColor)) {
-          rowColor = CenvLog.chalk.rgb(rowColor[0], rowColor[1], rowColor[2])
+          rowColor = CenvLog.rgb(rowColor[0], rowColor[1], rowColor[2])
         }
         row.push(rowColor(pkg.stackName));
         row.push(rowColor(global ? '-----' : pkg.version));
@@ -1577,7 +1577,7 @@ export class Dashboard {
     if (rgb) {
       return [r, g, b];
     }
-    const color = CenvLog.chalk.rgb(r, g, b);
+    const color = CenvLog.rgb(r, g, b);
     if (!hover) {
       return color.dim;
     }
@@ -1702,13 +1702,13 @@ export class Dashboard {
   }
 
   statusMetric(num: number, type: string, longestNumberLength: number) {
-    return `\t${CenvLog.chalk.bold(num.toString().padStart(longestNumberLength))} ${type}\n`
+    return `\t${CenvLog.colors.bold(num.toString().padStart(longestNumberLength))} ${type}\n`
   }
 
   packageStatus(packages: Package[], environmentStatus: EnvironmentStatus) {
     const color = this.getStatusColor(environmentStatus, true) as typeof CenvLog.chalk;
     const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
-    return `[${color(environmentStatus)}]: ${CenvLog.chalk.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
+    return `[${color(environmentStatus)}]: ${CenvLog.colors.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
   }
 
   updateStatus() {
@@ -1720,11 +1720,11 @@ export class Dashboard {
     const multiplePackagesLoaded = packages.length > 1;
 
     if (opt.suite) {
-      noun = `${CenvLog.chalk.bold(opt.suite)}`;
+      noun = `${CenvLog.colors.bold(opt.suite)}`;
     } else if (packages.length > 1) {
-      noun = `${CenvLog.chalk.bold(packages.length)} packages`;
+      noun = `${CenvLog.colors.bold(packages.length)} packages`;
     } else if (packages?.length === 1) {
-      noun = `${CenvLog.chalk.bold(packages[0].packageName)}`;
+      noun = `${CenvLog.colors.bold(packages[0].packageName)}`;
     }
 
     let status = '';
@@ -1781,12 +1781,12 @@ export class Dashboard {
         const colorDark = this.getStatusColor(selectedPackage.environmentStatus, false) as typeof CenvLog.chalk;
         const env = selectedPackage.packageName !== 'GLOBAL' ? `[${color(selectedPackage.environmentStatus)}] ` : '';
         const envComment = selectedPackage.getEnvironmentStatusDescription();
-        this.status.setLabel(`${CenvLog.chalk.bold(selectedPackage.packageName)} ${env}`);
+        this.status.setLabel(`${CenvLog.colors.bold(selectedPackage.packageName)} ${env}`);
         this.splitter.setFront();
         this.statusBar.setFront();
 
         if (selectedPackage.status?.needsFix?.length) {
-          status += '\n' + this.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, CenvLog.chalk.bgRed, CenvLog.chalk.whiteBright.underline);
+          status += '\n' + this.createBox(this.status, 'NEEDS FIX', selectedPackage.status.needsFix, CenvLog.colors.errorBg, CenvLog.colors.stdHighlightUnderline);
         }
         if (selectedPackage.status?.incomplete?.length) {
           status += `\n${CenvLog.colors.error.underline.bold('NEEDS DEPLOY:')}\n\n`;
@@ -2154,7 +2154,7 @@ export class Dashboard {
       return;
     }
     const scroll = this.debugLog.getScrollPerc();
-    this.debugLog.insertBottom(CenvLog.chalk.green(text.join(' ')));
+    this.debugLog.insertBottom(CenvLog.colors.success(text.join(' ')));
     if (scroll > 90) {
       this.debugLog.setScrollPerc(100);
     }
@@ -2165,7 +2165,7 @@ export class Dashboard {
       return;
     }
     const scroll = this.debugLog.getScrollPerc();
-    this.debugLog.insertBottom(CenvLog.chalk.green(text.join(' ')));
+    this.debugLog.insertBottom(CenvLog.colors.success(text.join(' ')));
     if (scroll > 90) {
       this.debugLog.setScrollPerc(100);
     }

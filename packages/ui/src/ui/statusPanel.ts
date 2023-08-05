@@ -456,9 +456,9 @@ export default class StatusPanel extends CenvPanel {
         let name = k.substring(0, this.parameterColumnWidth - 1);
         if (hasStatus) {
           if (pkg.params.needsDeploy) {
-            color = CenvLog.chalk.red;
+            color = CenvLog.colors.error;
           } else if (pkg.params.needsMaterialization) {
-            color = CenvLog.chalk.red;
+            color = CenvLog.colors.error;
           }
           if (color) {
             name = color(name);

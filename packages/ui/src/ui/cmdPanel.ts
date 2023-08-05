@@ -70,7 +70,7 @@ export default class CmdPanel extends CenvPanel {
         }, autoScroll: false, padding: {left: 1, right: 1, top: 0, bottom: 0}
       }, [4, 2, 2, 3], true,);
       this.stderr.name = 'stderr'
-      this.stderr.setLabel(CenvLog.chalk.gray(`stderr`));
+      this.stderr.setLabel(CenvLog.colors.info(`stderr`));
 
       this.stderr.on('click', () => {
         const index = this.focusPool.indexOf(this.stderr);

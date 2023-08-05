@@ -62,9 +62,9 @@ export class ParamsPullCommand extends BaseCommand {
         config.EnvironmentName = options.environment;
         await CenvFiles.SaveEnvConfig(config);
         if (options.deployed) {
-          console.log(CenvLog.chalk.blueBright(`Local configuration switched to ${options.environment}. Pulling the latest deployed configuration for the environment.`));
+          console.log(CenvLog.colors.smoothHighlight(`Local configuration switched to ${options.environment}. Pulling the latest deployed configuration for the environment.`));
         } else {
-          console.log(CenvLog.chalk.blueBright(`Local configuration switched to ${options.environment}. Pulling the latest pre-deploy configuration for the environment.`));
+          console.log(CenvLog.colors.smoothHighlight(`Local configuration switched to ${options.environment}. Pulling the latest pre-deploy configuration for the environment.`));
         }
       }
 
