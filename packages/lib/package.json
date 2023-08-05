@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.47",
+  "version": "2.0.0-a.48",
   "description": "Library responsible for cenv params.",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
