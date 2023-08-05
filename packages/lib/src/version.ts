@@ -137,12 +137,15 @@ export class Version {
   }
 
   static async getVersion(packageName: string) {
-    let pkgPath = path.join(__dirname, '../');
+    const rootPath = require.main ? path.resolve('../', path.dirname(require.main.path)) : process.cwd();
+    const cli = packageName === '@stoked-cenv/cli';
+    let pkgPath = rootPath;
+    if (!cli) {
+      pkgPath = path.resolve(path.join(path.dirname(require.resolve(packageName, {paths: [rootPath]})), '../'));
+    }
+
     const libraryId = this.getLibraryId(packageName);
     const isLib = libraryId === 'lib';
-    if (!isLib) {
-      pkgPath = path.join(pkgPath, '../', libraryId);
-    }
     this.currentVersion = require(path.join(pkgPath, './package.json')).version;
     this.currentVersion = semVerParse(this.currentVersion, this.opt);
     const versionFile = path.join(pkgPath, './.version.json');
@@ -155,7 +158,7 @@ export class Version {
     }
     this.installedVersion = parse(this.versionFileData.version, this.opt) as SemVer;
     this.lastVersion = this.versionFileData.version as SemVer;
-    if (libraryId !== 'lib' || eq(this.currentVersion, this.lastVersion, this.opt)) {
+    if (!isLib || eq(this.currentVersion, this.lastVersion, this.opt)) {
       this.setEnvVars(packageName, libraryId);
       return;
     }
