@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "cenv": "nx run @stoked-cenv/cli:cenv",
-    "publish:link": "pnpm run build && ",
+    "publish:link": "pnpm run build",
     "publish:cli": "nx run @stoked-cenv/cli:package",
     "build": "nx affected:build",
     "rebuild": "pnpm -r exec npx rimraf node_modules pnpm-lock.yaml; pnpm i; pnpm run build",
