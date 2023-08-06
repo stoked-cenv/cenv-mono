@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.60",
+  "version": "2.0.0-a.61",
   "private": true,
   "scripts": {
     "cenv": "nx run @stoked-cenv/cli:cenv",
