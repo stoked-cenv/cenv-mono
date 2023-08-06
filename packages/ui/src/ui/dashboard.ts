@@ -47,12 +47,24 @@ export interface Click {
   y: number
 }
 
-export enum ParamsMode {
+enum ParamsMode {
   OFF,
   MATERIALIZED,
   DEPLOYED,
   LOCAL
 }
+
+
+namespace ParamsMode {
+  export function after(value: ParamsMode): ParamsMode {
+    return value + 1 > ParamsMode.LOCAL ? ParamsMode.OFF : value + 1;
+  }
+  export function getKey(value: ParamsMode): string {
+    return Object.keys(ParamsMode)[Object.values(ParamsMode).indexOf(value)];
+  }
+}
+
+export {ParamsMode};
 
 export class Dashboard {
 
@@ -870,14 +882,13 @@ export class Dashboard {
         }, params: {
           keys: ['p'], callback: () => {
             this.debounceCallback('toggle params', async () => {
-              Dashboard.paramsToggle = Dashboard.paramsToggle++;
+              Dashboard.paramsToggle = ParamsMode.after(Dashboard.paramsToggle);
               if (this.screen.height < this.maxProcessOptionsHeight) {
                 this.autoHidePanelHeight = false;
               }
               this.resizeWidgets(this.calcTableInfo());
               await this.statusPanel?.updatePackage();
-              const mode = Object.keys(ParamsMode)[Dashboard.paramsToggle]
-              this.setStatusBar('cycle params', this.statusText(`cycle param mode`, mode));
+              this.setStatusBar('cycle params', this.statusText(`cycle param mode`, ParamsMode.getKey(Dashboard.paramsToggle)));
             });
           }
         }, cdk: {

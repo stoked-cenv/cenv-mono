@@ -159,7 +159,8 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
       const useParentDirectory = useCurrentDirectory ? false : existsSync('../.cenv');
       const skipCenv = !useCurrentDirectory && !useParentDirectory;
       if (!skipCenv) {
-        configVars = await startCenv(ClientMode.REMOTE_ON_STARTUP, '0 * * * *', true);
+        const appName = useCurrentDirectory ? require('./package.json').name : require('../package.json').name;
+        configVars = await startCenv(ClientMode.REMOTE_ON_STARTUP, appName, '0 * * * *', true);
         if (Object.keys(configVars).length) {
           configVarDisplay = inputArgsToEnvVars(configVars);
           configVarDisplay = ' ' + configVarDisplay;

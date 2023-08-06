@@ -197,7 +197,7 @@ export class ParamsModule extends PackageModule {
 
       // get deployed vars
       this.pkg.stdPlain('loading deployed vars:', this.pkg.packageName);
-      this.cenvVars = await getConfigVars(true);
+      this.cenvVars = await getConfigVars(this.pkg.packageName,true);
     }
     if (CenvLog.isInfo) {
       this.pkg.stdPlain('# cenv vars');

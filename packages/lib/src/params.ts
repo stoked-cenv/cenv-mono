@@ -463,7 +463,7 @@ export class CenvParams {
         AllValues: allValues ? allValues : undefined
       };
 
-      variables = await getConfigVars(allValues, silent, 'PULLED DEPLOYED VARS');
+      variables = await getConfigVars(data.ApplicationName, allValues, silent, 'PULLED DEPLOYED VARS');
     }
 
     // merge app data

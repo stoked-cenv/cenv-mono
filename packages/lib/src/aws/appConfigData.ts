@@ -23,7 +23,7 @@ function getClient() {
   return _client;
 }
 
-export async function startSession() {
+export async function startSession(applicationName: string) {
   if (CenvFiles.EnvConfig?.ApplicationId === undefined || CenvFiles.EnvConfig?.EnvironmentId === undefined || CenvFiles.EnvConfig?.ConfigurationProfileId === undefined) {
     const configRes = await getConfig(process.env.APPLICATION_NAME!);
     if (!configRes) {
@@ -86,7 +86,7 @@ interface StartConfigPollingParams {
   postConfigCallback?: () => Promise<void>;
 }
 
-function startConfigPolling(options: StartConfigPollingParams) {
+function startConfigPolling(applicationName: string, options: StartConfigPollingParams) {
   console.log(CenvLog.colors.success(`polling cron: ${options?.cronExpression}`));
   let count = 0;
   cron.schedule(options?.cronExpression ? options?.cronExpression : '0 * * * *', async () => {
@@ -96,7 +96,7 @@ function startConfigPolling(options: StartConfigPollingParams) {
       const res = await getLatestConfiguration(process.env.NextPollConfigurationToken, true);
       displayConfigVars('UPDATED CONFIG VARS', res);
     } else {
-      await getConfigVars(false, false, 'UPDATED CONFIG VARS');
+      await getConfigVars(applicationName,false, false, 'UPDATED CONFIG VARS');
     }
     if (options?.postConfigCallback) {
       await options?.postConfigCallback();
@@ -128,9 +128,9 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
   CenvLog.info('*******************************************************************');
 }
 
-export async function getConfigVars(allValues = false, silent = true, title = 'INITIAL CONFIG VARS', exports = false) {
+export async function getConfigVars(applicationName: string, allValues = false, silent = true, title = 'INITIAL CONFIG VARS', exports = false) {
 
-  const token = await startSession();
+  const token = await startSession(applicationName);
 
   if (!token) {
     CenvLog.single.errorLog('could not start appConfigData session');
@@ -143,11 +143,11 @@ export async function getConfigVars(allValues = false, silent = true, title = 'I
   return latestConfig
 }
 
-export async function pollDeployedVars(cronExpression: string, silent = true): Promise<any> {
-  const configVars = await getConfigVars(false, silent, 'DEPLOYED CONFIG VARS');
+export async function pollDeployedVars(applicationName: string, cronExpression: string, silent = true): Promise<any> {
+  const configVars = await getConfigVars(applicationName, false, silent, 'DEPLOYED CONFIG VARS');
 
   if (cronExpression) {
-    startConfigPolling({cronExpression});
+    startConfigPolling(applicationName, {cronExpression});
   }
   return configVars;
 }
@@ -167,7 +167,7 @@ export enum ClientMode {
   REMOTE_POLLING = 'REMOTE_POLLING',
 }
 
-export async function startCenv(clientType: ClientMode, cronExpression = '0 * * * *', silent = false) {
+export async function startCenv(clientType: ClientMode, applicationName: string, cronExpression = '0 * * * *', silent = false) {
 
   try {
 
@@ -181,14 +181,9 @@ export async function startCenv(clientType: ClientMode, cronExpression = '0 * * 
         return;
       }
       await CenvParams.pull(true)
-    } else {
-
-      if (!process.env.APPLICATION_NAME || !process.env.ENV) {
-        CenvFiles.GetConfig();
-      }
     }
 
-    return await pollDeployedVars(clientType === ClientMode.REMOTE_POLLING ? cronExpression : '0 * * * *', silent);
+    return await pollDeployedVars(applicationName, clientType === ClientMode.REMOTE_POLLING ? cronExpression : '0 * * * *', silent);
   } catch (e) {
     CenvLog.single.alertLog(`startConfigPolling failed: ${CenvLog.colors.alertBold(`${e instanceof Error ? e.message : e as string}`)}\n ${JSON.stringify(e, null, 4)}`);
   }

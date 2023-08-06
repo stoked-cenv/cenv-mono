@@ -57,7 +57,7 @@ export class ExecCommand extends BaseCommand {
           }
           const config = CenvFiles.GetConfig();
           if (config) {
-            vars = await getConfigVars(true, false, 'ENVIRONMENT VARIABLES', true);
+            vars = await getConfigVars(p.packageName,true, false, 'ENVIRONMENT VARIABLES', true);
             Object.entries(options.args).forEach(([key, value]) => {
               console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`)
             });

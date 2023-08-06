@@ -59,7 +59,7 @@ export default class StatusPanel extends CenvPanel {
 
   get showParams() {
     const pkg = this.getPkg();
-    return pkg?.params?.hasCenvVars && pkg.params?.localCounts && Dashboard.paramsToggle === ParamsMode.OFF;
+    return pkg?.params?.hasCenvVars && pkg.params?.localCounts && Dashboard.paramsToggle !== ParamsMode.OFF;
   }
 
   init() {
@@ -773,9 +773,10 @@ export default class StatusPanel extends CenvPanel {
     }
   }
 
-  showType(paramCtrl: any) {
-    if (this.paramTypeVisible(paramCtrl.name)) {
-      paramCtrl.show();
+  showType(paramCtrlName: string) {
+    if (this.paramTypeVisible(paramCtrlName)) {
+      const paramCtrl = this.paramCtrlMap[paramCtrlName];
+      paramCtrl?.show();
     }
   }
 

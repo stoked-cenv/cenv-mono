@@ -19,7 +19,7 @@ export class CenvTest {
     }
     await Promise.all(packages.map(async (p: Package) => {
       if (p.params?.hasCenvVars) {
-        const vars = await startCenv(ClientMode.REMOTE_ON_STARTUP);
+        const vars = await startCenv(ClientMode.REMOTE_ON_STARTUP, p.packageName);
         envVars = {...vars, ...envVars};
       }
       await p.pkgCmd(`jest --config ${__dirname}/../../src/test/jest.config.ts ${test}`, {envVars})

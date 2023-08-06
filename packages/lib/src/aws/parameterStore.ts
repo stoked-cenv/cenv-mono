@@ -459,7 +459,7 @@ export async function getParams(config: any, type = 'all', format: string, decry
   if (!deployed) {
     parameters = await listParameters(config, decrypted);
   } else {
-    parameters = await getConfigVars(true);
+    parameters = await getConfigVars(config.ApplicationName, true);
   }
   let output = {};
   if (deployed) {

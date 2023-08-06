@@ -12,6 +12,8 @@ sms.install();
   });
 });
 
+console.log(require.name);
+
 async function bootstrap() {
   try {
     await CommandFactory.run(CliModule, {
