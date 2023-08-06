@@ -1,7 +1,8 @@
 import {Cenv} from './cenv';
-import {cleanup} from "./utils";
+import { clamp, cleanup } from './utils';
 import {Injectable} from '@nestjs/common';
 import chalk, {Chalk} from 'chalk';
+import { EnvironmentStatus, ProcessStatus } from './package/package';
 
 export enum LogLevel {
   NONE = 'NONE', MINIMAL = 'MINIMAL', DEBUG = 'DEBUG', INFO = 'INFO', VERBOSE = 'VERBOSE'
@@ -72,6 +73,55 @@ export class CenvLog {
 
   static rgb(r: number, g: number, b: number) {
     return chalk.rgb(r, g, b);
+  }
+
+  static blueBright = [0, 150, 255];
+  static red = [255, 0, 0];
+  static gray = [140, 140, 140];
+  static yellow = [225, 225, 0];
+  static orange = [255, 165, 0];
+  static white = [255, 255, 255];
+  static lightGray = [220, 220, 220];
+  static green = [0, 255, 0];
+  static  getStatusColor(status: ProcessStatus | EnvironmentStatus, hover: boolean, rgb = false) {
+    if (status === ProcessStatus.BUILDING || status === ProcessStatus.HASHING || status === ProcessStatus.BUMP || status === ProcessStatus.STATUS_CHK || status === ProcessStatus.PROCESSING) {
+      return this.getChalkColor(this.blueBright, hover, 30, rgb);
+    } else if (status === ProcessStatus.FAILED || status === ProcessStatus.CANCELLED || status === EnvironmentStatus.CANCELLED || status === EnvironmentStatus.NOT_DEPLOYED || status === EnvironmentStatus.NEEDS_FIX) {
+      return this.getChalkColor(this.red, hover, 15, rgb);
+    } else if (status === EnvironmentStatus.INITIALIZING) {
+      return this.getChalkColor(this.gray, hover, 15, rgb);
+    } else if (status === ProcessStatus.NONE || status === EnvironmentStatus.NONE) {
+      return this.getChalkColor(this.yellow, false, 0, rgb);
+    } else if (status === EnvironmentStatus.NEEDS_UPDATE || status === EnvironmentStatus.INCOMPLETE) {
+      return this.getChalkColor(this.orange, hover, 15, rgb);
+    } else if (status === ProcessStatus.HAS_PREREQS) {
+      return this.getChalkColor(this.lightGray, hover, 35, rgb);
+    } else if (status === ProcessStatus.INITIALIZING || status === ProcessStatus.READY) {
+      return this.getChalkColor(this.white, hover, 22, rgb);
+    } else if (status === EnvironmentStatus.UP_TO_DATE || status === ProcessStatus.COMPLETED) {
+      return this.getChalkColor(this.green, hover, 24, rgb);
+    }
+  }
+
+
+  static mod(digit: number, mod: number) {
+    return clamp(Math.abs(255 - digit) < Math.abs(0 - digit) ? digit - mod : digit + mod, 0, 255,);
+  }
+
+  static getChalkColor(colorRgb: number[], hover: boolean, sub: number, rgb: boolean) {
+    const mod = hover ? 0 : sub;
+    const r = this.mod(colorRgb[0], mod);
+    const g = this.mod(colorRgb[1], mod);
+    const b = this.mod(colorRgb[2], mod);
+
+    if (rgb) {
+      return [r, g, b];
+    }
+    const color = CenvLog.rgb(r, g, b);
+    if (!hover) {
+      return color.dim;
+    }
+    return color.bold;
   }
   /*
   static incrementColor() {

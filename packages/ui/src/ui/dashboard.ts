@@ -115,15 +115,6 @@ export class Dashboard {
   hoverRowIndex = -1;
   selectedRowIndex = -1;
   selectedFully = false;
-  blue = CenvLog.colors.smooth;
-  blueBright = [0, 150, 255];
-  red = [255, 0, 0];
-  gray = [140, 140, 140];
-  yellow = [225, 225, 0];
-  orange = [255, 165, 0];
-  white = [255, 255, 255];
-  lightGray = [220, 220, 220];
-  green = [0, 255, 0];
   statusBarInUse = false;
   packageHover = false;
   view = 'mixed';
@@ -1383,7 +1374,7 @@ export class Dashboard {
       this.selectedPackage = Package.getPackageFromVis(stackNameVis);
       if (this.selectedPackage) {
         Dashboard.stackName = this.selectedPackage.stackName;
-        const color = this.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as typeof CenvLog.chalk;
+        const color = CenvLog.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as typeof CenvLog.chalk;
         let env = '';
         let envQuote = '';
         if (this.selectedPackage?.packageName !== 'GLOBAL') {
@@ -1491,7 +1482,7 @@ export class Dashboard {
       const selectedColor = CenvLog.rgb(this.selectedPackageFg[0], this.selectedPackageFg[1], this.selectedPackageFg[2],);
       const selectedHoverColor = CenvLog.rgb(this.selectedPackageFgHover[0], this.selectedPackageFgHover[1], this.selectedPackageFgHover[2],);
 
-      const currentlySelected = {stac kName: '', index: -1};
+      const currentlySelected = {stackName: '', index: -1};
       for (let i = 0; i < packages.length; i++) {
         if (i === 0) {
           for (let j = 0; j < tableCalcs.columns; j++) {
@@ -1508,8 +1499,8 @@ export class Dashboard {
         }
         const isHoverRow = i === this.hoverRowIndex;
         const isSelectedRow = i === this.selectedRowIndex;
-        const envColor = this.getStatusColor(pkg.environmentStatus, isHoverRow) as typeof CenvLog.chalk;
-        const processColor = this.getStatusColor(pkg.processStatus, isHoverRow) as typeof CenvLog.chalk;
+        const envColor = CenvLog.getStatusColor(pkg.environmentStatus, isHoverRow) as typeof CenvLog.chalk;
+        const processColor = CenvLog.getStatusColor(pkg.processStatus, isHoverRow) as typeof CenvLog.chalk;
         if (!global) {
           complete = false;
         }
@@ -1528,14 +1519,14 @@ export class Dashboard {
         const hover = i === this.hoverRowIndex;
         let rowColor: any = envColor;
         if (pkg.stackName === 'GLOBAL') {
-          rowColor = this.getChalkColor(this.yellow, false, 0, isHoverRow) as typeof CenvLog.chalk;
+          rowColor = CenvLog.getChalkColor(CenvLog.yellow, false, 0, isHoverRow) as typeof CenvLog.chalk;
 
         } else if (selected && hover) {
           rowColor = selectedHoverColor;
-          this.selectedRowFg = this.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
+          this.selectedRowFg = CenvLog.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
         } else if (selected) {
           rowColor = selectedColor;
-          this.selectedRowFg = this.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
+          this.selectedRowFg = CenvLog.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
         }
 
         if (!isFunction(rowColor)) {
@@ -1564,67 +1555,6 @@ export class Dashboard {
     }
   }
 
-  mod(digit: number, mod: number) {
-    return clamp(Math.abs(255 - digit) < Math.abs(0 - digit) ? digit - mod : digit + mod, 0, 255,);
-  }
-
-  getChalkColor(colorRgb: number[], hover: boolean, sub: number, rgb: boolean) {
-    const mod = hover ? 0 : sub;
-    const r = this.mod(colorRgb[0], mod);
-    const g = this.mod(colorRgb[1], mod);
-    const b = this.mod(colorRgb[2], mod);
-
-    if (rgb) {
-      return [r, g, b];
-    }
-    const color = CenvLog.rgb(r, g, b);
-    if (!hover) {
-      return color.dim;
-    }
-    return color.bold;
-  }
-
-  /*
-    static tabSpaces(text:) {
-      const regex = /[\t]/g;
-      return text.match(regex)?.length;
-    }
-
-   */
-
-  getStatusColor(status: ProcessStatus | EnvironmentStatus, hover: boolean, rgb = false) {
-    switch (status) {
-      case ProcessStatus.BUILDING:
-      case ProcessStatus.HASHING:
-      case ProcessStatus.BUMP:
-      case ProcessStatus.STATUS_CHK:
-      case ProcessStatus.PROCESSING:
-        return this.getChalkColor(this.blueBright, hover, 30, rgb);
-      case ProcessStatus.FAILED:
-      case ProcessStatus.CANCELLED:
-      case EnvironmentStatus.CANCELLED:
-      case EnvironmentStatus.NOT_DEPLOYED:
-      case EnvironmentStatus.NEEDS_FIX:
-        return this.getChalkColor(this.red, hover, 15, rgb);
-      case EnvironmentStatus.INITIALIZING:
-        return this.getChalkColor(this.gray, hover, 15, rgb);
-      case ProcessStatus.NONE:
-      case EnvironmentStatus.NONE:
-        return this.getChalkColor(this.yellow, false, 0, rgb);
-      case EnvironmentStatus.NEEDS_UPDATE:
-      case EnvironmentStatus.INCOMPLETE:
-        return this.getChalkColor(this.orange, hover, 15, rgb);
-      case ProcessStatus.HAS_PREREQS:
-        return this.getChalkColor(this.lightGray, hover, 35, rgb);
-      case ProcessStatus.INITIALIZING:
-      case ProcessStatus.READY:
-        return this.getChalkColor(this.white, hover, 22, rgb);
-      case EnvironmentStatus.UP_TO_DATE:
-      case ProcessStatus.COMPLETED:
-        return this.getChalkColor(this.green, hover, 24, rgb);
-    }
-  }
-
   updateDependenciesStatus() {
     const pkg = this.getPkg();
     if (!pkg) {
@@ -1632,13 +1562,13 @@ export class Dashboard {
     }
     if (pkg?.deployDependencies) {
       const deps = pkg?.deployDependencies?.map((dep: Package) => {
-        const color = this.getStatusColor(dep.environmentStatus, true) as typeof CenvLog.chalk;
+        const color = CenvLog.getStatusColor(dep.environmentStatus, true) as typeof CenvLog.chalk;
         return color(dep.packageName)
       }).join(', ');
       this.dependencies = `${deps}`;
     } else if (pkg?.meta?.data.deployDependencies) {
       const deps = pkg?.meta?.data.deployDependencies?.map((dep: Package) => {
-        const color = this.getStatusColor(dep.environmentStatus, true) as typeof CenvLog.chalk;
+        const color = CenvLog.getStatusColor(dep.environmentStatus, true) as typeof CenvLog.chalk;
         return color(dep.packageName)
       }).join(', ');
       this.dependencies = deps;
@@ -1706,7 +1636,7 @@ export class Dashboard {
   }
 
   packageStatus(packages: Package[], environmentStatus: EnvironmentStatus) {
-    const color = this.getStatusColor(environmentStatus, true) as typeof CenvLog.chalk;
+    const color = CenvLog.getStatusColor(environmentStatus, true) as typeof CenvLog.chalk;
     const pkgs = packages.filter((p: Package) => p.environmentStatus === environmentStatus);
     return `[${color(environmentStatus)}]: ${CenvLog.colors.bold(pkgs.length.toString())}\n${color(pkgs.map(d => d.packageName).join(', '))}\n\n`
   }
@@ -1777,8 +1707,8 @@ export class Dashboard {
       }
     } else {
       if (validStatus) {
-        const color = this.getStatusColor(selectedPackage.environmentStatus, true) as typeof CenvLog.chalk;
-        const colorDark = this.getStatusColor(selectedPackage.environmentStatus, false) as typeof CenvLog.chalk;
+        const color = CenvLog.getStatusColor(selectedPackage.environmentStatus, true) as typeof CenvLog.chalk;
+        const colorDark = CenvLog.getStatusColor(selectedPackage.environmentStatus, false) as typeof CenvLog.chalk;
         const env = selectedPackage.packageName !== 'GLOBAL' ? `[${color(selectedPackage.environmentStatus)}] ` : '';
         const envComment = selectedPackage.getEnvironmentStatusDescription();
         this.status.setLabel(`${CenvLog.colors.bold(selectedPackage.packageName)} ${env}`);
@@ -1818,8 +1748,8 @@ export class Dashboard {
           let selectedFg = this.selectedFully ? this.selectedFullPackageFg : this.selectedRowFg;
           let selectedBg = this.selectedFully ? this.selectedFullPackageBg : this.selectedPackageBg;
           if (global) {
-            selectedFg = this.selectedFully ? this.selectedFullPackageFg : this.yellow;
-            selectedBg = this.selectedFully ? this.yellow : this.selectedPackageBg;
+            selectedFg = this.selectedFully ? this.selectedFullPackageFg : CenvLog.yellow;
+            selectedBg = this.selectedFully ? CenvLog.yellow : this.selectedPackageBg;
           }
           item.style.fg = selectedHover ? this.selectedPackageFgHover : selectedFg;
           item.style.bg = selectedHover ? this.selectedPackageBgHover : selectedBg;
