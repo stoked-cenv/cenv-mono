@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/ui",
-  "version": "2.0.0-a.60",
+  "version": "2.0.0-a.61",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
   "main": "src/index.ts",
   "scripts": {
