@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cdk",
-  "version": "2.0.0-a.63",
+  "version": "2.0.0-a.64",
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
@@ -37,6 +37,6 @@
     "stackTemplatePath": "stacks"
   },
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.63 || ^2.0.0"
+    "@stoked-cenv/lib": "^2.0.0-a.64 || ^2.0.0"
   }
 }
