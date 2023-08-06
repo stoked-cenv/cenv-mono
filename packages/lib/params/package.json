@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/params",
-  "version": "2.0.0-a.52",
+  "version": "2.0.0-a.63",
   "private": true,
   "description": "Materialize environment specific configurationProfiles when triggered by an application-environment-version base configurationProfile.",
   "main": "index.js",
@@ -20,7 +20,7 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "dependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.53",
+    "@stoked-cenv/lib": "^2.0.0-a.63",
     "async-mutex": "^0.4.0",
     "build": "^0.1.4",
     "js-yaml": "^4.1.0",
