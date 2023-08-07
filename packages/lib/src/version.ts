@@ -265,14 +265,14 @@ export class Version {
         renameSync(dir, newPath);
       }
     }
-    const searchF = '.cenv.' + process.env.ENV;
+    const searchF = '.cenv.' + CenvFiles.ENVIRONMENT;
     const cenvEnvSearch = search_sync(path.resolve(monoRoot), false, true, searchF, {
       excludedDirs: ['node_modules', 'cdk.out'], startsWith: true
     },) as string[];
     for (let i = 0; i < cenvEnvSearch.length; i++) {
       const file = cenvEnvSearch[i];
-      const newFile = file.replace(process.env.ENV!, process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,);
-      if (file.indexOf('.' + process.env.ENV + '-' + process.env.CDK_DEFAULT_ACCOUNT,) > -1) {
+      const newFile = file.replace(CenvFiles.ENVIRONMENT, CenvFiles.ENVIRONMENT + '-' + process.env.CDK_DEFAULT_ACCOUNT,);
+      if (file.indexOf('.' + CenvFiles.ENVIRONMENT + '-' + process.env.CDK_DEFAULT_ACCOUNT,) > -1) {
         CenvLog.single.infoLog(`the file ${file} has already been upgraded`);
         continue;
       }

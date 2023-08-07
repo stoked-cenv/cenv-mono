@@ -59,7 +59,7 @@
   "cenv": {
     "stack": {
       "package": "@stoked-cenv/cdk#api",
-      "assignedSubDomain": "api.cenv",
+      "assignedSubDomain": "api",
       "volatileContextKeys": [
         "vpc-provider:account=CDK_DEFAULT_ACCOUNT:filter.tag:Name=ENV-net:region=CDK_DEFAULT_REGION:returnAsymmetricSubnets=true"
       ],

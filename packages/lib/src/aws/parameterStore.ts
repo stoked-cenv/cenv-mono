@@ -337,7 +337,7 @@ export const enum UpsertResult {
   CREATED = 'CREATED', UPDATED = 'UPDATED', SKIPPED = 'SKIPPED',
 }
 
-export async function upsertParameter(config: any, parameter: {
+export async function upsertParameter(applicationName: string, parameter: {
   [x: string]: IParameter
 }, type: string): Promise<UpsertResult> {
   const [paramPath, param] = Object.entries(parameter)[0];
@@ -369,7 +369,7 @@ export async function upsertParameter(config: any, parameter: {
   }
 
   // if global parameter exists, check to see if the link is in the values list
-  const rootPaths = CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName);
+  const rootPaths = CenvParams.GetRootPaths(applicationName, CenvFiles.ENVIRONMENT);
 
   if (param.ParamType.startsWith('global')) {
     const linkPath = param.ParamType === 'global' ? rootPaths['globalLink'] : rootPaths['globalEnvLink'];
@@ -387,9 +387,9 @@ export async function upsertParameter(config: any, parameter: {
       }
     }
   }
-  if (result !== UpsertResult.SKIPPED && !linkOnly) {
-    updateTemplates(true, pathToEnvVarKey(param.Name, paramPath), type, param.Value)
-  }
+  //if (result !== UpsertResult.SKIPPED && !linkOnly) {
+  //  updateTemplates(true, pathToEnvVarKey(param.Name, paramPath), type, param.Value)
+  //}
   return result;
 }
 
@@ -418,83 +418,4 @@ export function updateTemplates(add: boolean, envVar: string, type: string, valu
       }
     }
   }
-}
-
-function printYamlPretty(yamlData: any, format: string, printPkg?: string) {
-  const space = printPkg ? '  ' : '';
-  if (printPkg) {
-    printPkgName(printPkg);
-  }
-  for (const [key, value] of Object.entries(yamlData)) {
-    const val: any = value;
-    if (format === 'simple') {
-      const keyVal = val.Value ? val.Value : val;
-      console.log(`${space}${CenvLog.colors.infoBold(key)}: ${keyVal}`);
-    } else {
-      console.log(`${space}${CenvLog.colors.infoBold(key)}: `);
-      console.log(`${space}  ${CenvLog.colors.infoBold('Value')}: ${val.Value}`);
-      console.log(`${space}  ${CenvLog.colors.infoBold('Path')}: ${val.Path}`);
-      console.log(`${space}  ${CenvLog.colors.infoBold('Type')}: ${val.Type}`);
-    }
-  }
-  if (printPkg) {
-    console.log('')
-  }
-}
-
-function printPkgName(printPkg: string) {
-  if (printPkg) {
-    console.log(CenvLog.colors.successBold(printPkg));
-  }
-}
-
-export async function getParams(config: any, type = 'all', format: string, decrypted = false, deployed = false, silent = false, includeTemplates = false) {
-  if (!config) {
-    config = CenvFiles.GetConfig();
-  }
-  const printPkg = format.endsWith('-pkg') ? config.ApplicationName : undefined;
-  format = format.replace('-pkg', '');
-
-  let parameters: any = {};
-  if (!deployed) {
-    parameters = await listParameters(config, decrypted);
-  } else {
-    parameters = await getConfigVars(config.ApplicationName, true);
-  }
-  let output = {};
-  if (deployed) {
-    type = 'deployed';
-    output = parameters;
-  }
-  let noTypeSet = false;
-  if (type === 'all') {
-    output = {...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv};
-  } else if (type === 'allTyped') {
-    if (parameters) {
-      if (!silent) {
-        printYamlPretty(output, format, printPkg);
-      }
-      return {
-        ...CenvFiles.AllTyped(parameters),
-        environmentTemplate: parameters.environment,
-        globalEnvironmentTemplate: parameters.globalEnv
-      };
-    }
-  } else if (type === 'app' || type === 'environment' || type === 'global' || type === 'globalEnv') {
-    output = parameters[type] ? parameters[type] : parameters;
-  } else if (type === 'deployed') {
-
-  } else {
-    noTypeSet = true;
-  }
-
-  let result = noTypeSet ? {...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv} : output;
-  if (format === 'simple') {
-    result = simplify(result, printPkg);
-  }
-  if (!silent) {
-    printYamlPretty(result, format, printPkg);
-  }
-
-  return result;
 }

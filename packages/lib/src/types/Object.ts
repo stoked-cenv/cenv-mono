@@ -31,31 +31,31 @@ export const deepDiffMapper = function () {
     VALUE_UPDATED: 'updated',
     VALUE_DELETED: 'deleted',
     VALUE_UNCHANGED: 'unchanged',
-    map: function(obj1: any, obj2: any) {
+    map: function(obj1: any, obj2: any, changedOnly = true) {
       if (this.isFunction(obj1) || this.isFunction(obj2)) {
         throw 'Invalid argument. Function given, object expected.';
       }
       if (this.isValue(obj1) || this.isValue(obj2)) {
         return {
-          type: this.compareValues(obj1, obj2),
+          type: this.compareValues(obj1, obj2, changedOnly),
           data: obj1 === undefined ? obj2 : obj1
         };
       }
 
-      var diff: any = {};
-      for (var key in obj1) {
+      const diff: any = {};
+      for (const key in obj1) {
         if (this.isFunction(obj1[key])) {
           continue;
         }
 
-        var value2 = undefined;
+        let value2 = undefined;
         if (obj2[key] !== undefined) {
           value2 = obj2[key];
         }
 
         diff[key] = this.map(obj1[key], value2);
       }
-      for (var key in obj2) {
+      for (const key in obj2) {
         if (this.isFunction(obj2[key]) || diff[key] !== undefined) {
           continue;
         }
@@ -66,12 +66,14 @@ export const deepDiffMapper = function () {
       return diff;
 
     },
-    compareValues: function (value1: object, value2: object) {
-      if (value1 === value2) {
-        return this.VALUE_UNCHANGED;
-      }
-      if (this.isDate(value1) && this.isDate(value2) && (value1 as Date).getTime() === (value2 as Date).getTime()) {
-        return this.VALUE_UNCHANGED;
+    compareValues: function (value1: object, value2: object, changedOnly: boolean) {
+      if (!changedOnly) {
+        if (value1 === value2) {
+          return this.VALUE_UNCHANGED;
+        }
+        if (this.isDate(value1) && this.isDate(value2) && (value1 as Date).getTime() === (value2 as Date).getTime()) {
+          return this.VALUE_UNCHANGED;
+        }
       }
       if (value1 === undefined) {
         return this.VALUE_CREATED;

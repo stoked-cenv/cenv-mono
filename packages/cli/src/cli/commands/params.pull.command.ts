@@ -1,5 +1,5 @@
 import { Option, SubCommand } from 'nest-commander';
-import { BaseCommandOptions, CenvFiles, CenvLog, CenvParams, getEnvironment } from '@stoked-cenv/lib';
+import { BaseCommandOptions, CenvFiles, CenvLog, CenvParams, getEnvironment, Package, ParamsModule } from '@stoked-cenv/lib';
 
 import { BaseCommand } from './base.command';
 
@@ -44,31 +44,20 @@ export class ParamsPullCommand extends BaseCommand {
     return val;
   }
 
-  async runCommand(passedParam: string[], options: PullCommandOptions): Promise<void> {
+  async runCommand(passedParam: string[], options: PullCommandOptions, packages: Package[]): Promise<void> {
     try {
 
-      const config = CenvFiles.GetConfig();
-      if (!config) {
-        CenvLog.single.errorLog('pull: could not load config');
-        process.exit(7);
-      }
-      if (options.environment) {
-        const envRes = await getEnvironment(config.ApplicationId, options.environment);
-        if (!envRes) {
-          console.log(CenvLog.colors.error(`Environment ${options.environment} not found. Use push --environment [environment name] to create a new environment for this application.`));
-          return;
-        }
-        config.EnvironmentId = envRes.EnvironmentId;
-        config.EnvironmentName = options.environment;
-        await CenvFiles.SaveEnvConfig(config);
-        if (options.deployed) {
-          console.log(CenvLog.colors.smoothHighlight(`Local configuration switched to ${options.environment}. Pulling the latest deployed configuration for the environment.`));
-        } else {
-          console.log(CenvLog.colors.smoothHighlight(`Local configuration switched to ${options.environment}. Pulling the latest pre-deploy configuration for the environment.`));
-        }
-      }
+      await Promise.allSettled(packages.map(async (p: Package) => {
+        if (p.params) {
+          const config = await ParamsModule.GetConfig(p.packageName);
+          if (!config) {
+            CenvLog.single.errorLog('pull: could not load config');
+            process.exit(7);
+          }
 
-      const materializedConfig = await CenvParams.pull(options?.deployed, options?.decrypted);
+          await p.params.pull(options?.deployed, options?.decrypted);
+        }
+      }));
     } catch (e) {
       console.log(CenvLog.colors.error(e));
     }

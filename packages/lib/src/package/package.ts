@@ -464,7 +464,7 @@ export class Package implements IPackage {
     this.component = packageComponent.component;
     this.instance = packageComponent.instance;
     this.stackName = Package.packageNameToStackName(packageName);
-    this.name = this.stackName.replace(process.env.ENV + '-', '');
+    this.name = this.stackName.replace(CenvFiles.ENVIRONMENT + '-', '');
     CenvLog.single.verboseLog('load packageName: ' + packageName, this.stackName, true);
 
     if (useCache) {
@@ -572,7 +572,10 @@ export class Package implements IPackage {
   }
 
   static get global(): Package {
-    return Package.fromStackName('GLOBAL');
+    if (Package.cache['GLOBAL']) {
+      return Package.cache['GLOBAL'];
+    }
+    return new Package('GLOBAL');
   }
 
   get codifiedNameVis(): string {
@@ -585,7 +588,7 @@ export class Package implements IPackage {
   }
 
   get bucketName() {
-    return `${process.env.ENV}-${this.packageName.replace(/^@/, '').replace(/\//g, '-')}-${process.env.CDK_DEFAULT_ACCOUNT!.slice(5)}`;
+    return `${CenvFiles.ENVIRONMENT}-${this.packageName.replace(/^@/, '').replace(/\//g, '-')}-${process.env.CDK_DEFAULT_ACCOUNT!.slice(5)}`;
   }
 
   get stackNameVis(): string {
@@ -632,7 +635,7 @@ export class Package implements IPackage {
   get moduleCurrentVersion(): SemVer | undefined {
     const modules = this.modules.filter(fm => !!fm.currentVersion);
     if (!modules.length) {
-      return parse('0.0.0') as SemVer;
+      return this.moduleVersion as SemVer;
     }
     return modules.filter(fm => !!fm.currentVersion).map(m => m.currentVersion!).reduce((a, b) => {
       return this.useHighestVersion(a, b);
@@ -695,6 +698,9 @@ export class Package implements IPackage {
   }
 
   static fromPackageName(packageName: string): Package {
+    if (packageName === 'GLOBAL') {
+      return Package.global;
+    }
     const packageComponent = Package.getPackageComponent(packageName);
     const pkgs = Object.values(Package.cache).filter((p: Package) => {
       return p.packageName === packageName && p?.component === packageComponent?.component && p?.instance === packageComponent?.instance;
@@ -709,6 +715,9 @@ export class Package implements IPackage {
   }
 
   static fromStackName(stackName: string): Package {
+    if (stackName === 'GLOBAL') {
+      return Package.global;
+    }
     return Package.fromPackageName(Package.stackNameToPackageName(stackName));
   }
 
@@ -733,7 +742,7 @@ export class Package implements IPackage {
     if (Cenv.scopeName) {
       packageName = removeScope(packageName);
     }
-    return `${process.env.ENV}-${packageName.replace(/-(deploy)$/, '')}`;
+    return `${CenvFiles.ENVIRONMENT}-${packageName.replace(/-(deploy)$/, '')}`;
   }
 
   static realPackagesLoaded() {
@@ -743,15 +752,20 @@ export class Package implements IPackage {
   }
 
   static stackNameToPackageName(stackName: string) {
-    if (stackName === 'GLOBAL' || stackName === 'root' || stackName === '' || stackName === undefined) {
+    if (stackName === '' || stackName === undefined) {
+      CenvLog.single.catchLog('stackNameToPackageName called with a stackName was is undefined or an empty string');
+      process.exit(238);
+    }
+
+    if (stackName === 'GLOBAL') {
       return stackName;
     }
 
-    const stackPrefix = `${process.env.ENV}-`;
+    const stackPrefix = `${CenvFiles.ENVIRONMENT}-`;
     if (!stackName.startsWith(stackPrefix)) {
       const badStackName = new Error(`stackNameToPackageName likely being called on something that isn't a stack: ${stackName}`);
-      Cenv.dashboard.log(badStackName.message, badStackName.stack);
       CenvLog.single.catchLog(badStackName);
+      process.exit(239);
     } else if (stackName.substring(stackPrefix.length) === Package.getRootPackageName()) {
       stackName = stackName.substring(stackPrefix.length);
     } else {
@@ -1025,10 +1039,9 @@ export class Package implements IPackage {
       return false;
     }
 
-    const relativePath = path.relative(process.cwd(), pkgPath);
-    if (relativePath !== '') {
+    if (process.cwd() !== pkgPath) {
       this.verbose(pkgPath, 'pkg cwd');
-      process.chdir(relativePath);
+      process.chdir(path.relative(process.cwd(), pkgPath));
     }
     return true;
   }

@@ -20,8 +20,8 @@ import {
   ProcessMode,
   ProcessStatus,
   validateBaseOptions,
-  PkgSummary
-} from "@stoked-cenv/lib";
+  PkgSummary, CenvFiles,
+} from '@stoked-cenv/lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
 import {isFunction} from "lodash";
@@ -179,6 +179,12 @@ export class Dashboard {
         }, border: false, transparent: true, height: 1, hideBorder: true,
       });
 
+      setTimeout(() => {
+        this.debounceCallback('deploy', async () => {
+          await this.launchDeployment(ProcessMode.DEPLOY);
+        });
+      }, 10000);
+
       const pkgButtons = {
         deploy: {
           keys: ['d'], callback: () => {
@@ -278,8 +284,10 @@ export class Dashboard {
               Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack?.detail?.StackStatus}. Are you sure you want to destroy this stack?`,  async (killIt: boolean) => {
                 const service = ctx[0].stackName;
                 if (killIt) {
+                  CenvLog.single.alertLog(`deleting stack ${ctx[0].stackName}`)
                   this.setStatusBar('kill hard', this.statusText('kill hard', service));
                   await deleteStack(ctx[0].stackName);
+                  await ctx[0].checkStatus();
                 }
               });
 
@@ -505,7 +513,7 @@ export class Dashboard {
           if (this.focusedBox.name !== 'globalEnv') {
             vars.globalEnv = typedVars['globalEnv'];
           }
-          CenvFiles.SaveVars(vars, process.env.ENV!, false);
+          CenvFiles.SaveVars(vars, CenvFiles.ENVIRONMENT, false);
         }
 
         await CenvParams.removeParameters([this.statusPanel.selectedParamKey], {}, [this.focusedBox.name]);
@@ -1012,14 +1020,15 @@ export class Dashboard {
 
   async launchDeployment(mode: ProcessMode) {
     try {
-      if (this.deploying) {
+      const global = Dashboard.stackName === 'GLOBAL'
+      if (global && this.deploying) {
         return;
       }
 
       this.deploying = true;
       this.cmd = mode;
 
-      const packages = this.getContext();
+      const packages = this.getContext(PkgContextType.COMPLETE, global);
       if (!packages) {
         return;
       }
@@ -1214,7 +1223,7 @@ export class Dashboard {
       }
     }
 
-    return `[${process.env.ENV}] cenv${titleNoun ? ' ' + titleNoun : ''}`;
+    return `[${CenvFiles.ENVIRONMENT}] cenv${titleNoun ? ' ' + titleNoun : ''}`;
 
   }
 

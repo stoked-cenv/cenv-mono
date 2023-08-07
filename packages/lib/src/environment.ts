@@ -3,6 +3,7 @@ import {Package} from './package/package';
 import {listStacks} from './aws/cloudformation'
 import {Suite} from './suite';
 import {StackSummary} from '@aws-sdk/client-cloudformation';
+import { CenvFiles } from './file';
 
 export class Environments {
   static cache: { [environmentName: string]: Environment } = {};
@@ -24,7 +25,7 @@ export class Environment {
   stacks: StackSummary[] = [];
 
   constructor(options?: { environment?: string, suite?: Suite }) {
-    this.name = options?.environment || process.env.ENV!;
+    this.name = options?.environment || CenvFiles.ENVIRONMENT;
     this.suite = options?.suite;
   }
 

@@ -1,4 +1,4 @@
-process.env.ENV = 'test';
+CenvFiles.ENVIRONMENT = 'test';
 process.env.CENV_DEFAULTS='true';
 
 import { rmSync } from 'fs';

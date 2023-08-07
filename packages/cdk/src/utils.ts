@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { App, Stack } from 'aws-cdk-lib';
-import { CenvLog } from '@stoked-cenv/lib';
+import { CenvFiles, CenvLog } from '@stoked-cenv/lib';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 
@@ -11,7 +11,7 @@ export function tagStack(stack: Stack) {
 
 export function tagIfExists(stack: Stack, EnvVar: string) {
   if (process.env[EnvVar]) {
-    console.log(`[${process.env.ENV}] stack tag: { ${EnvVar}: ${process.env[EnvVar]!} }`);
+    console.log(`[${CenvFiles.ENVIRONMENT}] stack tag: { ${EnvVar}: ${process.env[EnvVar]!} }`);
     stack.tags.setTag(EnvVar, process.env[EnvVar]!, 1);
   }
 }
@@ -37,12 +37,14 @@ export function ensureValidCerts(domain: string) {
       let baseDomain: string = process.env.ROOT_DOMAIN!;
       while (subDomain !== nextSub) {
         nextSub = assignedParts.pop() as string;
-        new SiteCertificateStack(new cdk.App(), `${process.env.ENV}-${nextSub}-${baseDomain.replace('.', '-')}`, {
+        new SiteCertificateStack(new cdk.App(), `${CenvFiles.ENVIRONMENT}-${nextSub}-${baseDomain.replace('.', '-')}`, {
           env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
         });
         baseDomain = `${nextSub}.${baseDomain}`;
         nextSub = assignedParts.pop() as string;
       }
+    } else {
+      CenvLog.single.infoLog(`${assignedRootDomain} certificate verified`);
     }
   }
 }

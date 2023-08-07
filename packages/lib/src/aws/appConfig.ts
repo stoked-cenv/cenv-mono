@@ -20,10 +20,11 @@ import {
   StartDeploymentCommand,
 } from '@aws-sdk/client-appconfig';
 import * as yaml from 'js-yaml';
-import {deleteParametersByPath, stripPath} from './parameterStore';
+import { deleteParametersByPath, stripPath, upsertParameter } from './parameterStore';
 import {CenvLog} from '../log';
 import {isString} from '../utils';
-import {CenvFiles, EnvConfig} from '../file';
+import { CenvFiles, EnvConfig, IEnvConfig } from '../file';
+import { ParamsModule } from '../package/params';
 
 let _client: AppConfigClient;
 
@@ -39,7 +40,7 @@ function getClient() {
   return _client;
 }
 
-export async function createApplication(name: string): Promise<any> {
+export async function createApplication(name: string): Promise<{ Id: string, exists: boolean }> {
   const res = await getApplication(name, undefined, false);
   if (res) {
     return {Id: res.ApplicationId, exists: true};
@@ -49,14 +50,18 @@ export async function createApplication(name: string): Promise<any> {
   }
   const command = new CreateApplicationCommand(createAppParams);
   try {
-    return await getClient().send(command);
+    const response = await getClient().send(command);
+    if (response && response.Id) {
+      return {Id: response.Id, exists: false};
+    }
+    CenvLog.single.catchLog(['CreateApplicationCommand error', 'failed to create a new application with name: ' + name]);
   } catch (e) {
-    CenvLog.single.errorLog(['CreateApplicationCommand error', e as string]);
-    return null;
+    CenvLog.single.catchLog(['CreateApplicationCommand error', e as string]);
   }
+  process.exit(3288);
 }
 
-export async function createEnvironment(applicationId: string, name: string): Promise<any> {
+export async function createEnvironment(applicationId: string, name: string): Promise<{ Id: string, exists: boolean }> {
   const response = await getEnvironment(applicationId, name, true);
   if (response) {
     return {Id: response.EnvironmentId, exists: true};
@@ -67,11 +72,14 @@ export async function createEnvironment(applicationId: string, name: string): Pr
   const command = new CreateEnvironmentCommand(createEnvParams);
   try {
     const response = await getClient().send(command);
-
-    return response;
+    if (response && response.Id) {
+      return { Id: response.Id, exists: false };
+    }
+    CenvLog.single.catchLog((['CreateEnvironmentCommand error', 'failed to create a new environment for applicationId: ' + applicationId + ' name: ' + name]))
+    process.exit(1230);
   } catch (e) {
-    CenvLog.single.errorLog(['CreateEnvironmentCommand error', e as string])
-    return null;
+    CenvLog.single.catchLog(['CreateEnvironmentCommand error', e as string])
+    process.exit(1231);
   }
 }
 
@@ -84,7 +92,8 @@ async function createConfProfileBase(applicationId: string, name: string) {
   if (response && response.Id) {
     return response.Id
   }
-  return false;
+  CenvLog.single.catchLog((['CreateConfigurationProfileCommand error', 'failed to create a configuration profile for applicationId: ' + applicationId + ' name: ' + name]))
+  process.exit(3334);
 }
 
 export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<{ Id: string, MetaId: string, Name: string, Existed: boolean } | false> {
@@ -146,11 +155,14 @@ export async function createDeploymentStrategy(name = 'Instant.AllAtOnce', deplo
   const command = new CreateDeploymentStrategyCommand(createDepParams);
   try {
     const response = await getClient().send(command);
-    return response;
+    if (response && response.Id) {
+      return { Id: response.Id };
+    }
+    CenvLog.single.catchLog(['createDeploymentStrategy error', 'failed to create a new deployment strategy with name: ' + name]);
   } catch (e) {
-    CenvLog.single.errorLog(['createDeploymentStrategy error', e as string]);
-    return null;
+    CenvLog.single.catchLog(['createDeploymentStrategy error', e as string]);
   }
+  process.exit(3390)
 }
 
 export async function startDeployment(ApplicationId: string, ConfigurationProfileId: string, ConfigurationVersion: string, EnvironmentId: string, DeploymentStrategyId: string): Promise<any> {
@@ -215,52 +227,75 @@ export async function listApplications(getEnvironments = false): Promise<Applica
   return false
 }
 
-export async function getEnvironmentAppConfigs() {
-  const command = new ListApplicationsCommand({});
+export interface EnvironmentAppConfig {
+  ApplicationId?: string,
+  ApplicationName: string,
+  EnvironmentName?: string,
+  EnvironmentId?: string,
+  ConfigurationProfileId?: string,
+  MetaConfigurationProfileId?: string,
+  VersionNumber?: number
+}
+
+export async function getEnvironmentAppConfigs(applicationNames?: string[] | string, applications: IEnvConfig[] = [], NextToken?: string): Promise<IEnvConfig | IEnvConfig[]>  {
 
   try {
+    const command = new ListApplicationsCommand({NextToken});
+
     const response = await getClient().send(command);
     const result: any = response ? response.Items : [];
-    const applications: {
-      [key: string]: {
-        ApplicationId?: string,
-        ApplicationName?: string,
-        EnvironmentName?: string,
-        EnvironmentId?: string,
-        ConfigurationProfileId?: string,
-        VersionNumber?: number
-      }
-    } = {};
+
+    const depStratRes = await getDeploymentStrategy();
+    const DeploymentStrategyId = depStratRes && depStratRes.DeploymentStrategyId ? depStratRes.DeploymentStrategyId : undefined;
+
     for (let appIdx = 0; appIdx < result.length; appIdx++) {
       const app: any = result[appIdx];
 
-      if (!applications[app.Id]) {
-        applications[app.Id] = {}
+      if (applicationNames && !applicationNames.includes(app.Name)) {
+        continue;
       }
-      applications[app.Id].ApplicationId = app.Id;
-      applications[app.Id].ApplicationName = app.Name;
 
-      const environment = await getEnvironment(app.Id, process.env.ENV!);
+      const envAppConf: IEnvConfig = {
+        ApplicationId: app.Id,
+        ApplicationName: app.Name,
+        EnvironmentName: CenvFiles.ENVIRONMENT,
+        DeploymentStrategyId
+      };
+
+      const environment = await getEnvironment(app.Id, CenvFiles.ENVIRONMENT);
       if (environment) {
-        applications[app.Id].EnvironmentName = process.env.ENV;
-        applications[app.Id].EnvironmentId = environment.EnvironmentId;
+        envAppConf.EnvironmentName = CenvFiles.ENVIRONMENT;
+        envAppConf.EnvironmentId = environment.EnvironmentId;
       }
 
       const configurationProfile = await getConfigurationProfile(app.Id, 'config');
       if (configurationProfile && configurationProfile.ConfigurationProfileId) {
-        applications[app.Id].ConfigurationProfileId = configurationProfile.ConfigurationProfileId
-      } else {
+        envAppConf.ConfigurationProfileId = configurationProfile.ConfigurationProfileId
+        envAppConf.MetaConfigurationProfileId = configurationProfile.MetaConfigurationProfileId
+      }
+
+      if (!envAppConf.EnvironmentId || !envAppConf.ConfigurationProfileId) {
+        applications.push(envAppConf);
         continue;
       }
 
-      const version = await getHostedConfigurationVersion(app.Id, configurationProfile.ConfigurationProfileId);
+      const version = await getHostedConfigurationVersion(app.Id, envAppConf.ConfigurationProfileId);
       if (version) {
-        applications[app.Id].VersionNumber = version.VersionNumber
+        envAppConf.VersionNumber = version.VersionNumber
       }
+      applications.push(envAppConf);
+    }
+    if (result.NextToken) {
+      await getEnvironmentAppConfigs(applicationNames, applications, result.NextToken);
+    }
+    if (applicationNames && applications.length === 1) {
+      CenvFiles.EnvConfig = applications[0];
+      return applications[0];
     }
     return applications;
   } catch (e) {
     CenvLog.single.errorLog(['getEnvironmentAppConfigs error', e as string])
+    process.exit(397);
   }
 }
 
@@ -342,17 +377,8 @@ export async function getApplication(applicationName: string, silent = true, env
   }
 }
 
-export async function getConfig(ApplicationName: string, EnvironmentName: string = process.env.ENV!, ConfigurationProfileName = 'config', Silent = true): Promise<false | {
-  config: EnvConfig,
-  version?: number
-}> {
+export async function getConfig(ApplicationName: string, EnvironmentName: string = CenvFiles.ENVIRONMENT, ConfigurationProfileName = 'config', Silent = true): Promise<false | IEnvConfig> {
   const command = new ListApplicationsCommand({});
-  if (ApplicationName === undefined) {
-    ApplicationName = CenvFiles.EnvConfig.ApplicationName;
-  }
-  if (EnvironmentName === undefined) {
-    EnvironmentName = CenvFiles.EnvConfig.EnvironmentName;
-  }
 
   try {
     const response = await getClient().send(command);
@@ -389,23 +415,16 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
       }
       return false;
     }
-    const ConfigurationProfileId = confRes.ConfigurationProfileId;
+    const { ConfigurationProfileId, MetaConfigurationProfileId } = confRes;
     if (!ConfigurationProfileId) {
       return false;
     }
-    const confResMeta = await getConfigurationProfile(ApplicationId, ConfigurationProfileName + '_meta', Silent);
-    let MetaConfigurationProfileId = '';
-    if (confResMeta && confResMeta.ConfigurationProfileId) {
-      MetaConfigurationProfileId = confResMeta.ConfigurationProfileId;
-    }
-
-    //infoLog([ConfigurationProfileId, EnvironmentId]);
     const deploymentStratRes = await getDeploymentStrategy();
     if (!deploymentStratRes || !deploymentStratRes.DeploymentStrategyId) {
       return false;
     }
     const DeploymentStrategyId = deploymentStratRes.DeploymentStrategyId;
-    const config = {
+    const config: IEnvConfig = {
       ApplicationName,
       ApplicationId,
       EnvironmentName,
@@ -414,11 +433,12 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
       MetaConfigurationProfileId,
       DeploymentStrategyId
     };
+    CenvFiles.EnvConfig = config
     const versRes = await getHostedConfigurationVersion(ApplicationId, ConfigurationProfileId);
     if (versRes?.VersionNumber) {
-      return {config, version: versRes.VersionNumber}
+      config.VersionNumber = versRes.VersionNumber;
     }
-    return {config};
+    return config;
   } catch (e) {
     CenvLog.single.errorLog(['getApplication error', e as string])
     return false;
@@ -500,9 +520,6 @@ export async function getConfigurationProfile(applicationId: string, configurati
         if (Id && MetaId) {
           return {ConfigurationProfileId: Id, MetaConfigurationProfileId: MetaId};
         }
-      }
-      if (Id) {
-        return {ConfigurationProfileId: Id};
       }
     }
     if (!silent) {
@@ -717,30 +734,51 @@ export async function deleteCenvData(applicationName: string, parameters: any, a
     await deleteParametersByPath(`/service/${stripPath(applicationName)}`, '    -', applicationName);
   }
   if (globalParameters) {
-    await deleteParametersByPath(`/globalenv/${process.env.ENV}`, '    -', 'GLOBAL');
-    await deleteParametersByPath(`/global/${process.env.ENV}`, '    -', 'GLOBAL');
+    await deleteParametersByPath(`/globalenv/${CenvFiles.ENVIRONMENT}`, '    -', 'GLOBAL');
+    await deleteParametersByPath(`/global/${CenvFiles.ENVIRONMENT}`, '    -', 'GLOBAL');
   }
 }
 
-export async function createAppEnvConf(applicationName: any, environmentName: any, configurationProfileName: any) {
-  const appRes = await createApplication(applicationName);
-  if (!appRes) {
-    return false;
+
+export async function createAppEnvConf(envAppConfig: EnvConfig): Promise<EnvConfig> {
+
+  const environment = CenvFiles.ENVIRONMENT;
+
+  if (!envAppConfig.ApplicationId) {
+    const appRes = await createApplication(envAppConfig.ApplicationName);
+    if (!appRes || !appRes.Id) {
+      process.exit(3331)
+    }
+    envAppConfig.ApplicationId = appRes.Id;
+    const parameter = await ParamsModule.createParameter(envAppConfig.ApplicationName, 'application/name', envAppConfig.ApplicationName, 'app', false);
+    const res = await upsertParameter(envAppConfig.ApplicationName, parameter, 'app');
   }
 
-  const envRes = await createEnvironment(appRes.Id, environmentName);
-  if (!envRes) {
-    return false;
+
+  if (!envAppConfig.EnvironmentId) {
+    const envRes = await createEnvironment(envAppConfig.ApplicationId, environment);
+    if (!envRes || !envRes.Id) {
+      process.exit(3332)
+    }
+    envAppConfig.EnvironmentId = envRes.Id;
+    envAppConfig.EnvironmentName = environment
   }
-  const confRes = await createConfigurationProfile(appRes.Id, configurationProfileName);
-  if (confRes) {
-    return {
-      ApplicationName: applicationName,
-      EnvironmentName: environmentName,
-      ApplicationId: appRes.Id,
-      EnvironmentId: envRes.Id,
-      ConfigurationProfileId: confRes.Id,
+  if (!envAppConfig.ConfigurationProfileId || !envAppConfig.MetaConfigurationProfileId) {
+    const confRes = await createConfigurationProfile(envAppConfig.ApplicationId, 'config');
+    if (!confRes || !confRes.Id || !confRes.MetaId) {
+      process.exit(3333)
+    }
+    envAppConfig.ConfigurationProfileId = confRes.Id;
+    envAppConfig.MetaConfigurationProfileId = confRes.Id;
+  }
+
+  if (!envAppConfig.DeploymentStrategyId) {
+    const depRes = await createDeploymentStrategy();
+    if (!depRes || !depRes.Id) {
+      envAppConfig.DeploymentStrategyId = depRes.DeploymentStrategyId;
     }
   }
-  return false;
+
+  CenvFiles.EnvConfig = envAppConfig;
+  return envAppConfig;
 }

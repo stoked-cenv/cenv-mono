@@ -66,7 +66,9 @@ export class ParamsAddCommand extends BaseCommand {
         process.exit(0);
       }
       await Promise.all(packages.map(async (p: Package) => {
-        await CenvParams.addParam(p, params, options as Record<string, string>);
+        if (p.params) {
+          await p.params.addParam(p, params, options as Record<string, string>);
+        }
       }));
     } catch (e) {
       CenvLog.single.catchLog(e as string);

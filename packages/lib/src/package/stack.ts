@@ -148,7 +148,7 @@ export class StackModule extends PackageModule {
       /*await Promise.allSettled(this.pkg.meta.data.cenv.stack.volatileContextKeys.map(async (key) => {
         key = key.replace('CDK_DEFAULT_ACCOUNT', process.env.CDK_DEFAULT_ACCOUNT);
         key = key.replace('CDK_DEFAULT_REGION', process.env.CDK_DEFAULT_REGION);
-        key = key.replace('ENV', process.env.ENV);
+        key = key.replace('ENV', CenvFiles.ENVIRONMENT);
         await this.pkg.pkgCmd(`cdk context --reset ${key}`, { ...opt, pkgPath: this.path, failOnError: false });
       }));*/
       await this.pkg.pkgCmd('cdk context --clear', { pkgPath: this.path });
@@ -158,9 +158,9 @@ export class StackModule extends PackageModule {
   getCdkOut() {
     let cdkOutPath = this.path;
     if (this.pkg.component) {
-      cdkOutPath = CenvFiles.getMonoRoot() + '/packages/' + this.pkg.component;
+      cdkOutPath = `${CenvFiles.getMonoRoot()}/packages/${this.pkg.component}`;
     }
-    return cdkOutPath + '/cdk.out';
+    return `${cdkOutPath}/env.cdk.out/${CenvFiles.ENVIRONMENT}/cdk.out`;
   }
 
   async getOptions(opt: any, processType: ProcessMode) {
@@ -360,7 +360,7 @@ export class StackModule extends PackageModule {
         }
       }
       if (!this.stackVersion) {
-        this.status.incomplete.push(this.statusLine('not fully deployed', `the stack [${CenvLog.colors.errorBold(this.pkg.stackName)}] exists in environment ${process.env.ENV} but has not been tagged with a CENV_PKG_VERSION`, true));
+        this.status.incomplete.push(this.statusLine('not fully deployed', `the stack [${CenvLog.colors.errorBold(this.pkg.stackName)}] exists in environment ${CenvFiles.ENVIRONMENT} but has not been tagged with a CENV_PKG_VERSION`, true));
       } else if (parse(this.stackVersion) !== this.pkg.rollupVersion) {
         this.status.incomplete.push(this.versionMismatch(this.stackVersion.toString()));
       }
@@ -417,7 +417,7 @@ export class StackModule extends PackageModule {
     let url = 'https://AWS_REGION.console.aws.amazon.com/vpc/home?region=AWS_REGION#VpcDetails:VpcId=VPC_ID';
     url = this.updateRegion(url);
 
-    const id = this.getOutput(`${process.env.ENV}-network-id`);
+    const id = this.getOutput(`${CenvFiles.ENVIRONMENT}-network-id`);
     if (!id || !id.OutputValue) {
       return false;
     }
@@ -425,7 +425,7 @@ export class StackModule extends PackageModule {
   }
 
   getLambdaUrl() {
-    const functionName = `${process.env.ENV}-${this.pkg.name}-fn}`;
+    const functionName = `${CenvFiles.ENVIRONMENT}-${this.pkg.name}-fn}`;
     let url = 'https://AWS_REGION.console.aws.amazon.com/lambda/home?region=AWS_REGION#/functions/FUNCTION_NAME';
     url = this.updateRegion(url);
     return url.replace(/FUNCTION_NAME/g, functionName);
@@ -444,10 +444,10 @@ export class StackModule extends PackageModule {
 
   getEcsUrls() {
     const cluster: NameReplacer = {
-      name: `${process.env.ENV}-${removeScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g,
+      name: `${CenvFiles.ENVIRONMENT}-${removeScope(this.pkg.packageName)}-cluster`, regex: /CLUSTER_NAME/g,
     };
     const service: NameReplacer = {
-      name: `${process.env.ENV}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : ''}svc`,
+      name: `${CenvFiles.ENVIRONMENT}-${this?.meta?.cenv?.stack?.assignedSubDomain ? this?.meta?.cenv?.stack?.assignedSubDomain + '-' : ''}svc`,
       regex: /ECS_SERVICE/g,
     };
     const urls: string[] = [];

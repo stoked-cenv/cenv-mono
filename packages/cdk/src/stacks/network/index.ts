@@ -2,14 +2,8 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { NetworkStack } from './network';
+import { CenvFiles } from '@stoked-cenv/lib';
 
 const app = new cdk.App();
 
-const {
-  ENV,
-} = process.env;
-
-// const environment = ENV === "prod" ? "prod" : "stage";
-const environment = ENV;
-
-new NetworkStack(app, `${ENV}-network`, {});
+new NetworkStack(app, `${CenvFiles.ENVIRONMENT}-network`, {});

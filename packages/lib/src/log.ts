@@ -3,6 +3,9 @@ import { clamp, cleanup } from './utils';
 import {Injectable} from '@nestjs/common';
 import chalk, {Chalk} from 'chalk';
 import { EnvironmentStatus, ProcessStatus } from './package/package';
+import path from 'path';
+import { existsSync, writeFileSync, appendFileSync } from 'fs';
+import { CenvFiles } from './file';
 
 export enum LogLevel {
   NONE = 'NONE', MINIMAL = 'MINIMAL', DEBUG = 'DEBUG', INFO = 'INFO', VERBOSE = 'VERBOSE'
@@ -384,14 +387,19 @@ export class CenvLog {
 
     cleanup('catchLog');
 
+
     this.errorLog(error);
 
-    if (!error || !error.stack) {
-      this.errorLog(new Error().stack as string)
-    } else {
-      this.errorLog(error.stack)
-    }
+    const stack = !error || !error.stack ? new Error().stack as string : error.stack;
+    this.errorLog(stack)
+    const errorMessage = `${error}\n${stack}\n\n`
 
+    const errorLogPath = path.join(CenvFiles.LOG_PATH, 'error.log')
+    if (!existsSync(errorLogPath)) {
+    writeFileSync( errorLogPath, errorMessage);
+    } else {
+      appendFileSync(errorLogPath, errorMessage);
+    }
     process.exit(23);
   }
 

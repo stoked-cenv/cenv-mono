@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env ts-node
 import * as sms from 'source-map-support';
 import { CommandFactory } from 'nest-commander';
 import { CliModule } from './cli/cli.module';

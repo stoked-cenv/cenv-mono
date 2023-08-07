@@ -28,7 +28,6 @@ export class HelpUI {
   cmdOptions: any;
   selectedCommandFg = [255, 255, 255];
   selectedCommandBg = [30, 30, 30];
-  blue = CenvLog.colors.smooth;
   blueBright = [0, 150, 255];
   red = [255, 0, 0];
   gray = [140, 140, 140];

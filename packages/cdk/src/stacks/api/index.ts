@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import { ECSServiceStack } from '../../index';
+import { CenvFiles } from '@stoked-cenv/lib';
 
 const envVars: Record<string, string> = {};
 if (process.env.APPLICATION_NAME) {
@@ -9,11 +10,11 @@ if (process.env.APPLICATION_NAME) {
 let subdomain = 'api';
 if (process.env.CENV_SUBDOMAIN) {
   subdomain = process.env.CENV_SUBDOMAIN;
-  process.env.ASSIGNED_DOMAIN = `${subdomain}.${process.env.ENV}.${process.env.ROOT_DOMAIN}`;
+  process.env.ASSIGNED_DOMAIN = `${subdomain}.${CenvFiles.ENVIRONMENT}.${process.env.APP}.${process.env.ROOT_DOMAIN}`;
 }
 
 new ECSServiceStack({
-                      env: process.env.ENV!,
+                      env: CenvFiles.ENVIRONMENT,
                       subdomain,
                       stackName: process.env.CENV_STACK_NAME!,
                       ecrRepositoryName: process.env.CENV_DOCKER_NAME!,

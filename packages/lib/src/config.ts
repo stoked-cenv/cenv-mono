@@ -11,7 +11,7 @@ import { getAccountId } from './aws/sts';
 import { createDirIfNotExists, getContextConfig, ioReadVarList, printProfileQuery, ProfileData } from './stdio';
 
 const primaryProfileProperties: Record<string, any> = {
-  AWS_PROFILE: process.env.AWS_PROFILE || 'default', AWS_REGION: 'us-east-1', ENV: process.env.ENV || 'dev', ROOT_DOMAIN: undefined,
+  AWS_PROFILE: process.env.AWS_PROFILE || 'default', AWS_REGION: 'us-east-1', ENV: CenvFiles.ENVIRONMENT || 'dev', ROOT_DOMAIN: undefined,
 };
 const primaryProfileKeys = Object.keys(primaryProfileProperties);
 
@@ -76,9 +76,9 @@ export async function Config(options: any, alwaysAsk = false) {
     }
   }
 
-  const cidr = await getExportValue('cidr', true);
+  const cidr = await getExportValue( envVars.get('ENV') + '-cidr', true);
   if (cidr) {
-    envVars.set('CENV_NETWORK_CIDR', 'cidr');
+    envVars.set('CENV_NETWORK_CIDR', cidr);
   }
 
   // because cdk logs everything to stderr by default.. fucking annoying..
@@ -214,7 +214,7 @@ async function getAccountInfo() {
   const callerIdentity: any = await getAccountId();
   if (!callerIdentity) {
     CenvLog.single.errorLog('could not connect using the configured profile:\n');
-    CenvLog.single.errorLog(printProfileQuery(process.env.AWS_PROFILE, process.env.ENV));
+    CenvLog.single.errorLog(printProfileQuery(process.env.AWS_PROFILE, CenvFiles.ENVIRONMENT));
     process.exit(2238);
   }
   return {

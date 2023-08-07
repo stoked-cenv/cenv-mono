@@ -41,7 +41,7 @@ ConfigCommandSuite(`correct prompts for setting up the config`, async ({ command
   await CommandTestFactory.run(commandInstance, args);
 
   not.equal(process.env.AWS_PROFILE, undefined);
-  not.equal(process.env.ENV, undefined);
+  not.equal(CenvFiles.ENVIRONMENT, undefined);
   not.equal(process.env.AWS_REGION, undefined);
   not.equal(process.env.AWS_PROFILE, undefined);
 });

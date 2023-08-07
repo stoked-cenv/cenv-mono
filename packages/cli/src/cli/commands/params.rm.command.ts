@@ -106,14 +106,13 @@ export class ParamsRemoveCommand extends BaseCommand {
       if (packages?.length) {
         for (let i = 0; i < packages?.length;) {
           const app = packages.shift();
-          if (app && app.chDir()) {
-            await CenvParams.removeParameters(params, options, types);
+          if (app && app.chDir() && app.params) {
+            await app.params.removeParameters(params, options, types);
           }
         }
         return;
       }
 
-      await CenvParams.removeParameters(params, options, types);
     } catch (e) {
       CenvLog.single.errorLog(e as string);
     }

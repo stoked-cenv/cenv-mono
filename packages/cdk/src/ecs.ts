@@ -11,6 +11,7 @@ import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import { ensureValidCerts, tagStack } from './utils';
+import { CenvFiles } from '@stoked-cenv/lib';
 
 export interface ECSServiceDeploymentParams {
   env: string;
@@ -39,8 +40,8 @@ if (ASSIGNED_DOMAIN) {
   ensureValidCerts(ASSIGNED_DOMAIN);
 }
 
-export const VPC_NAME = `${process.env.ENV}-net`;
-const getVPCByName = (construct: Construct, id = process.env.ENV + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
+export const VPC_NAME = `${CenvFiles.ENVIRONMENT}-net`;
+const getVPCByName = (construct: Construct, id = CenvFiles.ENVIRONMENT + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
   vpcName,
 });
 
@@ -84,7 +85,7 @@ export class ECSServiceStack extends Stack {
 
     let subDomain: string = subdomain as string; // i.e. install.dev
     let baseDomain: string = rootDomain as string;
-    let fullDomain = `${subDomain}.${process.env.ENV}.${baseDomain}`;
+    let fullDomain = `${subDomain}.${CenvFiles.ENVIRONMENT}.${baseDomain}`;
 
     if (ASSIGNED_DOMAIN) {
       const assignedParts = ASSIGNED_DOMAIN.split('.');

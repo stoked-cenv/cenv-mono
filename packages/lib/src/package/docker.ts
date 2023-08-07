@@ -3,7 +3,7 @@ import { createRepository, deleteRepository, describeRepositories, getRepository
 import { ImageIdentifier, Repository } from '@aws-sdk/client-ecr';
 import * as semver from 'semver';
 import { CenvLog } from '../log';
-import {  sleep, } from '../utils';
+import { isOsSupported, sleep } from '../utils';
 import { execCmd, runScripts,spawnCmd } from '../proc'
 import { Package, PackageCmd, TPackageMeta } from './package';
 
@@ -26,6 +26,44 @@ export class DockerModule extends PackageModule {
   constructor(pkg: Package, path: string, meta: TPackageMeta) {
     super(pkg, path, meta, PackageModuleType.DOCKER);
     this.dockerName = Package.packageNameToDockerName(this.name);
+  }
+
+  static async checkDockerStatus() {
+    const res = await execCmd('docker version -f json', { silent: true });
+    if (res.toString().includes('Command failed')) {
+      return { active: false };
+    }
+    const info = JSON.parse(res);
+    return { active: info.Server !== null, info };
+  }
+
+  static async dockerPrefight(pkgs: Package[]) {
+    // if deploying check to see if there are any docker packages if so verify docker is running
+    if (isOsSupported() && pkgs.filter((p: Package) => p.docker).length) {
+      let dockerStatus = await this.checkDockerStatus();
+
+      if (!dockerStatus.active) {
+        CenvLog.info('attempting to start docker', 'docker daemon not active');
+        await execCmd('open -a Docker', { silent: true });
+        for (const iter of ([...Array(6)])) {
+          await sleep(5);
+
+          dockerStatus = await this.checkDockerStatus();
+          if (dockerStatus.active) {
+            break;
+          }
+        }
+
+        if (!dockerStatus.active) {
+          CenvLog.err('docker daemon not active after 30 seconds:\n' + CenvLog.colors.info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
+          return;
+        } else {
+          CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
+        }
+      } else {
+        CenvLog.single.infoLog('verified that docker is running');
+      }
+    }
   }
 
   public static get ecrUrl(): string {

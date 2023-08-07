@@ -11,6 +11,7 @@ import {
 import {CenvLog} from '../log';
 import {Package} from "../package/package";
 import {checkExceptions} from '@aws-sdk/util-waiter'
+import { CenvFiles } from '../file';
 
 let _client: CloudFormationClient;
 
@@ -145,7 +146,7 @@ export async function getExportValue(exportName: string, silent = false): Promis
     return false;
   }
 
-  const updatedExport = exportName.startsWith(`${process.env.ENV}-`) ? exportName : `${process.env.ENV}-${exportName}`;
+  const updatedExport = exportName.startsWith(`${CenvFiles.ENVIRONMENT}-`) ? exportName : `${CenvFiles.ENVIRONMENT}-${exportName}`;
   exports = exports.filter(e => e.Name === updatedExport);
 
   if (exports.length) {

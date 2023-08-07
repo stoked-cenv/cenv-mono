@@ -1,13 +1,7 @@
 import {Command, Option} from 'nest-commander';
 import * as path from 'path';
 import {
-  BaseCommandOptions,
-  CenvFiles,
-  CenvLog,
-  getConfigVars,
-  Package,
-  PackageModule,
-  spawnCmd,
+  BaseCommandOptions, CenvFiles, CenvLog, getConfigVars, Package, PackageModule, ParamsModule, spawnCmd,
 } from '@stoked-cenv/lib';
 import {BaseCommand} from './base.command'
 
@@ -55,7 +49,7 @@ export class ExecCommand extends BaseCommand {
           if (relative !== '') {
             process.chdir(path.relative(process.cwd(), pkgPath));
           }
-          const config = CenvFiles.GetConfig();
+          const config = await ParamsModule.GetConfig(p.packageName);
           if (config) {
             vars = await getConfigVars(p.packageName,true, false, true);
             Object.entries(options.args).forEach(([key, value]) => {

@@ -12,16 +12,10 @@ export class ParamsMaterializeCommand extends BaseCommand {
     this.config.allowUI = false;
     this.config.packagesRequired = true;
   }
-
   @Option({
-            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
-          }) parseLogLevel(val: string): string {
-    return val;
-  }
-
-  @Option({
-            flags: '-s, --scope <scope>', description: `Assign a scope to be used throughout the workspace`,
-          }) parseScope(val: string): string {
+    flags: '-t, --test',
+  })
+  parseTest(val: boolean): boolean {
     return val;
   }
 

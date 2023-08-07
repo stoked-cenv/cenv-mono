@@ -17,7 +17,7 @@ import {BucketDeployment, Source} from 'aws-cdk-lib/aws-s3-deployment';
 import {Construct} from 'constructs';
 import * as process from 'process';
 import {tagStack} from '../../index';
-import {validateEnvVars} from "@stoked-cenv/lib";
+import { CenvFiles, validateEnvVars } from '@stoked-cenv/lib';
 
 export class SpaStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -37,7 +37,7 @@ export class SpaStack extends Stack {
     const domainName = process.env.ROOT_DOMAIN;
     const www = process.env.APP_DOMAIN;
 
-    console.log("env: " + process.env.ENV!);
+    console.log("env: " + CenvFiles.ENVIRONMENT);
     console.log("www: " + www!);
 
     const zone = HostedZone.fromLookup(this, "zone", {
@@ -45,17 +45,17 @@ export class SpaStack extends Stack {
     });
 
 
-    const certImport = Fn.importValue(`${process.env.ENV}-site-cert`);
-    const certificate = Certificate.fromCertificateArn(this, `${process.env.ENV}-site-cert`, certImport);
+    const certImport = Fn.importValue(`${CenvFiles.ENVIRONMENT}-site-cert`);
+    const certificate = Certificate.fromCertificateArn(this, `${CenvFiles.ENVIRONMENT}-site-cert`, certImport);
 
-    const cloudfrontOAI = new OriginAccessIdentity(this, `${process.env.ENV}-${process.env.CENV_STACK_NAME}-cf-OAI`, {
+    const cloudfrontOAI = new OriginAccessIdentity(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-cf-OAI`, {
       comment: `OAI for ${www}`,
     });
 
     new CfnOutput(this, 'Site', {value: `https://${www}`});
 
     // s3
-    const bucket = new Bucket(this, `${process.env.ENV}-${process.env.CENV_STACK_NAME}`, {
+    const bucket = new Bucket(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}`, {
       bucketName: `${process.env.CENV_BUCKET_NAME}`,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       removalPolicy: RemovalPolicy.DESTROY,
@@ -68,7 +68,7 @@ export class SpaStack extends Stack {
                                                      resources: [bucket.arnForObjects('*')],
                                                      principals: [new CanonicalUserPrincipal(cloudfrontOAI.cloudFrontOriginAccessIdentityS3CanonicalUserId,),],
                                                    }),);
-    new CfnOutput(this, `${process.env.ENV}-${process.env.CENV_STACK_NAME}-Bucket`, {value: bucket.bucketName});
+    new CfnOutput(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-Bucket`, {value: bucket.bucketName});
 
     // Specifies you want viewers to use HTTPS & TLS v1.1 to request your objects
     const viewerCertificate = ViewerCertificate.fromAcmCertificate({
@@ -82,7 +82,7 @@ export class SpaStack extends Stack {
                                                                    }, {
                                                                      sslMethod: SSLMethod.SNI,
                                                                      securityPolicy: SecurityPolicyProtocol.TLS_V1_1_2016,
-                                                                     aliases: process.env.ENV === 'prod' ? [`${process.env.APP}.${domainName}`, www!] : [www!],
+                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [`${process.env.APP}.${domainName}`, www!] : [www!],
                                                                    },);
 
     // CloudFront distribution
@@ -101,18 +101,18 @@ export class SpaStack extends Stack {
       value: distribution.distributionId,
     });
 
-    if (process.env.ENV === 'prod') {
+    if (CenvFiles.ENVIRONMENT === 'prod') {
       // Route53 alias record for the CloudFront distribution
-      new ARecord(this, `${process.env.ENV}-${process.env.CENV_STACK_NAME}-enduser-a`, {
+      new ARecord(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-enduser-a`, {
         recordName: `${process.env.APP}.${domainName}`, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
       });
     }
-    new ARecord(this, `${process.env.ENV}-${process.env.CENV_STACK_NAME}-app-a`, {
+    new ARecord(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-app-a`, {
       recordName: www, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
     });
 
     // Deployment the bucket
-    new BucketDeployment(this, `${process.env.ENV}-${process.env.CENV_STACK_NAME}-cra`, {
+    new BucketDeployment(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-cra`, {
       sources: [Source.asset(process.env.CENV_BUILD_PATH as string)],
       destinationBucket: bucket,
       distribution,

@@ -86,6 +86,7 @@ RUN apk add --no-cache libcap && setcap 'cap_net_bind_service=+ep' `readlink -f 
 COPY --chown=node:node --from=build /app/node_modules ./node_modules
 COPY --chown=node:node --from=build /app/packages/api/dist ./packages/api/dist
 COPY --chown=node:node --from=build /app/packages/globals ./packages/globals
+COPY --chown=node:node --from=build /app/packages/api/package.json ./packages/api/package.json
 COPY --chown=node:node --from=build /app/packages/api/node_modules ./packages/api/node_modules
 
 ## Set Docker as non-root user

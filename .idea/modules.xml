@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$USER_HOME$/.cenv/.idea/.cenv.iml" filepath="$USER_HOME$/.cenv/.idea/.cenv.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/cenv-mono.iml" filepath="$PROJECT_DIR$/.idea/cenv-mono.iml" />
       <module fileurl="file://$PROJECT_DIR$/../cli/.idea/cli.iml" filepath="$PROJECT_DIR$/../cli/.idea/cli.iml" />
       <module fileurl="file://$PROJECT_DIR$/../nest-commander/.idea/nest-commander.iml" filepath="$PROJECT_DIR$/../nest-commander/.idea/nest-commander.iml" />

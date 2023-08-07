@@ -13,6 +13,7 @@ import { DockerModule } from './package/docker';
 import { StackSummary } from '@aws-sdk/client-cloudformation';
 import { execCmd, ICmdOptions } from './proc';
 import { CenvParams } from './params';
+import { CenvFiles } from './file';
 
 interface DeploymentDependencies {
   package: Package;
@@ -401,44 +402,6 @@ export class Deployment {
     });
   }
 
-  static async checkDockerStatus() {
-    const res = await execCmd('docker version -f json', { silent: true });
-    if (res.toString().includes('Command failed')) {
-      return { active: false };
-    }
-    const info = JSON.parse(res);
-    return { active: info.Server !== null, info };
-  }
-
-  static async dockerPrefight(pkgs: Package[]) {
-    // if deploying check to see if there are any docker packages if so verify docker is running
-    if (isOsSupported() && pkgs.filter((p: Package) => p.docker).length) {
-      let dockerStatus = await this.checkDockerStatus();
-
-      if (!dockerStatus.active) {
-        CenvLog.info('attempting to start docker', 'docker daemon not active');
-        await execCmd('open -a Docker');
-        for (const iter of ([...Array(6)])) {
-          await sleep(5);
-
-          dockerStatus = await this.checkDockerStatus();
-          if (dockerStatus.active) {
-            break;
-          }
-        }
-
-        if (!dockerStatus.active) {
-          CenvLog.err('docker daemon not active after 30 seconds:\n' + CenvLog.colors.info(JSON.stringify(dockerStatus.info, null, 2)), 'docker daemon not active');
-          return;
-        } else {
-          CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
-        }
-      } else {
-        CenvLog.single.infoLog('verified that docker is running');
-      }
-    }
-  }
-
   static sysInfo() {
     const info = getOs();
     for (const [key, value] of Object.entries(info)) {
@@ -451,10 +414,12 @@ export class Deployment {
       this.sysInfo();
 
       if (this.options.docker) {
-        await this.dockerPrefight(items);
+        await DockerModule.dockerPrefight(items);
       }
 
-      Package.global.timer?.start();
+      if (!Package.global.timer?.running) {
+        Package.global.timer?.start();
+      }
 
       if (this.isDeploy()) {
         if (this.options?.bump !== 'reset' && !this.options?.skipBuild) {
@@ -539,7 +504,7 @@ export class Deployment {
 
     const bootstrapStack = stacks?.filter((s) => s.StackName === 'CDKToolkit');
     if (!(bootstrapStack?.length)) {
-      CenvLog.info(`environment ${process.env.ENV} has not been bootstrapped`);
+      CenvLog.info(`environment ${CenvFiles.ENVIRONMENT} has not been bootstrapped`);
       await execCmd(`cdk bootstrap aws://${process.env.CDK_DEFAULT_ACCOUNT}/${process.env.AWS_REGION}`);
     }
     cmd?.result(0);
@@ -573,7 +538,7 @@ export class Deployment {
   }
 
   static async getUninstallables(packages: Package[]) {
-    const environment = await Environments.getEnvironment(process.env.ENV!);
+    const environment = await Environments.getEnvironment(CenvFiles.ENVIRONMENT);
 
     if (!environment.stacks?.length && (this.options.suite || this.options.environment)) {
       packages = [];

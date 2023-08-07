@@ -167,7 +167,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
       const rmvRes = await getClient().send(rmvCmd);
     }
 
-    try {
+    /*try {
       const rmvPolCmd = new DetachGroupPolicyCommand({
                                                        GroupName,
                                                        PolicyArn: `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`
@@ -177,7 +177,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
       if (!silent && e instanceof Error) {
         CenvLog.single.errorLog(`detach policy error: ${CenvLog.colors.errorBold(e.message)}`)
       }
-    }
+    }/*/
     const cmd = new DeleteGroupCommand({GroupName});
     const res = await getClient().send(cmd);
     if (res) {

@@ -3,7 +3,7 @@ import { AppConfigDataClient, GetLatestConfigurationCommand, StartConfigurationS
 import * as YAML from 'yaml';
 import { CenvParams } from '../params';
 import { CenvLog } from '../log';
-import { CenvFiles } from '../file';
+import { CenvFiles, EnvConfig } from '../file';
 import { decryptValue, isEncrypted } from './parameterStore';
 import { getConfig, getConfigurationProfile } from './appConfig';
 
@@ -22,32 +22,35 @@ function getClient() {
 }
 
 export async function startSession(applicationName: string, typed = false) {
-  let params;
-  const initialConfig = CenvFiles.EnvConfig;
-  if (!initialConfig || initialConfig.ApplicationId === '' || initialConfig.EnvironmentId === '' || initialConfig.ConfigurationProfileId === '') {
-    const configRes = await getConfig(applicationName);
-    if (!configRes) {
-      CenvLog.single.catchLog(['startSession error', 'No config found']);
-      process.exit();
-    }
-    CenvFiles.EnvConfig = configRes.config;
-  }
-  if (typed && (initialConfig.MetaConfigurationProfileId === '')) {
-    const confResMeta = await getConfigurationProfile(initialConfig.ApplicationId, 'config_meta', true);
-    if (!confResMeta || !confResMeta.ConfigurationProfileId) {
-      CenvLog.single.catchLog(['startSession error', 'No meta config found']);
-      process.exit();
-    }
-    CenvFiles.EnvConfig.MetaConfigurationProfileId = confResMeta.ConfigurationProfileId;
-  }
-  const command = new StartConfigurationSessionCommand(typed ? CenvFiles.SESSION_PARAMS_META : CenvFiles.SESSION_PARAMS);
   try {
+    let initialConfig = CenvFiles.EnvConfig;
+    if (!initialConfig || !initialConfig.ApplicationId || !initialConfig.EnvironmentId || !initialConfig.ConfigurationProfileId) {
+      const configRes = await getConfig(applicationName) as EnvConfig;
+      if (!configRes || !configRes.valid) {
+        CenvLog.single.catchLog(['startSession error', 'No config found']);
+        process.exit();
+      }
+      initialConfig = configRes;
+    }
+    if (typed && (initialConfig.MetaConfigurationProfileId === '')) {
+      const confResMeta = await getConfigurationProfile(initialConfig.ApplicationId!, 'config_meta', true);
+      if (!confResMeta || !confResMeta.ConfigurationProfileId) {
+        CenvLog.single.catchLog(['startSession error', 'No meta config found']);
+        process.exit();
+      }
+      initialConfig.MetaConfigurationProfileId = confResMeta.ConfigurationProfileId;
+    }
+    const params = { ApplicationIdentifier: initialConfig.ApplicationId, EnvironmentIdentifier: initialConfig.EnvironmentId, ConfigurationProfileIdentifier: initialConfig.ConfigurationProfileId};
+    if (typed) {
+      params.ConfigurationProfileIdentifier = initialConfig.MetaConfigurationProfileId;
+    }
+    const command = new StartConfigurationSessionCommand(params);
     const response = await getClient().send(command);
     return response.InitialConfigurationToken ? response.InitialConfigurationToken : false;
   } catch (e) {
-    CenvLog.single.errorLog(['startSession error', e instanceof Error ? e.message : e as string]);
+    CenvLog.single.catchLog(['startSession error', e instanceof Error ? e.message : e as string]);
+    process.exit(398)
   }
-  return false;
 }
 
 export async function getDecodedConfig(token: any) {
@@ -69,7 +72,7 @@ export async function getLatestConfiguration(token: any, allValues = false, meta
     const configParamsDecoded = await getDecodedConfig(token);
     let metaConfigParamsDecoded;
     if (metaToken) {
-      metaConfigParamsDecoded = await getDecodedConfig(token);
+      metaConfigParamsDecoded = await getDecodedConfig(metaToken);
     }
     return await parseConfig(configParamsDecoded, allValues, metaConfigParamsDecoded);
   } catch (e) {
@@ -84,7 +87,7 @@ async function parseConfig(configInput: any, allValues = false, metaConfigInput:
   const updatedConfig: any = {};
   const env: { [key: string]: string | undefined } = process.env;
   for (const [key, value] of Object.entries(ymlConfig)) {
-    if (ymlMetaConfig) {
+    if (ymlMetaConfig && !updatedConfig[ymlMetaConfig[key]]) {
       updatedConfig[ymlMetaConfig[key]] = {};
     }
     if ((env[key] != value as string && value !== undefined) || allValues) {
@@ -159,11 +162,13 @@ export async function getConfigVars(applicationName: string, allValues = false, 
   const token = await startSession(applicationName);
 
   if (!token) {
-    CenvLog.single.errorLog('could not start appConfigData session');
+    CenvLog.single.catchLog(`could not start appConfigData session for ${applicationName}: no config found\``);
+    process.exit(229)
   }
   const metaToken = typed ? await startSession(applicationName, true) : false;
   if (typed && !metaToken) {
-    CenvLog.single.errorLog('could not start appConfigData session: no meta config found');
+    CenvLog.single.errorLog(`could not start appConfigData session for ${applicationName}: no meta config found`);
+    process.exit(239)
   }
   const latestConfig = await getLatestConfiguration(token, allValues, metaToken);
   if (latestConfig && !silent) {
@@ -201,7 +206,7 @@ export async function startCenv(clientType: ClientMode, applicationName: string,
   try {
 
     if (clientType === ClientMode.LOCAL_ONLY || clientType === ClientMode.LOCAL_DEFAULT) {
-      const vars = await CenvFiles.GetVars(false, true);
+      const vars = await CenvFiles.GetLocalVars(applicationName, false, true);
       const parsedVars = await parseConfig(YAML.stringify(vars));
       if (!silent) {
         displayConfigVars('INITIAL CONFIG VARS', parsedVars);
@@ -209,7 +214,6 @@ export async function startCenv(clientType: ClientMode, applicationName: string,
       if (clientType === ClientMode.LOCAL_ONLY) {
         return;
       }
-      await CenvParams.pull(true);
     }
 
     return await pollDeployedVars(applicationName, clientType === ClientMode.REMOTE_POLLING ? cronExpression : '0 * * * *', silent);

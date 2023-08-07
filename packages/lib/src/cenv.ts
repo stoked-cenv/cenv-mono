@@ -203,6 +203,9 @@ export class Cenv {
       return this.dashboard?.cleanTags(...text);
     };
 
+    // creat global package
+    Package.global;
+
     await cmdInit(options, cmdInfo);
 
     if (!cmdInfo.cenvRootRequired) {
@@ -233,12 +236,12 @@ export class Cenv {
 
   static async env(params: string[], options: Record<string, any>) {
     if (!params.length) {
-      CenvLog.info(`current environment: ${CenvLog.colors.infoBold(process.env.ENV)}`);
+      CenvLog.info(`current environment: ${CenvLog.colors.infoBold(CenvFiles.ENVIRONMENT)}`);
     }
     if (options.exports) {
       let exports: any = await listExports();
       if (params) {
-        exports = exports.filter((e: Export) => params.includes(e.Name?.replace(`${process.env.ENV}-`, '') as string));
+        exports = exports.filter((e: Export) => params.includes(e.Name?.replace(`${CenvFiles.ENVIRONMENT}-`, '') as string));
         exports = exports.map((e: Export) => e.Value);
         CenvLog.single.stdLog(exports.join(' '));
         return;
@@ -393,8 +396,8 @@ export class Cenv {
       const materializationExists = await getFunction('cenv-params');
       if (!materializationExists) {
         const cenvParamsZip = await CenvParams.createParamsLibrary();
-        await createFunction('cenv-params', cenvParamsZip, roleArn, {}, {  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV! })
-        //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: process.env.ENV },);
+        await createFunction('cenv-params', cenvParamsZip, roleArn, {}, {  ApplicationName: '@stoked-cenv/params',EnvironmentName: CenvFiles.ENVIRONMENT })
+        //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: CenvFiles.ENVIRONMENT },);
       }
     } catch (e) {
       CenvLog.single.catchLog('Cenv.deployCenv err: ' + (e instanceof Error ? e.stack : e));
@@ -458,7 +461,7 @@ export class Cenv {
         const polRes = await deletePolicy(AppConfigGetArn);
       }
 
-      if (process.env.ENV === 'local') {
+      if (CenvFiles.ENVIRONMENT === 'local') {
         destroyedAnything = true;
         await deleteHostedZone(process.env.ROOT_DOMAIN!);
       }
