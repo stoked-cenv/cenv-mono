@@ -32,6 +32,7 @@ export class ParamsModule extends PackageModule {
   localVars?: VarList;
   localVarsTyped = new CenvVars();
   materializedVars: VarList = {};
+  materializedVarsTyped?: CenvVars;
   materializedVarsVersion?: number;
   hasCenvVars = false;
   hasLocalConfig = false;
@@ -87,7 +88,7 @@ export class ParamsModule extends PackageModule {
   }
 
   get anythingDeployed(): boolean {
-    return (this.hasCenvVars && (this.varsUpToDateFlag || !!this.materializedVarsVersion || !!this.deployedConfig || (this.pushedVars && Object.keys(this.pushedVars).length > 0) || !!(this.materializedVars && Object.keys(this.materializedVars).length > 0)));
+    return (this.hasCenvVars && (this.varsUpToDateFlag || !!this.materializedVarsVersion || !!this.deployedConfig || (!!this.pushedVars && Object.keys(this.pushedVars).length > 0) || (this.materializedVars && Object.keys(this.materializedVars).length > 0)));
   }
 
   public get localConfigValid() {
@@ -592,7 +593,8 @@ export class ParamsModule extends PackageModule {
           this.pushedCounts = this.getVarCounts(this.pushedVarsTyped);
           this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);
           if (this.materializedVarsVersion) {
-            this.materializedVars = await CenvParams.pull(true, false, true, false, false, false, this.deployedConfig, true);
+            this.materializedVarsTyped = await getConfigVars(this.pkg.packageName, true, true, false, true);
+            this.materializedVars = this.convertToCenvVars(this.materializedVarsTyped);
           }
           await this.checkVarsUpToDate();
         }

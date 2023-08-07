@@ -448,22 +448,14 @@ export class CenvParams {
   static async pull(materialized = false, decrypted = false, silent = false, init = false, push = true, save = true, config?: EnvConfig, allValues = false) {
     let data = config;
     if (!data) {
-      data = await CenvFiles.GetConfig();
+      data = CenvFiles.GetConfig();
     }
 
     let variables;
     if (!materialized) {
       variables = await getParams(data, 'allTyped', 'simple', decrypted, materialized, silent);
     } else {
-
-      const options = {
-        ApplicationId: data.ApplicationId,
-        EnvironmentId: data.EnvironmentId,
-        ConfigurationProfileId: data.ConfigurationProfileId,
-        AllValues: allValues ? allValues : undefined
-      };
-
-      variables = await getConfigVars(data.ApplicationName, allValues, silent, 'PULLED DEPLOYED VARS');
+      variables = await getConfigVars(data.ApplicationName, allValues, silent);
     }
 
     // merge app data
@@ -527,19 +519,19 @@ export class CenvParams {
     }
   }
 
-  public static getMaterializedMeta(materializedVars: Record<string, string>, before: Record<string, string>) {
+  public static getMaterializedMeta(materializedVars: Record<string, string>, typed: Record<string, string>) {
     const from: Record<string, string> = {};
     for (const [key, value] of Object.entries(materializedVars) as [string, string][]) {
-      if (before?.app[key as keyof object] !== value) {
+      if (typed?.app[key as keyof object] !== value) {
         from[key] = 'app';
       }
-      if (before?.environment[key as keyof object] !== value) {
+      if (typed?.environment[key as keyof object] !== value) {
         from[key] = 'environment';
       }
-      if (before?.globalEnv[key as keyof object] !== value) {
+      if (typed?.globalEnv[key as keyof object] !== value) {
         from[key] = 'globalEnv';
       }
-      if (before?.global[key as keyof object] !== value) {
+      if (typed?.global[key as keyof object] !== value) {
         from[key] = 'global';
       }
     }
@@ -549,7 +541,7 @@ export class CenvParams {
   public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
     try {
       const {
-        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
+        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId, MetaConfigurationProfileId
       } = event;
 
       if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId || !DeploymentStrategyId) {
@@ -560,19 +552,26 @@ export class CenvParams {
       const appConfig = {
         ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
       };
-      const configMeta = await getConfigurationProfile(ApplicationId, 'config_meta');
-      let appConfigMeta;
-      if (configMeta && configMeta.ConfigurationProfileId) {
-        appConfigMeta = {
-          ApplicationId, EnvironmentId, ConfigurationProfileId: configMeta.ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
-        };
+
+      const appConfigMeta = {
+        ApplicationId, EnvironmentId, ConfigurationProfileId: MetaConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId
+      };
+      if (!appConfigMeta.ConfigurationProfileId) {
+        const metaCreateRes = await createConfigurationProfile(ApplicationId)
+        if (metaCreateRes) {
+          appConfigMeta.ConfigurationProfileId = metaCreateRes.MetaId;
+        }
       }
       if (process.env.VERBOSE_LOGS) {
         console.log('appConfig', appConfig)
+        console.log('appConfigMeta', appConfigMeta)
       }
       // materialize the new app vars from the parameter store using the app config as input
-      let materializedVars = await getParams(appConfig, 'all', 'simple', true, false, true);
-
+      const parameters = await getParams(appConfig, 'allTyped', 'simple', true, false, true);
+      if (process.env.VERBOSE_LOGS) {
+        console.log('parameters', JSON.stringify(parameters, null, 2));
+      }
+      let materializedVars = {...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv};
       // expand template variables
       const before = JSON.parse(JSON.stringify(materializedVars));
       if (process.env.VERBOSE_LOGS) {
@@ -593,7 +592,8 @@ export class CenvParams {
 
       if (appConfigMeta) {
         // deploy the materialized vars to a new config profile version
-        const materializedMeta = this.getMaterializedMeta(materializedVars, before);
+        const materializedMeta = this.getMaterializedMeta(materializedVars, parameters);
+        console.log('materializedMeta', materializedMeta)
         await deployConfig(materializedMeta, appConfigMeta);
       }
       return {before, after}
@@ -849,6 +849,7 @@ export class CenvParams {
       return false;
     }
     envConfig.ConfigurationProfileId = confProf.Id;
+    envConfig.MetaConfigurationProfileId = confProf.MetaId;
     const deploymentStratRes = await getDeploymentStrategy();
     if (!deploymentStratRes || !deploymentStratRes.DeploymentStrategyId) {
       return false;
@@ -877,42 +878,10 @@ export class CenvParams {
     CenvFiles.freshPath(cenvParamsPath);
     const paramsPath = path.join(__dirname, '../params');
     cpSync(paramsPath, cenvParamsPath, { recursive: true, dereference: true });
-    await execCmd('npm i', { path: cenvParamsPath });
+    await execCmd('pnpm i', { path: cenvParamsPath });
     await execCmd('tsc', { path: cenvParamsPath });
     await execCmd(`zip -r materializationLambda.zip * > zip.log`, { path: cenvParamsPath });
     return path.join(cenvParamsPath, `materializationLambda.zip`);
-    /*
-        const libPathModule = cenvParamsPath + '/node_modules/@stoked-cenv/lib';
-        CenvFiles.freshPath(libPathModule);
-
-        const libPath = path.join(__dirname, '../');
-        const pkg = '/package.json';
-        const tsconfig = 'tsconfig.json';
-        const index = '/index.ts';
-        console.log(1, libPath, libPathModule);
-        cpSync(path.join(libPath, 'src'), libPathModule, { recursive: true, dereference: true });
-        console.log(2);
-        cpSync(path.join(libPath,  'tsconfig.build.json' ), path.join(libPathModule, tsconfig), { recursive: true });
-        const pkgMeta = require(libPath + 'package.json');
-        writeFileSync(libPathModule + pkg, JSON.stringify(pkgMeta, null, 2));
-        const paramsPath = path.join(__dirname, '../params');
-        cpSync(paramsPath + pkg + '.build', cenvParamsPath + pkg, { recursive: true });
-        cpSync(path.join(paramsPath, tsconfig + '.build'), path.join(cenvParamsPath, tsconfig), { recursive: true });
-        cpSync(paramsPath + index + '.build', cenvParamsPath + index, { recursive: true });
-
-
-        await execCmd('npm i', { path: libPathModule });
-        await execCmd('npm i', { path: cenvParamsPath });
-        const tmpParamsPath = path.join(cenvParamsPath, '../tmp');
-        CenvFiles.freshPath(tmpParamsPath);
-        await execCmd(`tsc --project tsconfig.build.json -outDir ${tmpParamsPath}`)
-        console.log(2);
-        cpSync(cenvParamsPath + '/lib', libPathModule, { recursive: true, dereference: true });
-        await execCmd(`zip -r materializationLambda.zip * > zip.log`, { path: cenvParamsPath });
-        return path.join(cenvParamsPath, `materializationLambda.zip`);
-
-         */
-    return "stuff";
   }
 
   private static initFlagValidation(options?: Record<string, any>): FlagValidation {

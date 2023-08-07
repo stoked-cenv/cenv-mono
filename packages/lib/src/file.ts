@@ -31,16 +31,17 @@ export class EnvConfig {
   ApplicationId = '';
   EnvironmentId = '';
   ConfigurationProfileId = '';
+  MetaConfigurationProfileId = '';
   DeploymentStrategyId = '';
 }
 
 type DecryptedValue = `${'--DEC='}${string}`;
 type EncryptedValue = `${'--ENC='}${string}`;
+type ReservedNames = "globalEnv" | "global"
+type ValidVarKey = Exclude<string, ReservedNames>;
 type StringValue = Exclude<string, EncryptedValue | DecryptedValue>;
 type CenvValue = StringValue | EncryptedValue | DecryptedValue;
-type ReservedNames = "newGlobal" | "global"
-type ValidVarKey = Exclude<string, ReservedNames>;
-export type VarList = { [key: string]: CenvValue }
+export type VarList = { [key: ValidVarKey]: CenvValue }
 export type AppVars = VarList | VarList & { global?: [string], globalEnv?: [string] };
 export class CenvVars {
   app: AppVars = {};
@@ -567,12 +568,26 @@ export class CenvFiles {
   } {
     if (this.EnvConfig.ApplicationId === undefined || this.EnvConfig.EnvironmentId === undefined || this.EnvConfig.ConfigurationProfileId === undefined) {
       CenvLog.single.catchLog(['SESSION_PARAMS error', 'No config found']);
-      process.exit();
+      process.exit(22);
     }
     return {
       ApplicationIdentifier: this.EnvConfig.ApplicationId,
       EnvironmentIdentifier: this.EnvConfig.EnvironmentId,
       ConfigurationProfileIdentifier: this.EnvConfig.ConfigurationProfileId,
+    }
+  }
+
+  public static get SESSION_PARAMS_META(): {
+    ApplicationIdentifier: string, EnvironmentIdentifier: string, ConfigurationProfileIdentifier: string
+  } {
+    if (this.EnvConfig.ApplicationId === undefined || this.EnvConfig.EnvironmentId === undefined || this.EnvConfig.MetaConfigurationProfileId === undefined) {
+      CenvLog.single.catchLog(['SESSION_PARAMS_META error', 'No meta config found']);
+      process.exit(11);
+    }
+    return {
+      ApplicationIdentifier: this.EnvConfig.ApplicationId,
+      EnvironmentIdentifier: this.EnvConfig.EnvironmentId,
+      ConfigurationProfileIdentifier: this.EnvConfig.MetaConfigurationProfileId,
     }
   }
 

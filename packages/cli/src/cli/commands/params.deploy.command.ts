@@ -18,9 +18,16 @@ export class ParamsDeployCommand extends BaseCommand {
   }
 
   @Option({
+    name: 'init', flags: '-i, --init', description: 'Init parameters before deploy',
+  })
+  parseInit(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
             name: 'materialize', flags: '-m, --materialize', description: 'Materialize parameters after deploy',
           })
-  parseEnvToParams(val: boolean): boolean {
+  parseMaterialize(val: boolean): boolean {
     return val;
   }
 

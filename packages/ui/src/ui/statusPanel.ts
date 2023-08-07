@@ -276,6 +276,30 @@ export default class StatusPanel extends CenvPanel {
     return !!this.showParams && !!typeHasValues;
   }
 
+  getParams(pkg: Package, type: string): any{
+    const params = pkg.params;
+    let vars: any = undefined;
+    if (params) {
+      switch (Dashboard.paramsToggle) {
+        case ParamsMode.MATERIALIZED:
+          if (params.materializedVarsTyped) {
+            vars = params.materializedVarsTyped[type as keyof object];
+          }
+          break;
+        case ParamsMode.DEPLOYED:
+          if (params.pushedVarsTyped) {
+            vars = params.pushedVarsTyped[type as keyof object];
+          }
+          break;
+        case ParamsMode.LOCAL:
+          if (params.localVarsTyped) {
+            vars = params.localVarsTyped[type as keyof object];
+          }
+          break;
+      }
+    }
+    return vars;
+  }
   getParameterWidgetOptions(type: string, bg = 'black') {
 
     const columnWidth = [this.parameterColumnWidth, this.parameterColumnWidth];
@@ -442,12 +466,11 @@ export default class StatusPanel extends CenvPanel {
     this.dashboard.setFocusIndex(fi);
   }
 
-
   async updateParameters(paramCtrl: any, pkg: Package, height = -1) {
-    if (!pkg.params?.localVarsTyped) {
+    const vars = this.getParams(pkg, paramCtrl.name);
+    if (!vars) {
       return;
     }
-    const vars = pkg.params?.localVarsTyped[paramCtrl.name as keyof object];
     const hasStatus = await pkg.hasCheckedStatus();
     const data: Array<string[]> = [];
     if (vars) {
@@ -455,9 +478,9 @@ export default class StatusPanel extends CenvPanel {
         let color;
         let name = k.substring(0, this.parameterColumnWidth - 1);
         if (hasStatus) {
-          if (pkg.params.needsDeploy) {
+          if (pkg.params?.needsDeploy) {
             color = CenvLog.colors.error;
-          } else if (pkg.params.needsMaterialization) {
+          } else if (pkg.params?.needsMaterialization) {
             color = CenvLog.colors.error;
           }
           if (color) {

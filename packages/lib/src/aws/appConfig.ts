@@ -75,23 +75,38 @@ export async function createEnvironment(applicationId: string, name: string): Pr
   }
 }
 
-export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<{ Id: string, Name: string, Existed: boolean } | false> {
+async function createConfProfileBase(applicationId: string, name: string) {
+  const createConfigProfileParams = {
+    ApplicationId: applicationId, Name: name, LocationUri: 'hosted'
+  }
+  const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
+  const response = await getClient().send(command);
+  if (response && response.Id) {
+    return response.Id
+  }
+  return false;
+}
+
+export async function createConfigurationProfile(applicationId: string, name = 'config'): Promise<{ Id: string, MetaId: string, Name: string, Existed: boolean } | false> {
   try {
     const responseConf = await getConfigurationProfile(applicationId, name);
     if (responseConf && responseConf.ConfigurationProfileId) {
-      return {Id: responseConf.ConfigurationProfileId, Name: name, Existed: true};
+      const res: any = {Id: responseConf.ConfigurationProfileId, Name: name, Existed: true};
+      if (!responseConf?.MetaConfigurationProfileId) {
+        const metaConfigId = await createConfProfileBase(applicationId, name + '_meta');
+        if (metaConfigId) {
+          res.MetaId = metaConfigId
+        }
+      }
+      return res;
     }
 
-    const createConfigProfileParams = {
-      ApplicationId: applicationId, Name: name, LocationUri: 'hosted'
-    }
-    const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
-    const response = await getClient().send(command);
-    if (response.Id) {
-      createConfigProfileParams.Name = createConfigProfileParams.Name + '_meta';
-      const command = new CreateConfigurationProfileCommand(createConfigProfileParams);
-      await getClient().send(command);
-      return { Id: response.Id, Name: name, Existed: false };
+    const configId = await createConfProfileBase(applicationId, name);
+    if (configId) {
+      const metaConfigId = await createConfProfileBase(applicationId, name + '_meta');
+      if (metaConfigId) {
+        return { Id: configId, MetaId: metaConfigId, Name: name, Existed: false };
+      }
     }
     return false;
   } catch (e) {
@@ -378,6 +393,11 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
     if (!ConfigurationProfileId) {
       return false;
     }
+    const confResMeta = await getConfigurationProfile(ApplicationId, ConfigurationProfileName + '_meta', Silent);
+    let MetaConfigurationProfileId = '';
+    if (confResMeta && confResMeta.ConfigurationProfileId) {
+      MetaConfigurationProfileId = confResMeta.ConfigurationProfileId;
+    }
 
     //infoLog([ConfigurationProfileId, EnvironmentId]);
     const deploymentStratRes = await getDeploymentStrategy();
@@ -391,7 +411,8 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
       EnvironmentName,
       EnvironmentId,
       ConfigurationProfileId,
-      DeploymentStrategyId: deploymentStratRes.DeploymentStrategyId
+      MetaConfigurationProfileId,
+      DeploymentStrategyId
     };
     const versRes = await getHostedConfigurationVersion(ApplicationId, ConfigurationProfileId);
     if (versRes?.VersionNumber) {
@@ -466,11 +487,22 @@ export async function getConfigurationProfile(applicationId: string, configurati
   try {
     const res = await listConfigurationProfiles(applicationId);
     if (res) {
+      let Id;
+      let MetaId;
       for (let confProfIdx = 0; confProfIdx < res.length; confProfIdx++) {
         const confProf = res[confProfIdx];
         if (confProf.Name === configurationProfileName) {
-          return {ConfigurationProfileId: confProf.Id};
+          Id = confProf.Id;
         }
+        if (confProf.Name === configurationProfileName + '_meta') {
+          MetaId = confProf.Id;
+        }
+        if (Id && MetaId) {
+          return {ConfigurationProfileId: Id, MetaConfigurationProfileId: MetaId};
+        }
+      }
+      if (Id) {
+        return {ConfigurationProfileId: Id};
       }
     }
     if (!silent) {

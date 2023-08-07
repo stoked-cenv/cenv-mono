@@ -1417,7 +1417,7 @@ export class Dashboard {
     }
   }
 
-  setStatusBar(name: string, msg?: string, exclusive = 3000, active = 5000) {
+  setStatusBar(name: string, msg?: string, exclusive = 3000, active = 2000) {
 
     if (!msg) {
       return;
