@@ -218,17 +218,17 @@ export class PackageCmd implements Cmd {
 }
 
 export interface CenvMeta {
-  stack: {
+  stack?: {
     package: string, buildPath?: string
     assignedSubDomain?: string
     certArnName?: string
     clearContext: boolean;
-  };
-  stackTemplatePath: string;
-  docker: {
+  },
+  stackTemplatePath?: string;
+  docker?: {
     context: string; file: string;
   },
-  lib: {
+  lib?: {
     loadVars: boolean
   }
 }
@@ -253,16 +253,15 @@ export type TPackageMeta = {
   buildVersion?: SemVer;
   version: SemVer;
   name: string;
-  skipDeployBuild: boolean;
   verifyStack?: string;
   deployStack?: string;
   destroyStack?: string;
   executables?: { exec: string, installed: boolean }[];
-  dockerType: string;
   url?: string;
-  bin: any;
-  scripts: any;
-  cenv: CenvMeta;
+  skipDeployBuild: boolean;
+  bin?: any;
+  scripts?: any;
+  cenv?: CenvMeta;
 }
 
 export interface IPackageMeta {
@@ -282,9 +281,12 @@ export class PackageMeta implements IPackageMeta {
     const projectPath = path.join(packagePath, 'project.json');
     const pkgExists = existsSync(pkgPath);
     const projectExists = existsSync(projectPath);
-    if (!pkgExists && !pkgExists) {
-      CenvLog.single.catchLog(new Error(`[${packagePath}] getPackageMeta failed: attempting to get meta data from an undefined packagePath`));
-      process.exit(2);
+    if (!pkgExists) {
+      return {
+        name: 'GLOBAL',
+        version: new SemVer('0.0.0'),
+        skipDeployBuild: false
+      };
     }
 
     let data;
@@ -400,6 +402,15 @@ export interface CommandEvents {
   failureCommandFunc?: () => Promise<void>
 }
 
+export interface PackageNameComponents {
+  complete: string,
+  scope?: string,
+  name: string,
+  component?: string,
+  instance?: string,
+  packageName: string
+}
+
 export class Package implements IPackage {
   static loading = true;
   static deployment: any;
@@ -428,6 +439,7 @@ export class Package implements IPackage {
   primaryLink?: string;
   local = false;
   root = false;
+  invalid = false;
   status: PackageStatus = { incomplete: [], deployed: [], needsFix: [] };
   statusCheckComplete = false;
   skipUI = false;
@@ -441,28 +453,16 @@ export class Package implements IPackage {
   meta: PackageMetaConsolidated;
   deployDependencies?: Package[];
   deployDependenciesRemaining?: Package[];
-  component?: string;
-  package: string;
-  instance?: string;
-  codifiedName: string;
   activeCmdIndex = -1;
   activeModuleIndex = 0;
   timer?: Timer = undefined;
   cmds: PackageCmd[] = [];
+  packageNameComponents: PackageNameComponents;
 
-  constructor(packageName: string, useCache = true) {
-
-    /*if (!Package.loading && !useCache) {
-      const err = new Error(`attempting to load ${packageName} after loading has been disabled`,);
-      this.err(err.stack as string);
-    }*/
+  constructor(packageName: string, useCache = true, local = false) {
     const isGlobal = packageName === 'GLOBAL';
-
-    const packageComponent = Package.getPackageComponent(packageName);
-    this.codifiedName = packageName;
-    this.package = packageComponent.package;
-    this.component = packageComponent.component;
-    this.instance = packageComponent.instance;
+    this.local = local;
+    this.packageNameComponents = Package.parsePackageName(packageName);
     this.stackName = Package.packageNameToStackName(packageName);
     this.name = this.stackName.replace(CenvFiles.ENVIRONMENT + '-', '');
     CenvLog.single.verboseLog('load packageName: ' + packageName, this.stackName, true);
@@ -535,15 +535,17 @@ export class Package implements IPackage {
       }
 
       if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {
-        const errString = `${CenvLog.colors.alertBold(this.codifiedName)} is not a valid package`;
-        //CenvLog.single.catchLog(new Error(errString));
-        CenvLog.single.infoLog(errString);
-        console.log(errString);
-        process.exit();
+        if (!this.local) {
+          const errString = `${CenvLog.colors.alertBold(this.codifiedName)} is not a valid package`;
+          CenvLog.single.infoLog(errString);
+          process.exit();
+        }
+        this.invalid = true;
+        return;
       }
 
       if (!isGlobal) {
-        this.modules = [this.params, this.docker, this.stack, this.lib, this.exec].filter((n) => n) as PackageModule[];
+        this.modules = [this.lib, this.exec, this.params, this.docker, this.stack].filter((n) => n) as PackageModule[];
         this.modules.map((m) => {
           this.packageModules[m.name.toString()] = m;
         });
@@ -570,6 +572,49 @@ export class Package implements IPackage {
       process.exit(3);
     }
   }
+  get codifiedName() {
+    return this.packageNameComponents.complete;
+  }
+  get package(): string {
+    return this.packageNameComponents.packageName;
+  }
+
+  get instance(): string | undefined  {
+    return this.packageNameComponents.instance;
+  }
+
+  get component(): string |  undefined {
+    return this.packageNameComponents.component;
+  }
+
+  static parsePackageName(packageName: string): PackageNameComponents {
+    const packageRegExp = new RegExp(/^(@[a-z0-9-~][a-z0-9-._~]*)\/?([a-z0-9-~][a-z0-9-._~]*)?#?([a-z0-9-~][a-z0-9-._~]*)?@?([a-z0-9-~][a-z0-9-._~]*)?$/);
+    let m;
+
+    const componentParts = ['complete', 'scope', 'name', 'component', 'instance'];
+    const components: any = {
+      complete: packageName,
+      name:  packageName
+    }
+    if ((m = packageRegExp.exec(packageName)) !== null) {
+      // The result can be accessed through the `m`-variable.
+      m.forEach((match, groupIndex) => {
+        components[componentParts[groupIndex] as keyof PackageNameComponents] = match;
+      });
+    }
+
+    components.packageName = components.name;
+    if (components.scope) {
+      components.packageName = `${components.scope}/${components.name}`;
+    }
+
+    if (!components.complete || !components.name) {
+      CenvLog.single.catchLog(`could not parse package name: ${packageName}`);
+      process.exit(30);
+    }
+
+    return components;
+  }
 
   static get global(): Package {
     if (Package.cache['GLOBAL']) {
@@ -582,9 +627,13 @@ export class Package implements IPackage {
     return this.codifiedName.substring(0, Package.maxVisibleLength);
   }
 
-  //TODO: can this and stackNameVis be combined?
   get stackNameFinal() {
-    return this.stackName.replace('-cdk#', '-').replace('@', '-');
+    if (this.instance) {
+      return `${CenvFiles.ENVIRONMENT}-${this.instanceComponent}`;
+    } else if (this.component) {
+      return `${CenvFiles.ENVIRONMENT}-${this.component}`;
+    }
+    return `${CenvFiles.ENVIRONMENT}-${this.package}`;
   }
 
   get bucketName() {
@@ -604,7 +653,7 @@ export class Package implements IPackage {
   }
 
   public get packageName() {
-    return this.isGlobal ? this.stackName : Package.stackNameToPackageName(this.stackName);
+    return this.isGlobal ? this.stackName : this.packageNameComponents.complete;
   }
 
   public get path() {
@@ -697,10 +746,11 @@ export class Package implements IPackage {
     return { package: packageName };
   }
 
-  static fromPackageName(packageName: string): Package {
+  static fromPackageName(packageName: string, local = false): Package {
     if (packageName === 'GLOBAL') {
       return Package.global;
     }
+
     const packageComponent = Package.getPackageComponent(packageName);
     const pkgs = Object.values(Package.cache).filter((p: Package) => {
       return p.packageName === packageName && p?.component === packageComponent?.component && p?.instance === packageComponent?.instance;
@@ -711,7 +761,11 @@ export class Package implements IPackage {
     } else if (pkgs.length === 1) {
       return pkgs[0];
     }
-    return new Package(packageName);
+    const stackName = Package.packageNameToStackName(packageName);
+    if (Package.cache[stackName]) {
+      return Package.cache[stackName];
+    }
+    return new Package(packageName, true, local);
   }
 
   static fromStackName(stackName: string): Package {
@@ -731,18 +785,39 @@ export class Package implements IPackage {
     });
   }
 
-  static packageNameToStackName(packageName: string) {
-    if (!packageName.replace) {
-      const e = new Error();
-      CenvLog.single.catchLog(e);
+  get componentInstance() {
+    if (!this.instance) {
+      return this.component;
     }
+    return `${this.component}-${this.instance}`;
+  }
+
+  get instanceComponent() {
+    if (!this.component) {
+      return this.instance;
+    }
+    return `${this.instance}-${this.component}`;
+  }
+
+  static packageNameToPackageComponentInstance(packageName: string): string {
+    const parsed = Package.parsePackageName(packageName);
+    let packageComponentInstance = parsed.name;
+    if (parsed.component) {
+      packageComponentInstance += `#${parsed.component}`;
+    }
+    if (parsed.instance) {
+      packageComponentInstance += `@${parsed.instance}`;
+    }
+    return packageComponentInstance;
+  }
+
+  static packageNameToStackName(packageName: string) {
+
     if (packageName === 'GLOBAL' || packageName === 'root') {
       return packageName;
     }
-    if (Cenv.scopeName) {
-      packageName = removeScope(packageName);
-    }
-    return `${CenvFiles.ENVIRONMENT}-${packageName.replace(/-(deploy)$/, '')}`;
+    const packageComponentInstance = Package.packageNameToPackageComponentInstance(packageName);
+    return `${CenvFiles.ENVIRONMENT}-${packageComponentInstance}`;
   }
 
   static realPackagesLoaded() {
@@ -760,18 +835,13 @@ export class Package implements IPackage {
     if (stackName === 'GLOBAL') {
       return stackName;
     }
-
-    const stackPrefix = `${CenvFiles.ENVIRONMENT}-`;
-    if (!stackName.startsWith(stackPrefix)) {
-      const badStackName = new Error(`stackNameToPackageName likely being called on something that isn't a stack: ${stackName}`);
+    if (!Package.cache[stackName]) {
+      const badStackName = new Error(`stackNameToPackageName being called before the Package has been initialized: ${stackName}`);
       CenvLog.single.catchLog(badStackName);
-      process.exit(239);
-    } else if (stackName.substring(stackPrefix.length) === Package.getRootPackageName()) {
-      stackName = stackName.substring(stackPrefix.length);
-    } else {
-      stackName = `${Cenv.scopeName}/${stackName.substring(stackPrefix.length)}`;
+      process.exit(238);
     }
-    return stackName;
+
+    return Package.cache[stackName].packageName;
   }
 
   static getCurrentVersion(dir: string, isRoot = false) {

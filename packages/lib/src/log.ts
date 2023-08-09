@@ -376,7 +376,7 @@ export class CenvLog {
     if (!this.isStdout) {
       return;
     }
-    this.logBase(message, undefined, 'stdout', stackName, replicateToGlobal);
+    this.logBase(message, CenvLog.colors.std, 'stdout', stackName, replicateToGlobal);
   }
   static stdLog(message: any, stackName?: string, replicateToGlobal = false): void {
     this.single.stdLog(message, stackName, replicateToGlobal);
@@ -386,7 +386,6 @@ export class CenvLog {
   catchLog(error: any): never {
 
     cleanup('catchLog');
-
 
     this.errorLog(error);
 

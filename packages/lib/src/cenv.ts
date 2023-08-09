@@ -117,19 +117,9 @@ export interface DestroyCommandOptions extends CdkCommandOptions {
 }
 
 export interface ParamsCommandOptions extends BaseCommandOptions {
-  app?: boolean;
-  environment?: boolean;
-  global?: boolean;
-  globalEnv?: boolean;
-  simple?: boolean;
-  detail?: boolean;
-  decrypted?: boolean;
-  deployed?: boolean;
-  allApplications?: boolean;
-  output?: string;
-  test?: boolean;
-  defaults?: boolean;
-  envToParams?: boolean;
+  stage?: string;
+  diff?: boolean;
+  typed?: boolean;
 }
 
 export interface CmdInfo {
@@ -203,14 +193,15 @@ export class Cenv {
       return this.dashboard?.cleanTags(...text);
     };
 
-    // creat global package
-    Package.global;
 
     await cmdInit(options, cmdInfo);
 
     if (!cmdInfo.cenvRootRequired) {
       return { params, options };
     }
+
+    // create global package
+    Package.global;
 
     if (!cmdInfo.allowUI) {
       options.cli = true;

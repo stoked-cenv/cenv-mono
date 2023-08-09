@@ -5,7 +5,7 @@ import { suite } from 'uvu';
 import { TestingModule } from '@nestjs/testing';
 import { spy, Stub } from 'hanbi';
 import { CommandTestFactory } from 'nest-commander-testing';
-import { CenvLog, cleanTags } from '@stoked-cenv/lib';
+import { CenvLog, cleanTags, CenvFiles } from '@stoked-cenv/lib';
 import { createMock } from '../../common/log.mock';
 import { CommandFactory } from 'nest-commander';
 

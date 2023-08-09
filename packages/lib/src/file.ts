@@ -4,7 +4,7 @@ import * as yaml from 'js-yaml';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import {CenvLog} from './log';
 import Ajv from "ajv";
-import {prettyPrint} from "@base2/pretty-print-object";
+import { prettyPrint} from "@base2/pretty-print-object";
 import {CenvParams} from "./params";
 import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
 import {encrypt} from './aws/kms';
@@ -565,8 +565,7 @@ export class CenvFiles {
 
   public static get LOG_PATH(): string {
     if (!this.LogPath) {
-      CenvLog.single.catchLog('CenvFiles.LogPath is trying to be accessed but has not been set');
-      process.exit(799);
+      this.LogPath = path.join(process.env.HOME!, cenvRoot, 'logs');
     }
     return this.LogPath;
   }
@@ -624,6 +623,9 @@ export class CenvFiles {
   }
 
   public static get ENVIRONMENT(): any {
+    if (!this.environment) {
+      this.environment = process.env.ENV!;
+    }
     return this.environment;
   }
 
@@ -658,12 +660,12 @@ export class CenvFiles {
   public static async GetLocalVars(applicationName: string, typed = false, decrypted = true) {
     await this.LoadVars(applicationName, decrypted);
     const ret: any = {
-      app: this.AppVars, environment: this.EnvVars, global: this.GlobalVars, globalEnv: this.GlobalEnvVars
+      app: this.AppVars, environment: this.EnvVars, globalEnv: this.GlobalEnvVars, global: this.GlobalVars
     };
     if (typed) {
       return ret;
     }
-    return {...ret.app, ...ret.environment, ...ret.global, ...ret.globalEnv};
+    return {...ret.app, ...ret.environment, ...ret.globalEnv, ...ret.global };
   }
 
   public static async GetData(applicationName: string, decrypted = false) {
@@ -671,7 +673,7 @@ export class CenvFiles {
     await this.LoadVars(applicationName, decrypted);
     return {
       EnvConfig: this.EnvConfig, Vars: {
-        app: this.AppVars, environment: this.EnvVars, global: this.GlobalVars, globalEnv: this.GlobalEnvVars
+        app: this.AppVars, environment: this.EnvVars, globalEnv: this.GlobalEnvVars, global: this.GlobalVars
       }
     }
   }

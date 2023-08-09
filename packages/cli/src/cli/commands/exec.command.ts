@@ -49,13 +49,10 @@ export class ExecCommand extends BaseCommand {
           if (relative !== '') {
             process.chdir(path.relative(process.cwd(), pkgPath));
           }
-          const config = await ParamsModule.GetConfig(p.packageName);
-          if (config) {
-            vars = await getConfigVars(p.packageName,true, false, true);
-            Object.entries(options.args).forEach(([key, value]) => {
-              console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`)
-            });
-          }
+          vars = await getConfigVars(p.packageName,true, false, true);
+          Object.entries(options.args).forEach(([key, value]) => {
+            console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`)
+          });
           options.module = options.module?.toLowerCase();
           if (options.module) {
             const pkgModule: PackageModule = p.packageModules[options.module]

@@ -40,7 +40,6 @@ export enum DashboardMode {
   STATUS = 'STATUS'
 }
 
-
 export interface Click {
   ts: number,
   x: number,
@@ -53,7 +52,6 @@ enum ParamsMode {
   DEPLOYED,
   LOCAL
 }
-
 
 namespace ParamsMode {
   export function after(value: ParamsMode): ParamsMode {
@@ -179,12 +177,6 @@ export class Dashboard {
         }, border: false, transparent: true, height: 1, hideBorder: true,
       });
 
-      setTimeout(() => {
-        this.debounceCallback('deploy', async () => {
-          await this.launchDeployment(ProcessMode.DEPLOY);
-        });
-      }, 10000);
-
       const pkgButtons = {
         deploy: {
           keys: ['d'], callback: () => {
@@ -269,7 +261,8 @@ export class Dashboard {
               this.setStatusBar('cancel deploy', `cancel ${ctx.length === 1 ? ctx[0].packageName : ctx.length + ' packages (does not cancel cloudformation)'}`);
             });
           }
-        }, "kill hard": {
+        },
+        "kill hard": {
           keys: ['C-k'], callback: () => {
             this.debounceCallback('hard kill', async () => {
               const ctx = this.getContext();
@@ -282,12 +275,12 @@ export class Dashboard {
               }
 
               Dialogs.yesOrNoDialog(`The stack [${ctx[0].stackName}] will be deleted It's current status is ${ctx[0].stack?.detail?.StackStatus}. Are you sure you want to destroy this stack?`,  async (killIt: boolean) => {
-                const service = ctx[0].stackName;
+                const service = ctx[0].stackNameFinal;
                 if (killIt) {
-                  CenvLog.single.alertLog(`deleting stack ${ctx[0].stackName}`)
+                  CenvLog.single.alertLog(`deleting stack ${service}`, ctx[0].stackName, true);
                   this.setStatusBar('kill hard', this.statusText('kill hard', service));
-                  await deleteStack(ctx[0].stackName);
-                  await ctx[0].checkStatus();
+                  await deleteStack(service);
+                  await ctx[0].checkStatus( undefined, ProcessStatus.COMPLETED);
                 }
               });
 
@@ -298,7 +291,7 @@ export class Dashboard {
 
       this.processOptions = new Menu(this.screen, pkgButtons, {top: 0, left: 0, right: 0});
       this.statusBar = this.grid.set(5, 0, 1, 2, blessed.box, {
-        fg: 'white', label: '', style: {
+          fg: 'white', label: '', style: {
           fg: 'white', bg: 'pink', label: {},
         }, height: 1, hideBorder: true,
       });

@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import { ECSServiceStack } from '../../index';
-import { CenvFiles } from '@stoked-cenv/lib';
+import { CenvFiles, EnvVars } from '@stoked-cenv/lib';
 
-const envVars: Record<string, string> = {};
-if (process.env.APPLICATION_NAME) {
-  envVars['APPLICATION_NAME'] = process.env.APPLICATION_NAME;
-}
+const envVars = new EnvVars({}, ['APPLICATION_NAME', 'HEALTH_CHECK_PATH'])
 let subdomain = 'api';
 if (process.env.CENV_SUBDOMAIN) {
   subdomain = process.env.CENV_SUBDOMAIN;
@@ -19,7 +16,7 @@ new ECSServiceStack({
                       stackName: process.env.CENV_STACK_NAME!,
                       ecrRepositoryName: process.env.CENV_DOCKER_NAME!,
                       healthCheck: {
-                        path: process.env.HEALTH_CHECK_PATH ? process.env.HEALTH_CHECK_PATH : '/',
+                        path: envVars.check('HEALTH_CHECK_PATH') ? envVars.get('HEALTH_CHECK_PATH') : '/',
                       },
-                      envVariables: envVars,
+                      envVariables: envVars.all,
                     });

@@ -270,14 +270,14 @@ export async function getVarsByType(type: string, path: string, decrypted: boole
   return convertToEnvVar(type, params, path);
 }
 
-export async function listParameters(config: EnvConfig, decrypted: boolean, allGlobals = false, allGlobalEnvs = false): Promise<any> {
+export async function listParameters(applicationName: string, decrypted: boolean, allGlobals = false, allGlobalEnvs = false): Promise<any> {
   try {
-    const roots = CenvParams.GetRootPaths(config.ApplicationName, config.EnvironmentName);
+    const roots = CenvParams.GetRootPaths(applicationName, CenvFiles.ENVIRONMENT);
     const appVars = await getVarsByType('app', roots.app, decrypted);
     const environmentVars = await getVarsByType('environment', roots.environment, decrypted);
 
     const res: any = {
-      app: appVars, environment: environmentVars, global: {}, globalEnv: {}, allGlobals: {}, allGlobalEnvs: {}
+      app: appVars, environment: environmentVars, globalEnv: {}, global: {}, allGlobals: {}, allGlobalEnvs: {}
     }
 
     res.allGlobals = allGlobals ? await getParametersByPath(roots.global, decrypted) : undefined;

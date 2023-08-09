@@ -5,6 +5,6 @@ import { SiteCertificateStack } from './site-certificate-stack';
 
 const app = new cdk.App();
 
-new SiteCertificateStack(app, 'dev-cert-cenv', {
+new SiteCertificateStack(app, `${process.env.ENV}-${process.env.APP}-cert`, {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });

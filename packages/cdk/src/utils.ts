@@ -3,7 +3,11 @@ import { App, Stack } from 'aws-cdk-lib';
 import { CenvFiles, CenvLog } from '@stoked-cenv/lib';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
+import process from 'process';
 
+export function stackPrefix() {
+  return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
+}
 export function tagStack(stack: Stack) {
   tagIfExists(stack, 'CENV_PKG_VERSION');
   tagIfExists(stack, 'CENV_PKG_DIGEST');

@@ -240,6 +240,9 @@ export interface EnvironmentAppConfig {
 export async function getEnvironmentAppConfigs(applicationNames?: string[] | string, applications: IEnvConfig[] = [], NextToken?: string): Promise<IEnvConfig | IEnvConfig[]>  {
 
   try {
+    if (typeof applicationNames === 'string') {
+      applicationNames = [applicationNames];
+    }
     const command = new ListApplicationsCommand({NextToken});
 
     const response = await getClient().send(command);
@@ -288,9 +291,13 @@ export async function getEnvironmentAppConfigs(applicationNames?: string[] | str
     if (result.NextToken) {
       await getEnvironmentAppConfigs(applicationNames, applications, result.NextToken);
     }
-    if (applicationNames && applications.length === 1) {
-      CenvFiles.EnvConfig = applications[0];
-      return applications[0];
+    if (applicationNames && applicationNames.length === 1) {
+      if (applications.length === 1) {
+        CenvFiles.EnvConfig = applications[0];
+        return applications[0];
+      } else if (!applications.length) {
+        return { ApplicationName: applicationNames[0], EnvironmentName: CenvFiles.ENVIRONMENT };
+      }
     }
     return applications;
   } catch (e) {
@@ -740,7 +747,7 @@ export async function deleteCenvData(applicationName: string, parameters: any, a
 }
 
 
-export async function createAppEnvConf(envAppConfig: EnvConfig): Promise<EnvConfig> {
+export async function createAppEnvConf(envAppConfig: IEnvConfig): Promise<IEnvConfig> {
 
   const environment = CenvFiles.ENVIRONMENT;
 

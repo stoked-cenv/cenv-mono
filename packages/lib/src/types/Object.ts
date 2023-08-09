@@ -25,19 +25,37 @@ export const omit = <T extends {}, K extends keyof T>(
   ) as Omit<T, K>
 )
 
+function isArray(x: any) {
+  return Object.prototype.toString.call(x) === '[object Array]';
+}
+
+function isObject(x: any) {
+  return Object.prototype.toString.call(x) === '[object Object]';
+}
+
+export const valueWrapper = function (key: string, value: any) {
+  if (!isObject(value) && !isArray(value)) {
+    return `\x1b[33m${value}\x1b[0m`;
+  }
+  return value;
+}
+
+export enum DiffMapperType {
+  VALUE_CREATED = 'created',
+  VALUE_UPDATED = 'updated',
+  VALUE_DELETED = 'deleted',
+  VALUE_UNCHANGED = 'unchanged',
+}
+
 export const deepDiffMapper = function () {
   return {
-    VALUE_CREATED: 'created',
-    VALUE_UPDATED: 'updated',
-    VALUE_DELETED: 'deleted',
-    VALUE_UNCHANGED: 'unchanged',
-    map: function(obj1: any, obj2: any, changedOnly = true) {
+    compareData: function(obj1: any, obj2: any) {
       if (this.isFunction(obj1) || this.isFunction(obj2)) {
         throw 'Invalid argument. Function given, object expected.';
       }
       if (this.isValue(obj1) || this.isValue(obj2)) {
         return {
-          type: this.compareValues(obj1, obj2, changedOnly),
+          type: this.compareValues(obj1, obj2),
           data: obj1 === undefined ? obj2 : obj1
         };
       }
@@ -53,35 +71,63 @@ export const deepDiffMapper = function () {
           value2 = obj2[key];
         }
 
-        diff[key] = this.map(obj1[key], value2);
+        diff[key] = this.compareData(obj1[key], value2);
       }
       for (const key in obj2) {
         if (this.isFunction(obj2[key]) || diff[key] !== undefined) {
           continue;
         }
 
-        diff[key] = this.map(undefined, obj2[key]);
+        diff[key] = this.compareData(undefined, obj2[key]);
       }
 
       return diff;
-
     },
-    compareValues: function (value1: object, value2: object, changedOnly: boolean) {
-      if (!changedOnly) {
-        if (value1 === value2) {
-          return this.VALUE_UNCHANGED;
+    validateDiff: function(compared: any, diffMapperTypes: DiffMapperType[]) {
+      if (this.isResult(compared)) {
+        return this.includeResult(compared, diffMapperTypes);
+      }
+
+      const diff: any = {};
+      for (const key in compared) {
+        if (this.isFunction(compared[key])) {
+          continue;
         }
-        if (this.isDate(value1) && this.isDate(value2) && (value1 as Date).getTime() === (value2 as Date).getTime()) {
-          return this.VALUE_UNCHANGED;
+
+        const validatedDiff = this.validateDiff(compared[key], diffMapperTypes);
+        if (validatedDiff !== undefined) {
+          diff[key] = validatedDiff;
         }
+      }
+      if (diffMapperTypes.length !== Object.keys(DiffMapperType).length && !Object.values(diff).filter(d => d).length) {
+        return undefined;
+      }
+      return diff;
+    },
+    map: function(obj1: any, obj2: any, diffMapperTypes: DiffMapperType[] = [DiffMapperType.VALUE_CREATED, DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_UNCHANGED]) {
+      const compared = this.compareData(obj1, obj2);
+      return this.validateDiff(compared, diffMapperTypes);
+    },
+    unchanged: function(value1: any, value2: any) {
+      if (value1 === value2) {
+        return true;
+      }
+      return this.isDate(value1) && this.isDate(value2) && (value1 as Date).getTime() === (value2 as Date).getTime();
+    },
+    compareValues: function (value1: object, value2: object) {
+      if (this.unchanged(value1,  value2)) {
+        return DiffMapperType.VALUE_UNCHANGED;
       }
       if (value1 === undefined) {
-        return this.VALUE_CREATED;
+        return DiffMapperType.VALUE_CREATED;
       }
       if (value2 === undefined) {
-        return this.VALUE_DELETED;
+        return DiffMapperType.VALUE_DELETED;
       }
-      return this.VALUE_UPDATED;
+      return DiffMapperType.VALUE_UPDATED;
+    },
+    includeResult: function (result: { type: string, data: any }, diffMapperTypes: DiffMapperType[]) {
+      return Object.values(diffMapperTypes).map(d => d.toString()).includes(result.type) ? result : undefined;
     },
     isFunction: function (x: any) {
       return Object.prototype.toString.call(x) === '[object Function]';
@@ -97,6 +143,9 @@ export const deepDiffMapper = function () {
     },
     isValue: function (x: any) {
       return !this.isObject(x) && !this.isArray(x);
+    },
+    isResult: function(x: any) {
+      return this.isObject(x) && x.type && x.data;
     }
   }
 }();

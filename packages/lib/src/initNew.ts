@@ -1,5 +1,5 @@
 import path from 'path';
-import { existsSync, mkdirSync, rmdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, rmdirSync, rmSync, writeFileSync } from 'fs';
 import { CenvLog, LogLevel } from './log';
 import { Template } from './templates';
 import { search_sync } from './file'
@@ -110,7 +110,7 @@ export async function New(name: string, options: NewCommandOptions, cmdInfo: Com
       CenvLog.single.alertLog(`the directory ${name} already exists, either add the --force flag to replace the existing data or choose a new directory`);
       process.exit(636);
     } else {
-      rmdirSync(projectPath);
+      rmSync(projectPath, {force: true, recursive: true});
       mkdirSync(projectPath);
     }
   }

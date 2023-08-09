@@ -11,5 +11,6 @@
     <orderEntry type="module" module-name="nest-commander" />
     <orderEntry type="module" module-name="cli" />
     <orderEntry type="module" module-name=".cenv" />
+    <orderEntry type="module" module-name="brianstoker.com" />
   </component>
 </module>

@@ -49,12 +49,6 @@ export class ParamsPullCommand extends BaseCommand {
 
       await Promise.allSettled(packages.map(async (p: Package) => {
         if (p.params) {
-          const config = await ParamsModule.GetConfig(p.packageName);
-          if (!config) {
-            CenvLog.single.errorLog('pull: could not load config');
-            process.exit(7);
-          }
-
           await p.params.pull(options?.deployed, options?.decrypted);
         }
       }));

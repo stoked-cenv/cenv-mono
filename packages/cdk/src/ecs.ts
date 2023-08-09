@@ -10,7 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, tagStack } from './utils';
+import { ensureValidCerts, stackPrefix, tagStack } from './utils';
 import { CenvFiles } from '@stoked-cenv/lib';
 
 export interface ECSServiceDeploymentParams {
@@ -29,7 +29,7 @@ export interface ECSServiceDeploymentParams {
   assignedDomain?: string;
 }
 
-const { ASSIGNED_DOMAIN } = process.env;
+const { ASSIGNED_DOMAIN , APP } = process.env;
 export const defaultStackProps = {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION,
@@ -77,8 +77,8 @@ export class ECSServiceStack extends Stack {
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
-    this.cluster = new ecs.Cluster(this, `${params.env}-${params.stackName}-cluster`, {
-      vpc: this.vpc, clusterName: `${params.env}-${params.stackName}-cluster`,
+    this.cluster = new ecs.Cluster(this, `${stackPrefix()}-cluster`, {
+      vpc: this.vpc, clusterName: `${stackPrefix()}-cluster`,
     });
 
     const subdomainId = subdomain.replace(/\./g, '-');
@@ -109,8 +109,8 @@ export class ECSServiceStack extends Stack {
     // A certificate managed by AWS Certificate Manager.
     // Will be automatically validated using DNS validation against the specified Route 53 hosted zone.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_certificatemanager.DnsValidatedCertificate.html
-    const certImport = Fn.importValue(`${env}-site-cert`);
-    const certificate = Certificate.fromCertificateArn(this, `${env}-site-cert`, certImport);
+    const certImport = Fn.importValue(`${stackPrefix()}-cert`);
+    const certificate = Certificate.fromCertificateArn(this, `${stackPrefix()}-cert`, certImport);
 
     this.logGroup = new logs.LogGroup(this, `lg`, {
       retention: logRetention,
@@ -128,17 +128,20 @@ export class ECSServiceStack extends Stack {
     // Create a load-balanced Fargate service and make it public
     // A Fargate service running on an ECS cluster fronted by an application load balancer.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs_patterns.ApplicationLoadBalancedFargateService.html
-    this.loadBalancedFargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(this, `${env}-${subdomainId}-fg`, {
-      cluster: this.cluster, // Required
-      assignPublicIp: true, loadBalancerName: `${env}-${subdomainId}-lb`, serviceName: `${env}-${subdomainId}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
-      desiredCount: 1, // Default is 1
-      domainZone: this.zone, domainName: fullDomain, certificate, taskImageOptions: {
-        family: `${env}-${subdomainId}`, containerName, image, logDriver: logging, environment: {
-          PORT: '80', ENV: env!, AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!, ...envVariables,
-        }, ...this.getTaskImageOptions(),
-      }, memoryLimitMiB: 512, // Default is 512
-      publicLoadBalancer: true, // Default is false,
-    });
+    this.loadBalancedFargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(
+      this,
+      `${env}-${subdomainId}-fg`,
+      {
+        cluster: this.cluster, // Required
+        assignPublicIp: true, loadBalancerName: `${env}-${subdomainId}-lb`, serviceName: `${env}-${subdomainId}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
+        desiredCount: 1, // Default is 1
+        domainZone: this.zone, domainName: fullDomain, certificate, taskImageOptions: {
+          family: `${env}-${subdomainId}`, containerName, image, logDriver: logging, environment: {
+            PORT: '80', ENV: env!, AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!, ...envVariables,
+          }, ...this.getTaskImageOptions(),
+        }, memoryLimitMiB: 512, // Default is 512
+        publicLoadBalancer: true, // Default is false,
+      });
 
     // attach inline policy for interacting with AppConfig
     this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${env}-${subdomainId}-app-config`, {
@@ -161,7 +164,10 @@ export class ECSServiceStack extends Stack {
 
     // configure health check
     const hChk: HealthCheck = {
-      path: healthCheck.path, interval: Duration.seconds(10), healthyThresholdCount: 2,
+      path: healthCheck.path,
+      interval: Duration.seconds(10),
+      healthyThresholdCount: 2,
+      unhealthyThresholdCount: 10
     };
 
     this.loadBalancedFargateService.targetGroup.configureHealthCheck(hChk);

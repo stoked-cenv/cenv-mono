@@ -45,10 +45,11 @@ export async function parseCmdParams(params: string[], options: any, cmdInfo: Co
     const packageFile = path.resolve('./package.json');
     if (existsSync(packageFile)) {
       const packageName = require(packageFile).name;
-      const pkg = Package.fromPackageName(packageName);
-      pkg.local = true;
+      const pkg = Package.fromPackageName(packageName, true);
       pkg.root = options.root;
-      pkgs.push(pkg);
+      if (!pkg.invalid) {
+        pkgs.push(pkg);
+      }
     }
   }
 
@@ -89,10 +90,11 @@ function parsePackageParams(params: string[]): { packages: Package[], nonPackage
   const packageNames: string[] = [];
   const newParams: string[] = [];
   while (params.length) {
-    if (params[0].startsWith(`${Cenv.scopeName}/`) || Package.getRootPackageName() === params[0]) {
-      packageNames.push(params.shift() as string);
+    const potentialPackageName = params.shift() as string;
+    if (CenvFiles.packagePaths[potentialPackageName]) {
+      packageNames.push(potentialPackageName);
     } else {
-      newParams.push(params.shift() as string);
+      newParams.push(potentialPackageName);
     }
   }
   return { packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams };
@@ -106,7 +108,7 @@ export async function cmdInit(options: any, cmdInfo: CommandInfo): Promise<boole
       const { logLevel }: { logLevel: keyof typeof LogLevel } = options;
       process.env.CENV_LOG_LEVEL = LogLevel[logLevel];
       CenvLog.logLevel = LogLevel[logLevel];
-      if (CenvLog.logLevel !== LogLevel.INFO) {
+      if (![LogLevel.INFO, LogLevel.MINIMAL].includes(CenvLog.logLevel)) {
         CenvLog.single.stdLog('CENV LOG LEVEL: ' + CenvLog.logLevel);
       }
     } else {

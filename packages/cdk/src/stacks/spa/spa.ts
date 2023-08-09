@@ -16,7 +16,7 @@ import {BlockPublicAccess, Bucket} from 'aws-cdk-lib/aws-s3';
 import {BucketDeployment, Source} from 'aws-cdk-lib/aws-s3-deployment';
 import {Construct} from 'constructs';
 import * as process from 'process';
-import {tagStack} from '../../index';
+import { stackPrefix, tagStack } from '../../index';
 import { CenvFiles, validateEnvVars } from '@stoked-cenv/lib';
 
 export class SpaStack extends Stack {
@@ -44,18 +44,18 @@ export class SpaStack extends Stack {
       domainName: process.env.ROOT_DOMAIN!
     });
 
+    const prefix = stackPrefix();
+    const certImport = Fn.importValue(`${prefix}-cert`);
+    const certificate = Certificate.fromCertificateArn(this, `${prefix}-site-cert`, certImport);
 
-    const certImport = Fn.importValue(`${CenvFiles.ENVIRONMENT}-site-cert`);
-    const certificate = Certificate.fromCertificateArn(this, `${CenvFiles.ENVIRONMENT}-site-cert`, certImport);
-
-    const cloudfrontOAI = new OriginAccessIdentity(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-cf-OAI`, {
+    const cloudfrontOAI = new OriginAccessIdentity(this, `${prefix}-cf-OAI`, {
       comment: `OAI for ${www}`,
     });
 
     new CfnOutput(this, 'Site', {value: `https://${www}`});
 
     // s3
-    const bucket = new Bucket(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}`, {
+    const bucket = new Bucket(this, `${prefix}`, {
       bucketName: `${process.env.CENV_BUCKET_NAME}`,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       removalPolicy: RemovalPolicy.DESTROY,
@@ -68,22 +68,28 @@ export class SpaStack extends Stack {
                                                      resources: [bucket.arnForObjects('*')],
                                                      principals: [new CanonicalUserPrincipal(cloudfrontOAI.cloudFrontOriginAccessIdentityS3CanonicalUserId,),],
                                                    }),);
-    new CfnOutput(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-Bucket`, {value: bucket.bucketName});
+    new CfnOutput(this, `${prefix}-Bucket`, {value: bucket.bucketName});
 
+    const cert = {
+      certificateArn: certificate.certificateArn,
+      env: {
+        region: process.env.CDK_DEFAULT_REGION!,
+        account: process.env.CDK_DEFAULT_ACCOUNT!,
+      },
+      applyRemovalPolicy(): void {},
+      node: this.node,
+      stack: this,
+      metricDaysToExpiry: () => new Metric({
+        namespace: 'TLS Viewer Certificate Validity',
+        metricName: 'TLS Viewer Certificate Expired',
+      }),
+    };
     // Specifies you want viewers to use HTTPS & TLS v1.1 to request your objects
-    const viewerCertificate = ViewerCertificate.fromAcmCertificate({
-                                                                     certificateArn: certificate.certificateArn, env: {
-        region: process.env.CDK_DEFAULT_REGION!, account: process.env.CDK_DEFAULT_ACCOUNT!,
-      }, applyRemovalPolicy(): void {
-      }, node: this.node, stack: this, metricDaysToExpiry: () => new Metric({
-                                                                              namespace: 'TLS Viewer Certificate Validity',
-                                                                              metricName: 'TLS Viewer Certificate Expired',
-                                                                            }),
-                                                                   }, {
+    const viewerCertificate = ViewerCertificate.fromAcmCertificate(cert, {
                                                                      sslMethod: SSLMethod.SNI,
                                                                      securityPolicy: SecurityPolicyProtocol.TLS_V1_1_2016,
                                                                      aliases: CenvFiles.ENVIRONMENT === 'prod' ? [`${process.env.APP}.${domainName}`, www!] : [www!],
-                                                                   },);
+                                                                   });
 
     // CloudFront distribution
     const distribution = new CloudFrontWebDistribution(this, 'LocDashboardSiteDistribution', {
@@ -103,16 +109,17 @@ export class SpaStack extends Stack {
 
     if (CenvFiles.ENVIRONMENT === 'prod') {
       // Route53 alias record for the CloudFront distribution
-      new ARecord(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-enduser-a`, {
+      new ARecord(this, `${prefix}-enduser-a`, {
         recordName: `${process.env.APP}.${domainName}`, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
       });
     }
-    new ARecord(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-app-a`, {
+
+    new ARecord(this, `${prefix}-app-a`, {
       recordName: www, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
     });
 
     // Deployment the bucket
-    new BucketDeployment(this, `${CenvFiles.ENVIRONMENT}-${process.env.CENV_STACK_NAME}-cra`, {
+    new BucketDeployment(this, `${prefix}-cra`, {
       sources: [Source.asset(process.env.CENV_BUILD_PATH as string)],
       destinationBucket: bucket,
       distribution,

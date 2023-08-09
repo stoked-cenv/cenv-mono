@@ -1,43 +1,48 @@
 import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
-import { DnsValidatedCertificate } from 'aws-cdk-lib/aws-certificatemanager';
-import { tagStack } from '../../index';
+import { Certificate, CertificateValidation, DnsValidatedCertificate } from 'aws-cdk-lib/aws-certificatemanager';
+import { stackPrefix, tagStack } from '../../index';
 
 const {
-  ENV, ROOT_DOMAIN, CDK_DEFAULT_REGION, CENV_STACK_NAME, CENV_CERT_SUBDOMAIN, CENV_CERT_ROOT_DOMAIN, APP,
+  ENV, ROOT_DOMAIN, ASSIGNED_DOMAIN,  APP,
 } = process.env;
 
 export class SiteCertificateStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
-
-    const domainName = ROOT_DOMAIN!;
-    const appDomain = `*.${APP}.${ENV}.${domainName}`;
-    const envDomain = `*.${ENV}.${domainName}`;
-    const altDomains = [envDomain];
-    if (ENV === 'prod') {
-      altDomains.push(`${APP}.${domainName}`);
+    const rootDomain = ROOT_DOMAIN!;
+    const rootDomainParts = rootDomain.split('.');
+    if (rootDomainParts.length > 1) {
+      rootDomainParts.pop();
+    }
+    const app = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
+    const domainName = app ? `${APP}.${rootDomain}` : rootDomain;
+    const appDomain = `${ENV}.${domainName}`;
+    const subDomain = `*.${ENV}.${domainName}`;
+    const altDomains = [subDomain];
+    if (ENV === 'prod' && ASSIGNED_DOMAIN) {
+      altDomains.push(`${ASSIGNED_DOMAIN}`);
     }
 
-    console.log('ROOT_DOMAIN: ' + ROOT_DOMAIN!);
-    console.log('ENV: ' + ENV!);
-    console.log('APP: ' + APP!);
-    console.log('   ---');
-    console.log('domainName: ' + domainName);
-    console.log('envDomain: ' + envDomain);
     console.log('appDomain: ' + appDomain);
+    console.log('subDomain: ' + subDomain);
+    console.log('altDomains: ' + altDomains.join(', '));
 
-    const zone = HostedZone.fromLookup(this, 'zone', {
-      domainName: domainName,
+    const zone = HostedZone.fromLookup(this, `${stackPrefix()}-zone`, {
+      domainName: rootDomain,
     });
 
-    const certificate = new DnsValidatedCertificate(this, 'SiteCertificate', {
-      domainName: appDomain, hostedZone: zone, subjectAlternativeNames: altDomains, region: CDK_DEFAULT_REGION, // Cloudfront only checks this region for certificates.
+    const certificate = new  Certificate(this, `${stackPrefix()}-site-cert`, {
+      domainName: appDomain,
+      subjectAlternativeNames: altDomains, // Cloudfront only checks this region for certificates.
+      validation: CertificateValidation.fromDns(zone)
     });
 
+    const exportName = `${stackPrefix()}-cert`;
     new CfnOutput(this, 'SiteCertificateArn', {
-      value: certificate.certificateArn, exportName: `${ENV}-site-cert`,
+      value: certificate.certificateArn,
+      exportName
     });
 
     tagStack(this);
