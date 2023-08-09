@@ -23,26 +23,31 @@ function getClient() {
 
 export async function startSession(applicationName: string, typed = false) {
   try {
-    let initialConfig = CenvFiles.EnvConfig;
-    if (!initialConfig || !initialConfig.ApplicationId || !initialConfig.EnvironmentId || !initialConfig.ConfigurationProfileId) {
-      const configRes = await getConfig(applicationName) as EnvConfig;
-      if (!configRes || !configRes.valid) {
-        CenvLog.single.catchLog(['startSession error', 'No config found']);
+    let config: any = CenvFiles.EnvConfig;
+    if (!config || !config.ApplicationId || !config.EnvironmentId || !config.ConfigurationProfileId) {
+      config = await getConfig(applicationName);
+      if (!config) {
+        CenvLog.single.catchLog([`startSession error ${applicationName}`, 'No config found', '\n', JSON.stringify(config, null, 2)]);
         process.exit();
       }
-      initialConfig = configRes;
+
+      config = new EnvConfig(config);
+      if (!config.valid) {
+        CenvLog.single.catchLog([`startSession error ${applicationName}`, 'config is not valid', '\n', JSON.stringify(config, null, 2)]);
+        process.exit();
+      }
     }
-    if (typed && (initialConfig.MetaConfigurationProfileId === '')) {
-      const confResMeta = await getConfigurationProfile(initialConfig.ApplicationId!, 'config_meta', true);
+    if (typed && (config.MetaConfigurationProfileId === '')) {
+      const confResMeta = await getConfigurationProfile(config.ApplicationId!, 'config_meta', true);
       if (!confResMeta || !confResMeta.ConfigurationProfileId) {
         CenvLog.single.catchLog(['startSession error', 'No meta config found']);
         process.exit();
       }
-      initialConfig.MetaConfigurationProfileId = confResMeta.ConfigurationProfileId;
+      config.MetaConfigurationProfileId = confResMeta.ConfigurationProfileId;
     }
-    const params = { ApplicationIdentifier: initialConfig.ApplicationId, EnvironmentIdentifier: initialConfig.EnvironmentId, ConfigurationProfileIdentifier: initialConfig.ConfigurationProfileId};
+    const params = { ApplicationIdentifier: config.ApplicationId, EnvironmentIdentifier: config.EnvironmentId, ConfigurationProfileIdentifier: config.ConfigurationProfileId};
     if (typed) {
-      params.ConfigurationProfileIdentifier = initialConfig.MetaConfigurationProfileId;
+      params.ConfigurationProfileIdentifier = config.MetaConfigurationProfileId;
     }
     const command = new StartConfigurationSessionCommand(params);
     const response = await getClient().send(command);
