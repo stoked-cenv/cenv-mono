@@ -15,12 +15,6 @@ export class DestroyCommand extends BaseCommand {
   packageRequired = true;
 
   @Option({
-            flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
-          }) parseLogLevel(val: string): string {
-    return val;
-  }
-
-  @Option({
             flags: '-s, --stack', description: `Destroy stack`,
           }) parseStack(val: boolean): boolean {
     return val;
@@ -124,6 +118,13 @@ export class DestroyCommand extends BaseCommand {
   @Option({
             flags: '-D, --docker', description: `Only run docker related commands.`,
           }) parseDocker(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+    flags: '-h, --hard', description: `Destroy stack hard using cloudformation delete-stack cli instead of cdk`,
+  })
+  parseHard(val: boolean): boolean {
     return val;
   }
 

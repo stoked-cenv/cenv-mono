@@ -35,7 +35,6 @@
       "options": {
         "commands": [
           "./git-check.sh",
-          "pnpm run version:bump",
           "nx run @stoked-cenv/cli:build",
           "nx run @stoked-cenv/cdk:build",
           "ts-node ./fixup-dist.ts",

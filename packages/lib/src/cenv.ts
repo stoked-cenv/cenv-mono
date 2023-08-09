@@ -114,6 +114,7 @@ export interface DestroyCommandOptions extends CdkCommandOptions {
   allParameters?: boolean;
   allDocker?: boolean;
   all?: boolean;
+  hard?: boolean;
 }
 
 export interface ParamsCommandOptions extends BaseCommandOptions {

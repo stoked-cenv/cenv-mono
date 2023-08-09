@@ -8,6 +8,7 @@ import { CommandEvents, Package, PackageCmd, TPackageMeta } from './package';
 import * as path from 'path';
 import { CenvFiles } from '../file'
 import { runScripts } from '../proc';
+import { Deployment } from '../deployment';
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -92,13 +93,19 @@ export class StackModule extends PackageModule {
   }
 
   async destroy(packageCmd?: PackageCmd) {
-    let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
-    actualCommand += ` -o ${this.getCdkOut()}`;
+    if (Deployment.options.hard) {
+      const deployCmd = this.pkg.createCmd(`cenv destroy ${this.pkg.packageName} --hard`);
+      await deleteStack(this.pkg.stackNameFinal, true, true);
+      deployCmd.result(0);
+    } else {
+      let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
+      actualCommand += ` -o ${this.getCdkOut()}`;
 
-    let opt: any = { cenvVars: {} };
-    opt = await this.getOptions(opt, ProcessMode.DESTROY);
-    opt.parentCmd = packageCmd;
-    await this.pkg.pkgCmd(actualCommand, opt);
+      let opt: any = { cenvVars: {} };
+      opt = await this.getOptions(opt, ProcessMode.DESTROY);
+      opt.parentCmd = packageCmd;
+      await this.pkg.pkgCmd(actualCommand, opt);
+    }
   }
 
   async synth() {
