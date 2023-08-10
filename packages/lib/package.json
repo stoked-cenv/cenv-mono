@@ -1,10 +1,10 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.72",
+  "version": "2.0.0-a.73",
   "description": "Library responsible for cenv params.",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "pnpm -w exec nx run @stoked-cenv/lib:build",
     "watch": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm run lint -- --fix",
@@ -32,7 +32,6 @@
     "@aws-sdk/util-waiter": "^3.370.0",
     "@base2/pretty-print-object": "^1.0.2",
     "@nestjs/common": "^10.0.0",
-
     "ajv": "^8.12.0",
     "async-mutex": "^0.4.0",
     "chalk": "^4.1.2",

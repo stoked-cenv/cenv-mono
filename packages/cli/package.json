@@ -9,7 +9,7 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "scripts": {
-    "build": "echo 'build configured through nx project.json'",
+    "build": "pnpm -w exec nx run @stoked-cenv/cli:build",
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm run lint -- --fix",
     "watch": "tsc --watch",
@@ -52,13 +52,13 @@
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
+    "@nrwl/nx-cloud": "15.3.5",
     "@types/express": "^4.17.17",
     "@types/inquirer": "^8.2.6",
     "@types/jest": "^28.1.8",
     "@types/node": "^18.16.19",
     "@types/source-map-support": "^0.5.6",
     "@types/supertest": "^2.0.12",
-    "@nrwl/nx-cloud": "15.3.5",
     "commander": "11.0.0",
     "jest": "^29.1.1",
     "jest-mock": "^29.1.1",
@@ -87,7 +87,7 @@
   ],
   "homepage": "https://cenv.stokedconsulting.com",
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.72",
-    "@stoked-cenv/ui": "^2.0.0-a.72"
+    "@stoked-cenv/lib": "^undefined",
+    "@stoked-cenv/ui": "^undefined"
   }
 }

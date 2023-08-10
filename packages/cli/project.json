@@ -35,14 +35,11 @@
       "options": {
         "commands": [
           "./git-check.sh",
-          "pnpm version:bump",
-          "pnpm link:all",
-          "pnpm up",
-          "nx run @stoked-cenv/cli:build",
-          "nx run @stoked-cenv/cdk:build",
-          "pnpm run link:cli",
-          "pnpm run publish:bump:all",
-          "pnpm updateExample"
+          "pnpm version:bump:all",
+          "pnpm build",
+          "pnpm publish:bump:all",
+          "pnpm version:example:sync",
+          "ts-node fixup-example-deps.ts"
         ],
         "parallel": false
       }
