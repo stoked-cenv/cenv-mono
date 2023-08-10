@@ -37,6 +37,6 @@
     "stackTemplatePath": "stacks"
   },
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.71"
+    "@stoked-cenv/lib": "^2.0.0-a.72"
   }
 }
