@@ -35,8 +35,9 @@
       "options": {
         "commands": [
           "./git-check.sh",
-          "pnpm run version:bump",
-          "pnpm run updatePeers",
+          "pnpm version:bump",
+          "pnpm link:all",
+          "pnpm up",
           "nx run @stoked-cenv/cli:build",
           "nx run @stoked-cenv/cdk:build",
           "pnpm run link:cli",

@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cdk",
-  "version": "2.0.0-a.73",
+  "version": "2.0.0-a.72",
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
@@ -9,7 +9,7 @@
     "publish:bump": "cd ../../dist/cdk && pnpm publish --access public"
   },
   "devDependencies": {
-    "@stoked-cenv/lib": "workspace:2.0.0-a.73",
+
     "@types/aws-lambda": "^8.10.119",
     "@types/jest": "^29.5.3",
     "@types/node": "^18.16.19",
@@ -22,6 +22,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
+    "@stoked-cenv/lib": "workspace:2.0.0-a.72",
     "@aws-cdk/aws-lambda-python-alpha": "2.43.1-alpha.0",
     "@aws-solutions-constructs/aws-apigateway-lambda": "^2.41.0",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.41.0",
@@ -38,6 +39,6 @@
     "stackTemplatePath": "stacks"
   },
   "peerDependencies": {
-    "@stoked-cenv/lib": "workspace:2.0.0-a.73"
+    "@stoked-cenv/lib": "workspace:2.0.0-a.72"
   }
 }
