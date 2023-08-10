@@ -29,16 +29,21 @@ export function validateEnvVars(envVars: string[]): Record<string, string> | nev
 export class EnvVars {
   private _vars: Record<string, string> = {};
   private _hidden: string[];
-
-  constructor(propertyBag: Record<string, string> = {}, envVarKeys: string[] = [], hiddenKeys: string[] = [], envVarsOnly = false) {
+  constructor(propertyBag: Record<string, string | undefined> = {}, envVarKeys: string[] = [], hiddenKeys: string[] = [], envVarsOnly = false) {
+    let bag: Record<string, string> = {};
+    for (const [key, value] of Object.entries(propertyBag)) {
+      if (value !== undefined) {
+        bag[key] = value;
+      }
+    }
     // set hidden keys
     this._hidden = hiddenKeys;
 
     // remove empty entries from the property bag
-    propertyBag = Object.fromEntries(Object.entries(propertyBag).filter(([_, v]) => v != null));
+    bag = Object.fromEntries(Object.entries(bag).filter(([, v]) => v != null));
 
     // set the initial properties to match only the passed in env var keys if envVarsOnly flag is true otherwise set it to the entire propertyBag
-    this._vars = envVarsOnly ? pick({...propertyBag}, ...envVarKeys) : propertyBag;
+    this._vars = envVarsOnly ? pick({...bag}, ...envVarKeys) : bag;
 
     // set properties for the keys provided in environmentVariables from the active process.env values
     this.setEnvVars(envVarKeys);
