@@ -48,6 +48,6 @@
     "parameters"
   ],
   "peerDependencies": {
-    "@stoked-cenv/lib": "^undefined"
+    "@stoked-cenv/lib": "^2.0.0-a.73"
   }
 }

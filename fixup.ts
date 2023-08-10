@@ -36,7 +36,7 @@ export default class Fixup {
       const sortedDepType: Record<string, string> = {};
       Object.keys(depType).sort().map((dep) => {
         if (metas[dep]) {
-          depType[dep] = `^${metas[dep].version}`;
+          depType[dep] = `^${metas[dep].meta.version}`;
         }
         sortedDepType[dep] = depType[dep];
       })

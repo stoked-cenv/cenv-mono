@@ -118,7 +118,7 @@ importers:
         specifier: ^2.41.0
         version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@stoked-cenv/lib':
-        specifier: workspace:2.0.0-a.73
+        specifier: ^2.0.0-a.73
         version: link:../lib
       aws-cdk:
         specifier: 2.43.1
@@ -188,10 +188,10 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0(@nestjs/common@10.0.0)(@nestjs/core@10.0.0)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.72
+        specifier: ^2.0.0-a.73
         version: link:../lib
       '@stoked-cenv/ui':
-        specifier: ^2.0.0-a.72
+        specifier: ^2.0.0-a.73
         version: link:../ui
       eslint:
         specifier: ^8.45.0
@@ -433,7 +433,7 @@ importers:
         specifier: ^3.259.0
         version: 3.259.0
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.72
+        specifier: ^2.0.0-a.73
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0
