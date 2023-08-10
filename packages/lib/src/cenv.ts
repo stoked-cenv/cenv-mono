@@ -121,6 +121,7 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   stage?: string;
   diff?: boolean;
   typed?: boolean;
+  poll?: boolean;
 }
 
 export interface CmdInfo {

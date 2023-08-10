@@ -25,8 +25,8 @@ export async function startSession(applicationName: string, typed = false) {
   try {
     let config: any = CenvFiles.EnvConfig;
     if (!config || !config.ApplicationId || !config.EnvironmentId || (!config.ConfigurationProfileId && !typed) || (!config.MetaConfigurationProfileId && typed)) {
-      console.log('applicationName', applicationName, CenvFiles.ENVIRONMENT);
-      config = await getConfig(applicationName);
+      config = await getConfig(applicationName, CenvFiles.ENVIRONMENT, typed ? 'config_meta': 'config', false);
+
       if (!config) {
         CenvLog.single.catchLog([`startSession error ${applicationName}`, 'No config found', '\n', JSON.stringify(config, null, 2)]);
         process.exit();
@@ -38,7 +38,7 @@ export async function startSession(applicationName: string, typed = false) {
         process.exit();
       }
     }
-    const params = { ApplicationIdentifier: config.ApplicationId, EnvironmentIdentifier: config.EnvironmentId, ConfigurationProfileIdentifier: typed ? config.ConfigurationProfileId : config.MetaConfigurationProfileId};
+    const params = { ApplicationIdentifier: config.ApplicationId, EnvironmentIdentifier: config.EnvironmentId, ConfigurationProfileIdentifier: !typed ? config.ConfigurationProfileId : config.MetaConfigurationProfileId};
     const command = new StartConfigurationSessionCommand(params);
     const response = await getClient().send(command);
     return response.InitialConfigurationToken ? response.InitialConfigurationToken : false;
@@ -53,9 +53,11 @@ export async function getDecodedConfig(token: any) {
     const getConfigParams = { ConfigurationToken: token };
     const command = new GetLatestConfigurationCommand(getConfigParams);
     const response = await getClient().send(command);
-    return { decodedConfig: new TextDecoder().decode(response.Configuration), token: response.NextPollConfigurationToken! };
+    const decodedConfig = new TextDecoder().decode(response.Configuration);
+    return { decodedConfig, token: response.NextPollConfigurationToken! };
   } catch (e) {
-    CenvLog.single.errorLog(['getDecodedConfig error', e instanceof Error ? e.message : e as string]);
+    //CenvLog.single.errorLog(['getDecodedConfig error', e instanceof Error ? e.message : e as string]);
+    CenvLog.single.catchLog(`getDecodedConfig error ${e instanceof Error ? e.stack : e as string}`);
   }
   process.exit(334);
 }
@@ -66,18 +68,16 @@ export async function getLatestConfiguration(allValues = false) {
     const configPkg: any = { config: undefined, metaConfig: undefined };
     const resConfig = await getDecodedConfig(process.env.NextPollConfigurationToken);
     process.env.NextPollConfigurationToken = resConfig.token;
-    console.log('config', resConfig.decodedConfig);
-
+    configPkg.config = resConfig.decodedConfig;
     if (process.env.MetaNextPollConfigurationToken) {
       const resMetaConfig = await getDecodedConfig(process.env.MetaNextPollConfigurationToken);
       process.env.MetaNextPollConfigurationToken = resMetaConfig.token;
       configPkg.metaConfig = resMetaConfig.decodedConfig;
-      console.log('meta config', resMetaConfig.decodedConfig);
     }
 
     return await parseConfig(configPkg.config, allValues, configPkg.metaConfig);
   } catch (e) {
-    CenvLog.single.errorLog(['getLatestConfiguration error', e instanceof Error ? e.message : e as string]);
+    CenvLog.single.errorLog( e instanceof Error ? e.stack : e);
     process.exit(796);
   }
 }
@@ -87,6 +87,9 @@ async function parseConfig(configInput: any, allValues = false, metaConfigInput:
   const ymlMetaConfig = metaConfigInput ? YAML.parse(metaConfigInput) : undefined;
   const updatedConfig: any = {};
   const env: { [key: string]: string | undefined } = process.env;
+  if (!ymlConfig) {
+    return updatedConfig;
+  }
   for (const [key, value] of Object.entries(ymlConfig)) {
     if (ymlMetaConfig && !updatedConfig[ymlMetaConfig[key]]) {
       updatedConfig[ymlMetaConfig[key]] = {};
@@ -117,7 +120,6 @@ interface StartConfigPollingParams {
 }
 
 function startConfigPolling(applicationName: string, options: StartConfigPollingParams) {
-  console.log(CenvLog.colors.success(`polling cron: ${options?.cronExpression}`));
   let count = 0;
   cron.schedule(options?.cronExpression ? options?.cronExpression : '0 * * * *', async () => {
     count += 1;
@@ -166,11 +168,17 @@ export async function getConfigVars(applicationName: string, allValues = false, 
     CenvLog.single.catchLog(`could not start appConfigData session for ${applicationName}: no config found\``);
     process.exit(229)
   }
-  const metaToken = typed ? await startSession(applicationName, true) : false;
-  if (typed && !metaToken) {
-    CenvLog.single.errorLog(`could not start appConfigData session for ${applicationName}: no meta config found`);
-    process.exit(239)
+  process.env.NextPollConfigurationToken = token;
+
+  if (typed) {
+    const metaToken = await startSession(applicationName, true);
+    if (!metaToken) {
+      CenvLog.single.errorLog(`could not start appConfigData session for ${applicationName}: no meta config found`);
+      process.exit(239)
+    }
+    process.env.MetaNextPollConfigurationToken = metaToken;
   }
+
   const latestConfig = await getLatestConfiguration(allValues);
   if (latestConfig && !silent) {
     displayConfigVars('CONFIG VARS', latestConfig, exports);
@@ -180,7 +188,6 @@ export async function getConfigVars(applicationName: string, allValues = false, 
 
 export async function pollDeployedVars(applicationName: string, cronExpression: string, silent = true): Promise<any> {
   const configVars = await getConfigVars(applicationName, false, silent);
-
   if (cronExpression) {
     startConfigPolling(applicationName, { cronExpression });
   }

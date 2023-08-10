@@ -15,6 +15,12 @@ interface ExecCommandOptions extends BaseCommandOptions {
            name: 'exec', description: 'Execute command using cenv context',
          })
 export class ExecCommand extends BaseCommand {
+
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

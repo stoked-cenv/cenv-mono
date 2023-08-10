@@ -133,7 +133,7 @@ export class Version {
     } else {
       process.env.CENV_VERSION = versionString + '\n';
     }
-    process.env['CENV_VERSION_' + libraryId.toUpperCase()] = versionString;
+    process.env['CENV_VERSION_' + libraryId.toUpperCase()] = this.currentVersion.toString();
   }
 
   static async getVersion(packageName: string) {

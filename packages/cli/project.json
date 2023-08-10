@@ -35,11 +35,13 @@
       "options": {
         "commands": [
           "./git-check.sh",
+          "pnpm run version:bump:all",
+          "pnpm --filter \"@stoked-cenv/*\" up \"@stoked-cenv/*\"",
+          "pnpm run link:cli",
           "nx run @stoked-cenv/cli:build",
           "nx run @stoked-cenv/cdk:build",
-          "ts-node ./fixup-dist.ts",
           "pnpm run publish:bump:all",
-          "pnpm run link:cli"
+          "cd example/packages/api/ && pnpm up \"@stoked-cenv/*\""
         ],
         "parallel": false
       }

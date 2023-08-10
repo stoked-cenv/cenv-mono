@@ -624,7 +624,7 @@ export class CenvFiles {
 
   public static get ENVIRONMENT(): any {
     if (!this.environment) {
-      this.environment = process.env.ENV!;
+      this.environment = process.env.ENV! || process.env.EnvironmentName!;
     }
     return this.environment;
   }
