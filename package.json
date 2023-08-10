@@ -20,7 +20,7 @@
     "cli": "nx run @stoked-cenv/cli:cli",
     "updatePeers:ui": "cd ../ui && pnpm add @stoked-cenv/lib@\"$(cenv -v -s)\" --save-peer",
     "updatePeers:cli": "cd ../cli && pnpm add @stoked-cenv/lib@\"$(cenv -v -s)\" --save-peer && pnpm add @stoked-cenv/ui@\"$(cenv -v -s)\" --save-peer",
-    "updatePeers:cdk": "cd ../cli && pnpm add @stoked-cenv/lib@\"$(cenv -v -s)\" --save-peer",
+    "updatePeers:cdk": "cd ../cdk && pnpm add @stoked-cenv/lib@\"$(cenv -v -s)\" --save-peer",
     "updatePeers": "pnpm updatePeers:ui; pnpm updatePeers:cli; pnpm updatePeers:cdk",
     "version:deps": "echo pnpm $(pnpm --version); echo tsc $(tsc --version); echo node $(node --version); nx --version; cenv --version",
     "version:bump:cli": "cd packages/cli && pnpm -r run version:bump prerelease --force",
