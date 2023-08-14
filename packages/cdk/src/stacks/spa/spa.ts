@@ -88,7 +88,7 @@ export class SpaStack extends Stack {
     const viewerCertificate = ViewerCertificate.fromAcmCertificate(cert, {
                                                                      sslMethod: SSLMethod.SNI,
                                                                      securityPolicy: SecurityPolicyProtocol.TLS_V1_1_2016,
-                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [`${process.env.APP}.${domainName}`, www!] : [www!],
+                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [`${domainName}`, www!] : [www!],
                                                                    });
 
     // CloudFront distribution

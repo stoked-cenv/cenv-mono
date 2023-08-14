@@ -15,18 +15,18 @@ export const CenvFeature: React.FC<Auth0FeatureProps> = ({
 }) => (
   <a
     href={resourceUrl}
-    className="auth0-feature"
+    className="feature"
     target="_blank"
     rel="noopener noreferrer"
   >
-    <h3 className="auth0-feature__headline">
+    <h3 className="feature__headline">
       <img
-        className="auth0-feature__icon"
+        className="feature__icon"
         src={icon}
         alt="external link icon"
       />
       {title}
     </h3>
-    <p className="auth0-feature__description">{description}</p>
+    <p className="feature__description">{description}</p>
   </a>
 );

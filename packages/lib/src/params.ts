@@ -160,7 +160,7 @@ export class CenvParams {
       if (process.env.VERBOSE_LOGS) {
         console.log('parameters', JSON.stringify(parameters, null, 2));
       }
-      let materializedVars = { ...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv };
+      let materializedVars = { ...parameters.app, ...parameters.environment, ...parameters.globalEnv, ...parameters.global };
       // expand template variables
       const before = JSON.parse(JSON.stringify(materializedVars));
       if (process.env.VERBOSE_LOGS) {

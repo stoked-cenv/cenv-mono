@@ -54,10 +54,14 @@ export const deepDiffMapper = function () {
         throw 'Invalid argument. Function given, object expected.';
       }
       if (this.isValue(obj1) || this.isValue(obj2)) {
-        return {
+        const res: any = {
           type: this.compareValues(obj1, obj2),
           data: obj1 === undefined ? obj2 : obj1
-        };
+        }
+        if (obj1) {
+          res['oldData'] = obj2;
+        }
+        return res;
       }
 
       const diff: any = {};

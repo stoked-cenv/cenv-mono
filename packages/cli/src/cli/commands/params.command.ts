@@ -48,6 +48,13 @@ export class ParamsCommand extends BaseCommand {
     return val;
   }
 
+  @Option({
+    name: 'export', flags: '-e, --export', description: 'Print the parameters as exports to be evaluated'
+  })
+  parseExport(val: boolean): boolean {
+    return val;
+  }
+
   async runCommand(params: string[], options: ParamsCommandOptions, packages?: Package[]): Promise<void> {
     try {
       if (packages) {

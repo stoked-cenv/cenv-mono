@@ -147,9 +147,10 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
     }
   }
 
-  CenvLog.info('*******************************************************************');
-  CenvLog.info(`*********************** ${CenvLog.colors.stdHighlightUnderline(title)} ***********************`);
-  CenvLog.info('*******************************************************************\n');
+  console.log(new Error(title).stack)
+  console.log('*************************************************************************');
+  console.log(`****************************** ${CenvLog.colors.stdHighlightUnderline(title)} ******************************`);
+  console.log('*************************************************************************');
   if (exports) {
     Object.entries(configVarsDisplay).forEach(([key, value]) => {
       console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`);
@@ -157,7 +158,7 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
   } else {
     console.log(CenvLog.colors.std(YAML.stringify(configVars)));
   }
-  CenvLog.info('*******************************************************************');
+  console.log('*******************************************************************');
 }
 
 export async function getConfigVars(applicationName: string, allValues = false, silent = true, exports = false, typed = false) {

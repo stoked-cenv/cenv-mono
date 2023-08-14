@@ -66,9 +66,11 @@ export class ParamsModule extends PackageModule {
   static showDuplicateParams = false;
   config: IEnvConfig;
   pushedVarsTyped?: CenvVars;
+  pushedVarsExpanded: VarList = {};
   pushedVars?: VarList;
   localVars?: VarList;
   localVarsTyped = new CenvVars();
+  localVarsExpanded: VarList = {};
   materializedVars: VarList = {};
   materializedVarsTyped?: CenvVars;
   materializedVarsVersion?: number;
@@ -335,10 +337,12 @@ export class ParamsModule extends PackageModule {
         const localData = await CenvFiles.GetData(this.pkg.packageName);
         this.localVarsTyped = localData?.Vars;
         this.localVars = this.convertToCenvVars(this.localVarsTyped);
+        this.localVarsExpanded = expandTemplateVars(this.localVars);
 
         //this.pkg.stdPlain('loading deployed vars:', this.pkg.packageName);
         this.pushedVarsTyped = await this.pull(false, false, true, false, false, false, this.config);
         this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);
+        this.pushedVarsExpanded = expandTemplateVars(this.pushedVars);
 
         // get local vars
         const config = await getConfig(this.pkg.packageName);
@@ -410,7 +414,7 @@ export class ParamsModule extends PackageModule {
             }
           }
         }
-        CenvLog.single.infoLog('materialization results:\n' + output, data.ApplicationName);
+        CenvLog.single.infoLog('materialization results:\n' + output, this.pkg.stackName);
       }
     }
   }
@@ -666,6 +670,7 @@ export class ParamsModule extends PackageModule {
     const stage = options?.stage ? options?.stage : 'materialized';
     const diff = options?.diff ? options?.diff : false;
     const typed = options?.typed ? options?.typed : false;
+    const exported = options?.export ? options?.export : false;
 
     await this.loadVars();
     let local = stage === 'local';
@@ -694,9 +699,21 @@ export class ParamsModule extends PackageModule {
       }
       CenvLog.single.stdLog(JSON.stringify(typed ? this.materializedVarsTyped : this.materializedVars, null, 2), this.pkg.stackName);
     }
+    const getReplacer = (obj: any) => {
+      return (key: string, value: string) => {
+        if (obj[key]) {
+          return obj[key]
+        }
+        return value;
+      }
+    }
+
     if (diff && (local || deployed)) {
       this.pkg.info('local -> deployed: delta');
       if (this.localVarsTyped && this.pushedVarsTyped) {
+        const replacedPushed = JSON.parse(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, getReplacer(this.pushedVarsExpanded), 2));
+        const replacedLocal = JSON.parse(JSON.stringify(typed ? this.localVarsTyped : this.localVars, getReplacer(this.localVarsExpanded), 2))
+
         CenvLog.single.stdLog(JSON.stringify(deepDiffMapper.map(this.pushedVarsTyped, this.localVarsTyped, [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED]), null, 2), this.pkg.stackName);
       } else if (!this.localVarsTyped && !this.pushedVarsTyped) {
         CenvLog.single.stdLog('no local or deployed params found', this.pkg.stackName);
@@ -706,17 +723,22 @@ export class ParamsModule extends PackageModule {
         CenvLog.single.stdLog('no deployed params found', this.pkg.stackName);
       }
     }
-    if (diff && (materialized || deployed)) {
-      this.pkg.info('deployed -> materialized: delta');
-      if (this.pushedVarsTyped && this.materializedVarsTyped) {
-        CenvLog.single.stdLog(JSON.stringify(deepDiffMapper.map(this.materializedVarsTyped,this.pushedVarsTyped, [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED]), null, 2), this.pkg.stackName);
-      } else if (!this.materializedVarsTyped && !this.pushedVarsTyped) {
-        CenvLog.single.stdLog('no deployed or materialized params found', this.pkg.stackName);
-      } else if (!this.materializedVarsTyped) {
-        CenvLog.single.stdLog('no materialized params found', this.pkg.stackName);
-      } else if (!this.pushedVarsTyped) {
-        CenvLog.single.stdLog('no deployed params found', this.pkg.stackName);
+    if (diff && (materialized || deployed) && this.pushedVarsTyped && this.materializedVarsTyped) {
+      const replacedPushed = JSON.parse(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, getReplacer(this.pushedVarsExpanded), 2));
+      const materialized = typed ? this.materializedVarsTyped : this.materializedVars;
+      const diff = deepDiffMapper.map(materialized, replacedPushed, [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED])
+      if (diff) {
+        this.pkg.info('deployed -> materialized: delta');
+        CenvLog.single.alertLog(JSON.stringify(diff, null, 2), this.pkg.stackName);
+      } else {
+        CenvLog.single.stdLog('no diff found', this.pkg.stackName);
       }
+    } else if (!this.materializedVarsTyped && !this.pushedVarsTyped) {
+      CenvLog.single.stdLog('no deployed or materialized params found', this.pkg.stackName);
+    } else if (!this.materializedVarsTyped) {
+      CenvLog.single.stdLog('no materialized params found', this.pkg.stackName);
+    } else if (!this.pushedVarsTyped) {
+      CenvLog.single.stdLog('no deployed params found', this.pkg.stackName);
     }
   }
 

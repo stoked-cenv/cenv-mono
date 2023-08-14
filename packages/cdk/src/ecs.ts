@@ -10,7 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, stackPrefix, tagStack } from './utils';
+import { ensureValidCerts, getDomains, stackPrefix, tagStack } from './utils';
 import { CenvFiles } from '@stoked-cenv/lib';
 
 export interface ECSServiceDeploymentParams {
@@ -29,16 +29,14 @@ export interface ECSServiceDeploymentParams {
   assignedDomain?: string;
 }
 
-const { ASSIGNED_DOMAIN , APP } = process.env;
+const domains = getDomains();
 export const defaultStackProps = {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION,
   },
 };
 
-if (ASSIGNED_DOMAIN) {
-  ensureValidCerts(ASSIGNED_DOMAIN);
-}
+ensureValidCerts(domains.primary, domains.root);
 
 export const VPC_NAME = `${CenvFiles.ENVIRONMENT}-net`;
 const getVPCByName = (construct: Construct, id = CenvFiles.ENVIRONMENT + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
@@ -67,7 +65,6 @@ export class ECSServiceStack extends Stack {
       ecrRepositoryName,
       envVariables = {},
       logRetention = logs.RetentionDays.ONE_WEEK,
-      rootDomain = process.env.ROOT_DOMAIN,
       region = process.env.CDK_DEFAULT_REGION,
       healthCheck,
     } = params;
@@ -81,29 +78,11 @@ export class ECSServiceStack extends Stack {
       vpc: this.vpc, clusterName: `${stackPrefix()}-cluster`,
     });
 
-    const subdomainId = subdomain.replace(/\./g, '-');
-
-    let subDomain: string = subdomain as string; // i.e. install.dev
-    let baseDomain: string = rootDomain as string;
-    let fullDomain = `${subDomain}.${CenvFiles.ENVIRONMENT}.${baseDomain}`;
-
-    if (ASSIGNED_DOMAIN) {
-      const assignedParts = ASSIGNED_DOMAIN.split('.');
-      subDomain = assignedParts.shift() as string;
-      baseDomain = assignedParts.join('.');
-      fullDomain = ASSIGNED_DOMAIN;
-    }
-
-    console.log('rootDomain: ' + rootDomain);
-    console.log('env: ' + env);
-    console.log('subDomain: ' + subDomain);
-    console.log('fullDomain: ' + fullDomain);
-
     // Lookup a hosted zone in the current account/region based on query parameters.
     // Requires environment, you must specify env for the stack.
     // Use to easily query hosted zones.
     this.zone = HostedZone.fromLookup(this, 'zone', {
-      domainName: rootDomain!,
+      domainName: domains.root!,
     });
 
     // A certificate managed by AWS Certificate Manager.
@@ -117,12 +96,12 @@ export class ECSServiceStack extends Stack {
     });
 
     const logging = new ecs.AwsLogDriver({
-                                           streamPrefix: `${env}-${subdomainId}-fargate`, logGroup: this.logGroup,
+                                           streamPrefix: `${stackPrefix()}-fargate`, logGroup: this.logGroup,
                                          });
 
     const repository = ecr.Repository.fromRepositoryName(this, ecrRepositoryName.replace('/', '-'), ecrRepositoryName);
     const shortDigest = process.env.CENV_PKG_DIGEST ? process.env.CENV_PKG_DIGEST!.substring(process.env.CENV_PKG_DIGEST!.length - 8) : '';
-    const containerName = `${env}-${subdomainId}-${process.env.CENV_PKG_VERSION}-${shortDigest}`.replace(/\./g, '-');
+    const containerName = `${stackPrefix()}-${process.env.CENV_PKG_VERSION}-${shortDigest}`.replace(/\./g, '-');
 
     const image = ecs.ContainerImage.fromEcrRepository(repository, 'latest');
     // Create a load-balanced Fargate service and make it public
@@ -130,13 +109,13 @@ export class ECSServiceStack extends Stack {
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs_patterns.ApplicationLoadBalancedFargateService.html
     this.loadBalancedFargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(
       this,
-      `${env}-${subdomainId}-fg`,
+      `${stackPrefix()}-fg`,
       {
         cluster: this.cluster, // Required
-        assignPublicIp: true, loadBalancerName: `${env}-${subdomainId}-lb`, serviceName: `${env}-${subdomainId}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
+        assignPublicIp: true, loadBalancerName: `${stackPrefix()}-lb`, serviceName: `${stackPrefix()}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
         desiredCount: 1, // Default is 1
-        domainZone: this.zone, domainName: fullDomain, certificate, taskImageOptions: {
-          family: `${env}-${subdomainId}`, containerName, image, logDriver: logging, environment: {
+        domainZone: this.zone, domainName: domains.primary, certificate, taskImageOptions: {
+          family: `${stackPrefix()}`, containerName, image, logDriver: logging, environment: {
             PORT: '80', ENV: env!, AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!, ...envVariables,
           }, ...this.getTaskImageOptions(),
         }, memoryLimitMiB: 512, // Default is 512
@@ -144,7 +123,7 @@ export class ECSServiceStack extends Stack {
       });
 
     // attach inline policy for interacting with AppConfig
-    this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${env}-${subdomainId}-app-config`, {
+    this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
       statements: [new iam.PolicyStatement({
         actions: [
           'appconfig:ListHostedConfigurationVersions',

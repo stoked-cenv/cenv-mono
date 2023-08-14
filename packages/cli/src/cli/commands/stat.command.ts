@@ -13,9 +13,12 @@ export interface StatCommandOptions extends BaseCommandOptions {
            aliases: ['status'],
          })
 export class StatCommand extends BaseCommand {
+
   constructor() {
     super();
+    this.config.allowUI = false;
   }
+
 
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
