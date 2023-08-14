@@ -62,15 +62,18 @@ export function getDomains() {
     rootDomainParts.pop();
   }
   const ENV = CenvFiles.ENVIRONMENT;
-  const appMatchesDomain = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
-  const app = appMatchesDomain ? `${APP}.${rootDomain}` : rootDomain;
+  const appMatchesRoot = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
+  const app = appMatchesRoot ? `${APP}.${rootDomain}` : rootDomain;
   const env = `${ENV}.${app}`;
   const sub = `*.${env}`;
   const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
   if (ENV === 'prod') {
     domains.app = app;
     domains.primary = app;
-    domains.alt = [env, sub];
+    domains.alt = [`*.${app}`, env, sub];
+    if (appMatchesRoot) {
+      domains.alt.push(`www.${app}`);
+    }
   }
 
   console.log('primary domain: ' + domains.primary);

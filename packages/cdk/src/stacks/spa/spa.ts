@@ -16,7 +16,7 @@ import {BlockPublicAccess, Bucket} from 'aws-cdk-lib/aws-s3';
 import {BucketDeployment, Source} from 'aws-cdk-lib/aws-s3-deployment';
 import {Construct} from 'constructs';
 import * as process from 'process';
-import { stackPrefix, tagStack } from '../../index';
+import { getDomains, stackPrefix, tagStack } from '../../index';
 import { CenvFiles, validateEnvVars } from '@stoked-cenv/lib';
 
 export class SpaStack extends Stack {
@@ -34,14 +34,11 @@ export class SpaStack extends Stack {
       'CENV_BUCKET_NAME'
     ]);*/
 
-    const domainName = process.env.ROOT_DOMAIN;
-    const www = process.env.APP_DOMAIN;
-
-    console.log("env: " + CenvFiles.ENVIRONMENT);
-    console.log("www: " + www!);
+    const domains = getDomains();
+    console.log("www: " + domains.primary);
 
     const zone = HostedZone.fromLookup(this, "zone", {
-      domainName: process.env.ROOT_DOMAIN!
+      domainName: domains.root
     });
 
     const prefix = stackPrefix();
@@ -49,10 +46,10 @@ export class SpaStack extends Stack {
     const certificate = Certificate.fromCertificateArn(this, `${prefix}-site-cert`, certImport);
 
     const cloudfrontOAI = new OriginAccessIdentity(this, `${prefix}-cf-OAI`, {
-      comment: `OAI for ${www}`,
+      comment: `OAI for ${domains.primary}`,
     });
 
-    new CfnOutput(this, 'Site', {value: `https://${www}`});
+    new CfnOutput(this, 'Site', {value: `https://${domains.primary}`});
 
     // s3
     const bucket = new Bucket(this, `${prefix}`, {
@@ -88,7 +85,7 @@ export class SpaStack extends Stack {
     const viewerCertificate = ViewerCertificate.fromAcmCertificate(cert, {
                                                                      sslMethod: SSLMethod.SNI,
                                                                      securityPolicy: SecurityPolicyProtocol.TLS_V1_1_2016,
-                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [`${domainName}`, www!] : [www!],
+                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [domains.primary, domains.env] : [domains.primary],
                                                                    });
 
     // CloudFront distribution
@@ -110,12 +107,12 @@ export class SpaStack extends Stack {
     if (CenvFiles.ENVIRONMENT === 'prod') {
       // Route53 alias record for the CloudFront distribution
       new ARecord(this, `${prefix}-enduser-a`, {
-        recordName: `${process.env.APP}.${domainName}`, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
+        recordName: domains.env, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
       });
     }
 
     new ARecord(this, `${prefix}-app-a`, {
-      recordName: www, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
+      recordName: domains.primary, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
     });
 
     // Deployment the bucket

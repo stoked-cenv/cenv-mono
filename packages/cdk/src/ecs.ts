@@ -29,14 +29,13 @@ export interface ECSServiceDeploymentParams {
   assignedDomain?: string;
 }
 
-const domains = getDomains();
 export const defaultStackProps = {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION,
   },
 };
 
-ensureValidCerts(domains.primary, domains.root);
+//ensureValidCerts(domains.primary, domains.root);
 
 export const VPC_NAME = `${CenvFiles.ENVIRONMENT}-net`;
 const getVPCByName = (construct: Construct, id = CenvFiles.ENVIRONMENT + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
@@ -71,6 +70,8 @@ export class ECSServiceStack extends Stack {
     this.params = params;
 
     this.vpc = getVPCByName(this);
+
+    const domains = getDomains();
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html

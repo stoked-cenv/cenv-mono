@@ -1003,6 +1003,9 @@ export class Package implements IPackage {
 
   async deploy(deployOptions: any) {
     try {
+      if (this.packageName === 'brianstoker-spa') {
+        return;
+      }
       const options: any = {
         failOnError: true, envVars: {
           CENV_LOG_LEVEL: deployOptions.logLevel, CENV_DEFAULTS: 'true',
