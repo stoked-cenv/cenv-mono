@@ -15,7 +15,72 @@ const primaryProfileProperties: Record<string, any> = {
 };
 const primaryProfileKeys = Object.keys(primaryProfileProperties);
 
-export async function Config(options: any, alwaysAsk = false) {
+export interface CenvConfigData {
+  AWS_PROFILE: string,
+  AWS_REGION: string,
+  ENV: string,
+  ROOT_DOMAIN: string
+}
+
+const delimiter = '↔';
+
+export interface IConfigQuery {
+  env?: string;
+  profile?: string;
+}
+export class ConfigQuery {
+  env?: string;
+  profile?: string;
+  isDefault = false;
+
+  constructor(query: IConfigQuery) {
+    this.env = query.env;
+    this.profile = query.profile;
+    if (!query.profile && !query.env) {
+      this.isDefault = true;
+    }
+  }
+  get name(): string {
+    if (this.isDefault) {
+      return 'default';
+    }
+    return `${this.profile}${delimiter}${this.env}`;
+  }
+
+  get path(): string {
+    return path.join(CenvFiles.PROFILE_PATH, this.name);
+  }
+
+  get exists(): boolean {
+    return existsSync(this.path);
+  }
+}
+
+export default class Config {
+  query: ConfigQuery;
+  configData!: CenvConfigData;
+
+  constructor(query: IConfigQuery) {
+    this.query = new ConfigQuery(query);
+    this.readConfig(this.query.name)
+  }
+
+  readConfig(fileName: string): CenvConfigData | never {
+    const profilePath = path.join(CenvFiles.PROFILE_PATH, fileName);
+    if (existsSync(profilePath)) {
+      this.configData = JSON.parse(readFileSync(profilePath, 'utf8'));
+    }
+
+    CenvLog.single.alertLog(`no configuration currently setup to show run '${CenvLog.colors.alertBold('cenv configure')}'`);
+    process.exit(231);
+  }
+
+  static prompt(): void {
+
+  }
+}
+
+export async function config(options: any, alwaysAsk = false) {
   // verify that we need a config at all
   if (!alwaysAsk) {
     const contextConfig = getContextConfig();
@@ -263,7 +328,7 @@ export async function getProfiles(profile?: string, environment?: string, allRes
     }
 
     const fileBase = path.basename(file);
-    if (upgrade && fileBase.indexOf('↔') !== -1) {
+    if (upgrade && fileBase.indexOf(delimiter) !== -1) {
       CenvLog.single.alertLog(`the .cenv profile ${file} appears to have already been upgraded`);
       continue;
     }
@@ -294,7 +359,7 @@ function getProfile(profile?: string, env?: string) {
   if (!profile && !env) {
     return 'default';
   }
-  return `${profile ? profile : ''}↔${env ? env : ''}`;
+  return `${profile ? profile : ''}${delimiter}${env ? env : ''}`;
 }
 
 function getProfilePath(profile?: string, env?: string) {
@@ -306,9 +371,9 @@ export function exitNoMatchingProfiles(profile?: string, environment?: string): 
   process.exit(0);
 }
 
-async function loadCenvProfile(profileName = 'default', options?: Record<string, any>) {
+async function loadCenvProfile(profileFileName = 'default', options?: Record<string, any>) {
   let envConfig;
-  const profilePath = path.join(CenvFiles.PROFILE_PATH, profileName);
+  const profilePath = path.join(CenvFiles.PROFILE_PATH, profileFileName);
   let alwaysAsk = false;
   if (existsSync(profilePath)) {
     envConfig = JSON.parse(readFileSync(profilePath, 'utf8'));
@@ -319,6 +384,6 @@ async function loadCenvProfile(profileName = 'default', options?: Record<string,
     alwaysAsk = true;
   }
 
-  return { envConfig, profilePath, name: profileName, askUser: alwaysAsk };
+  return { envConfig, profilePath, name: profileFileName, askUser: alwaysAsk };
 }
 

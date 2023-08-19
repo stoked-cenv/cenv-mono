@@ -5,12 +5,15 @@
       <excludeFolder url="file://$MODULE_DIR$/.tmp" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/example/packages/api/env.cdk.out" />
+      <excludeFolder url="file://$MODULE_DIR$/example/packages/cert" />
+      <excludeFolder url="file://$MODULE_DIR$/example/packages/network" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="nest-commander" />
     <orderEntry type="module" module-name="cli" />
     <orderEntry type="module" module-name=".cenv" />
-    <orderEntry type="module" module-name="brianstoker.com" />
+    <orderEntry type="module" module-name="stokedconsulting.com" />
   </component>
 </module>

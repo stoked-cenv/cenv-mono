@@ -387,14 +387,19 @@ export async function execCmd(cmd: string, options: {
 
     cmd = `${envVarFinal ? envVarFinal : ''}${cmd}`;
 
-    const outputBuffer = child.execSync(cmd);
+    const outputBuffer = child.execSync(cmd, silent ? {stdio: ['ignore']} : {stdio: 'inherit'});
     const output = outputBuffer.toString()
     if (!silent) {
       CenvLog.single.infoLog(output);
     }
     return output;
   } catch (e) {
-    CenvLog.single.errorLog('cenv execCmd error: \n' + (e instanceof Error ? e.stack : e));
+    if (options && options.silent !== true) {
+      CenvLog.single.errorLog('cenv execCmd error: \n' + (e instanceof Error ? e.stack : e));
+    }
+    if (e instanceof Object) {
+      return JSON.stringify(e, null, 2);
+    }
     return e as string;
   }
 }

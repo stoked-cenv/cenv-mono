@@ -35,7 +35,7 @@ export class BuildCommand extends BaseCommand {
     try {
 
       if ((params?.length === 1 && params[0] === 'all') || packages[0].root) {
-        new Suite(Cenv.defaultSuite);
+        new Suite(Suite.defaultSuite);
         await LibModule.build(options);
       } else if (packages.length) {
         await Promise.all(packages.map(async (p: Package) => p.lib?.build(options.force, true)));

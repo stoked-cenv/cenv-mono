@@ -24,8 +24,8 @@ export class CenvCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '-v, --version', description: 'Display cenv\'s installed versions including lib and ui',
-          })
+    flags: '-v, --version', description: 'Display cenv\'s installed versions including lib and ui',
+  })
   parseVersion(val: boolean): boolean {
     return val;
   }

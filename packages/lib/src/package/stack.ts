@@ -93,18 +93,25 @@ export class StackModule extends PackageModule {
   }
 
   async destroy(packageCmd?: PackageCmd) {
-    if (Deployment.options.hard) {
-      const deployCmd = this.pkg.createCmd(`cenv destroy ${this.pkg.packageName} --hard`);
-      await deleteStack(this.pkg.stackNameFinal, true, true);
-      deployCmd.result(0);
-    } else {
-      let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
-      actualCommand += ` -o ${this.getCdkOut()}`;
+    try {
+      if (Deployment.options.hard) {
+        const deployCmd = this.pkg.createCmd(`cenv destroy ${this.pkg.packageName} --hard`);
+        await deleteStack(this.pkg.stackNameFinal, true, true);
+        deployCmd.result(0);
+      } else {
+        let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
+        actualCommand += ` -o ${this.getCdkOut()}`;
 
-      let opt: any = { cenvVars: {} };
-      opt = await this.getOptions(opt, ProcessMode.DESTROY);
-      opt.parentCmd = packageCmd;
-      await this.pkg.pkgCmd(actualCommand, opt);
+        let opt: any = { cenvVars: {} };
+        opt = await this.getOptions(opt, ProcessMode.DESTROY);
+        opt.parentCmd = packageCmd;
+        CenvLog.single.infoLog('destroying stack: ' + this.pkg.stackName, this.pkg.stackName);
+        await this.pkg.pkgCmd(actualCommand, opt);
+      }
+      return true;
+    } catch (e) {
+      CenvLog.single.errorLog('destroy failed:' +  e, this.pkg.stackName, true);
+      throw e;
     }
   }
 
@@ -118,10 +125,11 @@ export class StackModule extends PackageModule {
 
   async deploy(deployOptions: any, options: any) {
 
-    const deployCmd = this.pkg.createCmd(`cenv deploy ${this.pkg.packageName} --stack`);
+    //const deployCmd = this.pkg.createCmd(`cenv deploy ${this.pkg.packageName} --stack`);
 
     if (this.needsAutoDelete()) {
-      await this.destroy(deployCmd);
+      CenvLog.single.infoLog('auto delete failed stack: ' + this.pkg.stackName, this.pkg.stackName);
+      await this.destroy();
     }
 
     await runScripts(this, this.meta.postDeployScripts);
@@ -129,7 +137,7 @@ export class StackModule extends PackageModule {
     if (!process.env.CENV_SKIP_CDK) {
 
       const opt = await this.getOptions(deployOptions, ProcessMode.DEPLOY);
-      opt.parentCmd = deployCmd;
+      //opt.parentCmd = deployCmd;
       await this.resetVolatileKeys(opt);
 
       if (this.meta.deployStack) {
@@ -147,7 +155,7 @@ export class StackModule extends PackageModule {
 
     await runScripts(this, this.meta.postDeployScripts);
 
-    deployCmd.result(0);
+    //deployCmd.result(0);
   }
 
   async resetVolatileKeys(opt: string) {
@@ -216,32 +224,23 @@ export class StackModule extends PackageModule {
       }
 
       opt.redirectStdErrToStdOut = true;
-      opt.commandEvents = this.getCommandEvents(opt, processType);
+      this.getCommandEvents(opt, processType);
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
     return opt;
   }
 
-  getCommandEvents(opt: any, processType: ProcessMode): CommandEvents {
-    const commandEvents: CommandEvents = {
-      preCommandFunc: async () => {
-        this.info(opt.cenvVars.CENV_PKG_VERSION, 'CENV_PKG_VERSION');
-        this.info(opt.cenvVars.CENV_STACK_NAME, 'CENV_STACK_NAME');
-        if (this.pkg.docker) {
-          this.info(opt.cenvVars.CENV_PKG_DIGEST, 'CENV_PKG_DIGEST');
-          this.info(opt.cenvVars.CENV_DOCKER_NAME, 'CENV_DOCKER_NAME');
-        }
-      },
-    };
+  getCommandEvents(opt: any, processType: ProcessMode) {
     if (processType === ProcessMode.DESTROY) {
-      commandEvents.failureCommandFunc = async () => {
-        this.alert('the cdk destroy function failed.. attempting to destroy the cloudformation stack via api instead');
-        await deleteStack(this.pkg.stackName, true, true);
-        this.std('success', 'destroy cloudformation stack');
-      };
+      opt.commandEvents = {
+        failureCommandFunc: async () => {
+          this.alert('the cdk destroy function failed.. attempting to destroy the cloudformation stack via api instead');
+          await deleteStack(this.pkg.stackName, true, true);
+          this.std('success', 'destroy cloudformation stack');
+        }
+      }
     }
-    return commandEvents;
   }
 
   reset() {

@@ -17,7 +17,7 @@ import {BucketDeployment, Source} from 'aws-cdk-lib/aws-s3-deployment';
 import {Construct} from 'constructs';
 import * as process from 'process';
 import { getDomains, stackPrefix, tagStack } from '../../index';
-import { CenvFiles, validateEnvVars } from '@stoked-cenv/lib';
+import { CenvFiles } from '@stoked-cenv/lib';
 
 export class SpaStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -85,7 +85,7 @@ export class SpaStack extends Stack {
     const viewerCertificate = ViewerCertificate.fromAcmCertificate(cert, {
                                                                      sslMethod: SSLMethod.SNI,
                                                                      securityPolicy: SecurityPolicyProtocol.TLS_V1_1_2016,
-                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [domains.primary, domains.env] : [domains.primary],
+                                                                     aliases: CenvFiles.ENVIRONMENT === 'prod' ? [domains.primary, domains.env, domains.www!] : [domains.primary],
                                                                    });
 
     // CloudFront distribution
@@ -106,12 +106,16 @@ export class SpaStack extends Stack {
 
     if (CenvFiles.ENVIRONMENT === 'prod') {
       // Route53 alias record for the CloudFront distribution
-      new ARecord(this, `${prefix}-enduser-a`, {
+      new ARecord(this, `${prefix}-env-a`, {
         recordName: domains.env, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
+      });
+
+      new ARecord(this, `${prefix}-www-a`, {
+        recordName: domains.www, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
       });
     }
 
-    new ARecord(this, `${prefix}-app-a`, {
+    new ARecord(this, `${prefix}-primary-a`, {
       recordName: domains.primary, target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)), zone,
     });
 

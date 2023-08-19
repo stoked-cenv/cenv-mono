@@ -8,7 +8,7 @@ import { CenvLog, LogLevel } from './log';
 import { DashboardCreateOptions } from './params';
 import { CenvFiles } from './file';
 import { Version } from './version';
-import { Config } from './config';
+import { config } from './config';
 
 export async function parseCmdParams(params: string[], options: any, cmdInfo: CommandInfo): Promise<{
   parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment
@@ -54,16 +54,11 @@ export async function parseCmdParams(params: string[], options: any, cmdInfo: Co
   }
 
   if (!pkgs.length) {
-    if (Cenv.defaultSuite) {
-      options.suite = Cenv.defaultSuite;
+      options.suite = Suite.defaultSuite;
       const suite = new Suite(options.suite);
       options.suite = suite.name;
       pkgs = suite.packages;
       validateBaseOptions({ suite: suite.name, options, cmd: cmdInfo.deploymentMode });
-    } else {
-      CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
-      process.exit(0);
-    }
   } else {
     validateBaseOptions({ packages: pkgs, options, cmd: cmdInfo.deploymentMode });
   }
@@ -123,7 +118,7 @@ export async function cmdInit(options: any, cmdInfo: CommandInfo): Promise<boole
     }
 
     if (cmdInfo.configRequired) {
-      options.args = await Config(options as ConfigCommandOptions);
+      options.args = await config(options as ConfigCommandOptions);
     }
 
     if (!cmdInfo.cenvRootRequired) {
@@ -190,8 +185,8 @@ export function validateBaseOptions(deployCreateOptions: DashboardCreateOptions)
     }
     options.userInterface = !options.cli;
     if (cmd) {
-      if (!options.cenv && !options.key && !options.addKeyAccount && !options.stack && !options.parameters && !options.docker) {
-        options.stack = options.parameters = options.docker = true;
+      if (!options.cenv && !options.key && !options.addKeyAccount && !options.stack && !options.parameters && !options.docker && !options.exec && !options.lib) {
+        options.stack = options.parameters = options.docker = options.lib = options.exec = true;
       }
       if (!options.skipBuild) {
         options.build = true;

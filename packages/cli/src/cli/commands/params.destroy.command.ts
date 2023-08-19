@@ -56,10 +56,13 @@ export class ParamsDestroyCommand extends BaseCommand {
         process.exit();
         //packages = localOnly ? [] : packages;
         //options.stack = options.docker = options.parameters = false;
+      } else {
+        packages?.map((p: Package) => {
+          p.params?.destroy();
+        })
       }
-
-      options = Deployment.deployDestroyOptions(options);
-      await Deployment.Destroy(packages, { ...options, stack: false, docker: false, parameters: false });
+      //options = Deployment.deployDestroyOptions(options);
+      //await Deployment.Destroy(packages, { ...options, stack: false, docker: false, parameters: false });
     } catch (e) {
       console.log(CenvLog.colors.error(e));
     }

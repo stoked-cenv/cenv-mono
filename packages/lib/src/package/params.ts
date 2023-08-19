@@ -699,20 +699,13 @@ export class ParamsModule extends PackageModule {
       }
       CenvLog.single.stdLog(JSON.stringify(typed ? this.materializedVarsTyped : this.materializedVars, null, 2), this.pkg.stackName);
     }
-    const getReplacer = (obj: any) => {
-      return (key: string, value: string) => {
-        if (obj[key]) {
-          return obj[key]
-        }
-        return value;
-      }
-    }
+
 
     if (diff && (local || deployed)) {
       this.pkg.info('local -> deployed: delta');
       if (this.localVarsTyped && this.pushedVarsTyped) {
-        const replacedPushed = JSON.parse(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, getReplacer(this.pushedVarsExpanded), 2));
-        const replacedLocal = JSON.parse(JSON.stringify(typed ? this.localVarsTyped : this.localVars, getReplacer(this.localVarsExpanded), 2))
+        const replacedPushed = JSON.parse(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, this.getReplacer(this.pushedVarsExpanded), 2));
+        const replacedLocal = JSON.parse(JSON.stringify(typed ? this.localVarsTyped : this.localVars, this.getReplacer(this.localVarsExpanded), 2))
 
         CenvLog.single.stdLog(JSON.stringify(deepDiffMapper.map(this.pushedVarsTyped, this.localVarsTyped, [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED]), null, 2), this.pkg.stackName);
       } else if (!this.localVarsTyped && !this.pushedVarsTyped) {
@@ -724,7 +717,7 @@ export class ParamsModule extends PackageModule {
       }
     }
     if (diff && (materialized || deployed) && this.pushedVarsTyped && this.materializedVarsTyped) {
-      const replacedPushed = JSON.parse(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, getReplacer(this.pushedVarsExpanded), 2));
+      const replacedPushed = JSON.parse(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, this.getReplacer(this.pushedVarsExpanded), 2));
       const materialized = typed ? this.materializedVarsTyped : this.materializedVars;
       const diff = deepDiffMapper.map(materialized, replacedPushed, [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED])
       if (diff) {
@@ -742,6 +735,15 @@ export class ParamsModule extends PackageModule {
     }
   }
 
+  getReplacer = (obj: any) => {
+    return (key: string, value: string) => {
+      if (obj[key]) {
+        return obj[key]
+      }
+      return value;
+    }
+  }
+
   async init(options: any) {
     // switch dir
     if (process.cwd() !== this.path) {
@@ -754,27 +756,44 @@ export class ParamsModule extends PackageModule {
   }
 
   async deploy(options: any) {
+    const cmd = this.pkg.createCmd(`cenv params deploy ${this.pkg.packageName}${options}`);
     const [value, release] = await ParamsModule.semaphore.acquire();
 
-    let deploy = false;
-    if (!options?.init) {
-      const config = await getConfig(this.pkg.packageName);
-      if (config) {
-        deploy = true;
-        await this.push(this.pkg.packageName, options?.materialize);
-      } else {
-        if (this.hasLocalConfig) {
-          rmSync(this.configPath);
-        }
-      }
-    }
-    if (!deploy) {
-      options.push = true;
-      options.materialize = true;
-      await this.init(options);
-    }
+     try {
 
-    release();
+       let deploy = false;
+       if (!options?.init) {
+         const config = await getConfig(this.pkg.packageName);
+         if (config) {
+           deploy = true;
+           await this.push(this.pkg.packageName, options?.materialize);
+         } else {
+           if (this.hasLocalConfig) {
+             rmSync(this.configPath);
+           }
+         }
+       }
+       if (!deploy) {
+         options.push = true;
+         options.materialize = true;
+         await this.init(options);
+       }
+
+       let materializeIt = !Object.keys(this.materializedVars)?.length;
+       if (this.materializedVars) {
+         materializeIt = !!deepDiffMapper.map(this.materializedVars, JSON.stringify(this.pushedVars, this.getReplacer(this.pushedVarsExpanded), 2), [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED]);
+       }
+
+       if (materializeIt) {
+         await this.materialize();
+       }
+       cmd.result(0);
+     } catch (e) {
+        cmd.result(1);
+        throw e;
+     } finally {
+       release();
+     }
   }
 
   async push(applicationName: string, materialize: boolean, decrypted = false): Promise<void> {
@@ -1183,20 +1202,26 @@ export class ParamsModule extends PackageModule {
   }
 
   printCheckStatusComplete(): void {
-    let status = `loaded local params file: ${EnvConfigFile.PATH}\n`;
-    let end = '';
+    
+    const status: any = {
+      file: path.resolve(EnvConfigFile.PATH),
+      stage: {
+        local: 0,
+        deployed: 0,
+        materialized: 0
+      }
+    };
     if (this.localVars) {
-      status += `local params count [${Object.keys(this.localVars).length}]`;
-      end = '\n';
+      status.stage.local = Object.keys(this.localVars).length;
     }
     if (this.pushedVars) {
-      status += end + `pushed params count [${Object.keys(this.pushedVars).length}]`;
-      end = '\n';
+      status.stage.deployed = Object.keys(this.pushedVars).length;
     }
     if (this.materializedVars) {
-      status += end + `materialized params count [${Object.keys(this.materializedVars).length}]`;
+      this.info(JSON.stringify(this.materializedVars, null, 2), 'materialized vars');
+      status.stage.materialized = Object.keys(this.materializedVars).length;
     }
-    this.info(status);
+    this.info(JSON.stringify(status, null, 2), 'stage count');
     this.checked = true;
     this.getDetails();
   }
@@ -1215,14 +1240,11 @@ export class ParamsModule extends PackageModule {
         return;
       }
       this.printCheckStatusStart();
+      this.chDir();
       const config = await getConfig(this.name);
       if (config) {
         this.config = config;
         this.materializedVarsVersion = this.config.VersionNumber;
-      }
-      const relative = path.relative(process.cwd(), this.path);
-      if (relative !== '') {
-        process.chdir(relative);
       }
 
       await this.loadVars();
@@ -1235,6 +1257,7 @@ export class ParamsModule extends PackageModule {
       this.printCheckStatusComplete();
     } catch (e) {
       CenvLog.single.catchLog(e);
+      process.exit(325);
     }
   }
 

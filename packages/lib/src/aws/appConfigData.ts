@@ -1,13 +1,14 @@
 import * as cron from 'node-cron';
 import { AppConfigDataClient, GetLatestConfigurationCommand, StartConfigurationSessionCommand } from '@aws-sdk/client-appconfigdata';
 import * as YAML from 'yaml';
-import { CenvParams } from '../params';
 import { CenvLog } from '../log';
 import { CenvFiles, EnvConfig } from '../file';
 import { decryptValue, isEncrypted } from './parameterStore';
-import { getConfig, getConfigurationProfile } from './appConfig';
+import { getConfig } from './appConfig';
 
 let _client: AppConfigDataClient;
+
+const appTokens: {[applicationName: string]: { token: string, metaToken?: string }} = {};
 
 function getClient() {
   if (_client) {
@@ -29,13 +30,13 @@ export async function startSession(applicationName: string, typed = false) {
 
       if (!config) {
         CenvLog.single.catchLog([`startSession error ${applicationName}`, 'No config found', '\n', JSON.stringify(config, null, 2)]);
-        process.exit();
+        process.exit(392);
       }
 
       config = new EnvConfig(config);
       if (!config.valid) {
         CenvLog.single.catchLog([`startSession error ${applicationName}`, 'config is not valid', '\n', JSON.stringify(config, null, 2)]);
-        process.exit();
+        process.exit(393);
       }
     }
     const params = { ApplicationIdentifier: config.ApplicationId, EnvironmentIdentifier: config.EnvironmentId, ConfigurationProfileIdentifier: !typed ? config.ConfigurationProfileId : config.MetaConfigurationProfileId};
@@ -62,16 +63,16 @@ export async function getDecodedConfig(token: any) {
   process.exit(334);
 }
 
-export async function getLatestConfiguration(allValues = false) {
+export async function getLatestConfiguration(applicationName: string, allValues = false) {
 
   try {
     const configPkg: any = { config: undefined, metaConfig: undefined };
-    const resConfig = await getDecodedConfig(process.env.NextPollConfigurationToken);
-    process.env.NextPollConfigurationToken = resConfig.token;
+    const resConfig = await getDecodedConfig(appTokens[applicationName].token);
+    appTokens[applicationName].token = resConfig.token;
     configPkg.config = resConfig.decodedConfig;
-    if (process.env.MetaNextPollConfigurationToken) {
-      const resMetaConfig = await getDecodedConfig(process.env.MetaNextPollConfigurationToken);
-      process.env.MetaNextPollConfigurationToken = resMetaConfig.token;
+    if (appTokens[applicationName].metaToken) {
+      const resMetaConfig = await getDecodedConfig(appTokens[applicationName].metaToken);
+      appTokens[applicationName].metaToken = resMetaConfig.token;
       configPkg.metaConfig = resMetaConfig.decodedConfig;
     }
 
@@ -124,8 +125,8 @@ function startConfigPolling(applicationName: string, options: StartConfigPolling
   cron.schedule(options?.cronExpression ? options?.cronExpression : '0 * * * *', async () => {
     count += 1;
     console.log(count % 2 === 0 ? CenvLog.colors.info('poll') : CenvLog.colors.info('poll'));
-    if (process.env.NextPollConfigurationToken) {
-      const res = await getLatestConfiguration(true);
+    if (appTokens[applicationName].token) {
+      const res = await getLatestConfiguration(applicationName, true);
       displayConfigVars('UPDATED CONFIG VARS', res);
     } else {
       await getConfigVars(applicationName, false, false);
@@ -165,22 +166,23 @@ export async function getConfigVars(applicationName: string, allValues = false, 
 
   const token = await startSession(applicationName);
 
+
   if (!token) {
     CenvLog.single.catchLog(`could not start appConfigData session for ${applicationName}: no config found\``);
     process.exit(229)
   }
-  process.env.NextPollConfigurationToken = token;
 
+  appTokens[applicationName] = { token };
   if (typed) {
     const metaToken = await startSession(applicationName, true);
     if (!metaToken) {
       CenvLog.single.errorLog(`could not start appConfigData session for ${applicationName}: no meta config found`);
       process.exit(239)
     }
-    process.env.MetaNextPollConfigurationToken = metaToken;
+    appTokens[applicationName].metaToken = metaToken;
   }
 
-  const latestConfig = await getLatestConfiguration(allValues);
+  const latestConfig = await getLatestConfiguration(applicationName, allValues);
   if (latestConfig && !silent) {
     displayConfigVars('CONFIG VARS', latestConfig, exports);
   }

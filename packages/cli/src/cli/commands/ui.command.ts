@@ -40,14 +40,10 @@ export class UICommand extends BaseCommand {
     try {
       if (!packages.length) {
         if (!options.suite) {
-          if (Cenv.defaultSuite) {
-            options.suite = Cenv.defaultSuite;
-          } else {
-            CenvLog.err(`No valid suite or packages were provided and no valid defaultSuite was configured in the root cenv.json file`);
-            process.exit(0);
-          }
+          options.suite = Suite.defaultSuite;
         }
         const suite = new Suite(options.suite);
+        console.log('suite', suite);
         new CenvUI(options, suite.packages);
       } else {
         new CenvUI(options, packages);

@@ -1,4 +1,4 @@
-import {Package, TPackageMeta} from './package';
+import {CenvMeta, CenvModuleMeta, Package, TPackageMeta} from './package';
 import {parse, SemVer} from 'semver';
 import {writeFileSync} from 'fs';
 import * as path from 'path';
@@ -86,6 +86,18 @@ export abstract class PackageModule implements IPackageModule {
   }
 
   abstract get anythingDeployed(): boolean;
+
+  cenv(property: string) {
+    const cenvModule = this._type.toLowerCase();
+    if (!this.meta.cenv) {
+      return;
+    }
+    const cenvModuleMeta = this.meta.cenv[cenvModule as keyof CenvMeta];
+    if (!cenvModuleMeta) {
+      return;
+    }
+    return cenvModuleMeta[property as keyof CenvModuleMeta];
+  }
 
   static fromData(pkg: Package, path: string, meta: TPackageMeta) {
     return {pkg, path, name: meta.name, version: meta.version, buildVersion: meta.buildVersion, currentVersion: meta.currentVersion}

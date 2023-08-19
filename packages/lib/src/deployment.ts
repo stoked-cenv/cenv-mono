@@ -490,10 +490,12 @@ export class Deployment {
   }
 
   static deployDestroyOptions(options: any) {
-    if (!options?.parameters && !options?.stack && !options?.docker && !options?.none) {
+    if (!options.lib && !options.exec && !options?.parameters && !options?.stack && !options?.docker && !options?.none) {
       options.parameters = true;
       options.stack = true;
       options.docker = true;
+      options.lib = true;
+      options.exec = true;
     }
     return options;
   }

@@ -7,9 +7,12 @@ import { computeMetaHash } from '../utils';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { CenvFiles } from '../file';
+import {PackageCmd} from './package';
+import {execCmd} from "../proc";
+import {SemVer, parse} from "semver";
 
 export enum LibStatus {
-  SUCCESS = 'SUCCESS', FAILED = 'FAILED', UNBUILT = 'UNBUILT'
+  SUCCESS = 'SUCCESS', FAILED = 'FAILED', UNBUILT = 'UNBUILT', PREVIOUSLY_BUILT = 'PREVIOUSLY_BUILT'
 }
 
 export class LibModule extends PackageModule {
@@ -20,13 +23,16 @@ export class LibModule extends PackageModule {
   hasBeenBuilt = false;
   previousBuildTs?: Date;
   hasCheckedLogs = false;
+  isPublishable = false;
+  publishedVersion: SemVer | null = null;
 
   constructor(pkg: Package, path: string, meta: TPackageMeta) {
     super(pkg, path, meta, PackageModuleType.LIB);
+    this.isPublishable = !!this.cenv('publish');
   }
 
   get anythingDeployed(): boolean {
-    return this.buildStatus === LibStatus.SUCCESS;
+    return this.buildStatus === LibStatus.SUCCESS || this.buildStatus === LibStatus.PREVIOUSLY_BUILT;
   }
 
   get moduleStrings(): string[] {
@@ -95,22 +101,30 @@ export class LibModule extends PackageModule {
       this.hasBeenBuilt = true;
       this.hasCheckedLogs = true;
     }
-    return this.hasBeenBuilt;
+    return this.hasBeenBuilt && ((this.isPublishable && this.version === this.publishedVersion) || !this.isPublishable);
   }
 
   getDetails() {
     if (this.buildStatus === LibStatus.SUCCESS) {
       this.status.deployed.push(this.statusLine('build succeeded', `build succeeded at [${this.timestamp?.toLocaleString()}]`, false));
-      return;
     } else if (this.hasBeenBuilt) {
       this.status.deployed.push(this.statusLine('build succeeded', `previously a build succeeded at [${this.previousBuildTs?.toLocaleString()}]`, false));
-      return;
-    }
-    if (this.buildStatus === LibStatus.FAILED) {
-      this.status.needsFix.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true));
+    } else if (this.buildStatus === LibStatus.FAILED) {
+      this.status.incomplete.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true));
     } else {
-      this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true));
+      //this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true));
     }
+
+    if (this.isPublishable) {
+      if (this.version === this.publishedVersion) {
+        this.status.deployed.push(this.statusLine('published', `version [${this.version.toString()}] has been published`, false));
+      } else if (this.publishedVersion) {
+        this.status.deployed.push(this.statusLine('published', `published version [${this.publishedVersion?.toString()}] is out of date: current version [${this.version?.toString()}]`, false));
+      } else {
+        this.status.incomplete.push(this.statusLine('not published', `current version [${this.version?.toString()}] not published`, true));
+      }
+    }
+
   }
 
   reset() {
@@ -130,7 +144,46 @@ export class LibModule extends PackageModule {
     writeFileSync(LibModule.buildLogPath, JSON.stringify(LibModule.buildLog, null, 2));
   }
 
-  async build(force = false, completedWhenDone = false) {
+  async deploy(force = false, completedWhenDone = false) {
+    await this.build(force, completedWhenDone);
+    if (this.isPublishable) {
+      await this.publish();
+    }
+  }
+
+  async updatePublishedStatus() {
+    try {
+      if (!this.isPublishable || this.publishedVersion === this.version) {
+        return;
+      }
+
+      const latestPublished = await execCmd(`npm view ${this.name} version`, { packageModule: this, silent: true });
+      this.publishedVersion = parse(latestPublished.trim())
+    } catch (e) {
+      CenvLog.single.info(['typeof', typeof e, e] + 'publishing failed for ' + this.name, this.pkg.stackName)
+    }
+  }
+
+  async publish() {
+    await this.updatePublishedStatus();
+    if (this.publishedVersion === this.version) {
+      return;
+    }
+    const publishCmdString = `cenv lib publish ${this.name} (not implemented yet)`;
+    const publishCmd = this.pkg.createCmd(publishCmdString);
+    try {
+      const opt = { cenvVars: {}, pkgCmd: publishCmd };
+      const res = await this.pkg.pkgCmd(`pnpm publish --access public --publish version $(git rev-parse --abbrev-ref HEAD)`, {
+        packageModule: this, redirectStdErrToStdOut: false, ...opt,
+      });
+      publishCmd.result(res.res !== undefined ? res.res : res);
+    } catch (e) {
+      CenvLog.single.errorLog(`publishing failed for ${this.name}: ` + e, this.pkg.stackName)
+      publishCmd.result(992);
+    }
+  }
+
+  async build(force = false, completedWhenDone = false, cmd?: PackageCmd) {
     try {
       if (this.meta.skipDeployBuild && !force) {
         return true;
@@ -138,7 +191,10 @@ export class LibModule extends PackageModule {
       this.pkg.processStatus = ProcessStatus.BUILDING;
       if (!this.pkg.isRoot) {
         const buildCmdString = `cenv build ${this.name}`;
-        const buildCmd = this.pkg.createCmd(buildCmdString);
+        if (cmd) {
+          cmd.out(buildCmdString);
+        }
+        const buildCmd = cmd ? cmd : this.pkg.createCmd(buildCmdString);
         try {
           const opt = { cenvVars: {}, pkgCmd: buildCmd };
           if (this.pkg.params && this.meta?.cenv?.lib?.loadVars) {
@@ -196,15 +252,19 @@ export class LibModule extends PackageModule {
 
   printCheckStatusComplete(): void {
     this.getDetails();
+    this.status.deployed.map((s) => CenvLog.single.info(s, this.pkg.stackName));
+    this.status.incomplete.map((s) => CenvLog.single.info(s, this.pkg.stackName));
+    this.status.needsFix.map((s) => CenvLog.single.info(s, this.pkg.stackName));
     this.checked = true;
-
   }
 
   async checkStatus() {
     this.printCheckStatusStart();
+    await this.updatePublishedStatus();
     if (this.buildStatus === LibStatus.UNBUILT) {
-      //await this.build();
+      this.upToDate();
     }
+
     // no op
     this.printCheckStatusComplete();
   }

@@ -217,20 +217,30 @@ export class PackageCmd implements Cmd {
   }
 }
 
+export type CenvModuleMeta = CenvDockerMeta | CenvLibMeta | CenvStackMeta;
+
+export interface CenvStackMeta {
+  package: string, buildPath?: string
+  assignedSubDomain?: string
+  certArnName?: string
+  clearContext: boolean;
+}
+
+export interface CenvDockerMeta {
+  context: string;
+  file: string;
+}
+
+export interface CenvLibMeta {
+  loadVars: boolean;
+  publish: boolean;
+}
+
 export interface CenvMeta {
-  stack?: {
-    package: string, buildPath?: string
-    assignedSubDomain?: string
-    certArnName?: string
-    clearContext: boolean;
-  },
+  stack?: CenvStackMeta;
   stackTemplatePath?: string;
-  docker?: {
-    context: string; file: string;
-  },
-  lib?: {
-    loadVars: boolean
-  }
+  docker?: CenvDockerMeta;
+  lib?: CenvLibMeta;
 }
 
 export type TPackageMeta = {
@@ -458,6 +468,8 @@ export class Package implements IPackage {
   timer?: Timer = undefined;
   cmds: PackageCmd[] = [];
   packageNameComponents: PackageNameComponents;
+  NextPollConfigurationToken?: string;
+  MetaNextPollConfigurationToken?: string;
 
   constructor(packageName: string, useCache = true, local = false) {
     const isGlobal = packageName === 'GLOBAL';
@@ -780,9 +792,9 @@ export class Package implements IPackage {
   }
 
   static async checkStatus(targetMode?: string, endStatus?: ProcessStatus) {
-    return this.getPackages().map(async (p: Package) => {
+    for (const p of Object.values(Package.cache)) {
       await p?.checkStatus(targetMode, endStatus);
-    });
+    }
   }
 
   get componentInstance() {
@@ -963,15 +975,23 @@ export class Package implements IPackage {
   }
 
   isParamDeploy(options?: any) {
-    return this.params?.hasCenvVars && options?.parameters && (!options?.strictVersions || !this.params.upToDate());
+    return this.params && options?.params && !Deployment.options.none && this.params?.hasCenvVars && options?.parameters && (!options?.strictVersions || !this.params.upToDate());
   }
 
   isDockerDeploy(options?: any) {
-    return this.docker && options?.docker && (!options?.strictVersions || !this.docker.upToDate());
+    return this.docker && options?.docker && !Deployment.options.none && (!options?.strictVersions || !this.docker.upToDate());
   }
 
   isStackDeploy(options?: any) {
-    return this.stack && options?.stack && (!options?.strictVersions || !this.stack.upToDate());
+    return this.stack && options?.stack && !Deployment.options.none && (!options?.strictVersions || !this.stack.upToDate());
+  }
+
+  isLibDeploy(options?: any) {
+    return this.lib && options?.lib && !Deployment.options.none;
+  }
+
+  isExecDeploy(options?: any) {
+    return this.exec && options?.exec && !Deployment.options.none;
   }
 
   isParamDestroy(options?: any) {
@@ -1003,21 +1023,18 @@ export class Package implements IPackage {
 
   async deploy(deployOptions: any) {
     try {
-      if (this.packageName === 'brianstoker-spa') {
-        return;
-      }
       const options: any = {
         failOnError: true, envVars: {
           CENV_LOG_LEVEL: deployOptions.logLevel, CENV_DEFAULTS: 'true',
         },
       };
 
-      if (this.lib && !Deployment.options.none) {
-        await this.lib.build();
+      if (this.isLibDeploy(deployOptions)) {
+        await this.lib?.deploy();
       }
 
-      if (this.exec && !Deployment.options.none) {
-        await this.exec.link();
+      if (this.isExecDeploy(deployOptions)) {
+        await this.exec?.link();
       }
 
       if (this.isParamDeploy(deployOptions)) {

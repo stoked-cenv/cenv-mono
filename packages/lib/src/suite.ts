@@ -36,6 +36,13 @@ export class Suite {
     }
   }
 
+  static get defaultSuite() {
+    if (Cenv.defaultSuite) {
+      return 'default';
+    }
+    return Cenv.defaultSuite;
+  }
+
   static load(name: any) {
     if (Suites.cache[name]) {
       return Suites.cache[name];

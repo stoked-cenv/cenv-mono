@@ -1,6 +1,6 @@
 import { Command, Option } from 'nest-commander';
 import {
-  CenvFiles, CenvLog, Config, ConfigCommandOptions, exitNoMatchingProfiles, getProfiles, Package, printProfileQuery,
+  CenvFiles, CenvLog, config, ConfigCommandOptions, exitNoMatchingProfiles, getProfiles, Package, printProfileQuery,
 } from '@stoked-cenv/lib';
 import { BaseCommand } from './base.command';
 import { copyFileSync, existsSync } from 'fs';
@@ -32,7 +32,7 @@ export class ConfigCommand extends BaseCommand {
 
   async runCommand(params: string[], options?: ConfigCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      await Config(this.options, true);
+      await config(this.options, true);
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

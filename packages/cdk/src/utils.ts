@@ -5,6 +5,7 @@ import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 import process from 'process';
 
+
 export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
 }
@@ -56,23 +57,26 @@ export function ensureValidCerts(primary: string, root: string) {
 export function getDomains() {
   const APP = process.env.APP;
   const ROOT_DOMAIN = process.env.ROOT_DOMAIN;
-  const rootDomain = ROOT_DOMAIN!;
+  const DOMAIN = process.env.DOMAIN;
+  const rootDomain = DOMAIN || ROOT_DOMAIN!;
   const rootDomainParts = rootDomain.split('.');
   if (rootDomainParts.length > 1) {
     rootDomainParts.pop();
   }
   const ENV = CenvFiles.ENVIRONMENT;
-  const appMatchesRoot = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
-  const app = appMatchesRoot ? `${APP}.${rootDomain}` : rootDomain;
+  const appIfNotSameAsRoot = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
+  const appMatchesRoot = !appIfNotSameAsRoot;
+  const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
   const env = `${ENV}.${app}`;
   const sub = `*.${env}`;
-  const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
+  const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
   if (ENV === 'prod') {
     domains.app = app;
     domains.primary = app;
     domains.alt = [`*.${app}`, env, sub];
     if (appMatchesRoot) {
-      domains.alt.push(`www.${app}`);
+      domains.www = `www.${app}`;
+      domains.alt.push(domains.www);
     }
   }
 

@@ -217,7 +217,7 @@ export class Dashboard {
               }
               const name = 'build';
               this.setStatusBar(name, this.statusText(name, ctx.length > 1 ? `${ctx.length} packages` : ctx[0].packageName));
-              await Promise.all(ctx?.map(async (p: Package) => await p?.lib?.build(false, true)));
+              await Promise.all(ctx?.map(async (p: Package) => await p?.lib?.build(!!Deployment.options.force, true)));
             });
           }
         }, "status": {
