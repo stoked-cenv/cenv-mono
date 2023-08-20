@@ -324,10 +324,11 @@ export class ParamsModule extends PackageModule {
     }
   }
 
-  async loadVars() {
+  async loadVars(force = false) {
     try {
+
       // switch dir
-      if (!this.varsLoaded) {
+      if (!this.varsLoaded || force) {
         const toDirVars = path.relative(process.cwd(), this.path);
         if (toDirVars !== '') {
           process.chdir(toDirVars);
@@ -353,16 +354,6 @@ export class ParamsModule extends PackageModule {
           this.materializedVars = this.convertToCenvVars(this.materializedVarsTyped);
         }
       }
-
-      //if (CenvLog.isInfo) {
-        //this.pkg.stdPlain('# cenv vars');
-        //this.pkg.printEnvVars(this.cenvVars);
-      //}
-
-      //if (CenvLog.isVerbose && process.env.CENV_ENV_VARS_VERBOSE) {
-        //this.pkg.stdPlain('# env vars');
-        //this.pkg.printEnvVars(process.env as Record<string, string>);
-      //}
     } catch (e) {
       CenvLog.single.catchLog(e);
       process.exit(229);
@@ -756,7 +747,6 @@ export class ParamsModule extends PackageModule {
   }
 
   async deploy(options: any) {
-    const cmd = this.pkg.createCmd(`cenv params deploy ${this.pkg.packageName}${options}`);
     const [value, release] = await ParamsModule.semaphore.acquire();
 
      try {
@@ -766,30 +756,38 @@ export class ParamsModule extends PackageModule {
          const config = await getConfig(this.pkg.packageName);
          if (config) {
            deploy = true;
+           const cmd = this.pkg.createCmd(`cenv params deploy ${this.pkg.packageName}${options?.materialize ? ' --materialize' : ''}`);
            await this.push(this.pkg.packageName, options?.materialize);
+           cmd.result(0);
          } else {
            if (this.hasLocalConfig) {
              rmSync(this.configPath);
            }
          }
        }
+
+
        if (!deploy) {
          options.push = true;
          options.materialize = true;
+         const cmd = this.pkg.createCmd(`cenv params deploy ${this.pkg.packageName} --init --materialize`);
          await this.init(options);
+         cmd.result(0);
        }
 
        let materializeIt = !Object.keys(this.materializedVars)?.length;
-       if (this.materializedVars) {
+       if (Object.keys(this.materializedVars).length) {
          materializeIt = !!deepDiffMapper.map(this.materializedVars, JSON.stringify(this.pushedVars, this.getReplacer(this.pushedVarsExpanded), 2), [DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_CREATED]);
        }
 
        if (materializeIt) {
+         const cmd = this.pkg.createCmd(`cenv params materialize ${this.pkg.packageName}`);
          await this.materialize();
+         cmd.result(0);
        }
-       cmd.result(0);
+
+       this.loadVars(true)
      } catch (e) {
-        cmd.result(1);
         throw e;
      } finally {
        release();
@@ -1164,6 +1162,9 @@ export class ParamsModule extends PackageModule {
   }
 
   convertToCenvVars(vars: any): VarList {
+    if (!vars) {
+      return {};
+    }
     delete vars.environmentTemplate;
     delete vars.globalEnvironmentTemplate;
     if (vars.app) {

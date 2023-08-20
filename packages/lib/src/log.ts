@@ -48,7 +48,7 @@ export class CenvLog {
     successBold: chalk.green.bold,
     successHighlight: chalk.greenBright,
     alert: chalk.yellow,
-    alertDim: chalk.yellow,
+    alertDim: chalk.yellow.dim,
     alertBold: chalk.yellow.bold,
     alertHighlight: chalk.yellowBright,
     smooth: chalk.blue,

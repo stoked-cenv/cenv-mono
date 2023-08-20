@@ -9,6 +9,7 @@ import * as path from 'path';
 import { CenvFiles } from '../file'
 import { runScripts } from '../proc';
 import { Deployment } from '../deployment';
+import {s3sync} from "../aws/s3";
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -229,6 +230,34 @@ export class StackModule extends PackageModule {
       CenvLog.single.catchLog(e);
     }
     return opt;
+  }
+
+  async updateBucket() {
+    try {
+
+      await this.pkg.params?.loadVars();
+      await this.checkStatus();
+      const bucketName = `${process.env.ENV}${this.pkg.params?.materializedVars?.APP}Bucket`;
+      console.log('bucketName', bucketName);
+      const bucket = this.getOutput(bucketName);
+      if (!bucket || !bucket.OutputValue) {
+        CenvLog.single.errorLog(`the stack ${this.pkg.stackName} does not have an output named ${bucketName}`);
+        return;
+      }
+
+      const dataPath = this.meta?.cenv?.stack?.buildPath ? path.join(this.path, this.meta.cenv.stack.buildPath) : this.path;
+
+      CenvLog.single.infoLog(`syncing ${dataPath} to s3://${bucket.OutputValue}`)
+      const syncRes = await s3sync(dataPath, bucket.OutputValue);
+      if (syncRes) {
+        this.info(`synchronization complete`, JSON.stringify(syncRes, null, 2));
+
+      } else {
+        CenvLog.single.infoLog(`synchronization failed`)
+      }
+    } catch (e) {
+      CenvLog.single.errorLog(e);
+    }
   }
 
   getCommandEvents(opt: any, processType: ProcessMode) {

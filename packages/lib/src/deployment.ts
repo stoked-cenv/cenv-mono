@@ -435,7 +435,6 @@ export class Deployment {
       } else {
         await Promise.allSettled(items.map(async (p: Package) => p.checkStatus(this.options.mode)));
       }
-
       this.processItems = items;
       await Promise.allSettled(items.map(async (i) => {
         i.statusTime = Date.now();
@@ -445,6 +444,11 @@ export class Deployment {
       }));
 
       this.setDeploymentStatuses();
+      Package.getPackages().map(p => {
+        if (p.processStatus === ProcessStatus.INITIALIZING) {
+          p.checkStatus(this.options.mode)
+          p.processStatus = ProcessStatus.SKIPPED;
+        }});
       this.logStatus('processInit()');
       await this.start();
     } catch (e) {
@@ -514,9 +518,6 @@ export class Deployment {
 
   static async startDeployment(packages: Package[], options: any) {
     Deployment.toggleDependencies = !!options.dependencies;
-    if (process.env.CENV_LOG_LEVEL === LogLevel.VERBOSE) {
-      CenvLog.info(`deploy / destroy options ${JSON.stringify(options, null, 2)}`);
-    }
 
     if (packages?.length > 0) {
       if (!Deployment.toggleDependencies) {

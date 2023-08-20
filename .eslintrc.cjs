@@ -1,6 +1,4 @@
 module.exports = {
-    extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
-    parser: '@typescript-eslint/parser',
     parserOptions: {
         project: '**/tsconfig.build.json',
         tsconfigRootDir : `${__dirname}`,
@@ -10,8 +8,8 @@ module.exports = {
             jsx: true,
             tsx: true
         },
+        ecmaVersion: 2015
     },
-    plugins: ['@typescript-eslint'],
     root: true,
     rules: {
         '@typescript-eslint/interface-name-prefix': 'off',

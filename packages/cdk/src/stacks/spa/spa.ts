@@ -35,7 +35,7 @@ export class SpaStack extends Stack {
     ]);*/
 
     const domains = getDomains();
-    console.log("www: " + domains.primary);
+    console.log('bucket source location (CENV_BUILD_PATH):', process.env.CENV_BUILD_PATH);
 
     const zone = HostedZone.fromLookup(this, "zone", {
       domainName: domains.root

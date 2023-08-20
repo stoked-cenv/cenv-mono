@@ -8,7 +8,16 @@ import { HostedZone } from '@aws-sdk/client-route-53';
 import { getExportValue } from './aws/cloudformation';
 import { CenvLog } from './log';
 import { getAccountId } from './aws/sts';
-import { createDirIfNotExists, getContextConfig, ioReadVarList, printProfileQuery, ProfileData } from './stdio';
+import {
+  createDirIfNotExists,
+  getContextConfig, getProfileColumnLengths,
+  ioReadVarList,
+  printProfileData,
+  printProfileQuery,
+  ProfileData
+} from './stdio';
+import cliSelect from "@stoked-cenv/cli-select";
+import * as fs from "fs";
 
 const primaryProfileProperties: Record<string, any> = {
   AWS_PROFILE: process.env.AWS_PROFILE || 'default', AWS_REGION: 'us-east-1', ENV: CenvFiles.ENVIRONMENT || 'dev', ROOT_DOMAIN: undefined,
@@ -90,6 +99,19 @@ export async function config(options: any, alwaysAsk = false) {
   }
   const profiles = await getProfiles(options?.profile, options?.env);
   if (profiles.length > 1) {
+    const values = profiles.map((profileData: ProfileData) => `name: test\nENV: ${profileData.envConfig.ENV}\nROOT_DOMAIN: ${profileData.envConfig.ROOT_DOMAIN}\nAWS_PROFILE: ${profileData.envConfig.AWS_PROFILE}\nAWS_REGION: ${profileData.envConfig.AWS_REGION}\n`)
+    const selected = await cliSelect({
+      values,
+      valueRenderer: (value: any, selected: any) => {
+        if (selected) {
+          return CenvLog.colors.success(value);
+        }
+
+        return value;
+      }
+    })
+    console.log(selected);
+
     CenvLog.single.alertLog(`Multiple profiles match your query - ${printProfileQuery(options?.profile, options?.env)}\n\nPlease specify both the profile and the environment options. The following are the matching profiles:\n\n`);
     profiles.forEach((profileData: ProfileData) => {
       CenvLog.single.stdLog(printProfileQuery(profileData.envConfig?.AWS_PROFILE, profileData.envConfig?.ENV, profileData.profilePath));
@@ -155,6 +177,63 @@ export async function config(options: any, alwaysAsk = false) {
   return envVars.all;
 }
 
+class ConfigSelector {
+  profiles: ProfileData[];
+  constructor(profiles: ProfileData[]) {
+    this.profiles = profiles;
+  }
+
+  async displayUI() {
+    let meta: Record<string, number> = {};
+    this.profiles.map((pd: ProfileData) => {
+      meta = getProfileColumnLengths(pd, meta);
+    });
+    let currentProfile: ProfileData = this.profiles[0];
+    var stdin = process.stdin;
+    stdin.setRawMode( true );
+    stdin.resume();
+    stdin.setEncoding( 'utf8' );
+
+    const renderExport: any = {};
+    stdin.on('keypress', function (ch, key) {
+      if (key && key.ctrl && key.name == 'c') {
+        process.exit();
+      }
+
+      if (key.name === 'backspace') {
+        currentProfile.removed = true;
+        renderExport?.render();
+      } else if (key.name === 'space') {
+        if (currentProfile.removed) {
+          currentProfile.removed = false;
+          renderExport?.render();
+        } else {
+          currentProfile.default = !currentProfile.default;
+        }
+        renderExport?.render();
+      }
+    });
+
+    const { alert, alertDim, info, infoBold, infoHighlight, infoDim } = CenvLog.colors;
+    console.log(alert('KEY LEGEND'));
+    console.log(alertDim(` - delete:\t ${alert('mark profile for deletion')}`));
+    console.log(alertDim(` - space:\t ${alert('select profile as default AND undo a profile marked for delete')}`));
+    console.log(alertDim(` - enter:\t ${alert('accept changes and make selected the default profile')}`));
+
+    const selectedProfile = await cliSelect({
+      renderExport,
+      values: this.profiles,
+      valueRenderer: (value: any, selected: any) => {
+        if (selected) {
+          currentProfile = value;
+          return printProfileData(value, meta, true);
+        }
+        return printProfileData(value, meta, false);
+      },
+    });
+    console.log('selectedProfile', selectedProfile)
+  }
+}
 export async function ListConfigs(options?: any) {
   const profileData = await getProfiles(options?.profile, options?.env, true);
   const lengthSorted = profileData.sort((a: ProfileData, b: ProfileData) => {
@@ -162,9 +241,9 @@ export async function ListConfigs(options?: any) {
   })
   if (profileData.length) {
     const length = lengthSorted[0].envConfig.AWS_PROFILE.length;
-    profileData.map((pd: ProfileData) => {
-      console.log(printProfileQuery(pd.envConfig.AWS_PROFILE.padEnd(length), pd.envConfig.ENV, pd.profilePath));
-    });
+    const configSelector = new ConfigSelector(profileData);
+    await configSelector.displayUI();
+
   } else {
     console.log('no cenv profiles were found');
   }

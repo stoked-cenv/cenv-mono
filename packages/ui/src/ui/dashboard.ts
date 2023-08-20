@@ -1733,11 +1733,11 @@ export class Dashboard {
         }
         if (selectedPackage.status?.incomplete?.length) {
           status += `\n${CenvLog.colors.error.underline.bold('NEEDS DEPLOY:')}\n\n`;
-          status += `\t${selectedPackage.status.incomplete.join('\n\t')}\n`
+          status += `${selectedPackage.status.incomplete.join('\n')}\n`
         }
         if (selectedPackage.status?.deployed?.length) {
           status += `\n${CenvLog.colors.success.underline.bold('UP_TO_DATE:')}\n\n`;
-          status += `\t${selectedPackage.status.deployed.join('\n\t')}\n\n`;
+          status += `${selectedPackage.status.deployed.join('\n')}\n\n`;
         }
 
         this.statusPanel?.dependencies.setContent(`${this.dependencies}\n\n`);

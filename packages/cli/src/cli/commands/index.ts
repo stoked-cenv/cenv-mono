@@ -17,6 +17,7 @@ export * from './params.command';
 export * from './stat.command';
 export * from './test.command';
 export * from './ui.command';
+export * from './stack.command';
 
 
 

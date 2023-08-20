@@ -37,6 +37,7 @@ export enum EnvironmentStatus {
 export enum ProcessStatus {
   NONE = '------------',
   INITIALIZING = 'INITIALIZING',
+  SKIPPED = 'SKIPPED',
   HASHING = 'HASHING',
   BUMP = 'BUMP',
   STATUS_CHK = 'STATUS_CHK',
@@ -975,7 +976,7 @@ export class Package implements IPackage {
   }
 
   isParamDeploy(options?: any) {
-    return this.params && options?.params && !Deployment.options.none && this.params?.hasCenvVars && options?.parameters && (!options?.strictVersions || !this.params.upToDate());
+    return this.params && options?.parameters && !Deployment.options.none && this.params?.hasCenvVars && options?.parameters && (!options?.strictVersions || !this.params.upToDate());
   }
 
   isDockerDeploy(options?: any) {

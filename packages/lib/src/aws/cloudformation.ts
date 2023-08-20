@@ -127,7 +127,6 @@ export async function deleteStack(StackName: string, waitForIt = true, errorOnFa
   }
 }
 
-
 export async function cancelUpdateStack(StackName: string) {
   try {
     const cmd = new CancelUpdateStackCommand({StackName});
@@ -139,7 +138,6 @@ export async function cancelUpdateStack(StackName: string) {
     }
   }
 }
-
 
 export async function getExportValue(exportName: string, silent = false): Promise<string | false> {
   let exports = await listExports();
@@ -160,5 +158,4 @@ export async function getExportValue(exportName: string, silent = false): Promis
   }
 
   return false;
-
 }

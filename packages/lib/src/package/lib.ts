@@ -146,9 +146,9 @@ export class LibModule extends PackageModule {
 
   async deploy(force = false, completedWhenDone = false) {
     await this.build(force, completedWhenDone);
-    if (this.isPublishable) {
-      await this.publish();
-    }
+    //if (this.isPublishable) {
+    //  await this.publish();
+    //}
   }
 
   async updatePublishedStatus() {

@@ -7,6 +7,11 @@ import { BaseCommand } from './base.command';
          })
 export class BuildCommand extends BaseCommand {
 
+  constructor() {
+    super();
+    this.config.allowUI = false;
+  }
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {
