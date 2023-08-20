@@ -30,7 +30,8 @@ interface Options<T> {
   unselected?: string,
   indentation?: number,
   cleanup?: boolean,
-  valueRenderer?: ValueRenderer<T>
+  valueRenderer?: ValueRenderer<T>,
+  renderExport?: any
 }
 
 type creatorPromise = <T> (options: Options<T>) => Promise<ResolvedValue<T>>;

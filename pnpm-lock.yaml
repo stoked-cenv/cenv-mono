@@ -328,31 +328,6 @@ importers:
         specifier: ^2.6.3
         version: 2.6.3
 
-  packages/cli-select-old:
-    dependencies:
-      ansi-escapes:
-        specifier: ^3.2.0
-        version: 3.2.0
-    devDependencies:
-      '@babel/cli':
-        specifier: ^7.4.3
-        version: 7.4.3(@babel/core@7.22.9)
-      '@babel/core':
-        specifier: ^7.4.3
-        version: 7.22.9
-      '@babel/plugin-proposal-object-rest-spread':
-        specifier: ^7.4.3
-        version: 7.4.3(@babel/core@7.22.9)
-      '@babel/preset-env':
-        specifier: ^7.4.3
-        version: 7.22.9(@babel/core@7.22.9)
-      '@types/node':
-        specifier: ^11.13.6
-        version: 11.13.6
-      rimraf:
-        specifier: ^2.6.3
-        version: 2.6.3
-
   packages/lib:
     dependencies:
       '@aws-sdk/client-appconfig':
@@ -407,8 +382,8 @@ importers:
         specifier: ^10.0.0
         version: 10.1.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@stoked-cenv/cli-select':
-        specifier: workspace:^1.1.3-a.0
-        version: link:../cli-select-old
+        specifier: 1.1.3-a.0
+        version: link:../cli-select
       ajv:
         specifier: ^8.12.0
         version: 8.12.0
