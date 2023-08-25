@@ -19,7 +19,7 @@
 
 ##  overview
 
-<strong>cenv</strong> inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 5 different types of cenv modules, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
+<strong>cenv</strong> inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 5 different types of cenv modules, LIB, EXEC, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
 
 The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage application parameter configuration. The DOCKER module provides a mechanism to create an AWS ECR repository for the package containers and build and push the packages containers to the repo. Finally, the STACK module uses AWS Cdk to deploy cloudformation stacks representing the infrastructure and applications contained in the packages.
 
