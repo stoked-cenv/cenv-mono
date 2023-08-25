@@ -1,19 +1,14 @@
-import { Command, Option } from 'nest-commander';
-import {
-  CenvFiles, CenvLog, config, ConfigCommandOptions, exitNoMatchingProfiles, getProfiles, Package, printProfileQuery,
-} from '@stoked-cenv/lib';
-import { BaseCommand } from './base.command';
-import { copyFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { RemoveConfigCommand } from './config.rm.command';
-import { ListConfigCommand } from './config.ls.command';
+import {Command, Option} from 'nest-commander';
+import {Cenv, CenvLog, Config, ConfigCommandOptions, Package, ConfigQuery} from '@stoked-cenv/lib';
+import {BaseCommand} from './base.command';
+import {ManageConfigCommand} from './config.manage.command';
 
 @Command({
-           name: 'config',
-           description: 'Configure the cli for a specific aws profile and environment combination.',
-           aliases: ['conf'],
-           subCommands: [RemoveConfigCommand, ListConfigCommand],
-         })
+  name: 'config',
+  description: 'Configure the cli for a specific aws profile and environment combination.',
+  aliases: ['conf'],
+  subCommands: [ManageConfigCommand],
+})
 export class ConfigCommand extends BaseCommand {
 
   constructor() {
@@ -25,14 +20,31 @@ export class ConfigCommand extends BaseCommand {
   }
 
   @Option({
-            flags: '-s, --show', description: 'Show the configuration for a specific profile',
-          }) parseShow(val: boolean): boolean {
+    flags: '-s, --show', description: 'Show the configuration for a specific profile',
+  }) parseShow(val: boolean): boolean {
     return val;
   }
 
-  async runCommand(params: string[], options?: ConfigCommandOptions, packages?: Package[]): Promise<void> {
+  async runCommand(params: string[], options  ?: ConfigCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      await config(this.options, true);
+      if (params.length > 1) {
+        CenvLog.single.errorLog(`Too many parameters provided to config command.. only accepts one param which is the profile name..`);
+        process.exit(22);
+      }
+      const profile = params.length ? params[0] : options?.profile;
+      Cenv.config = new Config();
+      if (options?.show) {
+        await Cenv.config.show(profile);
+        process.exit();
+      }
+      if (profile) {
+        const query = new ConfigQuery({name: profile});
+        if (query.valid) {
+          await Cenv.config.loadProfile(profile);
+          process.exit();
+        }
+      }
+      await Cenv.config.createNewProfile(profile);
     } catch (e) {
       CenvLog.single.catchLog(e);
     }

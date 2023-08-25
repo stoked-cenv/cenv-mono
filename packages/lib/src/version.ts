@@ -6,7 +6,6 @@ import {existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync} fro
 import {Cenv} from "./cenv";
 import {CenvFiles, search_sync} from "./file";
 import { ProfileData } from './stdio';
-import { getProfiles } from './config';
 import { semVerParse } from './utils'
 
 export enum BumpMode {
@@ -289,8 +288,8 @@ export class Version {
   }
 
   static async Upgrade_1_9_0() {
-    const profileFileData = await getProfiles(undefined, undefined, true, true);
-    profileFileData.forEach((profileData: ProfileData) => {
+    const profileFileData = await Cenv.config?.getProfiles(undefined, true, true);
+    profileFileData?.forEach((profileData: ProfileData) => {
       renameSync(profileData.profilePath, path.join(CenvFiles.PROFILE_PATH, `${profileData.envConfig?.AWS_PROFILE}↔${profileData.envConfig?.ENV}`));
     });
 

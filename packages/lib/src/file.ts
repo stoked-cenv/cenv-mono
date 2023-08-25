@@ -33,7 +33,7 @@ export interface IEnvConfig {
   ConfigurationProfileId?: string;
   MetaConfigurationProfileId?: string;
   DeploymentStrategyId?: string;
-  VersionNumber?: number;
+  DeploymentNumber?: number;
 }
 export class EnvConfig {
   ApplicationName: string;
@@ -43,7 +43,7 @@ export class EnvConfig {
   ConfigurationProfileId?: string;
   MetaConfigurationProfileId?: string;
   DeploymentStrategyId?: string;
-  VersionNumber?: number;
+  DeploymentNumber?: number;
 
   constructor(config: IEnvConfig) {
     this.ApplicationName = config.ApplicationName;
@@ -53,7 +53,7 @@ export class EnvConfig {
     this.ConfigurationProfileId = config.ConfigurationProfileId;
     this.MetaConfigurationProfileId = config.MetaConfigurationProfileId;
     this.DeploymentStrategyId = config.DeploymentStrategyId;
-    this.VersionNumber = config.VersionNumber;
+    this.DeploymentNumber = config.DeploymentNumber;
   }
 
   get valid(): boolean {

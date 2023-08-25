@@ -31,7 +31,9 @@ interface Options<T> {
   indentation?: number,
   cleanup?: boolean,
   valueRenderer?: ValueRenderer<T>,
-  renderExport?: any
+  keyFunctions?: { keys: string[], func?: (values: any[], selectedValue: any, render: () => void) => void, legend: string}[],
+  legend?: boolean,
+  legendColors?: any,
 }
 
 type creatorPromise = <T> (options: Options<T>) => Promise<ResolvedValue<T>>;

@@ -300,6 +300,9 @@ export class Deployment {
       await Promise.all(availableProcesses.map(async (app: Package) => {
         this.processing.push(app);
         delete this.toProcess[app.stackName];
+        if (!Package.global.timer?.running) {
+          Package.global.timer?.start();
+        }
         await this.packageStart(Package.fromStackName(app.stackName), `${this.mode()} ${app.stackName}`);
       }));
       packagesToProcess
@@ -417,16 +420,12 @@ export class Deployment {
         await DockerModule.dockerPrefight(items);
       }
 
-      if (!Package.global.timer?.running) {
-        Package.global.timer?.start();
-      }
-
       if (this.isDeploy()) {
         if (this.options?.bump !== 'reset' && !this.options?.skipBuild) {
-          await Promise.all(items.map(async (p: Package) => await p?.lib?.build()));
+         // await Promise.all(items.map(async (p: Package) => await p?.lib?.build()));
         }
         if (this.options.bump) {
-          await Version.Bump(Package.getPackages(), this.options.bump);
+          //await Version.Bump(Package.getPackages(), this.options.bump);
         }
       }
 

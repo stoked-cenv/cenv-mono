@@ -55,7 +55,9 @@ export class ExecCommand extends BaseCommand {
           if (relative !== '') {
             process.chdir(path.relative(process.cwd(), pkgPath));
           }
-          vars = await getConfigVars(p.packageName,false, true, true);
+          if (p.params) {
+            vars = await getConfigVars(p.packageName, false, true, true);
+          }
           //Object.entries(options.args).forEach(([key, value]) => {
           //  console.log(`export ${CenvLog.colors.stdHighlight(key)}=${CenvLog.colors.stdHighlight(value)}`)
           //});

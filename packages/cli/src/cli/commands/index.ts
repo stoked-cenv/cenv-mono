@@ -4,7 +4,6 @@ export * from './bump.command';
 export * from './cenv.command';
 export * from './clean.command';
 export * from './config.command';
-export * from './config.rm.command';
 export * from './deploy.command';
 export * from './destroy.command';
 export * from './docker.command';

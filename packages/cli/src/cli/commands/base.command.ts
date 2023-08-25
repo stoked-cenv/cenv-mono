@@ -61,14 +61,9 @@ export abstract class BaseCommand extends CommandRunner {
   }
 
   @Option({
-            flags: '-e, --env <env>', description: 'For managing cenv profiles by environment', env: 'ENV',
-          }) parseEnvVar(val: string): string {
-    return val;
-  }
-
-  @Option({
-            flags: '-p, --profile <profile>', description: `Profile to use for aws commands`, env: 'AWS_PROFILE',
-          }) parseProfile(val: string): string {
+            flags: '-p, --profile <profile>', description: `Cenv profile name`, env: 'CENV_PROFILE',
+          })
+  parseProfile(val: string): string {
     return val;
   }
 

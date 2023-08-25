@@ -1471,6 +1471,7 @@ export class Package implements IPackage {
     silent?: boolean;
     commandEvents?: CommandEvents;
     pkgPath?: string;
+    force?: boolean;
   } = {
     envVars: {}, cenvVars: {}, redirectStdErrToStdOut: false, returnOutput: false, failOnError: true, silent: false,
   }) {
@@ -1512,9 +1513,14 @@ export class Package implements IPackage {
 
       return res;
     } catch (e) {
+
       let etype = e?.toString();
       if (e instanceof Error) {
         etype = e.stack?.toString();
+        this.alert(e.message);
+        if (options.force && e.message.includes('No updates are to be performed')) {
+          return {result: 0};
+        }
       }
       const error = `pkgCmd failed: ${etype || e} (${cmd})`;
       if (options?.pkgCmd?.res !== undefined) {

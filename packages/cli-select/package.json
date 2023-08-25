@@ -2,14 +2,14 @@
   "name": "@stoked-cenv/cli-select",
   "version": "1.1.3-a.1",
   "description": "Simple and interactive solution to provide a list of selectable items on the command line",
-  "author": "Cyril Wanner <info@cyr.li>",
+  "author": "Brian Stoker <b@stokedconsulting.com>",
   "license": "MIT",
-  "repository": "cyrilwanner/cli-select",
+  "repository": "@stoked-cenv/cli-select",
   "main": "dist/index.js",
   "types": "typings/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "babel src --out-dir dist --copy-files",
+    "build": "pnpm -w exec babel packages/cli-select/src --out-dir packages/cli-select/dist --copy-files",
     "watch": "npm run build -- --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

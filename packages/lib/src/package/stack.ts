@@ -2,7 +2,7 @@ import { PackageModule, PackageModuleType, ProcessMode } from './module';
 import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
 import { deleteStack, describeStacks } from '../aws/cloudformation';
 import { parse, SemVer } from 'semver';
-import { CenvLog } from '../log';
+import { CenvLog, LogLevel } from '../log';
 import { removeScope, semVerParse } from '../utils';
 import { CommandEvents, Package, PackageCmd, TPackageMeta } from './package';
 import * as path from 'path';
@@ -10,6 +10,7 @@ import { CenvFiles } from '../file'
 import { runScripts } from '../proc';
 import { Deployment } from '../deployment';
 import {s3sync} from "../aws/s3";
+import {inspect} from 'util';
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -26,7 +27,11 @@ export class StackModule extends PackageModule {
     return 'cdk';
   }
 
-  static commands = [`${this.cdkExe} deploy --require-approval never --no-color -m direct`, `${this.cdkExe} destroy --force --no-color`, `${this.cdkExe} synth`];
+  static commands = [
+    `${this.cdkExe} deploy --require-approval never --no-color -m direct`,
+    `${this.cdkExe} destroy --force --no-color`,
+    `${this.cdkExe} synth`,
+    `${this.cdkExe} diff`];
   detail?: Stack;
   verified = false;
   summary?: StackSummary;
@@ -106,7 +111,6 @@ export class StackModule extends PackageModule {
         let opt: any = { cenvVars: {} };
         opt = await this.getOptions(opt, ProcessMode.DESTROY);
         opt.parentCmd = packageCmd;
-        CenvLog.single.infoLog('destroying stack: ' + this.pkg.stackName, this.pkg.stackName);
         await this.pkg.pkgCmd(actualCommand, opt);
       }
       return true;
@@ -129,29 +133,38 @@ export class StackModule extends PackageModule {
     //const deployCmd = this.pkg.createCmd(`cenv deploy ${this.pkg.packageName} --stack`);
 
     if (this.needsAutoDelete()) {
-      CenvLog.single.infoLog('auto delete failed stack: ' + this.pkg.stackName, this.pkg.stackName);
       await this.destroy();
     }
 
     await runScripts(this, this.meta.postDeployScripts);
 
     if (!process.env.CENV_SKIP_CDK) {
-
       const opt = await this.getOptions(deployOptions, ProcessMode.DEPLOY);
-      //opt.parentCmd = deployCmd;
       await this.resetVolatileKeys(opt);
 
       if (this.meta.deployStack) {
         return await this.pkg.pkgCmd(this.meta.deployStack, opt);
       }
 
+
       let deployCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DEPLOY)];
+      let skip = false;
       if (deployOptions.force) {
         deployCommand += ' --force';
+        let diffCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DIFF)];
+        const diffRes = await this.pkg.pkgCmd(diffCommand,  {...opt, failOnError: false, returnOutput: true});
+        if (diffRes.stdout === "") {
+          skip = true;
+        }
+      }
+
+      if (CenvLog.logLevel === LogLevel.VERBOSE) {
+        CenvLog.single.infoLog(inspect({...opt, dashboardOptions: undefined,  }));
       }
       deployCommand += ` -o ${this.getCdkOut()}`;
-
-      await this.pkg.pkgCmd(deployCommand, opt);
+      if (!skip) {
+        await this.pkg.pkgCmd(deployCommand, opt);
+      }
     }
 
     await runScripts(this, this.meta.postDeployScripts);

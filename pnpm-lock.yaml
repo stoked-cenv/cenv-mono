@@ -382,7 +382,7 @@ importers:
         specifier: ^10.0.0
         version: 10.1.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@stoked-cenv/cli-select':
-        specifier: 1.1.3-a.0
+        specifier: 1.1.3-a.1
         version: link:../cli-select
       ajv:
         specifier: ^8.12.0

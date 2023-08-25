@@ -60,7 +60,6 @@ export class ParamsCommand extends BaseCommand {
       if (packages) {
         for (let i = 0; i < packages.length; i++) {
           const p = packages[i];
-          console.log('sdfasdf');
           if (options?.poll) {
             await startCenv(ClientMode.REMOTE_POLLING, require(path.resolve('package.json')).name, '* * * * *')
           } else if (p.params) {

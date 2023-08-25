@@ -1,41 +1,41 @@
-import { Cenv, CommandInfo, ConfigCommandOptions } from './cenv';
-import { Package } from './package/package';
-import { Suite } from './suite';
-import { Environment } from './environment';
+import {Cenv, CommandInfo} from './cenv';
+import {Package} from './package/package';
+import {Suite} from './suite';
+import {Environment} from './environment';
 import path from 'path';
-import { existsSync } from 'fs';
-import { CenvLog, LogLevel } from './log';
-import { DashboardCreateOptions } from './params';
-import { CenvFiles } from './file';
-import { Version } from './version';
-import { config } from './config';
+import {existsSync} from 'fs';
+import {CenvLog, LogLevel} from './log';
+import {DashboardCreateOptions} from './params';
+import {CenvFiles} from './file';
+import {Version} from './version';
+import {Config} from './config';
 
 export async function parseCmdParams(params: string[], options: any, cmdInfo: CommandInfo): Promise<{
   parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment
 }> {
 
   if (!cmdInfo.allowPackages) {
-    validateBaseOptions({ packages: [], options, cmd: cmdInfo.deploymentMode });
-    return { packages: [], parsedParams: params, validatedOptions: options };
+    validateBaseOptions({packages: [], options, cmd: cmdInfo.deploymentMode});
+    return {packages: [], parsedParams: params, validatedOptions: options};
   }
 
   // suite based command as parameter
   if (params.length && Suite.isSuite(params[0])) {
-    const { suite, nonSuiteParams } = parseSuiteParam(params, options);
+    const {suite, nonSuiteParams} = parseSuiteParam(params, options);
     if (suite) {
       options.suite = suite.name;
-      validateBaseOptions({ suite: suite.name, options, cmd: cmdInfo.deploymentMode });
-      return { packages: suite.packages, suite, parsedParams: nonSuiteParams, validatedOptions: options };
+      validateBaseOptions({suite: suite.name, options, cmd: cmdInfo.deploymentMode});
+      return {packages: suite.packages, suite, parsedParams: nonSuiteParams, validatedOptions: options};
     }
   }
 
   // application based command as parameter
   const paramCount = params.length;
-  const { packages, nonPackageParams } = parsePackageParams(params);
+  const {packages, nonPackageParams} = parsePackageParams(params);
 
   if (packages.length) {
-    validateBaseOptions({ packages, options, cmd: cmdInfo.deploymentMode });
-    return { packages, parsedParams: nonPackageParams, validatedOptions: options };
+    validateBaseOptions({packages, options, cmd: cmdInfo.deploymentMode});
+    return {packages, parsedParams: nonPackageParams, validatedOptions: options};
   } else if (nonPackageParams.length !== paramCount) {
     CenvLog.single.catchLog(`a param passed in looks like a package but was not loaded`);
   }
@@ -54,15 +54,15 @@ export async function parseCmdParams(params: string[], options: any, cmdInfo: Co
   }
 
   if (!pkgs.length) {
-      options.suite = Suite.defaultSuite;
-      const suite = new Suite(options.suite);
-      options.suite = suite.name;
-      pkgs = suite.packages;
-      validateBaseOptions({ suite: suite.name, options, cmd: cmdInfo.deploymentMode });
+    options.suite = Suite.defaultSuite;
+    const suite = new Suite(options.suite);
+    options.suite = suite.name;
+    pkgs = suite.packages;
+    validateBaseOptions({suite: suite.name, options, cmd: cmdInfo.deploymentMode});
   } else {
-    validateBaseOptions({ packages: pkgs, options, cmd: cmdInfo.deploymentMode });
+    validateBaseOptions({packages: pkgs, options, cmd: cmdInfo.deploymentMode});
   }
-  return { packages: pkgs, parsedParams: nonPackageParams, validatedOptions: options };
+  return {packages: pkgs, parsedParams: nonPackageParams, validatedOptions: options};
 }
 
 // suite param must be first and must be included inside the suites.json file
@@ -71,14 +71,14 @@ function parseSuiteParam(params: any, options: any): { suite?: Suite, nonSuitePa
     if (Suite.isSuite(params[0])) {
       options.suite = params.shift();
       const suite = new Suite(options.suite);
-      const { packages, nonPackageParams } = parsePackageParams(params);
+      const {packages, nonPackageParams} = parsePackageParams(params);
       if (packages.length) {
         CenvLog.single.catchLog(`can not include package params and suite flag`);
       }
-      return { suite: suite, nonSuiteParams: nonPackageParams };
+      return {suite: suite, nonSuiteParams: nonPackageParams};
     }
   }
-  return { nonSuiteParams: params };
+  return {nonSuiteParams: params};
 }
 
 function parsePackageParams(params: string[]): { packages: Package[], nonPackageParams: string[] } {
@@ -92,7 +92,7 @@ function parsePackageParams(params: string[]): { packages: Package[], nonPackage
       newParams.push(potentialPackageName);
     }
   }
-  return { packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams };
+  return {packages: packageNames.map((p) => Package.fromPackageName(p)), nonPackageParams: newParams};
 }
 
 export async function cmdInit(options: any, cmdInfo: CommandInfo): Promise<boolean> {
@@ -100,7 +100,7 @@ export async function cmdInit(options: any, cmdInfo: CommandInfo): Promise<boole
     CenvFiles.setPaths();
     if (options?.logLevel || process.env.CENV_LOG_LEVEL) {
       options.logLevel = process.env.CENV_LOG_LEVEL?.toUpperCase() || options?.logLevel?.toUpperCase();
-      const { logLevel }: { logLevel: keyof typeof LogLevel } = options;
+      const {logLevel}: { logLevel: keyof typeof LogLevel } = options;
       process.env.CENV_LOG_LEVEL = LogLevel[logLevel];
       CenvLog.logLevel = LogLevel[logLevel];
       if (![LogLevel.INFO, LogLevel.MINIMAL].includes(CenvLog.logLevel)) {
@@ -118,7 +118,10 @@ export async function cmdInit(options: any, cmdInfo: CommandInfo): Promise<boole
     }
 
     if (cmdInfo.configRequired) {
-      options.args = await config(options as ConfigCommandOptions);
+
+      Cenv.config = new Config()
+      await Cenv.config.loadProfile(options?.profile);
+      options.args = Cenv.config?.envVars?.all;
     }
 
     if (!cmdInfo.cenvRootRequired) {
@@ -167,7 +170,7 @@ export async function cmdInit(options: any, cmdInfo: CommandInfo): Promise<boole
 
 export function validateBaseOptions(deployCreateOptions: DashboardCreateOptions) {
   try {
-    const { suite, environment, options, cmd } = deployCreateOptions;
+    const {suite, environment, options, cmd} = deployCreateOptions;
     const packages = deployCreateOptions.packages;
     if (options?.suite || options?.environment) {
       if (options?.userInterface === undefined && options?.cli === undefined) {

@@ -10,10 +10,11 @@ import {
   DeleteApplicationCommand,
   DeleteConfigurationProfileCommand,
   DeleteEnvironmentCommand,
-  DeleteHostedConfigurationVersionCommand,
+  DeleteHostedConfigurationVersionCommand, DeploymentSummary,
   Environment,
   ListApplicationsCommand,
   ListConfigurationProfilesCommand,
+  ListDeploymentsCommand,
   ListDeploymentStrategiesCommand,
   ListEnvironmentsCommand,
   ListHostedConfigurationVersionsCommand,
@@ -282,9 +283,9 @@ export async function getEnvironmentAppConfigs(applicationNames?: string[] | str
         continue;
       }
 
-      const version = await getHostedConfigurationVersion(app.Id, envAppConf.ConfigurationProfileId);
+      const version = await getLatestDeployment(app.Id, envAppConf.EnvironmentId, 'config');
       if (version) {
-        envAppConf.VersionNumber = version.VersionNumber
+        envAppConf.DeploymentNumber = version.DeploymentNumber
       }
       applications.push(envAppConf);
     }
@@ -441,9 +442,9 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
       DeploymentStrategyId
     };
     CenvFiles.EnvConfig = config
-    const versRes = await getHostedConfigurationVersion(ApplicationId, ConfigurationProfileId);
-    if (versRes?.VersionNumber) {
-      config.VersionNumber = versRes.VersionNumber;
+    const versionRes = await getLatestDeployment(ApplicationId, EnvironmentId, 'config');
+    if (versionRes) {
+      config.DeploymentNumber = versionRes.DeploymentNumber;
     }
     return config;
   } catch (e) {
@@ -538,27 +539,87 @@ export async function getConfigurationProfile(applicationId: string, configurati
     return false;
   }
 }
-
-export async function getHostedConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string) {
-  const command = new ListHostedConfigurationVersionsCommand({ApplicationId, ConfigurationProfileId});
-  const result = {VersionNumber: 0};
+export async function getConfigurationVersions(ApplicationId: string, ConfigurationProfileId: string) {
 
   try {
+    const command = new ListHostedConfigurationVersionsCommand({ApplicationId, ConfigurationProfileId});
     const response = await getClient().send(command);
     if (response.Items) {
+      return response.Items;
+    }
+    //result.ApplicationId = appId;
+    return false;
+  } catch (e) {
+    CenvLog.single.errorLog(['getConfigurationVersions error', e as string])
+    return false;
+  }
+}
+
+export async function listDeployments(ApplicationId: string, EnvironmentId: string, ConfigurationName: string) {
+  try {
+    const command = new ListDeploymentsCommand({ApplicationId, EnvironmentId});
+    const response = await getClient().send(command);
+    if (response.Items) {
+      if (!ConfigurationName) {
+        return response.Items;
+      }
+      const result: DeploymentSummary[] = [];
       for (let idx = 0; idx < response.Items.length; idx++) {
-        const hostedConfigVersion = response.Items[idx];
+        const deployment = response.Items[idx];
+        if (deployment.ConfigurationName === ConfigurationName) {
+          result.push(deployment);
+        }
+      }
+      return result;
+    }
+    return false;
+  } catch (e) {
+    CenvLog.single.errorLog(['listDeployments error', e as string])
+    return false;
+  }
+}
+
+export async function getLatestDeployment(ApplicationId: string, EnvironmentId: string, ConfigurationName: string) {
+  try {
+    const deployments = await listDeployments(ApplicationId, EnvironmentId, ConfigurationName);
+    if (!deployments || deployments.length === 0) {
+      return false;
+    }
+    let latestDeployment: DeploymentSummary | undefined = undefined;
+
+    for (let idx = 0; idx < deployments.length; idx++) {
+      const deployment = deployments[idx];
+      if (!latestDeployment || (deployment.DeploymentNumber && latestDeployment.DeploymentNumber && deployment.DeploymentNumber > latestDeployment.DeploymentNumber)) {
+        latestDeployment = deployment;
+      }
+    }
+    return latestDeployment ? latestDeployment : false;
+  } catch (e) {
+    CenvLog.single.errorLog(['getLatestDeployment error', e as string])
+    return false;
+  }
+}
+
+export async function getLatestConfigurationVersion(ApplicationId: string, ConfigurationProfileId: string) {
+  try {
+    const versions = await getConfigurationVersions(ApplicationId, ConfigurationProfileId);
+    const result = {VersionNumber: -1};
+    if (versions) {
+      for (let idx = 0; idx < versions.length; idx++) {
+        const hostedConfigVersion = versions[idx];
         if (hostedConfigVersion.VersionNumber && hostedConfigVersion.VersionNumber > result.VersionNumber) {
           result.VersionNumber = hostedConfigVersion.VersionNumber;
         }
       }
     }
-    //result.ApplicationId = appId;
-    return result;
+    if (result.VersionNumber !== -1) {
+      return result;
+    }
+    return false
   } catch (e) {
-    CenvLog.single.errorLog(['getHostedConfigurationVersion error', e as string])
-    return result;
+    CenvLog.single.errorLog(['getLatestConfigurationVersion error', e as string])
   }
+  return false;
 }
 
 export async function deleteApplication(ApplicationId: string) {

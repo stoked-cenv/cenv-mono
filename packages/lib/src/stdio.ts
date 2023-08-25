@@ -234,27 +234,7 @@ export function getProfileColumnLengths(profile: ProfileData, meta: Record<strin
   return meta;
 }
 
-export function printProfileData(profile: ProfileData, meta: Record<string, number>, selected: boolean) {
-  const {info, smoothHighlight, success, successHighlight, error, errorHighlight} = CenvLog.colors;
-  let bold = smoothHighlight;
-  if (profile?.removed) {
-    bold = errorHighlight
-  } else if (selected) {
-    bold = successHighlight;;
-  }
 
-  let output = info(`name: ${bold(profile.name.padEnd(meta['name'], ' '))}\t `);
-  for (const key in profile.envConfig) {
-    const value = profile.envConfig[key];
-    output += info(`${key}: ${bold(value.padEnd(meta[key], ' '))}\t `);
-  }
-  if (profile?.removed) {
-    output += error(`remove`);
-  } else if (profile?.default) {
-    output += success(`default`);
-  }
-  return output;
-}
 
 export function createDirIfNotExists(path: string) {
   if (!existsSync(path)) {

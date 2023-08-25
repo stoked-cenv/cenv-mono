@@ -1,0 +1,18 @@
+{
+  "name": "@stoked-cenv/cli-select",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "type": "library",
+  "sourceRoot": "packages/cli/src",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "babel src --out-dir dist --copy-files"
+        ],
+        "parallel": false
+      }
+    }
+  },
+  "implicitDependencies": ["@stoked-cenv/lib", "@stoked-cenv/ui"]
+}

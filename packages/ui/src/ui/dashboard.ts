@@ -1692,7 +1692,7 @@ export class Dashboard {
       const cenvDeployedPackages = packages.filter((p: Package) => p.params?.hasCenvVars);
       slices['cenvDeployedPackages'] = cenvDeployedPackages;
 
-      const cenvMaterializedPackages = packages.filter((p: Package) => p.params?.materializedVarsVersion)
+      const cenvMaterializedPackages = packages.filter((p: Package) => p.params?.materializedDeploymentNumber)
       slices['cenvMaterializedPackages'] = cenvMaterializedPackages;
 
       const longestNumber: string = Object.values(slices).reduce(function (a: string, b: string) {

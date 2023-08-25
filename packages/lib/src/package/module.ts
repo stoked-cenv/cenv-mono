@@ -30,7 +30,7 @@ export interface PackageStatus {
 }
 
 export enum ProcessMode {
-  DEPLOY = 'DEPLOY', DESTROY = 'DESTROY', SYNTH = 'SYNTH'
+  DEPLOY = 'DEPLOY', DESTROY = 'DESTROY', SYNTH = 'SYNTH', DIFF = 'DIFF'
 }
 
 export abstract class PackageModule implements IPackageModule {

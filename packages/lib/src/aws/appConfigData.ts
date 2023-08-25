@@ -44,7 +44,7 @@ export async function startSession(applicationName: string, typed = false) {
     const response = await getClient().send(command);
     return response.InitialConfigurationToken ? response.InitialConfigurationToken : false;
   } catch (e) {
-    CenvLog.single.catchLog(['startSession error', e instanceof Error ? e.message : e as string]);
+    CenvLog.single.catchLog([`startSession error ${applicationName}`, e instanceof Error ? e.message : e as string]);
     process.exit(398)
   }
 }

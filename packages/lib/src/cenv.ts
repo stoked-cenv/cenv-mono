@@ -1,4 +1,4 @@
-import { CenvLog } from './log';
+import {CenvLog} from './log';
 import {
   addUserToGroup,
   attachPolicyToGroup,
@@ -13,34 +13,21 @@ import {
   getPolicy,
   getRole,
 } from './aws/iam';
-import { Package, PackageCmd } from './package/package';
-import { createFunction, deleteFunction, getFunction } from './aws/lambda';
-import {
-  createApplication,
-  createDeploymentStrategy,
-  createEnvironment,
-  deleteCenvData,
-  getApplication,
-  getConfigurationProfile,
-  getDeploymentStrategy,
-  getEnvironment,
-} from './aws/appConfig';
-import { CenvParams, validateOneType } from './params';
-import { Environment } from './environment';
-import { Export } from '@aws-sdk/client-cloudformation';
-import { listExports } from './aws/cloudformation';
-import { CenvFiles, cenvRoot, EnvConfig, search_sync } from './file';
-import { upsertParameter } from './aws/parameterStore';
-import { deleteHostedZone } from './aws/route53';
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import {Package, PackageCmd} from './package/package';
+import {createFunction, deleteFunction, getFunction} from './aws/lambda';
+import {createDeploymentStrategy, getDeploymentStrategy,} from './aws/appConfig';
+import {CenvParams} from './params';
+import {Environment} from './environment';
+import {Export} from '@aws-sdk/client-cloudformation';
+import {listExports} from './aws/cloudformation';
+import {CenvFiles, cenvRoot} from './file';
+import {deleteHostedZone} from './aws/route53';
 import * as child from 'child_process';
-import { ProcessMode } from './package/module';
-import { Deployment } from './deployment';
-import { cmdInit, parseCmdParams } from './cli';
-import { sleep } from './utils';
-import { ioAppEnv } from './stdio';
-import { execCmd } from './proc';
-
+import {ProcessMode} from './package/module';
+import {Deployment} from './deployment';
+import {cmdInit, parseCmdParams} from './cli';
+import {sleep} from './utils';
+import {Config} from './config';
 
 interface IApplicationShiftExecutor {
   (envCtx: any, params: any, options: any): Promise<PackageCmd>;
@@ -182,6 +169,8 @@ export class Cenv {
   static globalPackage: string;
   static primaryPackagePath: string;
 
+  static config?: Config;
+
   static async cenvSetup(commandName: string, cmdInfo: CommandInfo, params?: string[], options?: Record<string, any>) {
     if (!params) {
       params = [];
@@ -196,11 +185,10 @@ export class Cenv {
       return this.dashboard?.cleanTags(...text);
     };
 
-
     await cmdInit(options, cmdInfo);
 
     if (!cmdInfo.cenvRootRequired) {
-      return { params, options };
+      return {params, options};
     }
 
     // create global package
@@ -209,22 +197,22 @@ export class Cenv {
     if (!cmdInfo.allowUI) {
       options.cli = true;
     }
-    const passThru = { skipBuild: options.skipBuild };
+    const passThru = {skipBuild: options.skipBuild};
 
-    const { packages, parsedParams, validatedOptions } = await parseCmdParams(params, options, cmdInfo);
-    return { params: parsedParams, options: { ...validatedOptions, ...passThru }, packages, args: options?.args };
+    const {packages, parsedParams, validatedOptions} = await parseCmdParams(params, options, cmdInfo);
+    return {params: parsedParams, options: {...validatedOptions, ...passThru}, packages, args: options?.args};
   }
 
   static addSpawnedProcess(stackName: string, cmd: string, proc: child.ChildProcess) {
     if (proc.pid === undefined || Cenv.processes === undefined || Cenv.runningProcesses === undefined) {
       return;
     }
-    Cenv.processes[proc.pid] = { stackName, cmd, proc };
+    Cenv.processes[proc.pid] = {stackName, cmd, proc};
 
     if (!Cenv.runningProcesses[stackName]) {
-      Cenv.runningProcesses[stackName] = [{ cmd, proc }];
+      Cenv.runningProcesses[stackName] = [{cmd, proc}];
     } else {
-      Cenv.runningProcesses[stackName].push({ cmd, proc });
+      Cenv.runningProcesses[stackName].push({cmd, proc});
     }
   }
 
@@ -320,23 +308,23 @@ export class Cenv {
       const policyExists = await getPolicy(AppConfigGetArn);
       if (!policyExists) {
         const polRes = await createPolicy('AppConfigGod', JSON.stringify({
-                                                                           Version: '2012-10-17', Statement: [{
+          Version: '2012-10-17', Statement: [{
             Action: 'appconfig:*', Resource: '*', Effect: 'Allow',
           }, {
             Action: 'lambda:*', Resource: '*', Effect: 'Allow',
           }],
-                                                                         }));
+        }));
       }
 
       const roleExists = await getRole(this.roleName);
       if (!roleExists) {
         const roleRes = await createRole(this.roleName, JSON.stringify({
-                                                                         Version: '2012-10-17', Statement: [{
+          Version: '2012-10-17', Statement: [{
             Effect: 'Allow', Principal: {
               Service: 'lambda.amazonaws.com',
             }, Action: 'sts:AssumeRole',
           }],
-                                                                       }));
+        }));
         if (!roleRes) {
           return;
         }
@@ -346,12 +334,12 @@ export class Cenv {
         const KmsPolicyExists = await getPolicy(KmsPolicyArn);
         if (!KmsPolicyExists) {
           const polRes = await createPolicy('KmsPolicy', JSON.stringify({
-                                                                          Version: '2012-10-17', Statement: [{
+            Version: '2012-10-17', Statement: [{
               Effect: 'Allow',
               Action: ['kms:Encrypt', 'kms:Decrypt', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:DescribeKey'],
               Resource: process.env.KMS_KEY,
             }],
-                                                                        }));
+          }));
 
           if (!polRes) {
             return;
@@ -383,15 +371,20 @@ export class Cenv {
         return;
       }
 
-      //CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail ${CenvLog.colors.infoBold('🙄')}`);
+      //CenvLog.single.infoLog(`sleep for 8 seconds because if we try to use the role we just created too soon it will fail
+      // ${CenvLog.colors.infoBold('🙄')}`);
       await sleep(8);
       // iam client => waitUntilRoleExists
 
       const materializationExists = await getFunction('cenv-params');
       if (!materializationExists) {
         const cenvParamsZip = await CenvParams.createParamsLibrary();
-        await createFunction('cenv-params', cenvParamsZip, roleArn, {}, {  ApplicationName: '@stoked-cenv/params',EnvironmentName: CenvFiles.ENVIRONMENT })
-        //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName: '@stoked-cenv/params',EnvironmentName: CenvFiles.ENVIRONMENT },);
+        await createFunction('cenv-params', cenvParamsZip, roleArn, {}, {
+          ApplicationName: '@stoked-cenv/params',
+          EnvironmentName: CenvFiles.ENVIRONMENT
+        })
+        //const materializationRes = await createLambdaApi('cenv-params', handler, roleArn,{},{  ApplicationName:
+        // '@stoked-cenv/params',EnvironmentName: CenvFiles.ENVIRONMENT },);
       }
     } catch (e) {
       CenvLog.single.catchLog('Cenv.deployCenv err: ' + (e instanceof Error ? e.stack : e));
