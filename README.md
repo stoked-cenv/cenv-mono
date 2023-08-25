@@ -85,18 +85,19 @@ The ui package contains the ui code for the cli built on https://github.com/chjj
 
 ### support
 
-<p align="center">
-<a href="http://stokedconsulting.com/" target="blank">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./packages/cli/assets/stoked-log.svg![img.png](img.png)">
-  <img width="200px" alt="STOKED" src="/packages/cli/assets/stoked-log.svg">
-</picture>
-</a>
-</p>
-
-
 Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b@stokedconsulting.com).
 
 ### license
 
 [MIT Licensed](https://opensource.org/license/mit/)
+
+<p align="center">
+<a href="http://stokedconsulting.com/" target="blank">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://stokedconsulting.com/img/stoked-logo.svg">
+  <img width="200px" alt="STOKED" src="https://stokedconsulting.com/img/stoked-logo-white-no-stroke.svg">
+</picture>
+
+</a>
+</p>
