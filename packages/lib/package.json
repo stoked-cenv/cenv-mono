@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.77",
+  "version": "2.0.0-a.78",
   "description": "Library responsible for cenv params.",
   "main": "src/index.ts",
   "scripts": {
