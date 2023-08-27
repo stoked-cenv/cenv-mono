@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli-select",
-  "version": "2.0.0-a.91",
+  "version": "2.0.0-a.92",
   "description": "Simple and interactive solution to provide a list of selectable items on the command line",
   "author": "Brian Stoker <b@stokedconsulting.com>",
   "license": "MIT",
@@ -8,7 +8,7 @@
   "types": "typings/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "pnpm -w exec babel packages/cli-select/src --out-dir dist/cli-select/dist --copy-files && cp ./package.json ../../dist/cli-select/package.json && cp ./typings ../../dist/cli-select/typings",
+    "build": "pnpm -w exec babel packages/cli-select/src --out-dir dist/cli-select/dist --copy-files && cp ./package.json ../../dist/cli-select/package.json && cp -R ./typings ../../dist/cli-select/typings",
     "watch": "npm run build -- --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
