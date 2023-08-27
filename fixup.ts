@@ -49,7 +49,6 @@ export default class Fixup {
 
   static updateDeps(metas: Record<string, any>, fixupMetas?: Record<string, any>) {
     const metasToFix = fixupMetas ? fixupMetas : metas;
-    console.log('fixupMetas', fixupMetas);
     for (const name in metasToFix) {
       console.log('fixing deps: ', name, metasToFix[name].path);
       if (metasToFix[name].meta.peerDependencies) {
