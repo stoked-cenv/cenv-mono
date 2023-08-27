@@ -55,9 +55,9 @@
     "version:example:sync": "version=$(cenv -s -v) && pnpm version:set:example $version && pnpm version:set:api $version && pnpm version:set:global $version && pnpm version:set:spa $version",
     "publish:bump:lib": "cd dist/lib && npm publish --access public",
     "publish:bump:ui": "cd dist/ui && npm publish --access public",
-    "publish:bump:cdk": "cd dist/cdk && npm publish --access public --publish-branch $(git rev-parse --abbrev-ref HEAD)",
-    "publish:bump:cli": "cd dist/cli && npm publish --access public --publish-branch $(git rev-parse --abbrev-ref HEAD)",
-    "publish:bump:cli-select": "cd dist/cli-select && npm publish --access public --publish-branch $(git rev-parse --abbrev-ref HEAD)",
+    "publish:bump:cdk": "cd dist/cdk && npm publish --access public",
+    "publish:bump:cli": "cd dist/cli && npm publish --access public",
+    "publish:bump:cli-select": "cd dist/cli-select && npm publish --access public",
     "publish:bump:all": "pnpm run publish:bump:cli-select && pnpm run publish:bump:lib && pnpm run publish:bump:ui && pnpm run publish:bump:cdk && pnpm run publish:bump:cli"
   },
   "husky": {
