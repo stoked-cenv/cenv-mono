@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/web-api",
-  "version": "2.0.0-a.77",
+  "version": "2.0.0-a.79",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -17,8 +17,8 @@
     "@nestjs/config": "^3.0.0",
     "@nestjs/core": "^10.1.3",
     "@nestjs/platform-express": "^10.1.3",
-    "@stoked-cenv/cdk": "^2.0.0-a.77",
-    "@stoked-cenv/lib": "^2.0.0-a.77",
+    "@stoked-cenv/cdk": "^2.0.0-a.79",
+    "@stoked-cenv/lib": "^2.0.0-a.79",
     "express-oauth2-jwt-bearer": "^1.5.0",
     "helmet": "^6.2.0",
     "nocache": "^3.0.4",
