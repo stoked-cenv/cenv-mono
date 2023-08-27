@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/ui",
-  "version": "2.0.0-a.84",
+  "version": "2.0.0-a.85",
   "description": "Library responsible for handling application configuration updates using AWS AppConfig.",
   "main": "src/index.ts",
   "scripts": {
@@ -48,6 +48,6 @@
     "parameters"
   ],
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.84"
+    "@stoked-cenv/lib": "^2.0.0-a.85"
   }
 }
