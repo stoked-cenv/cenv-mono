@@ -8,7 +8,7 @@
   "types": "typings/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "pnpm -w exec babel packages/cli-select/src --out-dir dist/cli-select/dist --copy-files && cp ./package.json ../../dist/cli-select/package.json",
+    "build": "pnpm -w exec babel packages/cli-select/src --out-dir dist/cli-select/dist --copy-files && cp ./package.json ../../dist/cli-select/package.json && cp ./typings ../../dist/cli-select/typings",
     "watch": "npm run build -- --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
