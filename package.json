@@ -56,7 +56,7 @@
     "publish:bump:cdk": "cd dist/cdk && pnpm publish --access public --publish-branch $(git rev-parse --abbrev-ref HEAD)",
     "publish:bump:cli": "cd dist/cli-select && pnpm publish --access public --publish-branch $(git rev-parse --abbrev-ref HEAD)",
     "publish:bump:cli-select": "cd dist/cli-select && pnpm publish --access public --publish-branch $(git rev-parse --abbrev-ref HEAD)",
-    "publish:bump:all": "pnpm run publish:bump:lib && pnpm run publish:bump:ui && pnpm run publish:bump:cdk && pnpm run publish:bump:cli && pnpm run publish:bump:cli-select"
+    "publish:bump:all": "pnpm run publish:bump:cli-select && pnpm run publish:bump:lib && pnpm run publish:bump:ui && pnpm run publish:bump:cdk && pnpm run publish:bump:cli"
   },
   "husky": {
     "hooks": {
