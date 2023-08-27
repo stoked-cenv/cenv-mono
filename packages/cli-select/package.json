@@ -9,7 +9,7 @@
   "types": "typings/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "pnpm -w exec babel packages/cli-select/src --out-dir dist/cli-select --copy-files",
+    "build": "pnpm -w exec babel packages/cli-select/src --out-dir dist/cli-select --copy-files && cp package/cli-select/package.json dist/cli-select/package.json",
     "watch": "npm run build -- --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
