@@ -19,7 +19,7 @@
 
 ##  overview
 
-<strong>cenv</strong> inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 5 different types of cenv modules, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
+<strong>cenv</strong> inspects your packages and looks for specific conventions to identify `cenv modules` within each package. There are currently 5 different types of cenv modules, LIB, EXEC, PARAMS, DOCKER, and STACK. A package must have at least one cenv module in order to take advantage of the cenv tool.
 
 The PARAMS module leverages AWS AppConfig and AWS Parameter Store to manage application parameter configuration. The DOCKER module provides a mechanism to create an AWS ECR repository for the package containers and build and push the packages containers to the repo. Finally, the STACK module uses AWS Cdk to deploy cloudformation stacks representing the infrastructure and applications contained in the packages.
 
@@ -85,18 +85,19 @@ The ui package contains the ui code for the cli built on https://github.com/chjj
 
 ### support
 
-<p align="center">
-<a href="http://stokedconsulting.com/" target="blank">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./packages/cli/assets/stoked-log.svg![img.png](img.png)">
-  <img width="200px" alt="STOKED" src="/packages/cli/assets/stoked-log.svg">
-</picture>
-</a>
-</p>
-
-
 Call your congressperson. When that doesn't work contact [Brian Stoker](mailto:b@stokedconsulting.com).
 
 ### license
 
 [MIT Licensed](https://opensource.org/license/mit/)
+
+<p align="center">
+<a href="http://stokedconsulting.com/" target="blank">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://stokedconsulting.com/img/stoked-logo.svg">
+  <img width="200px" alt="STOKED" src="https://stokedconsulting.com/img/stoked-logo-white-no-stroke.svg">
+</picture>
+
+</a>
+</p>
