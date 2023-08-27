@@ -6,7 +6,7 @@
     "build": "tsc --project ./tsconfig.build.json",
     "dev": "tsc -w",
     "version:bump": "pnpm version",
-    "publish:bump": "cd ../../dist/cdk && pnpm publish --access public"
+    "publish:bump": "cd ../../dist/cdk && npm publish --access public"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.119",

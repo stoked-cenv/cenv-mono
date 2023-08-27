@@ -164,7 +164,7 @@ export class LibModule extends PackageModule {
     const publishCmd = this.pkg.createCmd(publishCmdString);
     try {
       const opt = { cenvVars: {}, pkgCmd: publishCmd };
-      const res = await this.pkg.pkgCmd(`pnpm publish --access public --publish version $(git rev-parse --abbrev-ref HEAD)`, {
+      const res = await this.pkg.pkgCmd(`npm publish --access public --publish version $(git rev-parse --abbrev-ref HEAD)`, {
         packageModule: this, redirectStdErrToStdOut: false, ...opt,
       });
       publishCmd.result(res.res !== undefined ? res.res : res);
