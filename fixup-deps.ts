@@ -1,3 +1,3 @@
 import Fixup from './fixup';
 
-Fixup.updateDeps(Fixup.loadMetas(Fixup.packageRoot, Fixup.packages));
+Fixup.updateDeps(Fixup.loadMetas(Fixup.packageRoot, Fixup.allPackages));

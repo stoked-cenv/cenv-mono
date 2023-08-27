@@ -2,7 +2,8 @@ import path from 'path';
 import { writeFileSync } from 'fs';
 
 export default class Fixup {
-  static packages = ['lib', 'ui', 'cdk', 'cli'];
+  static tsPackages = ['lib', 'ui', 'cdk', 'cli'];
+  static allPackages = [...Fixup.tsPackages, 'cli-select'];
   static examplePackages = ['api', 'globals', 'spa'];
   static exampleRoot = 'example/packages';
   static distRoot = 'dist';
@@ -10,6 +11,8 @@ export default class Fixup {
 
   static loadMetas(root: string, packageDirs: string[]) {
     const metas: Record<string, any> = {};
+    console.log('root', root);
+    console.log('packageDirs', packageDirs);
     for (const dir of packageDirs) {
       const pkgPath = path.join(process.cwd(), root, dir, 'package.json');
       const meta = require(pkgPath);
@@ -46,11 +49,18 @@ export default class Fixup {
 
   static updateDeps(metas: Record<string, any>, fixupMetas?: Record<string, any>) {
     const metasToFix = fixupMetas ? fixupMetas : metas;
+    console.log('fixupMetas', fixupMetas);
     for (const name in metasToFix) {
       console.log('fixing deps: ', name, metasToFix[name].path);
-      metasToFix[name].meta.peerDependencies = this.updateDepType(metas, metasToFix[name].meta.peerDependencies);
-      metasToFix[name].meta.dependencies = this.updateDepType(metas, metasToFix[name].meta.dependencies);
-      metasToFix[name].meta.devDependencies = this.updateDepType(metas, metasToFix[name].meta.devDependencies);
+      if (metasToFix[name].meta.peerDependencies) {
+        metasToFix[name].meta.peerDependencies = this.updateDepType(metas, metasToFix[name].meta.peerDependencies);
+      }
+      if (metasToFix[name].meta.dependencies) {
+        metasToFix[name].meta.dependencies = this.updateDepType(metas, metasToFix[name].meta.dependencies);
+      }
+      if (metasToFix[name].meta.devDependencies) {
+        metasToFix[name].meta.devDependencies = this.updateDepType(metas, metasToFix[name].meta.devDependencies);
+      }
       writeFileSync(metasToFix[name].path, JSON.stringify(metasToFix[name].meta, null, 2));
     }
   }
