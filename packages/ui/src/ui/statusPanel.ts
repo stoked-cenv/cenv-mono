@@ -156,11 +156,6 @@ export default class StatusPanel extends CenvPanel {
           return;
         }
 
-        const cmd = this.getPkgCmd(index);
-        if (!cmd) {
-          return;
-        }
-
         this.selectedIndex = index;
         this.selectModule(item, index);
       });

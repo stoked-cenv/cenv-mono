@@ -12,12 +12,14 @@ export function stackPrefix() {
 export function tagStack(stack: Stack) {
   tagIfExists(stack, 'CENV_PKG_VERSION');
   tagIfExists(stack, 'CENV_PKG_DIGEST');
+  tagIfExists(stack, 'CENV_ENVIRONMENT', 'ENV');
+  tagIfExists(stack, 'CENV_APPLICATION_NAME', 'APPLICATION_NAME');
 }
 
-export function tagIfExists(stack: Stack, EnvVar: string) {
-  if (process.env[EnvVar]) {
-    console.log(`[${CenvFiles.ENVIRONMENT}] stack tag: { ${EnvVar}: ${process.env[EnvVar]!} }`);
-    stack.tags.setTag(EnvVar, process.env[EnvVar]!, 1);
+export function tagIfExists(stack: Stack, EnvVar: string, EnvVarValue?: string) {
+  if (process.env[EnvVarValue || EnvVar]) {
+    console.log(`[${CenvFiles.ENVIRONMENT}] stack tag: { ${EnvVar}: ${process.env[EnvVarValue || EnvVar]!} }`);
+    stack.tags.setTag(EnvVar, process.env[EnvVarValue || EnvVar]!, 1);
   }
 }
 

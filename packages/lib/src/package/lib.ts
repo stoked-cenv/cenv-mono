@@ -92,16 +92,7 @@ export class LibModule extends PackageModule {
   }
 
   upToDate(): boolean {
-    if (!this.hasCheckedLogs) {
-      const res = LibModule.packageHasBeenBuilt(this.pkg.packageName);
-      if (!res) {
-        return false;
-      }
-      this.previousBuildTs = res;
-      this.hasBeenBuilt = true;
-      this.hasCheckedLogs = true;
-    }
-    return this.hasBeenBuilt && ((this.isPublishable && this.version === this.publishedVersion) || !this.isPublishable);
+    return this.hasBeenBuilt && ((this.isPublishable && this.version.toString() === this.publishedVersion?.toString()) || !this.isPublishable);
   }
 
   getDetails() {
@@ -112,14 +103,14 @@ export class LibModule extends PackageModule {
     } else if (this.buildStatus === LibStatus.FAILED) {
       this.status.incomplete.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true));
     } else {
-      //this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true));
+      this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true));
     }
 
     if (this.isPublishable) {
-      if (this.version === this.publishedVersion) {
+      if (this.version.toString() === this.publishedVersion?.toString()) {
         this.status.deployed.push(this.statusLine('published', `version [${this.version.toString()}] has been published`, false));
       } else if (this.publishedVersion) {
-        this.status.deployed.push(this.statusLine('published', `published version [${this.publishedVersion?.toString()}] is out of date: current version [${this.version?.toString()}]`, false));
+        this.status.incomplete.push(this.statusLine('published out of date', `published version: [${this.publishedVersion?.toString()}] current version: [${this.version?.toString()}]`, true));
       } else {
         this.status.incomplete.push(this.statusLine('not published', `current version [${this.version?.toString()}] not published`, true));
       }
@@ -261,8 +252,13 @@ export class LibModule extends PackageModule {
   async checkStatus() {
     this.printCheckStatusStart();
     await this.updatePublishedStatus();
-    if (this.buildStatus === LibStatus.UNBUILT) {
-      this.upToDate();
+    if (!this.hasCheckedLogs) {
+      const res = LibModule.packageHasBeenBuilt(this.pkg.packageName);
+      if (res) {
+        this.previousBuildTs = res;
+        this.hasBeenBuilt = true;
+        this.hasCheckedLogs = true;
+      }
     }
 
     // no op

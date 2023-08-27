@@ -2,6 +2,7 @@ import {PackageModule, PackageModuleType} from './module';
 import {existsSync} from "fs";
 import {execCmd} from "../proc";
 import {Package, TPackageMeta} from "./package";
+import { CenvLog } from '../log';
 
 export class ExecutableModule extends PackageModule {
   installPath?: string;
@@ -75,13 +76,11 @@ export class ExecutableModule extends PackageModule {
   async checkStatus() {
     this.printCheckStatusStart();
     const execWhich = `which ${this.exec}`;
-    const cmd = await this.pkg.createCmd(execWhich);
-    const execPath = await execCmd(execWhich);
+    const execPath = await execCmd(execWhich, {silent: true});
     if (execPath?.length && existsSync(execPath)) {
       this.installPath = execPath;
       this.installed = true;
     }
-    cmd.result(0);
 
     this.printCheckStatusComplete();
     this.checked = true;

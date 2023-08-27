@@ -601,7 +601,7 @@ export class Package implements IPackage {
   }
 
   static parsePackageName(packageName: string): PackageNameComponents {
-    const packageRegExp = new RegExp(/^(@[a-z0-9-~][a-z0-9-._~]*)\/?([a-z0-9-~][a-z0-9-._~]*)?#?([a-z0-9-~][a-z0-9-._~]*)?@?([a-z0-9-~][a-z0-9-._~]*)?$/);
+    const packageRegExp = new RegExp(/^(@[a-z0-9-~][a-z0-9-._~]*)\/?([a-z0-9-~][a-z0-9-._~]*)?\+?([a-z0-9-~][a-z0-9-._~]*)?@?([a-z0-9-~][a-z0-9-._~]*)?$/);
     let m;
 
     const componentParts = ['complete', 'scope', 'name', 'component', 'instance'];
@@ -747,8 +747,8 @@ export class Package implements IPackage {
   }
 
   static getPackageComponent(packageName: string) {
-    if (packageName.indexOf('#') > -1) {
-      const parts = packageName.split('#');
+    if (packageName.indexOf('+') > -1) {
+      const parts = packageName.split('+');
       if (parts[1].indexOf('@') === -1) {
         return { package: parts[0], component: parts[1] };
       } else {
@@ -793,6 +793,7 @@ export class Package implements IPackage {
   }
 
   static async checkStatus(targetMode?: string, endStatus?: ProcessStatus) {
+    await DockerModule.dockerPrefight(Object.values(Package.cache));
     for (const p of Object.values(Package.cache)) {
       await p?.checkStatus(targetMode, endStatus);
     }
@@ -816,7 +817,7 @@ export class Package implements IPackage {
     const parsed = Package.parsePackageName(packageName);
     let packageComponentInstance = parsed.name;
     if (parsed.component) {
-      packageComponentInstance += `#${parsed.component}`;
+      packageComponentInstance += `+${parsed.component}`;
     }
     if (parsed.instance) {
       packageComponentInstance += `@${parsed.instance}`;

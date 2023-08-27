@@ -425,15 +425,14 @@ export class StackModule extends PackageModule {
   }
 
   getTag(tag: string, stackName: string): string | false {
-    //if (stackName) {
-    //  const pkg = Package.fromStackName(stackName);
-    //  if (!pkg || !pkg.stack) {
-    //    return false;
-    //  }
-    //  return pkg.stack.getTag('VPCID', stackName);
-    //}
+    if (!this.detail) {
+      return false;
+    }
+    return StackModule.getTag(this.detail, tag);
+  }
 
-    const tags = this.detail?.Tags?.filter((t) => t.Key === tag);
+  static getTag(stackDetail: Stack, tag: string) {
+    const tags = stackDetail?.Tags?.filter((t) => t.Key === tag);
     return tags?.length && tags[0].Value ? tags[0].Value : false;
   }
 

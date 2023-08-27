@@ -332,13 +332,11 @@ export async function execCmd(cmd: string, options: {
   path?: string;
   cenvVars?: any;
   pkgCmd?: PackageCmd;
-  redirectStdErrToStdOut?: boolean;
   failOnError?: boolean;
   packageModule?: PackageModule;
-  output?: boolean;
-  silent?: boolean
+  silent?: boolean;
 } = {
-  envVars: {}, cenvVars: {}, redirectStdErrToStdOut: false, output: false, silent: false,
+  envVars: {}, cenvVars: {}, silent: false,
 }): Promise<string> {
   try {
     const silent = options?.silent === true;
@@ -386,9 +384,8 @@ export async function execCmd(cmd: string, options: {
     }
 
     cmd = `${envVarFinal ? envVarFinal : ''}${cmd}`;
-
-    const outputBuffer = child.execSync(cmd, silent ? {stdio: ['ignore']} : {stdio: 'inherit'});
-    const output = outputBuffer.toString()
+    const outputBuffer = child.execSync(cmd + ' 2>&1', {'encoding': 'utf-8'});
+    const output = outputBuffer.toString().replace(/\n$/, '');
     if (!silent) {
       CenvLog.single.infoLog(output);
     }
@@ -397,8 +394,8 @@ export async function execCmd(cmd: string, options: {
     if (options && options.silent !== true) {
       CenvLog.single.errorLog('cenv execCmd error: \n' + (e instanceof Error ? e.stack : e));
     }
-    if (e instanceof Object) {
-      return JSON.stringify(e, null, 2);
+    if (e instanceof Object || e instanceof Error) {
+      return JSON.stringify({ error: JSON.stringify(e, null, 2) }, null, 2);
     }
     return e as string;
   }

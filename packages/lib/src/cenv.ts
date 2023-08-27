@@ -29,10 +29,6 @@ import {cmdInit, parseCmdParams} from './cli';
 import {sleep} from './utils';
 import {Config} from './config';
 
-interface IApplicationShiftExecutor {
-  (envCtx: any, params: any, options: any): Promise<PackageCmd>;
-}
-
 export interface BaseCommandOptions {
   profile?: string;
   env?: string;
@@ -217,8 +213,9 @@ export class Cenv {
   }
 
   static async env(params: string[], options: Record<string, any>) {
+    const colors = CenvLog.colors
     if (!params.length) {
-      CenvLog.info(`current environment: ${CenvLog.colors.infoBold(CenvFiles.ENVIRONMENT)}`);
+      CenvLog.single.stdLog(colors.info(`current environment: ${colors.smoothHighlight(CenvFiles.ENVIRONMENT)}`));
     }
     if (options.exports) {
       let exports: any = await listExports();
@@ -237,7 +234,6 @@ export class Cenv {
     }
     const env = new Environment();
     await env.load();
-    CenvLog.info('deployed');
     env.packages.map((p: Package) => CenvLog.info(`\t${p.packageName}`));
   }
 

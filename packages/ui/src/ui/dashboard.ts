@@ -20,7 +20,8 @@ import {
   ProcessMode,
   ProcessStatus,
   validateBaseOptions,
-  PkgSummary, CenvFiles,
+  PkgSummary,
+  CenvFiles, DockerModule,
 } from '@stoked-cenv/lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
@@ -380,11 +381,11 @@ export class Dashboard {
       });
 
 
+
       this.maxColumnWidth = this.defaultColumnWidth.reduce(function (a, b) {
         return a + b;
       }) - 1;
       this.maxColumnWidth += (this.columnSpacing / 2) * this.columnWidth.length;
-
 
       for (let i = 0; i < this.defaultColumnWidth.length; i++) {
         this.priorityColumnWidth.push(this.defaultColumnWidth[this.columnPriority.indexOf(i)]);
@@ -853,6 +854,13 @@ export class Dashboard {
             });
           }
         },
+        "launch docker": {
+          keys: ['S-d'], callback: () => {
+            this.debounceCallback('launch docker', async () => {
+              await DockerModule.dockerPrefight(Package.getPackages());
+            });
+          }
+        },
       }
 
       this.menu = new Menu(this.screen, commandButtons, {bottom: 0, left: 0, right: 0});
@@ -928,28 +936,31 @@ export class Dashboard {
       Dashboard.instance = this;
       this.initialized = true;
 
-      this.debug('CENV_LOG_LEVEL=' + process.env.CENV_LOG_LEVEL)
+      /*this.debug('CENV_LOG_LEVEL=' + process.env.CENV_LOG_LEVEL)
       this.debug(`isVerbose=${CenvLog.single.isVerbose}`)
       this.debug(`isInfo=${CenvLog.single.isInfo}`)
       this.debug(`isDebug=${CenvLog.single.isAlert}`)
       this.debug(`isMinimal=${CenvLog.single.isStdout}`)
       this.debug(`isNone=${CenvLog.single.isNone}`)
-
+*/
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
   }
 
   get tableHeaders() {
-    return [' name', ' ver.', ' type', ' environment', ' process', ' time'];
+    //return [' name', ' ver.', ' type', ' environment', ' process', ' time'];
+    return [' name', ' ver.', ' environment', ' process', ' time'];
   }
 
   get columnPriority() {
-    return [0, 5, 4, 1, 2, 3];
+    //return [0, 5, 4, 1, 2, 3];
+    return [0, 4, 1, 2, 3];
   }
 
   get defaultColumnWidth() {
-    return [Package.maxVisibleLength + 1, 12, 10, 13, 13, 10];
+    //return [Package.maxVisibleLength + 1, 12, 10, 13, 13, 10];
+    return [Package.maxVisibleLength + 1, 12, 13, 13, 10];
   }
 
   static debug(...text: string[]) {
@@ -1533,7 +1544,6 @@ export class Dashboard {
         let rowColor: any = envColor;
         if (pkg.stackName === 'GLOBAL') {
           rowColor = CenvLog.getChalkColor(CenvLog.yellow, false, 0, isHoverRow) as typeof CenvLog.chalk;
-
         } else if (selected && hover) {
           rowColor = selectedHoverColor;
           this.selectedRowFg = CenvLog.getStatusColor(pkg.environmentStatus, isHoverRow, true) as number[];
@@ -1547,7 +1557,7 @@ export class Dashboard {
         }
         row.push(rowColor(pkg.stackName));
         row.push(rowColor(global ? '-----' : pkg.version));
-        row.push(rowColor(pkg.type));
+          //row.push(rowColor(pkg.type));
         row.push(rowColor(pkg.environmentStatus));
         row.push(rowColor(pkg.processStatus));
         row.push(rowColor(pkg.timer));
@@ -1830,7 +1840,7 @@ export class Dashboard {
         });
       }
 
-      if (this.selectedPackage?.stackName === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight) {
+      if (this.selectedPackage?.stackName === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight || Dashboard.toggleDebug) {
         this.statusOptions?.hide();
       } else {
         this.statusOptions?.show();
@@ -1851,6 +1861,9 @@ export class Dashboard {
     }
   }
 
+  get hideStatusOptions() {
+    return this.selectedPackage?.stackName === 'GLOBAL' || this.screen.height < this.maxProcessOptionsHeight || Dashboard.toggleDebug
+  }
   updateVis() {
     if (this.blessedDeps) {
       this.blessedDeps.splitterOverride = null;
@@ -1954,7 +1967,7 @@ export class Dashboard {
 
     let hideProcessOptions = false;
 
-    if (this.screen.height < this.maxProcessOptionsHeight) {
+    if (this.screen.height < this.maxProcessOptionsHeight || this.hideStatusOptions) {
       this.minimizeStatusPanel = true;
       hideProcessOptions = true;
       this.packages.height -= this.maxProcessOptionsHeight - this.screen.height;

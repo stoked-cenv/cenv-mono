@@ -546,9 +546,9 @@ export class Deployment {
       packages = [];
     } else if (!this.options?.parameters && packages?.length) {
       packages = packages.filter((p: Package) => {
-        const stack = environment.stacks.filter((s) => s?.StackName === p?.stackName);
+        const stack = environment.stacks.filter((s) => s?.summary.StackName === p?.stackName);
         if (stack?.length === 1 && p.stack) {
-          p.stack.summary = stack[0] as StackSummary;
+          p.stack.summary = stack[0].summary as StackSummary;
           return true;
         }
         return false;

@@ -6,6 +6,7 @@ import { CenvLog } from '../log';
 import { isOsSupported, sleep } from '../utils';
 import { execCmd, runScripts,spawnCmd } from '../proc'
 import { Package, PackageCmd, TPackageMeta } from './package';
+import { Cenv } from '../cenv';
 
 export class DockerModule extends PackageModule {
   static build: { [key: string]: number } = {};
@@ -30,7 +31,7 @@ export class DockerModule extends PackageModule {
 
   static async checkDockerStatus() {
     const res = await execCmd('docker version -f json', { silent: true });
-    if (res.toString().includes('Command failed')) {
+    if (res.toString().includes('Cannot connect')) {
       return { active: false };
     }
     const info = JSON.parse(res);
@@ -40,8 +41,9 @@ export class DockerModule extends PackageModule {
   static async dockerPrefight(pkgs: Package[]) {
     // if deploying check to see if there are any docker packages if so verify docker is running
     if (isOsSupported() && pkgs.filter((p: Package) => p.docker).length) {
+      //if (Cenv.dashboard) Cenv.dashboard.debug('docker status 1');
       let dockerStatus = await this.checkDockerStatus();
-
+      //if (Cenv.dashboard) Cenv.dashboard.debug('docker status', JSON.stringify(dockerStatus, null, 2));
       if (!dockerStatus.active) {
         CenvLog.info('attempting to start docker', 'docker daemon not active');
         await execCmd('open -a Docker', { silent: true });

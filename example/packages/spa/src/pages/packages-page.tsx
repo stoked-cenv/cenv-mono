@@ -10,15 +10,15 @@ export const PackagesPage: React.FC = () => {
   "version": "0.0.1",
   "...": "...",
   "deployDependencies": [
-    "@stoked-cenv/cdk#network",
-    "@stoked-cenv/cdk#cert@cenv"
+    "@stoked-cenv/cdk+network",
+    "@stoked-cenv/cdk+cert@cenv"
   ],
   "destroyDependencies": [
-    "@stoked-cenv/cdk#cert@cenv"
+    "@stoked-cenv/cdk+cert@cenv"
   ],
   "cenv": {
     "stack": {
-      "package": "@stoked-cenv/cdk#api",
+      "package": "@stoked-cenv/cdk+api",
       "assignedSubDomain": "api.cenv"
     },
     "docker": {
