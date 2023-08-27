@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.89",
+  "version": "2.0.0-a.90",
   "scripts": {
     "cenv": "nx run @stoked-cenv/cli:cenv",
     "publish:link": "pnpm run build",
@@ -43,6 +43,7 @@
     "version:bump:all": "pnpm version:bump:cli && pnpm version:sync",
     "version:set:cli": "cd packages/cli && npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
     "version:set:lib": "cd packages/lib && npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
+    "version:set:cli-select": "cd packages/cli-select && npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
     "version:set:cdk": "cd packages/cdk && npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
     "version:set:ui": "cd packages/ui && npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
     "version:set:root": "npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
