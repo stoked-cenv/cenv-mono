@@ -336,6 +336,7 @@ export class DockerModule extends PackageModule {
   }
 
   async checkStatus() {
+    this.reset();
     this.printCheckStatusStart();
     const repo = await getRepository(this.dockerName);
 

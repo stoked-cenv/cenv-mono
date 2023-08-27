@@ -173,7 +173,7 @@ export class Dashboard {
     try {
       //this.global();
       this.packageBox = this.grid.set(0, 0, 1, 2, blessed.widget.Box, {
-        mouse: true, keys: true, interactive: true, fg: 'white', label: 'package', style: {
+        mouse: true, keys: true, interactive: true, fg: 'white', label: 'GLOBAL', style: {
           fg: 'white', bg: 'black', bold: true, border: {fg: 'black'}, label: {bold: true},
         }, border: false, transparent: true, height: 1, hideBorder: true,
       });
