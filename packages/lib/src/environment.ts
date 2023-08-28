@@ -21,11 +21,12 @@ export class Environments {
 }
 
 interface StackInfo { summary: StackSummary, stack: Stack, stackName: string, package: Package }
+interface PackageInfo { [packageName: string]: Package[] }
 
 export class Environment {
   name: string;
   suite?: Suite;
-  packages: Package[] = [];
+  packages: PackageInfo = {};
   stacks: StackInfo[] = [];
 
   constructor(options?: { environment?: string, suite?: Suite }) {
@@ -40,6 +41,14 @@ export class Environment {
   }
 
   static async getStacks(environment: string): Promise<StackInfo[]> {
+    const existingStacks: any = await listStacks(['CREATE_COMPLETE', 'ROLLBACK_COMPLETE', 'UPDATE_COMPLETE', 'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS', 'DELETE_FAILED', 'UPDATE_ROLLBACK_COMPLETE']);
+
+    return existingStacks.filter((s: any) => {
+      return s.StackName.startsWith(environment + '-');
+    })
+  }
+
+  static async getStackInfos(environment: string): Promise<StackInfo[]> {
     const existingStacks: any = await listStacks([
       'CREATE_COMPLETE',
       'ROLLBACK_COMPLETE',
@@ -51,7 +60,7 @@ export class Environment {
     ]);
 
     const filtered = existingStacks.filter((s: any) => s.StackName.startsWith(environment + '-'));
-    const results: [] = [];
+    const results: StackInfo[] = [];
     for(const s of filtered) {
       const res: any = { summary: s };
       const stacks = await describeStacks(s.StackName, true);
@@ -60,37 +69,30 @@ export class Environment {
         const packageName = StackModule.getTag(stacks[0], 'CENV_APPLICATION_NAME');
         const version = StackModule.getTag(stacks[0], 'CENV_PKG_VERSION');
         if (packageName) {
-          res.convertedStack = Package.packageNameToStackName(packageName);
-          res.package = Package.cache[res.convertedStack];
-          if (!Package.cache[res.convertedStack]) {
+          res.stackName = Package.packageNameToStackName(packageName);
+          res.package = Package.cache[res.stackName];
+          if (!Package.cache[res.stackName]) {
             res.package = new Package(packageName);
+            res.package.stack.summary = s.summary;
+            res.package.stack.detail = s.detail;
           }
         }
+        results.push(res);
       }
     }
     return results;
   }
 
   async load() {
-    this.stacks = await Environment.getStacks(this.name)
-
-    this.packages = this.stacks.map((s) => {
-      console.log(JSON.stringify(s, null, 2));
-      return Package.fromStackName(s.stackName as string)
-    }).filter(p => !!p);
-
+    this.stacks = await Environment.getStackInfos(this.name)
     this.stacks.map((s) => {
-      const pkg = Package.fromStackName(s.stackName as string);
-      if (pkg.stack) {
-        pkg.stack.summary = s.summary;
-        pkg.stack.detail = s.stack;
+      if (s.package) {
+        if (!this.packages[s.package.packageName]) {
+          this.packages[s.package.packageName] = [];
+        }
+        this.packages[s.package.packageName].push(s.package);
       }
-      this.packages.push(pkg);
-      return pkg;
     });
-    if (this.packages?.length) {
-      //Environments[this.name] = this;
-    }
   }
 
   async getStacks(): Promise<StackInfo[]> {

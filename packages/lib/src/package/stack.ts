@@ -162,6 +162,7 @@ export class StackModule extends PackageModule {
         CenvLog.single.infoLog(inspect({...opt, dashboardOptions: undefined,  }));
       }
       deployCommand += ` -o ${this.getCdkOut()}`;
+      console.log(this.pkg.packageName, 'cenvVars', JSON.stringify(opt.cenvVars));
       if (!skip) {
         await this.pkg.pkgCmd(deployCommand, opt);
       }
@@ -220,7 +221,9 @@ export class StackModule extends PackageModule {
       }
 
       const pkgVars = {
-        CENV_PKG_VERSION: this.pkg.rollupVersion, CENV_STACK_NAME: removeScope(this.pkg.packageName),
+        CENV_PKG_VERSION: this.pkg.rollupVersion,
+        CENV_STACK_NAME: removeScope(this.pkg.packageName),
+        CENV_APPLICATION_NAME: this.pkg.packageName
       };
       opt.cenvVars = { ...opt.cenvVars, ...pkgVars };
       if (this.pkg.docker) {
@@ -298,15 +301,15 @@ export class StackModule extends PackageModule {
     this.verbose(`verified: [${this?.verified}] hasDetail: [${!!this?.detail}] hasLatestDeployedVersion: [${this?.hasLatestDeployedVersion}] hasLatestDeployedDigest: [${this.hasLatestDeployedDigest}] latestDigest: [${this.pkg?.docker?.latestDigest}] deployedDigest: [${this?.deployedDigest}]`, 'deploy status debug');
   }
 
-  printCheckStatusComplete(): void {
-    if (this.detail) {
+  printCheckStatusComplete(silent = false): void {
+    if (this.detail && !silent) {
       this.info(JSON.stringify(this.detail, null, 2), 'stack detail');
     }
     this.checked = true;
     this.getDetails();
   }
 
-  async checkStatus() {
+  async checkStatus(silent = false) {
     if (!this.pkg || this.pkg.stackName === '') {
       this.checked = true;
       return;
@@ -317,7 +320,7 @@ export class StackModule extends PackageModule {
       if (this.pkg?.meta?.data.verifyStack) {
         const verifyRes = await this.pkg.pkgCmd(this.pkg.meta?.data.verifyStack, { returnOutput: true, silent: true });
         this.verified = verifyRes.result === 0;
-        this.printCheckStatusComplete();
+        this.printCheckStatusComplete(silent);
         return;
       }
     }
@@ -349,7 +352,7 @@ export class StackModule extends PackageModule {
       this.pkg.links.push(`ECR (deployed image) https://${process.env.AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.name}e/_/image/${this.deployedDigest}/details?region=${process.env.AWS_REGION}`);
     }
 
-    this.printCheckStatusComplete();
+    this.printCheckStatusComplete(silent);
   }
 
   upToDate(): boolean {

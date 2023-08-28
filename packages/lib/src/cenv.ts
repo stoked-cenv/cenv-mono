@@ -13,7 +13,7 @@ import {
   getPolicy,
   getRole,
 } from './aws/iam';
-import {Package, PackageCmd} from './package/package';
+import {EnvironmentStatus, Package, PackageCmd, ProcessStatus} from './package/package';
 import {createFunction, deleteFunction, getFunction} from './aws/lambda';
 import {createDeploymentStrategy, getDeploymentStrategy,} from './aws/appConfig';
 import {CenvParams} from './params';
@@ -28,6 +28,7 @@ import {Deployment} from './deployment';
 import {cmdInit, parseCmdParams} from './cli';
 import {sleep} from './utils';
 import {Config} from './config';
+import {getMeta, printColumns} from "./types";
 
 export interface BaseCommandOptions {
   profile?: string;
@@ -234,7 +235,29 @@ export class Cenv {
     }
     const env = new Environment();
     await env.load();
-    env.packages.map((p: Package) => CenvLog.info(`\t${p.packageName}`));
+    PackageCmd.silent = true;
+    await Package.checkStatus(ProcessMode.DEPLOY.toString(), ProcessStatus.COMPLETED, true);
+    PackageCmd.silent = false;
+    const vals = Object.values(env.packages).flat(1);
+    const keys = Object.keys(vals[0].envSummary);
+    const meta = getMeta(vals.map((p: Package) => p.envSummary), Object.keys(vals[0].envSummary));
+    const getColors = (pkg: Package) => {
+      const incomplete = CenvLog.single.colorType('incomplete');
+      const deployed = CenvLog.single.colorType('deployed');
+
+      if (pkg.environmentStatus === EnvironmentStatus.UP_TO_DATE) {
+        return {valueColor: deployed?.color!, keyColor: deployed?.highlight!};
+      }
+      return {valueColor: incomplete?.color!, keyColor: incomplete?.highlight!};
+    };
+
+    for (const [packageName, packages] of Object.entries(env.packages) as [string, Package[]][]) {
+      const showInstances = packages.length !== 1;
+      if (showInstances) {
+        console.log(packageName);
+      }
+      packages.map((p) => console.log((showInstances ? '\t' : '') + printColumns(p.envSummary, getColors,  keys, meta)));
+    }
   }
 
   static async verifyCenv(silent = true) {

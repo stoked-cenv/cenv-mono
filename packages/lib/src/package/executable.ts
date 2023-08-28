@@ -64,16 +64,18 @@ export class ExecutableModule extends PackageModule {
     this.verbose(this.statusLine('not installed', `executable [${this.exec}] is not installed`, false,));
   }
 
-  printCheckStatusComplete(): void {
+  printCheckStatusComplete(silent = false): void {
     this.getDetails();
-    if (this.installPath) {
-      this.info('installed at', this.installPath, 'executable')
-    } else {
-      this.info('not installed', 'executable')
+    if (!silent) {
+      if (this.installPath) {
+        this.info('installed at', this.installPath, 'executable')
+      } else {
+        this.info('not installed', 'executable')
+      }
     }
   }
 
-  async checkStatus() {
+  async checkStatus(silent = false) {
     this.printCheckStatusStart();
     const execWhich = `which ${this.exec}`;
     const execPath = await execCmd(execWhich, {silent: true});
@@ -82,7 +84,7 @@ export class ExecutableModule extends PackageModule {
       this.installed = true;
     }
 
-    this.printCheckStatusComplete();
+    this.printCheckStatusComplete(silent);
     this.checked = true;
   }
 

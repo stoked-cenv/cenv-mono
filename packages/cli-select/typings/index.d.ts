@@ -34,6 +34,8 @@ interface Options<T> {
   keyFunctions?: { keys: string[], func?: (values: any[], selectedValue: any, render: () => void) => void, legend: string}[],
   legend?: boolean,
   legendColors?: any,
+  onCancel?: () => void,
+  onClose?: (values: any[]) => Promise<void>,
 }
 
 type creatorPromise = <T> (options: Options<T>) => Promise<ResolvedValue<T>>;

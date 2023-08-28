@@ -69,7 +69,7 @@ export function getDomains() {
   const appIfNotSameAsRoot = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
   const appMatchesRoot = !appIfNotSameAsRoot;
   const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
-  const env = `${ENV}.${app}`;
+  const env = `${process.env.PRIMARY_DOMAIN_PREFIX ? process.env.PRIMARY_DOMAIN_PREFIX + '.' : ''}${ENV}.${app}`;
   const sub = `*.${env}`;
   const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
   if (ENV === 'prod') {

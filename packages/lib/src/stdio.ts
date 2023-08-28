@@ -13,8 +13,9 @@ export interface ProfileData {
   askUser: boolean,
   exactMatch?: boolean,
   name: string,
-  removed?: boolean,
-  default?: boolean
+  remove: boolean,
+  default: boolean,
+  selected: boolean,
 }
 
 namespace Read {
@@ -217,22 +218,6 @@ export function printProfileQuery(profile?: string, environment?: string, profil
   return `${profile ? `profile: ${CenvLog.colors.alertBold(profile)}\t` : ''}${environment ? `env: ${CenvLog.colors.alertBold(environment)}\t` : ''}${profilePath ? `path: ${CenvLog.colors.alertBold(profilePath.replace(process.env.HOME!, '~'))} ` : ''}`;
 }
 
-export function getProfileColumnLengths(profile: ProfileData, meta: Record<string, number>): Record<string, number> {
-  if (!meta['name']) {
-    meta['name'] = profile.name.length;
-  } else if (meta['name'] < profile.name.length) {
-    meta['name'] = profile.name.length;
-  }
-  for (const key in profile.envConfig) {
-    const value = profile.envConfig[key];
-    if (!meta[key]) {
-      meta[key] = value.length;
-    } else if (meta[key] < value.length) {
-      meta[key] = value.length;
-    }
-  }
-  return meta;
-}
 
 
 

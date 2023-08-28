@@ -1,3 +1,52 @@
+import {Chalk} from "chalk";
+
+export const getValue = <T extends Object>(dataItem: T, key: string) => {
+  let currentData = JSON.parse(JSON.stringify(dataItem));
+  const keyNodes = key.split('.');
+  for (const keyNode of keyNodes) {
+    currentData = currentData[keyNode];
+  }
+  return currentData;
+}
+
+const printKey = (dataItem: Object, meta: Record<string, number>, key: string, valueColor: Chalk, valueOnly: boolean = false) => {
+  const value = getValue(dataItem, key);
+  if (valueOnly) {
+    return `${valueColor(value.toString().padEnd(meta[key], ' '))}\t`;
+  }
+  return `${key.split('.').pop()}: ${valueColor(value.toString().padEnd(meta[key], ' '))}\t`;
+}
+
+const updateMeta = <T extends Object>(dataItem: T, keys: string[] = [], meta: Record<string, number> = {}) => {
+  for (const key of keys) {
+    const value = getValue(dataItem, key);
+    if (!meta[key] || meta[key] < value.toString().length) {
+      meta[key] = value.toString().length;
+    }
+  }
+  return meta;
+}
+
+export const getMeta = (data: Object[], keys: string[] = []) => {
+  let meta: Record<string, number> = {};
+  for (const dataItem of data) {
+    meta = updateMeta(dataItem, keys, meta);
+  }
+  return meta;
+}
+
+export const printColumns = <T extends Object>(data: T, getColors: (data: T) => {valueColor: Chalk, keyColor: Chalk}, keys: string[], meta: Record<string, number>) => {
+  const colors = getColors(data);
+
+  let output = '';
+  let initialKey = true;
+  for (const key of keys) {
+    output += printKey(data, meta, key, colors.valueColor, initialKey);
+    initialKey = false;
+  }
+
+  return colors.keyColor(output);
+}
 
 export const pick = <T extends {}, K extends keyof T>(obj: T, ...keys: K[]) => (
   Object.fromEntries(

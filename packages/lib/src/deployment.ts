@@ -174,6 +174,7 @@ export class Deployment {
   }
 
   static packageDone(pkg: Package) {
+    return false;
     if (this.options.force) {
       return false;
     }

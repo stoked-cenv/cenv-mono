@@ -142,7 +142,7 @@ export class LibModule extends PackageModule {
     //}
   }
 
-  async updatePublishedStatus() {
+  async updatePublishedStatus(silent = false) {
     try {
       if (!this.isPublishable || this.publishedVersion === this.version) {
         return;
@@ -151,7 +151,9 @@ export class LibModule extends PackageModule {
       const latestPublished = await execCmd(`npm view ${this.name} version`, { packageModule: this, silent: true });
       this.publishedVersion = parse(latestPublished.trim())
     } catch (e) {
-      CenvLog.single.info(['typeof', typeof e, e] + 'publishing failed for ' + this.name, this.pkg.stackName)
+      if (!silent) {
+        CenvLog.single.info(['typeof', typeof e, e] + 'publishing failed for ' + this.name, this.pkg.stackName)
+      }
     }
   }
 
@@ -241,15 +243,17 @@ export class LibModule extends PackageModule {
     }
   }
 
-  printCheckStatusComplete(): void {
+  printCheckStatusComplete(silent = false): void {
     this.getDetails();
-    this.status.deployed.map((s) => CenvLog.single.info(s, this.pkg.stackName));
-    this.status.incomplete.map((s) => CenvLog.single.info(s, this.pkg.stackName));
-    this.status.needsFix.map((s) => CenvLog.single.info(s, this.pkg.stackName));
+    if (!silent) {
+      this.status.deployed.map((s) => CenvLog.single.info(s, this.pkg.stackName));
+      this.status.incomplete.map((s) => CenvLog.single.info(s, this.pkg.stackName));
+      this.status.needsFix.map((s) => CenvLog.single.info(s, this.pkg.stackName));
+    }
     this.checked = true;
   }
 
-  async checkStatus() {
+  async checkStatus(silent = false) {
     this.printCheckStatusStart();
     await this.updatePublishedStatus();
     if (!this.hasCheckedLogs) {
@@ -262,6 +266,6 @@ export class LibModule extends PackageModule {
     }
 
     // no op
-    this.printCheckStatusComplete();
+    this.printCheckStatusComplete(silent);
   }
 }

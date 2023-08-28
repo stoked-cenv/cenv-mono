@@ -324,7 +324,7 @@ export class ParamsModule extends PackageModule {
     }
   }
 
-  async loadVars(force = false) {
+  async loadVars(force = false, silent = false) {
     try {
 
       // switch dir
@@ -1211,7 +1211,7 @@ export class ParamsModule extends PackageModule {
     this.verbose(`hasCenvVars: [${this?.hasCenvVars}] varsUpToDateFlag: [${this?.varsUpToDateFlag}] paramsUpToDate: ${paramsUpToDate}`, 'params status debug');
   }
 
-  printCheckStatusComplete(): void {
+  printCheckStatusComplete(silent = false): void {
     
     const status: any = {
       file: path.resolve(EnvConfigFile.PATH),
@@ -1228,10 +1228,14 @@ export class ParamsModule extends PackageModule {
       status.stage.deployed = Object.keys(this.pushedVars).length;
     }
     if (this.materializedVars) {
-      this.info(JSON.stringify(this.materializedVars, null, 2), 'materialized vars');
+      if (!silent) {
+        this.info(JSON.stringify(this.materializedVars, null, 2), 'materialized vars');
+      }
       status.stage.materialized = Object.keys(this.materializedVars).length;
     }
-    this.info(JSON.stringify(status, null, 2), 'stage count');
+    if (!silent) {
+      this.info(JSON.stringify(status, null, 2), 'stage count');
+    }
     this.checked = true;
     this.getDetails();
   }
@@ -1244,7 +1248,7 @@ export class ParamsModule extends PackageModule {
     return true;
   }
 
-  async checkStatus() {
+  async checkStatus(silent = false) {
     try {
       if (!this.pkg) {
         return;
@@ -1257,14 +1261,14 @@ export class ParamsModule extends PackageModule {
         this.materializedDeploymentNumber = this.config.DeploymentNumber;
       }
 
-      await this.loadVars();
+      await this.loadVars(silent);
       this.localCounts = this.getVarCounts(this.localVarsTyped);
       this.checkForDuplicates();
       this.pushedCounts = this.getVarCounts(this.pushedVarsTyped);
       this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);
       await this.checkVarsUpToDate();
 
-      this.printCheckStatusComplete();
+      this.printCheckStatusComplete(silent);
     } catch (e) {
       CenvLog.single.catchLog(e);
       process.exit(325);

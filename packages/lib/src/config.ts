@@ -1,4 +1,4 @@
-import { EnvVars, pick } from './types';
+import {EnvVars, getMeta, getValue, pick} from './types';
 import { getKey } from './aws/kms';
 import path from 'path';
 import { CenvFiles } from './file';
@@ -10,13 +10,13 @@ import { CenvLog } from './log';
 import { getAccountId } from './aws/sts';
 import {
   createDirIfNotExists,
-  getProfileColumnLengths,
   ioReadVarList,
   printProfileQuery,
   ProfileData,
   ioYesOrNo
 } from './stdio';
 import cliSelect from "@stoked-cenv/cli-select";
+import { printColumns } from './types/Object';
 
 const primaryProfileProperties: Record<string, any> = {
   CENV_PROFILE: process.env.CENV_PROFILE || '',
@@ -221,16 +221,17 @@ export class Config {
     if (!this.profiles) {
       return;
     }
-    let meta: Record<string, number> = {};
     let selectedIndex = 0;
     let defaultProfile = undefined as undefined | ProfileData;
+    /*
     this.profiles?.map((pd: ProfileData, index: number) => {
       if (pd.default) {
         selectedIndex = index;
         defaultProfile = pd;
       }
-      meta = getProfileColumnLengths(pd, meta);
+      meta = this.getProfileColumnLengths(pd, meta);
     });
+    */
     let currentProfile: ProfileData = defaultProfile ? defaultProfile : this.profiles[0];
     const { alert, alertDim, info, infoBold, infoHighlight, infoDim } = CenvLog.colors;
 
@@ -242,18 +243,16 @@ export class Config {
           if (values[selectedValue].default) {
             return;
           }
-          values[selectedValue].removed = !values[selectedValue].removed;
+          values[selectedValue].remove = !values[selectedValue].remove;
         },
         legend: 'mark profile for deletion'
       },{
         keys: ['space'],
         func: (values: any[], selectedValue: any) => {
           for (let i = 0; i < values.length; i++) {
-            if (selectedValue === i) {
-              values[i].default = true;
-              values[i].removed = false;
-            } else {
-              values[i].default = false;
+            values[i].default = selectedValue === i;
+            if (values[i].default) {
+              values[i].remove = false;
             }
           }
           test = selectedValue;
@@ -264,59 +263,98 @@ export class Config {
         legend:	 'accept changes and make selected the default profile'
       }
     ];
+
+    const getColors = (data: ProfileData) => {
+      const {smoothHighlight, successHighlight, error, errorHighlight, info, infoBold} = CenvLog.colors;
+      let valueColor = smoothHighlight;
+      if (data.remove && data.selected) {
+        valueColor = error;
+      } else if (data.remove) {
+        valueColor = errorHighlight
+      } else if (data.selected) {
+        valueColor = successHighlight;
+      }
+
+      let keyColor = info;
+      if (data.selected) {
+        keyColor = infoBold;
+      }
+      return {valueColor, keyColor};
+    };
+
+    const keys = ['name', 'envConfig.ENV', 'envConfig.ROOT_DOMAIN', 'envConfig.AWS_PROFILE', 'envConfig.AWS_REGION', 'remove', 'default'];
+    const meta = getMeta(this.profiles, keys)
+    const onCancel = () =>  CenvLog.single.info('cenv config manage: cancelled');
+    const onClose = async (profiles: ProfileData[]) => {
+        let anythingUpdated = false;
+        let newDefault = -1;
+        for (let i = 0; i < profiles.length; i++) {
+        if (profiles[i].remove) {
+          if (!anythingUpdated) {
+            console.log(CenvLog.colors.info('profile(s) to be removed:'));
+          }
+          console.log(printColumns(profiles[i],  getColors, keys ,meta));
+          anythingUpdated = true;
+        } else if (profiles[i].default) {
+          newDefault = i;
+        }
+      }
+      if (!profiles[selectedIndex].default) {
+        console.log(CenvLog.colors.info('new default profile:'));
+        anythingUpdated = true;
+        console.log(printColumns(profiles[newDefault], getColors, keys, meta));
+      }
+      if (anythingUpdated) {
+        const res = await ioYesOrNo('do you want to save these changes?', 'n');
+        if (res) {
+          if (selectedIndex !== newDefault) {
+            writeFileSync(path.join(CenvFiles.PROFILE_PATH, 'default'), JSON.stringify({name: profiles[newDefault].name}, null, 2));
+          }
+          for (let i = 0; i < profiles.length; i++) {
+            if (profiles[i].remove) {
+              rmSync(profiles[i].profilePath);
+            }
+          }
+        }
+      }
+    }
     const selectedProfile = await cliSelect({
       defaultValue: selectedIndex,
       keyFunctions,
+      onCancel,
+      onClose,
       legend: true,
       legendColors: {title: alert, keys: alertDim },
       values: this.profiles,
 
       valueRenderer: (value: any, selected: any) => {
-        if (selected) {
-          currentProfile = value;
-          return this.printProfileData(value, meta, true);
-        }
-        return this.printProfileData(value, meta, false);
+        value.selected = selected;
+        return printColumns(value, getColors, keys, meta);
       },
     });
-    if (!selectedProfile) {
-      CenvLog.single.info('cenv config manage: cancelled');
-      return;
-    }
-    let anythingUpdated = false;
-    let newDefault = -1;
-    for (let i = 0; i < this.profiles.length; i++) {
-      if (this.profiles[i].removed) {
-        if (!anythingUpdated) {
-          console.log(CenvLog.colors.info('profile(s) to be removed:'));
-        }
-        console.log(this.printProfileData(this.profiles[i], meta, false));
-        anythingUpdated = true;
-      } else if (this.profiles[i].default) {
-        newDefault = i;
-      }
-    }
-    if (!this.profiles[selectedIndex].default) {
-      console.log(CenvLog.colors.info('new default profile:'));
-      anythingUpdated = true;
-      console.log(this.printProfileData(this.profiles[newDefault], meta, true));
-    }
-    if (anythingUpdated) {
-      const res = await ioYesOrNo('do you want to save these changes?', 'n');
-      if (res) {
-        if (selectedIndex !== newDefault) {
-          writeFileSync(path.join(CenvFiles.PROFILE_PATH, 'default'), JSON.stringify({name: this.profiles[newDefault].name}, null, 2));
-        }
-        for (let i = 0; i < this.profiles.length; i++) {
-          if (this.profiles[i].removed) {
-            rmSync(this.profiles[i].profilePath);
-          }
-        }
-      }
-    }
+
   }
 
-  printProfileData(profile: ProfileData, meta: Record<string, number>, selected: boolean) {
+  /*
+  getProfileColumnLengthss(profile: ProfileData, meta: Record<string, number>): Record<string, number> {
+    if (!meta['name']) {
+      meta['name'] = profile.name.length;
+    } else if (meta['name'] < profile.name.length) {
+      meta['name'] = profile.name.length;
+    }
+    for (const key in profile.envConfig) {
+      const value = profile.envConfig[key];
+      if (!meta[key]) {
+        meta[key] = value.length;
+      } else if (meta[key] < value.length) {
+        meta[key] = value.length;
+      }
+    }
+    return meta;
+  }
+
+
+  printProfileDatas(profile: ProfileData, meta: Record<string, number>, selected: boolean) {
     const {info, smoothHighlight, success, successHighlight, error, errorHighlight, bold} = CenvLog.colors;
     let valueColor = smoothHighlight;
     if (profile?.removed && selected) {
@@ -342,7 +380,7 @@ export class Config {
     }
     return selected ? bold(output) : output;
   }
-
+*/
   async getAccountInfo() {
     const callerIdentity: any = await getAccountId();
     if (!callerIdentity) {
@@ -360,7 +398,7 @@ export class Config {
 
     const name = envVars.get('CENV_PROFILE')
     const profileData: ProfileData = {
-      profilePath: path.join(CenvFiles.PROFILE_PATH, name), askUser: true, name: name, envConfig: {},
+      profilePath: path.join(CenvFiles.PROFILE_PATH, name), askUser: true, name: name, envConfig: {}, default: true, remove: false, selected: false
     };
 
     const defaultProfilePath = path.join(CenvFiles.PROFILE_PATH, 'default');

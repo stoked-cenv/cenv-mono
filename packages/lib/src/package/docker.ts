@@ -321,27 +321,29 @@ export class DockerModule extends PackageModule {
     this.verbose(`imageUpToDate: [${this.imageUpToDate()}] latest tag: [${this.latestImage?.imageTag}] ${deploy}`, 'docker status debug');
   }
 
-  printCheckStatusComplete(): void {
-    if (this.repo) {
-      this.info(JSON.stringify(this.repo, null, 2), 'repo');
-    }
-    if (this.latestImage) {
-      this.info(JSON.stringify(this.latestImage, null, 2), 'latest image');
-    }
-    if (this.tags?.length) {
-      this.info(this.tags?.join(', '), 'pushed tags');
+  printCheckStatusComplete(silent = false): void {
+    if (!silent) {
+      if (this.repo) {
+        this.info(JSON.stringify(this.repo, null, 2), 'repo');
+      }
+      if (this.latestImage) {
+        this.info(JSON.stringify(this.latestImage, null, 2), 'latest image');
+      }
+      if (this.tags?.length) {
+        this.info(this.tags?.join(', '), 'pushed tags');
+      }
     }
     this.checked = true;
     this.getDetails();
   }
 
-  async checkStatus() {
+  async checkStatus(silent = false) {
     this.reset();
     this.printCheckStatusStart();
     const repo = await getRepository(this.dockerName);
 
     if (!repo || !repo.repositoryName) {
-      this.printCheckStatusComplete();
+      this.printCheckStatusComplete(silent);
       return;
     }
     this.repo = repo;
@@ -350,7 +352,7 @@ export class DockerModule extends PackageModule {
     const images = await listImages(repo.repositoryName);
     if (!images) {
       this.repoStatus = 'no images have been pushed';
-      this.printCheckStatusComplete();
+      this.printCheckStatusComplete(silent);
       return;
     }
 
@@ -400,7 +402,7 @@ export class DockerModule extends PackageModule {
 
     this.pkg.links.push(`ECR (repo): https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}?region=${process.env.AWS_REGION}`);
     this.digest = this.pkg.stack?.deployedDigest ? this.pkg.stack.deployedDigest : undefined;
-    this.printCheckStatusComplete();
+    this.printCheckStatusComplete(silent);
   }
 
   private async verifyDigest() {

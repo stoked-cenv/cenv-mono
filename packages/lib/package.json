@@ -33,7 +33,6 @@
     "@aws-sdk/util-waiter": "^3.370.0",
     "@base2/pretty-print-object": "^1.0.2",
     "@nestjs/common": "^10.0.0",
-    "@stoked-cenv/cli-select": "^2.0.0-a.93",
     "ajv": "^8.12.0",
     "async-mutex": "^0.4.0",
     "chalk": "^4.1.2",
@@ -69,5 +68,8 @@
     "application",
     "configuration",
     "parameters"
-  ]
+  ],
+  "peerDependencies": {
+    "@stoked-cenv/cli-select": "^2.0.0-a.93"
+  }
 }

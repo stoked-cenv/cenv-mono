@@ -115,10 +115,21 @@ export class ECSServiceStack extends Stack {
         cluster: this.cluster, // Required
         assignPublicIp: true, loadBalancerName: `${stackPrefix()}-lb`, serviceName: `${stackPrefix()}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
         desiredCount: 1, // Default is 1
-        domainZone: this.zone, domainName: domains.primary, certificate, taskImageOptions: {
-          family: `${stackPrefix()}`, containerName, image, logDriver: logging, environment: {
-            PORT: '80', ENV: env!, AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!, ...envVariables,
-          }, ...this.getTaskImageOptions(),
+        domainZone: this.zone,
+        domainName: domains.primary,
+        certificate,
+        taskImageOptions: {
+          family: `${stackPrefix()}`,
+          containerName,
+          image,
+          logDriver: logging,
+          ...this.getTaskImageOptions(),
+          environment: {
+            PORT: '80',
+            ENV: env!,
+            AWS_ACCOUNT_ID: process.env.CDK_DEFAULT_ACCOUNT!,
+            ...envVariables,
+          },
         }, memoryLimitMiB: 512, // Default is 512
         publicLoadBalancer: true, // Default is false,
       });

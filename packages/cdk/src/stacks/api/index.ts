@@ -15,6 +15,7 @@ let subdomain = 'api';
 if (process.env.CENV_SUBDOMAIN) {
   subdomain = process.env.CENV_SUBDOMAIN;
   process.env.ASSIGNED_DOMAIN = `${subdomain}.${CenvFiles.ENVIRONMENT}.${process.env.APP}.${process.env.ROOT_DOMAIN}`;
+  process.env.PRIMARY_DOMAIN_PREFIX = subdomain;
 }
 
 const { ROOT_DOMAIN, APP, CENV_SUBDOMAIN, ASSIGNED_DOMAIN, DOMAIN, CENV_DOCKER_NAME } = process.env;

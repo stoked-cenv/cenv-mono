@@ -366,19 +366,16 @@ let throwStackAtEnd = true;
 
 export function cleanup(eventType: string, error?: Error, exitCode?: number) {
   destroyUI();
-  console.log('destroyUI');
   if (throwStackAtEnd && process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     console.log('cleanup', new Error().stack);
     throwStackAtEnd = false;
   }
-  console.log(2)
 
   if (process.env.CENV_LOG_LEVEL === 'VERBOSE') {
     process.argv.shift();
     process.argv[0] = process.argv[0].split('/').pop() as string;
     console.log(`[${eventType}] ${process.argv.join(' ')}`);
   }
-  console.log(3);
 
   //killRunningProcesses();
   /*

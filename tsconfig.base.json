@@ -18,8 +18,9 @@
       "@stoked-cenv/lib": ["packages/lib/src/index.ts"],
       "@stoked-cenv/ui": ["packages/ui/src/index.ts"],
       "@stoked-cenv/cdk": ["packages/cdk/src/index.ts"],
-      "@stoked-cenv/cli": ["packages/cli/src/index.ts"]
+      "@stoked-cenv/cli": ["packages/cli/src/index.ts"],
+      "@stoked-cenv/cli-select": ["packages/cli-select/typings/index.d.ts"]
     }
   },
-  "exclude": ["node_modules", "dist", "params", "example"]
+  "exclude": ["node_modules", "dist", "params", "example", "fixup-dist.ts", "fixup-deps.ts"]
 }

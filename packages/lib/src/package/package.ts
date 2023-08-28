@@ -50,7 +50,7 @@ export enum ProcessStatus {
   COMPLETED = ' ',
 }
 
-function cmdResult(pkg: Package, cmd: string, failOnError: boolean, code: number, message?: string | string[], minOut?: string): boolean {
+function cmdResult(pkg: Package, cmd: string, failOnError: boolean, code: number, message?: string | string[], minOut?: string, silent = false): boolean {
 
   let completeMsg = '';
   if (message) {
@@ -58,14 +58,18 @@ function cmdResult(pkg: Package, cmd: string, failOnError: boolean, code: number
   }
 
   if (code === 0) {
-    pkg?.std(`${completeMsg}exit code - ${code} [SUCCESS]`, cmd);
+    if (!silent) {
+      pkg?.std(`${completeMsg}exit code - ${code} [SUCCESS]`, cmd);
+    }
     return true;
   }
-  if (CenvLog.logLevel === LogLevel.MINIMAL && minOut !== '') {
-    pkg?.err('xxx' + minOut);
-  }
+  if (!silent) {
+    if (CenvLog.logLevel === LogLevel.MINIMAL && minOut !== '') {
+      pkg?.err('xxx' + minOut);
+    }
 
-  pkg.err(`${completeMsg}exit code - ${code} [FAILED]`, cmd);
+    pkg.err(`${completeMsg}exit code - ${code} [FAILED]`, cmd);
+  }
   if (failOnError) {
     Package?.callbacks?.cancelDependencies(pkg);
     pkg.setDeployStatus(ProcessStatus.FAILED);
@@ -92,16 +96,20 @@ class LogCmd implements Cmd {
   res;
   stdout?: string;
   stderr?: string;
+  silent = false;
 
-  constructor(cmd: string, relativePath = './', code?: number, message?: string) {
+  constructor(cmd: string, relativePath = './', code?: number, message?: string, silent = false) {
     this.cmd = cmd;
     this.relativePath = relativePath;
 
+    this.silent = silent || PackageCmd.silent;
     if (code) {
       this.code = code;
-      this.res = cmdResult(Package.global, cmd, false, code, message);
+      this.res = cmdResult(Package.global, cmd, false, code, message, undefined, silent);
     } else {
-      CenvLog.single.stdLog(cmd);
+      if (!silent) {
+        CenvLog.single.stdLog(cmd);
+      }
     }
   }
 
@@ -117,7 +125,7 @@ class LogCmd implements Cmd {
     if (this.code) {
       return !!this.code;
     }
-    return cmdResult(Package.global, this.cmd, false, code, message);
+    return cmdResult(Package.global, this.cmd, false, code, message, undefined, this.silent);
   }
 }
 
@@ -138,12 +146,15 @@ export class PackageCmd implements Cmd {
   res;
   minOut = '';
   cmds: PackageCmd[] = [];
+  silent = false;
+  static silent = false;
 
-  constructor(pkg: Package, cmd: string, relativePath = './', code?: number, message?: string, failOnError = true) {
+  constructor(pkg: Package, cmd: string, relativePath = './', code?: number, message?: string, failOnError = true, silent = false) {
     this.stackName = pkg?.stackName;
     this.cmd = cmd;
     this.relativePath = relativePath;
     this.pkg = pkg;
+    this.silent = silent || PackageCmd.silent;
 
     pkg?.cmds?.push(this);
     this.index = pkg?.cmds?.length;
@@ -162,7 +173,7 @@ export class PackageCmd implements Cmd {
 
     if (code) {
       this.code = code;
-      this.res = cmdResult(pkg, cmd, failOnError, code, message);
+      this.res = cmdResult(pkg, cmd, failOnError, code, message, undefined, silent);
     }
   }
 
@@ -186,19 +197,24 @@ export class PackageCmd implements Cmd {
   out(...message: string[]) {
     this.ensureCommand();
     this.minOut += message.join(' ') + '\n';
-    this.pkg.std(...message);
+    if (!this.silent) {
+      this.pkg.std(...message);
+    }
   }
 
   info(...message: string[]) {
     this.ensureCommand();
     this.minOut += message.join(' ') + '\n';
-    this.pkg.info(...message);
+    if (!this.silent) {
+      this.pkg.info(...message);
+    }
   }
 
   err(...message: string[]) {
     this.ensureCommand();
-    this.ensureCommand();
-    this.pkg.err(...message);
+    if (!this.silent) {
+      this.pkg.err(...message);
+    }
   }
 
   result(code: number, message?: string | string[]) {
@@ -206,7 +222,7 @@ export class PackageCmd implements Cmd {
       return this.res;
     }
     this.ensureCommand();
-    this.res = cmdResult(this.pkg, this.cmd, this.failOnError, code, message, this.minOut);
+    this.res = cmdResult(this.pkg, this.cmd, this.failOnError, code, message, this.minOut, this.silent);
     this.code = code;
     if (this.index > 0) {
       const prevCmd = this.pkg.cmds[this.index - 1];
@@ -489,9 +505,7 @@ export class Package implements IPackage {
     }
 
     try {
-
       const isRoot = this.package === Package.getRootPackageName();
-
       let pkgPath;
       if (isRoot || isGlobal) {
         pkgPath = CenvFiles.getGuaranteedMonoRoot();
@@ -627,6 +641,12 @@ export class Package implements IPackage {
     }
 
     return components;
+  }
+
+  get envSummary() {
+    let res: any = { name: this.name, ...this.summary };
+    delete res.stackName;
+    return res;
   }
 
   static get global(): Package {
@@ -792,10 +812,10 @@ export class Package implements IPackage {
     return packageName.replace('@', ``).replace(/-(deploy)$/, '');
   }
 
-  static async checkStatus(targetMode?: string, endStatus?: ProcessStatus) {
+  static async checkStatus(targetMode?: string, endStatus?: ProcessStatus, silent = false) {
     await DockerModule.dockerPrefight(Object.values(Package.cache));
     for (const p of Object.values(Package.cache)) {
-      await p?.checkStatus(targetMode, endStatus);
+      await p?.checkStatus(targetMode, endStatus, silent);
     }
   }
 
@@ -1047,7 +1067,7 @@ export class Package implements IPackage {
         await this.docker?.deploy(options);
       }
 
-      if (this.isStackDeploy(deployOptions)) {
+      if (true) {
         await this.stack?.deploy(deployOptions, options);
       }
     } catch (ex) {
@@ -1370,7 +1390,7 @@ export class Package implements IPackage {
     }
   }
 
-  async checkStatus(targetMode?: string, endStatus?: ProcessStatus) {
+  async checkStatus(targetMode?: string, endStatus?: ProcessStatus, silent = false) {
 
     let options = '';
     if (CenvLog.isVerbose) {
@@ -1385,7 +1405,7 @@ export class Package implements IPackage {
 
     const cmd = this.createCmd(`cenv stat ${this.packageName}${options}`);
     this.resetStatus();
-    await this.checkModuleStatus();
+    await this.checkModuleStatus(silent);
     await this.finalizeStatus(targetMode, endStatus);
     cmd.result(0);
     /*
@@ -1589,24 +1609,24 @@ export class Package implements IPackage {
     }
   }
 
-  protected async checkModuleStatus() {
+  protected async checkModuleStatus(silent = false) {
     //delete this.timer;
     this.processStatus = ProcessStatus.STATUS_CHK;
 
     if (this.lib) {
-      await this.lib?.checkStatus();
+      await this.lib?.checkStatus(silent);
     }
     if (this.exec) {
-      await this.exec?.checkStatus();
+      await this.exec?.checkStatus(silent);
     }
     if (this.params) {
-      await this.params?.checkStatus();
+      await this.params?.checkStatus(silent);
     }
     if (this.docker) {
-      await this.docker?.checkStatus();
+      await this.docker?.checkStatus(silent);
     }
     if (this.stack) {
-      await this.stack?.checkStatus();
+      await this.stack?.checkStatus(silent);
     }
   }
 }
