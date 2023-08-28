@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.93",
+  "version": "2.0.0-a.94",
   "description": "Library responsible for cenv params.",
   "main": "src/index.ts",
   "scripts": {
@@ -70,6 +70,6 @@
     "parameters"
   ],
   "peerDependencies": {
-    "@stoked-cenv/cli-select": "^2.0.0-a.93"
+    "@stoked-cenv/cli-select": "^2.0.0-a.94"
   }
 }
