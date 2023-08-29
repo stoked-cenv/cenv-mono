@@ -16,7 +16,7 @@ import {
   ioYesOrNo
 } from './stdio';
 import cliSelect from "@stoked-cenv/cli-select";
-import { printColumns } from './types/Object';
+import { printItemColumns } from './types/Object';
 
 const primaryProfileProperties: Record<string, any> = {
   CENV_PROFILE: process.env.CENV_PROFILE || '',
@@ -286,14 +286,15 @@ export class Config {
     const meta = getMeta(this.profiles, keys)
     const onCancel = () =>  CenvLog.single.info('cenv config manage: cancelled');
     const onClose = async (profiles: ProfileData[]) => {
-        let anythingUpdated = false;
-        let newDefault = -1;
-        for (let i = 0; i < profiles.length; i++) {
+      let anythingUpdated = false;
+      let newDefault = -1;
+      for (let i = 0; i < profiles.length; i++) {
         if (profiles[i].remove) {
           if (!anythingUpdated) {
             console.log(CenvLog.colors.info('profile(s) to be removed:'));
           }
-          console.log(printColumns(profiles[i],  getColors, keys ,meta));
+          const colors = getColors(profiles[i]);
+          console.log(printItemColumns(profiles[i],  colors, keys ,meta));
           anythingUpdated = true;
         } else if (profiles[i].default) {
           newDefault = i;
@@ -302,7 +303,7 @@ export class Config {
       if (!profiles[selectedIndex].default) {
         console.log(CenvLog.colors.info('new default profile:'));
         anythingUpdated = true;
-        console.log(printColumns(profiles[newDefault], getColors, keys, meta));
+        console.log(printItemColumns(profiles[newDefault], getColors(profiles[newDefault]), keys, meta));
       }
       if (anythingUpdated) {
         const res = await ioYesOrNo('do you want to save these changes?', 'n');
@@ -329,7 +330,7 @@ export class Config {
 
       valueRenderer: (value: any, selected: any) => {
         value.selected = selected;
-        return printColumns(value, getColors, keys, meta);
+        return printItemColumns(value, getColors(value), keys, meta);
       },
     });
 

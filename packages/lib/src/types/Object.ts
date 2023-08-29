@@ -35,18 +35,34 @@ export const getMeta = (data: Object[], keys: string[] = []) => {
   return meta;
 }
 
-export const printColumns = <T extends Object>(data: T, getColors: (data: T) => {valueColor: Chalk, keyColor: Chalk}, keys: string[], meta: Record<string, number>) => {
-  const colors = getColors(data);
+export const printItemColumns = <T extends Object>(data: T, colors: {valueColor: Chalk, keyColor: Chalk}, keys: string[], meta: Record<string, number>, keyToString?: (dataItem: Object, meta: Record<string, number>, key: string, valueColor: Chalk, valueOnly: boolean) => string) => {
+  if (!keyToString) {
+    keyToString = printKey;
+  }
 
   let output = '';
   let initialKey = true;
   for (const key of keys) {
-    output += printKey(data, meta, key, colors.valueColor, initialKey);
+    output += keyToString(data, meta, key, colors.valueColor, initialKey);
     initialKey = false;
   }
 
   return colors.keyColor(output);
 }
+
+
+export const printColumns = <A extends Object[]>(data: A, getColors: (data: A) => {valueColor: Chalk, keyColor: Chalk}, keys: string[]) => {
+  const colors = getColors(data);
+
+  let output = '';
+  const meta = getMeta(data, keys);
+  for (const item of data) {
+    console.log(printItemColumns(item, colors, keys, meta));
+  }
+
+  return colors.keyColor(output);
+}
+
 
 export const pick = <T extends {}, K extends keyof T>(obj: T, ...keys: K[]) => (
   Object.fromEntries(

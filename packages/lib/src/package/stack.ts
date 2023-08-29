@@ -129,9 +129,6 @@ export class StackModule extends PackageModule {
   }
 
   async deploy(deployOptions: any, options: any) {
-
-    //const deployCmd = this.pkg.createCmd(`cenv deploy ${this.pkg.packageName} --stack`);
-
     if (this.needsAutoDelete()) {
       await this.destroy();
     }
@@ -145,7 +142,6 @@ export class StackModule extends PackageModule {
       if (this.meta.deployStack) {
         return await this.pkg.pkgCmd(this.meta.deployStack, opt);
       }
-
 
       let deployCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DEPLOY)];
       let skip = false;
@@ -199,7 +195,7 @@ export class StackModule extends PackageModule {
         if (!this.pkg?.params?.varsLoaded) {
           await this.pkg.params.loadVars();
         }
-        opt.cenvVars = { ...this.pkg.params.cenvVars, ...opt.cenvVars };
+        opt.cenvVars = { ...opt.cenvVars, ...this.pkg.params.cenvVars };
       }
 
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {

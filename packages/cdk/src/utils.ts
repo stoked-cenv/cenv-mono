@@ -13,7 +13,7 @@ export function tagStack(stack: Stack) {
   tagIfExists(stack, 'CENV_PKG_VERSION');
   tagIfExists(stack, 'CENV_PKG_DIGEST');
   tagIfExists(stack, 'CENV_ENVIRONMENT', 'ENV');
-  tagIfExists(stack, 'CENV_APPLICATION_NAME', 'APPLICATION_NAME');
+  tagIfExists(stack, 'CENV_APPLICATION_NAME');
 }
 
 export function tagIfExists(stack: Stack, EnvVar: string, EnvVarValue?: string) {

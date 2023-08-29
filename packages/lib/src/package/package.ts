@@ -438,6 +438,8 @@ export interface PackageNameComponents {
   packageName: string
 }
 
+export interface EnvPackageSummary { name: string, version: SemVer, status: string, modules:string[] }
+
 export class Package implements IPackage {
   static loading = true;
   static deployment: any;
@@ -643,8 +645,8 @@ export class Package implements IPackage {
     return components;
   }
 
-  get envSummary() {
-    let res: any = { name: this.name, ...this.summary };
+  get envSummary(): EnvPackageSummary {
+    let res: any = { name: this.name, version: this.moduleVersion, status: this.environmentStatus, modules: Object.values(this.modules).map(m => m.type) };
     delete res.stackName;
     return res;
   }
@@ -813,7 +815,7 @@ export class Package implements IPackage {
   }
 
   static async checkStatus(targetMode?: string, endStatus?: ProcessStatus, silent = false) {
-    await DockerModule.dockerPrefight(Object.values(Package.cache));
+    await DockerModule.dockerPrefight(Object.values(Package.cache), silent);
     for (const p of Object.values(Package.cache)) {
       await p?.checkStatus(targetMode, endStatus, silent);
     }

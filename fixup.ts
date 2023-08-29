@@ -1,5 +1,6 @@
-import path from 'path';
+import {join} from 'path';
 import { writeFileSync } from 'fs';
+import * as util from "util";
 
 export default class Fixup {
   static tsPackages = ['lib', 'ui', 'cdk', 'cli'];
@@ -11,10 +12,8 @@ export default class Fixup {
 
   static loadMetas(root: string, packageDirs: string[]) {
     const metas: Record<string, any> = {};
-    console.log('root', root);
-    console.log('packageDirs', packageDirs);
     for (const dir of packageDirs) {
-      const pkgPath = path.join(process.cwd(), root, dir, 'package.json');
+      const pkgPath = join(process.cwd(), root, dir, 'package.json');
       const meta = require(pkgPath);
       metas[meta.name] = { meta, path: pkgPath };
     }
@@ -50,14 +49,14 @@ export default class Fixup {
   static updateDeps(metas: Record<string, any>, fixupMetas?: Record<string, any>) {
     const metasToFix = fixupMetas ? fixupMetas : metas;
     for (const name in metasToFix) {
-      console.log('fixing deps: ', name, metasToFix[name].path);
-      if (metasToFix[name].meta.peerDependencies) {
+      console.log('fixing deps: ', name);
+      if (metasToFix[name].meta?.peerDependencies) {
         metasToFix[name].meta.peerDependencies = this.updateDepType(metas, metasToFix[name].meta.peerDependencies);
       }
-      if (metasToFix[name].meta.dependencies) {
+      if (metasToFix[name].meta?.dependencies) {
         metasToFix[name].meta.dependencies = this.updateDepType(metas, metasToFix[name].meta.dependencies);
       }
-      if (metasToFix[name].meta.devDependencies) {
+      if (metasToFix[name].meta?.devDependencies) {
         metasToFix[name].meta.devDependencies = this.updateDepType(metas, metasToFix[name].meta.devDependencies);
       }
       writeFileSync(metasToFix[name].path, JSON.stringify(metasToFix[name].meta, null, 2));

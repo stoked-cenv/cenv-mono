@@ -38,7 +38,7 @@ export class DockerModule extends PackageModule {
     return { active: info.Server !== null, info };
   }
 
-  static async dockerPrefight(pkgs: Package[]) {
+  static async dockerPrefight(pkgs: Package[], silent = false) {
     // if deploying check to see if there are any docker packages if so verify docker is running
     if (isOsSupported() && pkgs.filter((p: Package) => p.docker).length) {
       //if (Cenv.dashboard) Cenv.dashboard.debug('docker status 1');
@@ -63,7 +63,9 @@ export class DockerModule extends PackageModule {
           CenvLog.info(JSON.stringify(dockerStatus.info, null, 2), 'docker daemon active');
         }
       } else {
-        CenvLog.single.infoLog('verified that docker is running');
+        if (!silent) {
+          CenvLog.single.infoLog('verified that docker is running');
+        }
       }
     }
   }

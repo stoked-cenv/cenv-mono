@@ -13,7 +13,7 @@ import {
   getPolicy,
   getRole,
 } from './aws/iam';
-import {EnvironmentStatus, Package, PackageCmd, ProcessStatus} from './package/package';
+import {EnvironmentStatus, EnvPackageSummary, Package, PackageCmd, ProcessStatus} from './package/package';
 import {createFunction, deleteFunction, getFunction} from './aws/lambda';
 import {createDeploymentStrategy, getDeploymentStrategy,} from './aws/appConfig';
 import {CenvParams} from './params';
@@ -28,7 +28,8 @@ import {Deployment} from './deployment';
 import {cmdInit, parseCmdParams} from './cli';
 import {sleep} from './utils';
 import {Config} from './config';
-import {getMeta, printColumns} from "./types";
+import {getMeta, printItemColumns} from "./types";
+import {SemVer} from "semver";
 
 export interface BaseCommandOptions {
   profile?: string;
@@ -129,6 +130,8 @@ export interface StackProc {
   proc: child.ChildProcess
   stackName?: string
 }
+
+
 
 export class CommandInfo {
   // parsed arguments
@@ -241,11 +244,11 @@ export class Cenv {
     const vals = Object.values(env.packages).flat(1);
     const keys = Object.keys(vals[0].envSummary);
     const meta = getMeta(vals.map((p: Package) => p.envSummary), Object.keys(vals[0].envSummary));
-    const getColors = (pkg: Package) => {
+    const getColors = (pkg: EnvPackageSummary) => {
       const incomplete = CenvLog.single.colorType('incomplete');
       const deployed = CenvLog.single.colorType('deployed');
 
-      if (pkg.environmentStatus === EnvironmentStatus.UP_TO_DATE) {
+      if (pkg.status === EnvironmentStatus.UP_TO_DATE) {
         return {valueColor: deployed?.color!, keyColor: deployed?.highlight!};
       }
       return {valueColor: incomplete?.color!, keyColor: incomplete?.highlight!};
@@ -254,9 +257,16 @@ export class Cenv {
     for (const [packageName, packages] of Object.entries(env.packages) as [string, Package[]][]) {
       const showInstances = packages.length !== 1;
       if (showInstances) {
-        console.log(packageName);
+        const pkgComponent = packageName.split('|');
+        console.log(CenvLog.colors.info(`${pkgComponent[0]} ${pkgComponent[1]} instances:`));
       }
-      packages.map((p) => console.log((showInstances ? '\t' : '') + printColumns(p.envSummary, getColors,  keys, meta)));
+      packages.map((p) => {
+        console.log((showInstances ? '\t' : '') + printItemColumns(p.envSummary, getColors(p.envSummary),  keys, meta))
+        if (p.envSummary.status !== EnvironmentStatus.UP_TO_DATE) {
+          const tabs = showInstances ? '\t\t' : '\t';
+          console.log(p.status.incomplete.map((i) => `${tabs}${i}`).join('\n'));
+        }
+      });
     }
   }
 

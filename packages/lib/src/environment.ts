@@ -6,6 +6,7 @@ import {StackSummary, Stack } from '@aws-sdk/client-cloudformation';
 import { CenvFiles } from './file';
 import {semVerParse} from "./utils";
 import {StackModule} from "./package/stack";
+import {SemVer} from "semver";
 
 export class Environments {
   static cache: { [environmentName: string]: Environment } = {};
@@ -87,10 +88,17 @@ export class Environment {
     this.stacks = await Environment.getStackInfos(this.name)
     this.stacks.map((s) => {
       if (s.package) {
-        if (!this.packages[s.package.packageName]) {
-          this.packages[s.package.packageName] = [];
+        if (s.package.component) {
+          if (!this.packages[s.package.package + '|' + s.package.component]) {
+            this.packages[s.package.package + '|' + s.package.component] = [];
+          }
+          this.packages[s.package.package + '|' + s.package.component].push(s.package);
+        } else {
+          if (!this.packages[s.package.package]) {
+            this.packages[s.package.package] = [];
+          }
+          this.packages[s.package.package].push(s.package);
         }
-        this.packages[s.package.packageName].push(s.package);
       }
     });
   }
