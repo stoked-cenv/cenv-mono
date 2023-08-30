@@ -137,9 +137,9 @@ export class LibModule extends PackageModule {
 
   async deploy(force = false, completedWhenDone = false) {
     await this.build(force, completedWhenDone);
-    //if (this.isPublishable) {
-    //  await this.publish();
-    //}
+    if (this.isPublishable) {
+      await this.publish();
+    }
   }
 
   async updatePublishedStatus(silent = false) {
@@ -159,14 +159,14 @@ export class LibModule extends PackageModule {
 
   async publish() {
     await this.updatePublishedStatus();
-    if (this.publishedVersion === this.version) {
+    if (this.publishedVersion?.toString() === this.version.toString()) {
       return;
     }
     const publishCmdString = `cenv lib publish ${this.name} (not implemented yet)`;
     const publishCmd = this.pkg.createCmd(publishCmdString);
     try {
       const opt = { cenvVars: {}, pkgCmd: publishCmd };
-      const res = await this.pkg.pkgCmd(`npm publish --access public --publish version $(git rev-parse --abbrev-ref HEAD)`, {
+      const res = await this.pkg.pkgCmd(`npm publish --access public`, {
         packageModule: this, redirectStdErrToStdOut: false, ...opt,
       });
       publishCmd.result(res.res !== undefined ? res.res : res);

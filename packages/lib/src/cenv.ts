@@ -244,6 +244,10 @@ export class Cenv {
     const vals = Object.values(env.packages).flat(1);
     const keys = Object.keys(vals[0].envSummary);
     const meta = getMeta(vals.map((p: Package) => p.envSummary), Object.keys(vals[0].envSummary));
+    if (!meta) {
+      CenvLog.single.errorLog('could not create column meta for profile results');
+      return;
+    }
     const getColors = (pkg: EnvPackageSummary) => {
       const incomplete = CenvLog.single.colorType('incomplete');
       const deployed = CenvLog.single.colorType('deployed');

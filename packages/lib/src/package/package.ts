@@ -1069,7 +1069,7 @@ export class Package implements IPackage {
         await this.docker?.deploy(options);
       }
 
-      if (true) {
+      if (this.isStackDeploy(deployOptions)) {
         await this.stack?.deploy(deployOptions, options);
       }
     } catch (ex) {

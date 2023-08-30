@@ -136,7 +136,7 @@ export class StackModule extends PackageModule {
     await runScripts(this, this.meta.postDeployScripts);
 
     if (!process.env.CENV_SKIP_CDK) {
-      const opt = await this.getOptions(deployOptions, ProcessMode.DEPLOY);
+      const opt = await this.getOptions({}, ProcessMode.DEPLOY);
       await this.resetVolatileKeys(opt);
 
       if (this.meta.deployStack) {
@@ -158,7 +158,8 @@ export class StackModule extends PackageModule {
         CenvLog.single.infoLog(inspect({...opt, dashboardOptions: undefined,  }));
       }
       deployCommand += ` -o ${this.getCdkOut()}`;
-      console.log(this.pkg.packageName, 'cenvVars', JSON.stringify(opt.cenvVars));
+      //console.log(this.pkg.packageName, 'cenvVars', JSON.stringify(opt.cenvVars));
+      CenvLog.single.infoLog('cenvVars: ' + JSON.stringify(opt.cenvVars, null, 2));
       if (!skip) {
         await this.pkg.pkgCmd(deployCommand, opt);
       }
@@ -184,7 +185,8 @@ export class StackModule extends PackageModule {
   getCdkOut() {
     let cdkOutPath = this.path;
     if (this.pkg.component) {
-      cdkOutPath = `${CenvFiles.getMonoRoot()}/packages/${this.pkg.component}`;
+      const instance = this.pkg.instance;
+      cdkOutPath = `${CenvFiles.getMonoRoot()}/packages/${instance ? instance + '/' : ''}${this.pkg.component}`;
     }
     return `${cdkOutPath}/env.cdk.out/${CenvFiles.ENVIRONMENT}/cdk.out`;
   }

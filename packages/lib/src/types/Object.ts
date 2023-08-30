@@ -1,4 +1,5 @@
 import {Chalk} from "chalk";
+import {CenvLog} from "../log";
 
 export const getValue = <T extends Object>(dataItem: T, key: string) => {
   let currentData = JSON.parse(JSON.stringify(dataItem));
@@ -11,7 +12,9 @@ export const getValue = <T extends Object>(dataItem: T, key: string) => {
 
 const printKey = (dataItem: Object, meta: Record<string, number>, key: string, valueColor: Chalk, valueOnly: boolean = false) => {
   const value = getValue(dataItem, key);
-  if (valueOnly) {
+  if (value === undefined) {
+    return '';
+  } else if (valueOnly) {
     return `${valueColor(value.toString().padEnd(meta[key], ' '))}\t`;
   }
   return `${key.split('.').pop()}: ${valueColor(value.toString().padEnd(meta[key], ' '))}\t`;
@@ -20,7 +23,7 @@ const printKey = (dataItem: Object, meta: Record<string, number>, key: string, v
 const updateMeta = <T extends Object>(dataItem: T, keys: string[] = [], meta: Record<string, number> = {}) => {
   for (const key of keys) {
     const value = getValue(dataItem, key);
-    if (!meta[key] || meta[key] < value.toString().length) {
+    if (value && (!meta[key] || meta[key] < value.toString().length)) {
       meta[key] = value.toString().length;
     }
   }
@@ -29,24 +32,32 @@ const updateMeta = <T extends Object>(dataItem: T, keys: string[] = [], meta: Re
 
 export const getMeta = (data: Object[], keys: string[] = []) => {
   let meta: Record<string, number> = {};
-  for (const dataItem of data) {
-    meta = updateMeta(dataItem, keys, meta);
+  try {
+    for (const dataItem of data) {
+      meta = updateMeta(dataItem, keys, meta);
+    }
+  } catch(e) {
+    CenvLog.single.catchLog(e);
   }
   return meta;
 }
 
 export const printItemColumns = <T extends Object>(data: T, colors: {valueColor: Chalk, keyColor: Chalk}, keys: string[], meta: Record<string, number>, keyToString?: (dataItem: Object, meta: Record<string, number>, key: string, valueColor: Chalk, valueOnly: boolean) => string) => {
-  if (!keyToString) {
-    keyToString = printKey;
-  }
-
   let output = '';
-  let initialKey = true;
-  for (const key of keys) {
-    output += keyToString(data, meta, key, colors.valueColor, initialKey);
-    initialKey = false;
-  }
+  try {
+    if (!keyToString) {
+      keyToString = printKey;
+    }
 
+    let initialKey = true;
+    for (const key of keys) {
+      output += keyToString(data, meta, key, colors.valueColor, initialKey);
+      initialKey = false;
+    }
+
+  } catch(e) {
+    CenvLog.single.catchLog(e);
+  }
   return colors.keyColor(output);
 }
 

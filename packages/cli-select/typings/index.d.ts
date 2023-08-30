@@ -25,17 +25,17 @@ interface Options<T> {
   outputStream?: NodeJS.WriteStream,
   inputStream?: NodeJS.WriteStream,
   values: ValuesObject<T> | ValuesArray<T>,
-  defaultValue?: Index,
+  selectedValue?: Index,
   selected?: string,
   unselected?: string,
   indentation?: number,
   cleanup?: boolean,
   valueRenderer?: ValueRenderer<T>,
-  keyFunctions?: { keys: string[], func?: (values: any[], selectedValue: any, render: () => void) => void, legend: string}[],
+  keyFunctions?: { keys: string[], func?: (values: any[], selectedValue: any, render: () => void) => boolean, legend: string}[],
   legend?: boolean,
   legendColors?: any,
   onCancel?: () => void,
-  onClose?: (values: any[]) => Promise<void>,
+  onClose?: (values: any[], originallySelected: number, selected: number) => Promise<void>,
 }
 
 type creatorPromise = <T> (options: Options<T>) => Promise<ResolvedValue<T>>;
