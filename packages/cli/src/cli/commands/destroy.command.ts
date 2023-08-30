@@ -10,9 +10,13 @@ import { BaseCommand } from './base.command';
 
          })
 export class DestroyCommand extends BaseCommand {
-  deploymentMode = ProcessMode.DESTROY;
-  allowUI = true;
-  packageRequired = true;
+
+  constructor() {
+    super();
+    this.config.packagesRequired = true;
+    this.config.allowRootPackage = false;
+    this.config.deploymentMode = ProcessMode.DESTROY;
+  }
 
   @Option({
             flags: '-s, --stack', description: `Destroy stack`,

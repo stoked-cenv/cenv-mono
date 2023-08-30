@@ -152,7 +152,7 @@ export class DockerModule extends PackageModule {
         }
 
         // verify that the digest exists in the docker repo
-        await this.verifyDigest();
+        await this.verifyDigest(digestRes);
       },
     };
 
@@ -407,9 +407,21 @@ export class DockerModule extends PackageModule {
     this.printCheckStatusComplete(silent);
   }
 
-  private async verifyDigest() {
+  private async verifyDigest(pushDigest: string) {
     let digestFound = false;
     let attempts = 0;
+    const lastCmdLines = this.pkg.cmds[this.pkg.cmds.length - 1].stdout?.split('\n');
+    if (lastCmdLines) {
+      for (let i = lastCmdLines.length - 1; i > 0; --i) {
+        const ln = lastCmdLines[i];
+        if (ln.indexOf('latest: digest: sha256') !== -1) {
+          const startDigestIndex = ln.indexOf('sha256');
+          const restOfLine = ln.substring(startDigestIndex);
+          this.digest = restOfLine.substring(0, restOfLine.indexOf(' '));
+          break;
+        }
+      }
+    }
     const maxAttempts = 5;
     const attemptWaitSeconds = 2;
     while (!digestFound) {

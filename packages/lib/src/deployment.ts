@@ -52,7 +52,7 @@ export class Deployment {
     if (!Deployment.toggleDependencies) {
       return;
     }
-
+    //console.log('\tadd dependency', pkg.packageName);
     Package.getPackages().find((p: Package) => p.deployDependencies?.find((dep: Package) => {
       if (dep.packageName === pkg.packageName) {
         const deployDependency = this.getDeployDependency(p, pkg);
@@ -146,7 +146,7 @@ export class Deployment {
       if (pkg.isGlobal) {
         return;
       }
-      this.setDeployStatus(pkg, ProcessStatus.PROCESSING);
+      //this.setDeployStatus(pkg, ProcessStatus.PROCESSING);
 
       const processRes = await this.cmd(pkg, message, {
         envVars, getCenvVars: this.isDestroy() ? false : pkg.params?.hasCenvVars,
@@ -174,7 +174,6 @@ export class Deployment {
   }
 
   static packageDone(pkg: Package) {
-    return false;
     if (this.options.force) {
       return false;
     }
@@ -274,19 +273,26 @@ export class Deployment {
     return { dependency, reference };
   }
 
-  static async setDeploymentDependencies(packageInfo: Package) {
+  static setDeploymentDependencies(packageInfo: Package) {
     packageInfo.deployDependencies = this.getProcessDependencies(packageInfo);
-    if (packageInfo.deployDependencies) {
-      await Promise.all(packageInfo.deployDependencies.map(async (d) => {
+    if (packageInfo.deployDependencies?.length) {
+      //console.log('\n\n', packageInfo.packageName, 'deployDependencies', packageInfo.deployDependencies.map(d => d.packageName).join(', '));
+      packageInfo.deployDependencies.map((d) => {
         const { dependency, reference } = this.getDeployDependency(packageInfo, d);
         if (!this.dependencies[dependency.stackName]) {
           this.dependencies[dependency.stackName] = { package: dependency, dependencies: [reference] };
         }
+
         this.dependencies[dependency.stackName].dependencies = this.dependencies[dependency.stackName].dependencies.filter((d: Package) => d.stackName !== reference.stackName);
         this.dependencies[dependency.stackName].dependencies.push(reference);
+        //console.log('set dependency', dependency.stackName, '=>', reference.stackName);
+        //console.log('dependencies', this.dependencies[dependency.stackName].dependencies?.length);
         d.deployDependencies = this.getProcessDependencies(d);
-        await this.setDeploymentDependencies(d);
-      }));
+        //console.log('dependencies', this.dependencies[dependency.stackName].dependencies?.length);
+        this.setDeploymentDependencies(d);
+        //console.log('dependencies', this.dependencies[dependency.stackName].dependencies?.length);
+
+      });
     }
   }
 
@@ -369,7 +375,6 @@ export class Deployment {
   static setDeploymentStatuses() {
     const packages = Package.getPackages();
     packages.map((p: Package) => {
-
       const done = Deployment.processDone(p);
       if (done) {
         p.setDeployStatus(ProcessStatus.COMPLETED);
@@ -381,6 +386,8 @@ export class Deployment {
         }
       });
     });
+    //console.log('this.dependencies 2', Object.keys(this.dependencies).join(', '), 'references', Object.values(this.dependencies).map(d =>
+    // d.dependencies.map(d => `${d.stackName}:${d.processStatus}`)).join(', '));
 
     const allPackages = Package.getPackages();
     allPackages.map((p: Package) => {
@@ -393,10 +400,15 @@ export class Deployment {
       }
     });
 
+    //console.log('this.dependencies 3', Object.keys(this.dependencies).join(', '), 'references', Object.values(this.dependencies).map(d =>
+    // d.dependencies.map(d => `${d.stackName}:${d.processStatus}`)).join(', '));
+
     Object.values(this.dependencies).map((depNode: DeploymentDependencies) => {
-      if (depNode.package.deployDependencies) {
-        const dependenciesToProcess = depNode.package.deployDependencies.filter((dep: Package) => !this.processDone(dep));
+      if (depNode.dependencies) {
+        //console.log(depNode.package.packageName, '.deployDependencies', depNode.dependencies.length);
+        const dependenciesToProcess = depNode.dependencies.filter((dep: Package) => !this.processDone(dep));
         const hasDependenciesToProcess = !!dependenciesToProcess?.length;
+        //console.log('hasDependenciesToProcess', hasDependenciesToProcess);
         if (this.processDone(depNode.package) || !hasDependenciesToProcess) {
           delete this.dependencies[depNode.package.stackName];
         } else if (Deployment.toggleDependencies && hasDependenciesToProcess) {
@@ -436,18 +448,26 @@ export class Deployment {
         await Promise.allSettled(items.map(async (p: Package) => p.checkStatus(this.options.mode)));
       }
       this.processItems = items;
-      await Promise.allSettled(items.map(async (i) => {
+      if (process.env.CENV_PROCESS_TEST) {
+        Package.getPackages().map(p => p.environmentStatus = this.isDeploy() ? EnvironmentStatus.NOT_DEPLOYED : EnvironmentStatus.UP_TO_DATE);
+      }
+      items.map(async (i) => {
         i.statusTime = Date.now();
         if (this?.options?.dependencies) {
-          await this.setDeploymentDependencies(i);
+          this.setDeploymentDependencies(i);
+          //console.log(i.packageName,'dependencies', i.deployDependencies?.map(d => d.packageName).join(', '));
         }
-      }));
+      });
+      //console.log('this.dependencies 1', Object.keys(this.dependencies).join(', '), 'references', Object.values(this.dependencies).map(d =>
+      // d.dependencies.map(d => `${d.stackName}:${d.processStatus}`)).join(', '));
 
       this.setDeploymentStatuses();
+      //console.log('this.dependencies after', Object.keys(this.dependencies).join(', '), 'references', Object.values(this.dependencies).map(d =>
+      // d.dependencies.map(d => `${d.stackName}:${d.processStatus}`)).join(', '));
+
       Package.getPackages().map(p => {
         if (p.processStatus === ProcessStatus.INITIALIZING) {
-          p.checkStatus(this.options.mode)
-          p.processStatus = ProcessStatus.SKIPPED;
+          p.checkStatus(this.options.mode, ProcessStatus.SKIPPED)
         }});
       this.logStatus('processInit()');
       await this.start();

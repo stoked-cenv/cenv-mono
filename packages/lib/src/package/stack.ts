@@ -148,7 +148,8 @@ export class StackModule extends PackageModule {
       if (deployOptions.force) {
         deployCommand += ' --force';
         let diffCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DIFF)];
-        const diffRes = await this.pkg.pkgCmd(diffCommand,  {...opt, failOnError: false, returnOutput: true});
+        CenvLog.single.infoLog('opt' + JSON.stringify(opt, null, 2));
+        const diffRes = await this.pkg.pkgCmd(diffCommand,  {...opt, failOnError: false, returnOutput: false});
         if (diffRes.stdout === "") {
           skip = true;
         }
@@ -231,7 +232,7 @@ export class StackModule extends PackageModule {
         }
 
          */
-        opt.cenvVars.CENV_PKG_DIGEST = this.pkg.docker.latestImage?.imageDigest;
+        opt.cenvVars.CENV_PKG_DIGEST = this.pkg.docker.digest || this.pkg.docker.latestImage?.imageDigest;
         opt.cenvVars.CENV_DOCKER_NAME = this.pkg.docker.dockerName;
       }
       if (this.meta?.cenv?.stack?.assignedSubDomain) {

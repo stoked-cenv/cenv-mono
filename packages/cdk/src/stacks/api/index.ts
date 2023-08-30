@@ -22,6 +22,7 @@ const { ROOT_DOMAIN, APP, CENV_SUBDOMAIN, ASSIGNED_DOMAIN, DOMAIN, CENV_DOCKER_N
 console.log('ROOT_DOMAIN, APP, CENV_SUBDOMAIN, ASSIGNED_DOMAIN, DOMAIN, CENV_DOCKER_NAME', ROOT_DOMAIN, APP, CENV_SUBDOMAIN, ASSIGNED_DOMAIN, DOMAIN, CENV_DOCKER_NAME)
 console.log('environment variables', JSON.stringify(envVars.allSafe, null, 2));
 
+
 new ECSServiceStack({
                       env: CenvFiles.ENVIRONMENT,
                       subdomain,

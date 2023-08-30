@@ -868,6 +868,7 @@ export class ParamsModule extends PackageModule {
       CenvLog.single.stdLog(CenvLog.colors.success(`updated ${updatedCount} parameters`));
     }
 
+    CenvLog.single.stdLog('push with materialize: ' + materialize.toString());
     if (materialize) {
       await this.materialize();
     }

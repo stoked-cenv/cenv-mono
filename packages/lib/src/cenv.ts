@@ -144,6 +144,7 @@ export class CommandInfo {
   allowUI = true;
   allowPackages = true;
   allowLocalPackage = true;
+  allowRootPackage = true;
 
   // command prerequisites
   packagesRequired = true;

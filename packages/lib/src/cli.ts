@@ -42,13 +42,17 @@ export async function parseCmdParams(params: string[], options: any, cmdInfo: Co
 
   let pkgs: Package[] = [];
   if (cmdInfo.allowLocalPackage) {
-    const packageFile = path.resolve('./package.json');
-    if (existsSync(packageFile)) {
-      const packageName = require(packageFile).name;
-      const pkg = Package.fromPackageName(packageName, true);
-      pkg.root = options.root;
-      if (!pkg.invalid) {
-        pkgs.push(pkg);
+    const root = CenvFiles.getMonoRoot();
+    const isMonoRoot = root && root === process.cwd();
+    if ((isMonoRoot && cmdInfo.allowRootPackage) || !isMonoRoot) {
+      const packageFile = path.resolve('./package.json');
+      if (existsSync(packageFile)) {
+        const packageName = require(packageFile).name;
+        const pkg = Package.fromPackageName(packageName, true);
+        pkg.root = options.root;
+        if (!pkg.invalid) {
+          pkgs.push(pkg);
+        }
       }
     }
   }

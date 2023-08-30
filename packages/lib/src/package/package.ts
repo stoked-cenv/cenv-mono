@@ -1521,7 +1521,7 @@ export class Package implements IPackage {
       if (options.failOnError === undefined) {
         options.failOnError = true;
       }
-
+      options.pkgCmd?.out(options.pkgPath, cmd);
       const res = await spawnCmd(options.pkgPath, cmd, cmd, options, this);
 
       if (options.pkgCmd?.running) {
