@@ -118,7 +118,7 @@ importers:
         specifier: ^2.41.0
         version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.93
+        specifier: ^2.0.0-a.97
         version: link:../lib
       aws-cdk:
         specifier: 2.43.1
@@ -188,10 +188,10 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0(@nestjs/common@10.0.0)(@nestjs/core@10.0.0)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.93
+        specifier: ^2.0.0-a.97
         version: link:../lib
       '@stoked-cenv/ui':
-        specifier: ^2.0.0-a.93
+        specifier: ^2.0.0-a.97
         version: link:../ui
       eslint:
         specifier: ^8.45.0
@@ -369,6 +369,9 @@ importers:
       '@aws-sdk/client-sts':
         specifier: ^3.370.0
         version: 3.379.1
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.370.0
+        version: 3.370.0
       '@aws-sdk/util-utf8-node':
         specifier: ^3.259.0
         version: 3.259.0
@@ -382,7 +385,7 @@ importers:
         specifier: ^10.0.0
         version: 10.1.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@stoked-cenv/cli-select':
-        specifier: ^2.0.0-a.93
+        specifier: ^2.0.0-a.97
         version: link:../cli-select
       ajv:
         specifier: ^8.12.0
@@ -467,7 +470,7 @@ importers:
         specifier: ^3.259.0
         version: 3.259.0
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.93
+        specifier: ^2.0.0-a.97
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0
@@ -1966,6 +1969,22 @@ packages:
       tslib: 2.6.1
     dev: false
 
+  /@aws-sdk/s3-request-presigner@3.370.0:
+    resolution: {integrity: sha512-ilTf+Q3nEKBd6soJo8cAGDCoRV6ggLYxUHqLyVXreMsio9rog7H2ePbFtO9gtbwUGR46gqgDQyIf+7i7yAuP6A==}
+    engines: {node: '>=14.0.0'}
+    dependencies:
+      '@aws-sdk/signature-v4-multi-region': 3.370.0
+      '@aws-sdk/types': 3.370.0
+      '@aws-sdk/util-format-url': 3.370.0
+      '@smithy/middleware-endpoint': 1.1.0
+      '@smithy/protocol-http': 1.2.0
+      '@smithy/smithy-client': 1.1.0
+      '@smithy/types': 1.2.0
+      tslib: 2.6.1
+    transitivePeerDependencies:
+      - '@aws-sdk/signature-v4-crt'
+    dev: false
+
   /@aws-sdk/signature-v4-multi-region@3.370.0:
     resolution: {integrity: sha512-Q3NQopPDnHbJXMhtYl0Mfy5U2o76K6tzhdnYRcrYImY0ze/zOkCQI7KPC4588PuyvAXCdQ02cmCPPjYD55UeNg==}
     engines: {node: '>=14.0.0'}
@@ -2070,6 +2089,16 @@ packages:
     engines: {node: '>=14.0.0'}
     dependencies:
       '@aws-sdk/types': 3.378.0
+      tslib: 2.6.1
+    dev: false
+
+  /@aws-sdk/util-format-url@3.370.0:
+    resolution: {integrity: sha512-6ik8UTT5hNlMnATrqWiQWnIZ0EFW8wVsRGyYUYw/geB3lQ+WAWflpJg+gZiJnc5EY4R0aOzRVm02W8EUeH8f5g==}
+    engines: {node: '>=14.0.0'}
+    dependencies:
+      '@aws-sdk/types': 3.370.0
+      '@smithy/querystring-builder': 1.1.0
+      '@smithy/types': 1.2.0
       tslib: 2.6.1
     dev: false
 

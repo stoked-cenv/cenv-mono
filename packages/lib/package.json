@@ -29,6 +29,7 @@
     "@aws-sdk/client-sns": "^3.370.0",
     "@aws-sdk/client-ssm": "^3.370.0",
     "@aws-sdk/client-sts": "^3.370.0",
+    "@aws-sdk/s3-request-presigner": "^3.370.0",
     "@aws-sdk/util-utf8-node": "^3.259.0",
     "@aws-sdk/util-waiter": "^3.370.0",
     "@base2/pretty-print-object": "^1.0.2",
