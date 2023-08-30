@@ -10,6 +10,7 @@ export * from './aws/route53';
 export * from './aws/iam';
 export * from './aws/sts';
 export * from './aws/ec2';
+export * from './aws/s3';
 export * from './params';
 export * from './utils';
 export * from './configDefaults';
