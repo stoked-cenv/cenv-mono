@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.96",
+  "version": "2.0.0-a.97",
   "scripts": {
     "cenv": "nx run @stoked-cenv/cli:cenv",
     "publish:link": "pnpm run build",
