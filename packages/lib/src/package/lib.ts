@@ -225,8 +225,8 @@ export class LibModule extends PackageModule {
     } catch (e) {
       if (e instanceof Error) {
         CenvLog.single.errorLog(e.stack || 'build failed', this.pkg.stackName, true);
+        throw e;
       }
-      return false;
     }
   }
 

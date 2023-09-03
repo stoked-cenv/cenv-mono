@@ -16,5 +16,6 @@
     <orderEntry type="module" module-name="cli" />
     <orderEntry type="module" module-name=".cenv" />
     <orderEntry type="module" module-name="stokedconsulting.com" />
+    <orderEntry type="module" module-name="internal" />
   </component>
 </module>

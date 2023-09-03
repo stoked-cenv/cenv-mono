@@ -14,7 +14,8 @@ let _sync: (source: string, target: string, options?: SyncOptions) => Promise<Sy
 export interface BucketObject  {
   key: string,
   size: number,
-  date: Date
+  date: Date,
+  url?: string
 }
 function getClient() {
   if (_client) {

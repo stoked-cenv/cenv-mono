@@ -24,21 +24,14 @@ import * as yaml from 'js-yaml';
 import { deleteParametersByPath, stripPath, upsertParameter } from './parameterStore';
 import {CenvLog} from '../log';
 import {isString} from '../utils';
-import { CenvFiles, EnvConfig, IEnvConfig } from '../file';
+import { CenvFiles, IEnvConfig } from '../file';
 import { ParamsModule } from '../package/params';
 
-let _client: AppConfigClient;
 
 function getClient() {
-  if (_client) {
-    return _client;
-  }
-  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
-  _client = new AppConfigClient({
-                                  region: AWS_REGION, endpoint: AWS_ENDPOINT
-                                });
-  return _client;
+  const {AWS_REGION, AWS_ENDPOINT} = process.env;
+  return new AppConfigClient({region: AWS_REGION, endpoint: AWS_ENDPOINT});
 }
 
 export async function createApplication(name: string): Promise<{ Id: string, exists: boolean }> {

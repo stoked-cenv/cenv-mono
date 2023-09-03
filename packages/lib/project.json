@@ -6,10 +6,11 @@
     "build": {
       "executor": "@nx/js:tsc",
       "options": {
-        "outputPath": "dist/lib",
-        "baseUrl": "packages/lib/src",
-        "main": "packages/lib/src/index.ts",
-        "tsConfig": "packages/lib/tsconfig.build.json",
+        "outputPath": "./dist/lib",
+        "rootDir": "./packages/lib",
+        "baseUrl": "./packages/lib/src",
+        "main": "./packages/lib/src/index.ts",
+        "tsConfig": "./packages/lib/tsconfig.build.json",
         "deleteOutputPath": true
       }
     },

@@ -39,6 +39,7 @@ export * from './proc'
 export * from './cli'
 export * from './config'
 export * from './initNew'
+export * from './fixup'
 
 export {toUtf8} from '@aws-sdk/util-utf8-node';
 
