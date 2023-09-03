@@ -4,7 +4,7 @@ import * as child from 'child_process';
 import { lstatSync, readdirSync, readFileSync } from 'fs';
 import * as os from 'os';
 import { Package, PackageCmd, ProcessStatus } from './package/package';
-import * as fsp from 'fs/promises';
+import * as fsp from 'node:fs/promises';
 import * as semver from 'semver';
 import { RangeOptions } from 'semver';
 import { createHash } from 'crypto';

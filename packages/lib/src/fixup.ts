@@ -2,7 +2,7 @@ import {join} from 'path';
 import { writeFileSync } from 'fs';
 import * as util from "util";
 
-export default class Fixup {
+export class Fixup {
   static tsPackages = ['lib', 'ui', 'cdk', 'cli'];
   static allPackages = [...Fixup.tsPackages, 'cli-select'];
   static examplePackages = ['api', 'globals', 'spa'];

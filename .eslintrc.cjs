@@ -8,8 +8,9 @@ module.exports = {
             jsx: true,
             tsx: true
         },
-        ecmaVersion: 2015
+        ecmaVersion: 2020
     },
+    plugins: ['@typescript-eslint'],
     root: true,
     rules: {
         '@typescript-eslint/interface-name-prefix': 'off',

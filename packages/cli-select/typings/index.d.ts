@@ -25,7 +25,7 @@ interface Options<T> {
   outputStream?: NodeJS.WriteStream,
   inputStream?: NodeJS.WriteStream,
   values: ValuesObject<T> | ValuesArray<T>,
-  selectedValue?: Index,
+  defaultValue?: Index,
   selected?: string,
   unselected?: string,
   indentation?: number,

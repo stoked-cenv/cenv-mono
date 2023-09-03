@@ -331,7 +331,7 @@ export class Config {
       }
     }
     const selectedProfile = await cliSelect({
-      selectedValue: selectedIndex,
+      defaultValue: selectedIndex,
       keyFunctions,
       onCancel,
       onClose,
