@@ -16,6 +16,7 @@ export class UICommand extends BaseCommand {
   constructor() {
     super();
     this.config.allowLocalPackage = false;
+    this.config.allowUI = true;
   }
 
   @Option({

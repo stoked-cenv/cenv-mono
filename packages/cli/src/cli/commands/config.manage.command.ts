@@ -9,7 +9,7 @@ export class ManageConfigCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
     this.config.configRequired = false;
     this.config.allowPackages = false;
     this.config.cenvRootRequired = false;

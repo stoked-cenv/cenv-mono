@@ -1,7 +1,9 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { tagStack } from '../../index';
+import {SSM} from "aws-sdk";
 
 const {
   ENV,
@@ -57,6 +59,12 @@ export class NetworkStack extends Stack {
 
     vpc.addInterfaceEndpoint(`${ENV}-erc-api-ep`, {
       service: ec2.InterfaceVpcEndpointAwsService.ECR,
+    });
+
+    new ssm.StringListParameter(this, `${ENV}-network-refs`, {
+      parameterName: `/component/${process.env.ENV}/cdk-network/refs`,
+      description: "references to this component",
+      stringListValue: [process.env.APP!],
     });
 
     this.exportValue(cidr, {

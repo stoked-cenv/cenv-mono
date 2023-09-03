@@ -19,7 +19,7 @@ export class ParamsRemoveCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

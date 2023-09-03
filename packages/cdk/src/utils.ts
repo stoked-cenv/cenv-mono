@@ -58,15 +58,16 @@ export function ensureValidCerts(primary: string, root: string) {
 
 export function getDomains() {
   const APP = process.env.APP;
+  console.log('APP: ' + APP);
   const ROOT_DOMAIN = process.env.ROOT_DOMAIN;
+  console.log('ROOT_DOMAIN: ' + ROOT_DOMAIN);
   const DOMAIN = process.env.DOMAIN;
+  console.log('DOMAIN: ' + DOMAIN);
   const rootDomain = DOMAIN || ROOT_DOMAIN!;
   const rootDomainParts = rootDomain.split('.');
-  if (rootDomainParts.length > 1) {
-    rootDomainParts.pop();
-  }
   const ENV = CenvFiles.ENVIRONMENT;
-  const appIfNotSameAsRoot = APP && rootDomainParts.join('.') !== APP ? APP : undefined;
+  const appIfNotSameAsRoot = APP && rootDomainParts.shift() !== APP ? APP : undefined;
+  console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
   const appMatchesRoot = !appIfNotSameAsRoot;
   const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
   const env = `${process.env.PRIMARY_DOMAIN_PREFIX ? process.env.PRIMARY_DOMAIN_PREFIX + '.' : ''}${ENV}.${app}`;

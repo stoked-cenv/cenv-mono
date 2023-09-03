@@ -168,7 +168,7 @@ export async function createDeploymentStrategy(name = 'Instant.AllAtOnce', deplo
 
 export async function startDeployment(ApplicationId: string, ConfigurationProfileId: string, ConfigurationVersion: string, EnvironmentId: string, DeploymentStrategyId: string): Promise<any> {
   const startDeploymentParams = {
-    ApplicationId, ConfigurationProfileId, ConfigurationVersion, EnvironmentId, DeploymentStrategyId,
+    ApplicationId, ConfigurationProfileId, ConfigurationVersion, EnvironmentId, DeploymentStrategyId
   }
 
   const command = new StartDeploymentCommand(startDeploymentParams);
@@ -249,9 +249,6 @@ export async function getEnvironmentAppConfigs(applicationNames?: string[] | str
     const response = await getClient().send(command);
     const result: any = response ? response.Items : [];
 
-    const depStratRes = await getDeploymentStrategy();
-    const DeploymentStrategyId = depStratRes && depStratRes.DeploymentStrategyId ? depStratRes.DeploymentStrategyId : undefined;
-
     for (let appIdx = 0; appIdx < result.length; appIdx++) {
       const app: any = result[appIdx];
 
@@ -262,8 +259,7 @@ export async function getEnvironmentAppConfigs(applicationNames?: string[] | str
       const envAppConf: IEnvConfig = {
         ApplicationId: app.Id,
         ApplicationName: app.Name,
-        EnvironmentName: CenvFiles.ENVIRONMENT,
-        DeploymentStrategyId
+        EnvironmentName: CenvFiles.ENVIRONMENT
       };
 
       const environment = await getEnvironment(app.Id, CenvFiles.ENVIRONMENT);
@@ -427,19 +423,14 @@ export async function getConfig(ApplicationName: string, EnvironmentName: string
     if (!ConfigurationProfileId) {
       return false;
     }
-    const deploymentStratRes = await getDeploymentStrategy();
-    if (!deploymentStratRes || !deploymentStratRes.DeploymentStrategyId) {
-      return false;
-    }
-    const DeploymentStrategyId = deploymentStratRes.DeploymentStrategyId;
+
     const config: IEnvConfig = {
       ApplicationName,
       ApplicationId,
       EnvironmentName,
       EnvironmentId,
       ConfigurationProfileId,
-      MetaConfigurationProfileId,
-      DeploymentStrategyId
+      MetaConfigurationProfileId
     };
     CenvFiles.EnvConfig = config
     const versionRes = await getLatestDeployment(ApplicationId, EnvironmentId, 'config');
@@ -462,6 +453,7 @@ export async function listEnvironments(ApplicationId: string) {
   } catch (e) {
     CenvLog.single.errorLog(['listEnvironments error', e as string])
   }
+  return false;
 }
 
 async function listConfigurationProfiles(ApplicationId: string) {
@@ -473,6 +465,7 @@ async function listConfigurationProfiles(ApplicationId: string) {
   } catch (e) {
     CenvLog.single.errorLog(['listConfigurationProfiles error', e as string])
   }
+  return false;
 }
 
 export async function listHostedConfigurationVersions(ApplicationId: string, ConfigurationProfileId: string) {
@@ -483,6 +476,7 @@ export async function listHostedConfigurationVersions(ApplicationId: string, Con
   } catch (e) {
     CenvLog.single.errorLog(['listHostedConfigurationVersions error', e as string])
   }
+  return false;
 }
 
 export async function getEnvironment(applicationId: string, environmentName: string, silent = true) {
@@ -630,6 +624,7 @@ export async function deleteApplication(ApplicationId: string) {
   } catch (e) {
     CenvLog.single.errorLog(['deleteApplication error', e as string])
   }
+  return false;
 }
 
 export async function deleteEnvironments(ApplicationId: string, environments: Environment[]) {
@@ -837,14 +832,7 @@ export async function createAppEnvConf(envAppConfig: IEnvConfig): Promise<IEnvCo
       process.exit(3333)
     }
     envAppConfig.ConfigurationProfileId = confRes.Id;
-    envAppConfig.MetaConfigurationProfileId = confRes.Id;
-  }
-
-  if (!envAppConfig.DeploymentStrategyId) {
-    const depRes = await createDeploymentStrategy();
-    if (!depRes || !depRes.Id) {
-      envAppConfig.DeploymentStrategyId = depRes.DeploymentStrategyId;
-    }
+    envAppConfig.MetaConfigurationProfileId = confRes.MetaId;
   }
 
   CenvFiles.EnvConfig = envAppConfig;

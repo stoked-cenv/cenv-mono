@@ -33,6 +33,7 @@ export async function updateConfiguration(FunctionName: string, envVars: any) {
   if (res) {
     return `lambda configuration update: ${FunctionName}`;
   }
+  return false;
 }
 
 export async function createFunction(name: string, zipFile: string, lambdaRole: string, envVars: any = {}, tags: Record<string, string> = {}) {
@@ -77,7 +78,6 @@ export async function deleteFunction(FunctionName: string) {
 
 export async function invoke(FunctionName: string, PayloadString: string) {
   try {
-    //console.log('invoking:', FunctionName, 'payload:', PayloadString)
     const cmd = new InvokeCommand({
                                     FunctionName, Payload: fromUtf8(PayloadString), LogType: 'Tail'
                                   });

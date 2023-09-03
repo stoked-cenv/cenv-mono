@@ -11,7 +11,7 @@ export interface ICenvCommand {
 export async function cenvSetup(commandName: string, config: CommandInfo, params?: string[], opts?: Record<string, any>) {
   const initRes = await Cenv.cenvSetup(commandName, config, params, opts);
   if (initRes.options?.userInterface && !process.env.CENV_SPAWNED) {
-    if (!Cenv.dashboard) {
+    if (!Cenv.dashboard && !opts?.cenv) {
       initRes.options.dashboardOptions = {
         packages: initRes.packages, cmd: config.deploymentMode, options: initRes.options,
       };

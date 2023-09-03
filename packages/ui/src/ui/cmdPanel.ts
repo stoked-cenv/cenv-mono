@@ -151,6 +151,7 @@ export default class CmdPanel extends CenvPanel {
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+    return;
   }
 
   getCmdText(cmdIndex: number, cmd: Cmd) {

@@ -1,17 +1,21 @@
-import {ListObjectsCommand, PutObjectCommand, S3Client} from '@aws-sdk/client-s3';
+import {_Object, GetObjectCommand, ListBucketsCommand, ListObjectsCommand, PutObjectCommand, S3Client} from '@aws-sdk/client-s3';
 import { S3SyncClient } from 's3-sync-client';
 import {CenvLog} from '../log';
 import {Cenv} from "../cenv";
 import {SyncCommandOutput, SyncOptions} from "s3-sync-client/dist/commands/SyncCommand";
 import { TransferMonitor } from 's3-sync-client';
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
-import https from "https";
-
+import {SdkStreamMixin} from "@smithy/types";
 
 
 let _client: S3Client;
 let _sync: (source: string, target: string, options?: SyncOptions) => Promise<SyncCommandOutput>;
 
+export interface BucketObject  {
+  key: string,
+  size: number,
+  date: Date
+}
 function getClient() {
   if (_client) {
     return _client;
@@ -49,41 +53,75 @@ export async function s3sync(path: string, bucketName: string) {
   return false
 }
 
-function put(url: string, data: string) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      url,
-      {method: "PUT", headers: {"Content-Length": new Blob([data]).size}},
-      (res) => {
-        let responseBody = "";
-        res.on("data", (chunk) => {
-          responseBody += chunk;
-        });
-        res.on("end", () => {
-          resolve(responseBody);
-        });
-      }
-    );
-    req.on("error", (err) => {
-      reject(err);
-    });
-    req.write(data);
-    req.end();
-  });
-}
-
 export async function getPresignedUrl({region, bucket, key}: { region: string, bucket: string, key: string }) {
-  const createPresignedUrlWithClient = ({bucket, key}: { region: string, bucket: string, key: string }) => {
+  const createPresignedUrlWithClient =  ({bucket, key}: { region: string, bucket: string, key: string }) => {
     const client = new S3Client({region});
-    const command = new PutObjectCommand({Bucket: bucket, Key: key});
-    return getSignedUrl(client, command, {expiresIn: 3600});
+    const command = new GetObjectCommand({Bucket: bucket, Key: key});
+    return getSignedUrl(client, command, {expiresIn: 60000});
   };
-  const clientUrl = await createPresignedUrlWithClient({region, bucket, key});
-  await put(clientUrl, "Hello World");
+  return await createPresignedUrlWithClient({region, bucket, key});
 }
 
-export async function listObjects({region, bucket}: { region: string, bucket: string }) {
+export async function listObjects({region, bucket}: { region: string, bucket: string }): Promise<BucketObject[] | false> {
   const client = new S3Client({region});
   const {Contents} = await client.send(new ListObjectsCommand({Bucket: bucket}));
-  return Contents;
+  if (Contents) {
+    return Contents
+    .filter((obj) => obj && obj.Key && obj.Size && obj.LastModified)
+    .map((o) => {
+      return {key: o.Key, size: o.Size, date: o.LastModified} as BucketObject;
+    })
+    .sort((a, b) => {
+      if (b.size < a.size) {
+        return -1;
+      } else if (b.size > a.size) {
+        return 1;
+      }
+      return 0;
+    });
+  }
+  return false;
+}
+
+export async function listBuckets({region}: { region: string }): Promise<{
+  date: Date;
+  name: string
+}[] | false> {
+  const client = new S3Client({region});
+  const {Buckets} = await client.send(new ListBucketsCommand({Region: region}));
+  if (Buckets) {
+    return Buckets
+    .filter(bucket => bucket.Name && bucket.CreationDate)
+    .map((bucket) => {
+      return {
+        name: bucket.Name!, date: bucket.CreationDate!
+      };
+    });
+
+  }
+  return false;
+}
+
+export async function getObject({region, bucket, key}: { region: string, bucket: string, key: string }): Promise<(ReadableStream & SdkStreamMixin) | false> {
+  try {
+    const client = new S3Client({region});
+    const {Body} = await client.send(new GetObjectCommand({Bucket: bucket, Key: key}));
+    if (Body) {
+      return Body;
+    }
+  } catch (e) {
+    CenvLog.single.catchLog(e);
+  }
+  return false;
+}
+
+export async function putObject({region, bucket, key, body}: { region: string, bucket: string, key: string, body: string }): Promise<boolean> {
+  try {
+    const client = new S3Client({region});
+    await client.send(new PutObjectCommand({Bucket: bucket, Key: key, Body: body}));
+    return true;
+  } catch (e) {
+    CenvLog.single.catchLog(e);
+  }
+  return false;
 }

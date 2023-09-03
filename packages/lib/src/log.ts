@@ -104,6 +104,7 @@ export class CenvLog {
     } else if (status === EnvironmentStatus.UP_TO_DATE || status === ProcessStatus.COMPLETED) {
       return this.getChalkColor(this.green, hover, 24, rgb);
     }
+    return this.getChalkColor(this.white, hover, 22, rgb);
   }
 
 
@@ -205,11 +206,11 @@ export class CenvLog {
     switch (type) {
       case 'incomplete':
         return {bold: CenvLog.colors.errorBold, color: CenvLog.colors.error, highlight: CenvLog.chalk.hex('#FFAAAA')};
-      case 'deployed':
-        return {bold: CenvLog.colors.successBold, color: CenvLog.colors.success, highlight: CenvLog.chalk.hex('#AAFFAA')};
       case 'needsFix':
         return {bold: CenvLog.colors.stdHighlight, color: CenvLog.colors.std, highlight: CenvLog.colors.stdDim};
     }
+    // case 'deployed':
+    return {bold: CenvLog.colors.successBold, color: CenvLog.colors.success, highlight: CenvLog.chalk.hex('#AAFFAA')};
   }
 
   isLevel(level: LogLevel) {

@@ -9,7 +9,7 @@ import { BaseCommand } from './base.command';
 export class StackDeployCommand extends BaseCommand {
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   async runCommand(param: string[], options: BaseCommandOptions, packages?: Package[]): Promise<void> {

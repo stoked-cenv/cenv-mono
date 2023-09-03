@@ -14,7 +14,7 @@ export class StackCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   async runCommand(params: string[], options: ParamsCommandOptions, packages?: Package[]): Promise<void> {

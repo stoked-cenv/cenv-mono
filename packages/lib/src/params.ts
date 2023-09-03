@@ -1,4 +1,4 @@
-import { createConfigurationProfile, deleteCenvData, deployConfig } from './aws/appConfig';
+import {createConfigurationProfile, deleteCenvData, deployConfig, getDeploymentStrategy} from './aws/appConfig';
 import { stripPath } from './aws/parameterStore';
 import { updateLambdas } from './aws/lambda';
 import { CenvLog } from './log';
@@ -129,21 +129,29 @@ export class CenvParams {
 
   public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
     try {
+      console.log(JSON.stringify(event, null, 2));
       const {
-        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId, MetaConfigurationProfileId,
+        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, MetaConfigurationProfileId,
       } = event;
 
-      if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId || !DeploymentStrategyId) {
+      if (!CenvFiles.ENVIRONMENT) {
+        CenvFiles.ENVIRONMENT = EnvironmentName;
+      }
+      if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId) {
         console.log('Missing required parameters in event');
-        return { error: new Error('Missing required parameters in event') };
+        return { error: new Error('Materialization Failed: Missing required parameters in event') };
       }
 
+      const depStratRes = await getDeploymentStrategy();
+      if (!depStratRes) {
+        return { error: new Error('Materialization Failed: Deployment strategy does not exist.') };
+      }
       const appConfig = {
-        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId,
+        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId: depStratRes.DeploymentStrategyId
       };
 
       const appConfigMeta = {
-        ApplicationId, EnvironmentId, ConfigurationProfileId: MetaConfigurationProfileId, ApplicationName, EnvironmentName, DeploymentStrategyId,
+        ApplicationId, EnvironmentId, ConfigurationProfileId: MetaConfigurationProfileId, ApplicationName, EnvironmentName,DeploymentStrategyId: depStratRes.DeploymentStrategyId
       };
       if (!appConfigMeta.ConfigurationProfileId) {
         const metaCreateRes = await createConfigurationProfile(ApplicationId);
@@ -185,10 +193,13 @@ export class CenvParams {
         console.log('materializedMeta', materializedMeta);
         await deployConfig(materializedMeta, appConfigMeta);
       }
+      if (!before && !after) {
+        return { error: new Error('Materialization Failed: No parameters found.') };
+      }
       return { before, after };
     } catch (e) {
       CenvLog.single.errorLog('Cenv.MaterializeCore err: ' + e as string);
-      return { error: e as Error };
+      return { error: e ? new Error(e.toString()) : new Error("Materialization Failed: unknown error") };
     }
   }
 
@@ -199,12 +210,14 @@ export class CenvParams {
 
   public static async createParamsLibrary() {
 
-    console.log('create params library');
     const cenvParamsPath = path.join(CenvFiles.ARTIFACTS_PATH, 'cenvParams');
+    const cenvLibDepPath = path.join(cenvParamsPath, 'node_modules', '@stoked-cenv', 'lib');
     CenvFiles.freshPath(cenvParamsPath);
     const paramsPath = path.join(__dirname, '../params');
+    const libPath = path.join(__dirname, '../../../dist/lib');
     cpSync(paramsPath, cenvParamsPath, { recursive: true, dereference: true });
     await execCmd('npm i', { path: cenvParamsPath });
+    cpSync(libPath, cenvLibDepPath, { recursive: true, dereference: true });
     await execCmd('tsc', { path: cenvParamsPath });
     await execCmd(`zip -r materializationLambda.zip * > ../zip.log`, { path: cenvParamsPath });
     return path.join(cenvParamsPath, `materializationLambda.zip`);

@@ -608,6 +608,10 @@ export class Package implements IPackage {
     return this.packageNameComponents.packageName;
   }
 
+  get packageNoScope(): string {
+    return this.packageNameComponents.name;
+  }
+
   get instance(): string | undefined  {
     return this.packageNameComponents.instance;
   }
@@ -623,7 +627,7 @@ export class Package implements IPackage {
     const componentParts = ['complete', 'scope', 'name', 'component', 'instance'];
     const components: any = {
       complete: packageName,
-      name:  packageName
+      name: packageName
     }
     if ((m = packageRegExp.exec(packageName)) !== null) {
       // The result can be accessed through the `m`-variable.
@@ -635,11 +639,7 @@ export class Package implements IPackage {
     components.packageName = components.name;
     if (components.scope) {
       components.packageName = `${components.scope}/${components.name}`;
-    }
-
-    if (!components.complete || !components.name) {
-      CenvLog.single.catchLog(`could not parse package name: ${packageName}`);
-      process.exit(30);
+      components.name = components.name.replace(components.scope, '');
     }
 
     return components;
@@ -668,7 +668,7 @@ export class Package implements IPackage {
     } else if (this.component) {
       return `${CenvFiles.ENVIRONMENT}-${this.component}`;
     }
-    return `${CenvFiles.ENVIRONMENT}-${this.package}`;
+    return `${CenvFiles.ENVIRONMENT}-${this.packageNoScope}`;
   }
 
   get bucketName() {
@@ -935,6 +935,7 @@ export class Package implements IPackage {
     } else {
       //CenvLog.single.catchLog(new Error(`stackNameVis ${stackNameVis} does't match any packages.. this should be possible`));
     }
+    return false;
   }
 
   static getPackageName(packagePath?: string) {
@@ -996,6 +997,7 @@ export class Package implements IPackage {
       const meta = this.meta.merge(deployPath);
       return new StackModule(this, deployPath, meta);
     }
+    return false;
   }
 
   isParamDeploy(options?: any) {
@@ -1053,16 +1055,16 @@ export class Package implements IPackage {
         },
       };
 
+      if (this.isParamDeploy(deployOptions)) {
+        await this.params?.deploy(options);
+      }
+
       if (this.isLibDeploy(deployOptions)) {
         await this.lib?.deploy();
       }
 
       if (this.isExecDeploy(deployOptions)) {
         await this.exec?.link();
-      }
-
-      if (this.isParamDeploy(deployOptions)) {
-        await this.params?.deploy(options);
       }
 
       if (this.isDockerDeploy(deployOptions)) {
@@ -1343,7 +1345,7 @@ export class Package implements IPackage {
   getEnvironmentStatusDescription() {
     switch (this.environmentStatus) {
       case EnvironmentStatus.NONE:
-        return;
+        return false;
       case EnvironmentStatus.NEEDS_UPDATE:
         return 'needs to deploy';
       case EnvironmentStatus.UP_TO_DATE:
@@ -1351,6 +1353,7 @@ export class Package implements IPackage {
       case EnvironmentStatus.NOT_DEPLOYED:
         return 'not deployed at all';
     }
+    return false;
   }
 
   async finalizeStatus(targetMode?: string, endStatus?: ProcessStatus) {

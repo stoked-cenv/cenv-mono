@@ -6,6 +6,11 @@ import {BaseCommand} from './base.command'
            name: 'bump', description: `Bump packages`,
          })
 export class BumpCommand extends BaseCommand {
+  constructor() {
+    super();
+
+  }
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

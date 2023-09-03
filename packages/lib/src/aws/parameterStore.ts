@@ -51,6 +51,7 @@ export async function getParameter(path: string, silent = false, decrypted = fal
       CenvLog.single.errorLog(['getParameterCommand error', e as string])
     }
   }
+  return false;
 }
 
 export async function getParameters(Names: string[], decrypted = false) {
@@ -133,6 +134,7 @@ export async function getParametersByPath(path: string, decrypted = false) {
             responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
             return param;
           }
+          return undefined;
         }));
       }
 
@@ -210,10 +212,10 @@ export async function deleteParameters(Names: string[]) {
       }
       return responseArr;
     }
-    return {};
   } catch (e) {
     CenvLog.single.errorLog(['deleteParametersCommand error', e as string])
   }
+  return false;
 }
 
 export async function deleteParametersByPath(path: string, outputPrefix = '', packageName = 'GLOBAL') {
@@ -263,6 +265,7 @@ export async function getStringList(path: string, silent = false) {
   if (param) {
     return param[path].Value.split(',');
   }
+  return false;
 }
 
 export async function getVarsByType(type: string, path: string, decrypted: boolean) {
@@ -329,7 +332,9 @@ export async function listParameters(applicationName: string, decrypted: boolean
     }
     return res;
   } catch (e) {
-    CenvLog.single.errorLog(['listParameters error', e as string]);
+    if (e instanceof Error) {
+      CenvLog.single.errorLog(['listParameters error', e?.stack]);
+    }
   }
 }
 

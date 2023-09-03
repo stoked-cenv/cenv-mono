@@ -121,13 +121,15 @@ export class Deployment {
       return true;
     } catch (e) {
 
-      if (e instanceof Number || (e instanceof String && !Number.isNaN(Number(e)))) {
+      /*
+      if (typeof e === "number" || (typeof e === "string" && !Number.isNaN(+e))) {
         CenvLog.single.errorLog(`Cmd() returned a non 0 return value.. ${e}`, pkg.stackName, true);
       } else if (e instanceof Error) {
         CenvLog.single.errorLog(e.stack ? e.stack : e.toString(), pkg.stackName, true);
       } else {
         CenvLog.single.errorLog(`${e} not sure what this exception type is`, pkg.stackName, true);
       }
+      */
       Deployment.cancelDependencies(pkg);
       this.setDeployStatus(pkg, ProcessStatus.FAILED);
       return false;

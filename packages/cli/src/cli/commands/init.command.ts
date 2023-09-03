@@ -9,7 +9,7 @@ import { BaseCommand } from './base.command';
 export class InitCommand extends BaseCommand {
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

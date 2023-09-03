@@ -6,11 +6,12 @@ import { CenvLog, LogLevel } from '../log';
 import { removeScope, semVerParse } from '../utils';
 import { CommandEvents, Package, PackageCmd, TPackageMeta } from './package';
 import * as path from 'path';
-import { CenvFiles } from '../file'
+import {CenvFiles, IParameter} from '../file'
 import { runScripts } from '../proc';
 import { Deployment } from '../deployment';
 import {s3sync} from "../aws/s3";
 import {inspect} from 'util';
+import {ParamsModule} from './params';
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -113,6 +114,10 @@ export class StackModule extends PackageModule {
         opt.parentCmd = packageCmd;
         await this.pkg.pkgCmd(actualCommand, opt);
       }
+
+      if (this.pkg.component && !this.pkg.instance) {
+        await ParamsModule.removeComponentRef(this.pkg);
+      }
       return true;
     } catch (e) {
       CenvLog.single.errorLog('destroy failed:' +  e, this.pkg.stackName, true);
@@ -168,6 +173,9 @@ export class StackModule extends PackageModule {
 
     await runScripts(this, this.meta.postDeployScripts);
 
+    if (this.pkg.component && !this.pkg.instance) {
+      await ParamsModule.upsertComponentRef(this.pkg);
+    }
     //deployCmd.result(0);
   }
 
@@ -460,6 +468,7 @@ export class StackModule extends PackageModule {
       case StackType.NETWORK:
         return this.getNetworkUrl();
     }
+    return false;
   }
 
   getNetworkUrl() {

@@ -32,7 +32,6 @@ export interface IEnvConfig {
   EnvironmentId?: string;
   ConfigurationProfileId?: string;
   MetaConfigurationProfileId?: string;
-  DeploymentStrategyId?: string;
   DeploymentNumber?: number;
 }
 export class EnvConfig {
@@ -42,7 +41,6 @@ export class EnvConfig {
   EnvironmentId?: string;
   ConfigurationProfileId?: string;
   MetaConfigurationProfileId?: string;
-  DeploymentStrategyId?: string;
   DeploymentNumber?: number;
 
   constructor(config: IEnvConfig) {
@@ -52,12 +50,11 @@ export class EnvConfig {
     this.EnvironmentId = config.EnvironmentId;
     this.ConfigurationProfileId = config.ConfigurationProfileId;
     this.MetaConfigurationProfileId = config.MetaConfigurationProfileId;
-    this.DeploymentStrategyId = config.DeploymentStrategyId;
     this.DeploymentNumber = config.DeploymentNumber;
   }
 
   get valid(): boolean {
-    return this.ApplicationId !== undefined && this.EnvironmentId !== undefined && this.ConfigurationProfileId !== undefined && this.MetaConfigurationProfileId !== undefined && this.DeploymentStrategyId !== undefined;
+    return this.ApplicationId !== undefined && this.EnvironmentId !== undefined && this.ConfigurationProfileId !== undefined && this.MetaConfigurationProfileId !== undefined;
   }
 }
 

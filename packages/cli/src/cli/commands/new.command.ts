@@ -10,7 +10,7 @@ export class NewCommand extends BaseCommand {
   constructor() {
     super();
     this.config.allowLocalPackage = true;
-    this.config.allowUI = false;
+
     this.config.cenvRootRequired = false;
   }
 

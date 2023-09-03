@@ -14,7 +14,7 @@ interface ParamsDeployCommandOptions extends BaseCommandOptions {
 export class ParamsDeployCommand extends BaseCommand {
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

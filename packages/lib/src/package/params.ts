@@ -22,7 +22,7 @@ import { CenvParams, validateOneType, variableTypes } from '../params';
 import { CenvLog, LogLevel } from '../log';
 import { expandTemplateVars, simplify, sleep } from '../utils';
 import {
-  decryptValue,
+  appendParameter, decryptValue,
   deleteParameters,
   deleteParametersByPath,
   envVarToKey,
@@ -38,7 +38,7 @@ import {
 } from '../aws/parameterStore';
 import { Semaphore } from 'async-mutex';
 import { getConfigVars } from '../aws/appConfigData';
-import { Package, TPackageMeta } from './package';
+import {Package, PackageCmd, TPackageMeta} from './package';
 import { deepDiffMapper, DiffMapperType, valueWrapper } from '../types/Object';
 import { invoke } from '../aws/lambda';
 import { ioReadVarList, readAsync } from '../stdio';
@@ -124,6 +124,42 @@ export class ParamsModule extends PackageModule {
         process.chdir(this.path);
       }
     }
+  }
+
+  static async upsertComponentRef(pkg: Package) {
+    const componentRef = this.getComponentRef(pkg);
+
+    const link = await getParameter(componentRef.path, true)
+    if (!link) {
+      await putParameter(componentRef.path, componentRef.key, false, 'StringList');
+      return `created component ref ${CenvLog.colors.infoBold(componentRef.path)} with value ${CenvLog.colors.infoBold(componentRef.key)}`;
+    } else {
+      const linkNode = link[componentRef.path];
+      if (linkNode && linkNode.Value.indexOf(componentRef.key) === -1) {
+        await appendParameter(componentRef.path, `,${componentRef.key}`);
+        return `appended component ref ${CenvLog.colors.infoBold(componentRef.path)} with value ${CenvLog.colors.infoBold(componentRef.key)}`;
+      }
+    }
+    return false;
+  }
+
+  static async removeComponentRef(pkg: Package) {
+    const componentRef = this.getComponentRef(pkg);
+    const refParams = await getParameter(componentRef.path, true)
+    if (!refParams) {
+      return;
+    }
+    const refParam = refParams[componentRef.path];
+    if (refParam.Value.indexOf(process.env.APP!) !== -1) {
+      const refs = refParam.Value.split(',');
+      if (refs.length > 1) {
+        const newRefs = refs.filter(r => r !== process.env.APP);
+        await putParameter(componentRef.path, newRefs.join(','), true, 'StringList');
+      } else {
+        await deleteParameters([componentRef.path]);
+      }
+    }
+    return false;
   }
 
   get anythingDeployed(): boolean {
@@ -324,34 +360,48 @@ export class ParamsModule extends PackageModule {
     }
   }
 
-  async loadVars(force = false, silent = false) {
-    try {
+  async loadLocal() {
+    //this.pkg.stdPlain('loading local vars:', this.pkg.packageName);
+    const localData = await CenvFiles.GetData(this.pkg.packageName);
+    this.localVarsTyped = localData?.Vars;
+    this.localVars = this.convertToCenvVars(this.localVarsTyped);
+    this.localVarsExpanded = expandTemplateVars(this.localVars);
+  }
 
+  async loadDeployed() {
+    //this.pkg.stdPlain('loading deployed vars:', this.pkg.packageName);
+    this.pushedVarsTyped = await this.pull(false, false, true, false, false, false, this.config);
+    this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);
+    this.pushedVarsExpanded = expandTemplateVars(this.pushedVars);
+  }
+
+  async loadMaterialized() {
+    const config = await getConfig(this.pkg.packageName);
+    if (config && config.DeploymentNumber) {
+      // get deployed vars
+      //this.pkg.stdPlain('loading materialized vars:', this.pkg.packageName);
+      this.materializedVarsTyped = await getConfigVars(this.pkg.packageName, true, true, false, true);
+      this.materializedVars = this.convertToCenvVars(this.materializedVarsTyped);
+    }
+  }
+  async loadVars(force = false, stage: undefined | string = undefined) {//options: {force: boolean, silent: boolean, stage?:
+    // string} =
+    // {force:
+    try {
       // switch dir
       if (!this.varsLoaded || force) {
         const toDirVars = path.relative(process.cwd(), this.path);
         if (toDirVars !== '') {
           process.chdir(toDirVars);
         }
-
-        //this.pkg.stdPlain('loading local vars:', this.pkg.packageName);
-        const localData = await CenvFiles.GetData(this.pkg.packageName);
-        this.localVarsTyped = localData?.Vars;
-        this.localVars = this.convertToCenvVars(this.localVarsTyped);
-        this.localVarsExpanded = expandTemplateVars(this.localVars);
-
-        //this.pkg.stdPlain('loading deployed vars:', this.pkg.packageName);
-        this.pushedVarsTyped = await this.pull(false, false, true, false, false, false, this.config);
-        this.pushedVars = this.convertToCenvVars(this.pushedVarsTyped);
-        this.pushedVarsExpanded = expandTemplateVars(this.pushedVars);
-
-        // get local vars
-        const config = await getConfig(this.pkg.packageName);
-        if (config && config.DeploymentNumber) {
-          // get deployed vars
-          //this.pkg.stdPlain('loading materialized vars:', this.pkg.packageName);
-          this.materializedVarsTyped = await getConfigVars(this.pkg.packageName, true, true, false, true);
-          this.materializedVars = this.convertToCenvVars(this.materializedVarsTyped);
+        if (!stage || stage === 'local') {
+          await this.loadLocal();
+        }
+        if (!stage || stage === 'deployed') {
+          await this.loadDeployed();
+        }
+        if (!stage || stage === 'materialized') {
+         await this.loadMaterialized();
         }
       }
     } catch (e) {
@@ -360,18 +410,6 @@ export class ParamsModule extends PackageModule {
     }
     this.varsLoaded = true;
   }
-
-  /*async deploy() {
-    // switch dir
-    if (process.cwd() !== this.path) {
-      const toDirVars = path.relative(process.cwd(), this.path);
-      process.chdir(toDirVars);
-    }
-    // push local vars to parameter store
-    await CenvParams.push(true);
-  }
-
-   */
 
   public async materialize(test = false) {
 
@@ -582,8 +620,6 @@ export class ParamsModule extends PackageModule {
         process.exit(2);
       }
 
-
-
       const root = CenvFiles.getGuaranteedMonoRoot();
       const inCenvRoot = root === process.cwd();
       let cenvPackage = inCenvRoot ? root : Package.getPackageName();
@@ -655,6 +691,7 @@ export class ParamsModule extends PackageModule {
     } catch (e) {
       CenvLog.single.catchLog(new Error('buildDataRemoveLinks'));
     }
+    return false
   }
 
   async showParams(options?: ParamsCommandOptions) {
@@ -663,7 +700,7 @@ export class ParamsModule extends PackageModule {
     const typed = options?.typed ? options?.typed : false;
     const exported = options?.export ? options?.export : false;
 
-    await this.loadVars();
+    await this.loadVars(false, !diff ? stage : undefined);
     let local = stage === 'local';
     let deployed = stage === 'deployed';
     let materialized = stage === 'materialized';
@@ -775,8 +812,6 @@ export class ParamsModule extends PackageModule {
          const cmd = this.pkg.createCmd(`cenv params deploy ${this.pkg.packageName} --init --materialize`);
          await this.init(options);
          cmd.result(0);
-
-
        } else if (options?.materialize){
          await this.loadVars(true)
          let materializeIt = !Object.keys(this.materializedVars)?.length;
@@ -793,6 +828,7 @@ export class ParamsModule extends PackageModule {
          }
        }
 
+       await sleep(4);
        await this.loadVars(true);
 
      } catch (e) {
@@ -804,7 +840,6 @@ export class ParamsModule extends PackageModule {
 
   async push(applicationName: string, materialize: boolean, decrypted = false): Promise<void> {
     this.info(`deploying ${CenvLog.colors.infoBold(CenvFiles.ENVIRONMENT)} variables to cloud`, this.pkg.packageName);
-    CenvLog.single.errorLog('materialization happening', Package.packageNameToStackName(applicationName));
     let updatedCount = 0;
     this.chDir();
     const data = await CenvFiles.GetLocalVars(applicationName, true, decrypted);
@@ -840,7 +875,6 @@ export class ParamsModule extends PackageModule {
         let compare = condensed[key];
         if (isEncrypted(condensed[key] as string)) {
           const decrypted = await decryptValue(condensed[key]);
-          console.log('decrypted', decrypted);
           compare = decrypted;
         }
         if (param !== compare) {
@@ -868,7 +902,6 @@ export class ParamsModule extends PackageModule {
       CenvLog.single.stdLog(CenvLog.colors.success(`updated ${updatedCount} parameters`));
     }
 
-    CenvLog.single.stdLog('push with materialize: ' + materialize.toString());
     if (materialize) {
       await this.materialize();
     }
@@ -1262,7 +1295,7 @@ export class ParamsModule extends PackageModule {
         this.materializedDeploymentNumber = this.config.DeploymentNumber;
       }
 
-      await this.loadVars(silent);
+      await this.loadVars();
       this.localCounts = this.getVarCounts(this.localVarsTyped);
       this.checkForDuplicates();
       this.pushedCounts = this.getVarCounts(this.pushedVarsTyped);
@@ -1376,7 +1409,7 @@ export class ParamsModule extends PackageModule {
       }
 
       let appEnvConfig: IEnvConfig = await getEnvironmentAppConfigs(this.pkg.packageName) as EnvConfig;
-      if (!appEnvConfig.EnvironmentId || !appEnvConfig.ConfigurationProfileId || !appEnvConfig.MetaConfigurationProfileId || !appEnvConfig.DeploymentStrategyId) {
+      if (!appEnvConfig.EnvironmentId || !appEnvConfig.ConfigurationProfileId || !appEnvConfig.MetaConfigurationProfileId) {
         appEnvConfig = await createAppEnvConf(appEnvConfig);
       }
 
@@ -1439,5 +1472,12 @@ export class ParamsModule extends PackageModule {
     }
     const param: IParameter = {Value: value, Type: 'String', ParamType: type, Name: key.toLowerCase()};
     return {[`${rootPath}/${key}`]: param};
+  }
+
+  public static getComponentRef(pkg: Package) {
+    return {
+      key: process.env.APP!,
+      path: `/globalenv/${process.env.ENV}/component/${pkg.component}/refs`
+    }
   }
 }

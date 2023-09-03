@@ -17,7 +17,7 @@ interface EnvCommandOptions extends BaseCommandOptions {
 export class EnvCommand extends BaseCommand {
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

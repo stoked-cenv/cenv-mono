@@ -526,6 +526,7 @@ export class Dashboard {
           killRunningProcesses();
           return process.exit(0);
         }
+        return;
       });
 
       this.screen.key(['f'],(ch: any, key: any) => {
@@ -1395,8 +1396,9 @@ export class Dashboard {
         this.lastSelectedFully = this.selectedFully;
         return;
       }
-      this.selectedPackage = Package.getPackageFromVis(stackNameVis);
-      if (this.selectedPackage) {
+      const visPkg = Package.getPackageFromVis(stackNameVis);
+      if (visPkg) {
+        this.selectedPackage = visPkg;
         Dashboard.stackName = this.selectedPackage.stackName;
         const color = CenvLog.getStatusColor(this.selectedPackage.environmentStatusReal, true,) as typeof CenvLog.chalk;
         let env = '';
@@ -1576,6 +1578,7 @@ export class Dashboard {
     } catch (e) {
       CenvLog.single.catchLog(e)
     }
+    return false;
   }
 
   updateDependenciesStatus() {
@@ -1652,6 +1655,7 @@ export class Dashboard {
     } catch (e) {
       Package.global.err(e as string);
     }
+    return false;
   }
 
   statusMetric(num: number, type: string, longestNumberLength: number) {

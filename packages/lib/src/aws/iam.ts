@@ -114,13 +114,13 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
     const listGroupPolicyCmd = new ListAttachedGroupPoliciesCommand({GroupName});
     const listGroupPolicyRes = await getClient().send(listGroupPolicyCmd);
     if (listGroupPolicyRes.AttachedPolicies === undefined) {
-      return;
+      return false;
     }
     for (let i = 0; i < listGroupPolicyRes.AttachedPolicies.length; i++) {
       const policy = listGroupPolicyRes.AttachedPolicies[i];
       if (policy.PolicyName === PolicyName) {
         CenvLog.info(`policy ${PolicyName} is already attached to ${GroupName}`);
-        return;
+        return false
       }
     }
 
@@ -134,6 +134,7 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
       CenvLog.single.errorLog(`attach policy to group error: ${CenvLog.colors.errorBold(e.message)}`);
     }
   }
+  return false;
 }
 
 export async function deleteGroup(GroupName: string, silent = true) {
@@ -233,6 +234,7 @@ export async function addUserToGroup(GroupName: string, UserName: string) {
       CenvLog.single.errorLog(`attach user to group error: ${CenvLog.colors.errorBold(e.message)}`);
     }
   }
+  return false;
 }
 
 export async function detachPolicyFromRole(RoleName: string, PolicyArn: string) {

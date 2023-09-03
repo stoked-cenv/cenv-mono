@@ -16,7 +16,7 @@ export class StatCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
 

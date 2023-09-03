@@ -141,7 +141,7 @@ export class CommandInfo {
   deploymentMode?: ProcessMode = undefined;
 
   // command allowables
-  allowUI = true;
+  allowUI = false;
   allowPackages = true;
   allowLocalPackage = true;
   allowRootPackage = true;
@@ -318,6 +318,7 @@ export class Cenv {
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
+    return false;
   }
 
   static async deployCenv(force = false): Promise<void> {

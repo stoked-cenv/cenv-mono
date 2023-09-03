@@ -17,7 +17,7 @@ export class ParamsCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

@@ -12,6 +12,7 @@ export class DeployCommand extends BaseCommand {
     this.config.deploymentMode = ProcessMode.DEPLOY;
     this.config.packagesRequired = true;
     this.config.allowRootPackage = false;
+    this.config.allowUI = true;
   }
 
   @Option({

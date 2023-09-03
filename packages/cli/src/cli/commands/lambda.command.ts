@@ -11,6 +11,11 @@ interface LambdaCommandOptions extends BaseCommandOptions {
          })
 
 export class LambdaCommand extends BaseCommand {
+  constructor() {
+    super();
+
+  }
+
   @Option({
             flags: '-ll, --log-level, <logLevel>', description: `Logging mode`,
           }) parseLogLevel(val: string): string {

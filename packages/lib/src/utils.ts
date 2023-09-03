@@ -553,8 +553,8 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
           if (failOnInvalid) {
             invalidStatePackages.push(p);
           }
-          return false;
       }
+      return false;
     } else if (type === PkgContextType.COMPLETE) {
       switch (p.processStatus) {
         case ProcessStatus.FAILED:
@@ -566,10 +566,10 @@ export function getPkgContext(selectedPkg: Package, type: PkgContextType = PkgCo
           if (failOnInvalid) {
             invalidStatePackages.push(p);
           }
-          return false;
       }
+      return false;
     }
-
+    return false;
   });
   Cenv.dashboard.debugLocal('type', type)
   Cenv.dashboard.debugLocal('failOnInvalid', failOnInvalid)

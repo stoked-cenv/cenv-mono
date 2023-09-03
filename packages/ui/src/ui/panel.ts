@@ -52,6 +52,7 @@ export abstract class CenvPanel {
     if (cmds) {
       return cmds[cmdIndex];
     }
+    return false;
   }
 
   getPkgCmds(): PackageCmd [] {

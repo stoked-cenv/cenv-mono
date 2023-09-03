@@ -13,7 +13,7 @@ export class ConfigCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
     this.config.allowPackages = false;
     this.config.configRequired = false;
     this.config.cenvRootRequired = true;

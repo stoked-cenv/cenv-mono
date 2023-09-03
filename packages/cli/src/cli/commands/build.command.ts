@@ -9,7 +9,7 @@ export class BuildCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

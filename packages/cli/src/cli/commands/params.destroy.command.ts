@@ -16,7 +16,7 @@ export class ParamsDestroyCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = false;
+
   }
 
   @Option({

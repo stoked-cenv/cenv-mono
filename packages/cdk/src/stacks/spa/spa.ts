@@ -22,17 +22,6 @@ import { CenvFiles } from '@stoked-cenv/lib';
 export class SpaStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
-    /*const envVars = validateEnvVars([
-      'APP',
-      'APP_DOMAIN',
-      'CDK_DEFAULT_REGION',
-      'ENV',
-      'CDK_DEFAULT_ACCOUNT',
-      'ROOT_DOMAIN',
-      'CENV_STACK_NAME',
-      'CENV_BUILD_PATH',
-      'CENV_BUCKET_NAME'
-    ]);*/
 
     const domains = getDomains();
     console.log('bucket source location (CENV_BUILD_PATH):', process.env.CENV_BUILD_PATH);

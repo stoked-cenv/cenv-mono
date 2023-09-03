@@ -2,7 +2,6 @@ export * from './base.command';
 export * from './build.command';
 export * from './bump.command';
 export * from './cenv.command';
-export * from './clean.command';
 export * from './config.command';
 export * from './deploy.command';
 export * from './destroy.command';

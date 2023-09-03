@@ -136,6 +136,7 @@ export class DockerModule extends PackageModule {
         return restOfLine.substring(0, restOfLine.indexOf(' '));
       }
     }
+    return false;
   }
 
   async push(url: string) {
@@ -231,7 +232,7 @@ export class DockerModule extends PackageModule {
 
     if (pull) {
       const pullCmd = `docker pull ${this.dockerBaseImage}`;
-      await spawnCmd(this.path, pullCmd, pullCmd, { envVars: this.envVars }, this.pkg);
+      return await spawnCmd(this.path, pullCmd, pullCmd, { envVars: this.envVars }, this.pkg);
     }
     if (push) {
 
@@ -239,8 +240,9 @@ export class DockerModule extends PackageModule {
       await spawnCmd(this.path, cmd, cmd, { returnOutput: true }, this.pkg);
 
       cmd = `docker push ${DockerModule.ecrUrl}/${this.dockerBaseImage}`;
-      await spawnCmd(this.path, cmd, cmd, { redirectStdErrToStdOut: true }, this.pkg);
+      return await spawnCmd(this.path, cmd, cmd, { redirectStdErrToStdOut: true }, this.pkg);
     }
+    return false;
   }
 
   async destroy() {
@@ -254,6 +256,7 @@ export class DockerModule extends PackageModule {
     if (repositories.map((r: Repository) => r.repositoryName)?.filter((r) => this.dockerName === r)?.length) {
       await deleteRepository(this.dockerName, true);
     }
+    return;
   }
 
   async deploy(options: any) {

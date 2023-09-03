@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import {
   BuildCommand,
   CenvCommand,
-  CleanCommand,
   ConfigCommand,
   DeployCommand,
   DestroyCommand,
@@ -26,7 +25,6 @@ import { CenvLog } from '@stoked-cenv/lib';
       CenvLog,
       CenvCommand,
       BuildCommand,
-      CleanCommand,
       ...ConfigCommand.registerWithSubCommands(),
       DeployCommand,
       DestroyCommand,
