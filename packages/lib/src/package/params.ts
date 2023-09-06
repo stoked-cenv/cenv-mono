@@ -512,7 +512,7 @@ export class ParamsModule extends PackageModule {
   async removeParameters(params: any, options: any, types: string[], exitOnFail = true) {
     const resLinks = await this.buildDataRemoveLinks(params, options, types, exitOnFail);
     if (resLinks) {
-      await this.removeParameter(params, options, resLinks.paramData, resLinks.rootPaths, resLinks.inCenvRoot, resLinks.cenvPackage);
+      await this.removeParameter(params, options, resLinks.paramData, resLinks.rootPaths, resLinks.inCenvRoot, resLinks.packageName);
     }
   }
 
@@ -620,21 +620,16 @@ export class ParamsModule extends PackageModule {
         process.exit(2);
       }
 
-      const root = CenvFiles.getGuaranteedMonoRoot();
-      const inCenvRoot = root === process.cwd();
-      let cenvPackage = inCenvRoot ? root : Package.getPackageName();
-      cenvPackage = Package.getPackageName();
       const type = types[0];
-
       const paramData: { type: string, root: string, key: string, path: string, envVar: any }[] = [];
-      const varTypes = inCenvRoot ? variableTypes : ['global', 'globalEnv'];
+      const varTypes = options.allTypes ? variableTypes : ['global', 'globalEnv'];
       const vars: any = {};
-      const rootPaths: any = inCenvRoot ? CenvParams.GetRootPaths(this.pkg.packageName, CenvFiles.ENVIRONMENT) : {
+      const rootPaths: any = options.allTypes ? CenvParams.GetRootPaths(this.pkg.packageName, CenvFiles.ENVIRONMENT) : {
         global: `/global`, globalEnv: `/globalenv/${CenvFiles.ENVIRONMENT}`,
       };
 
       if (options?.all) {
-        await this.removeAll(varTypes, rootPaths, type, cenvPackage);
+        await this.removeAll(varTypes, rootPaths, type, this.pkg);
         //CenvLog.single.catchLog(new Error('removeAll'));
         process.exit(0);
       }
@@ -659,7 +654,7 @@ export class ParamsModule extends PackageModule {
                 type: varType, root: varTypeRoot, key: envVarToKey(param), path: typedParamKey, envVar: param,
               });
 
-              if ((varType === 'globalEnv' || varType === 'global') && !options?.kill && !inCenvRoot) {
+              if ((varType === 'globalEnv' || varType === 'global') && !options?.kill) {
                 CenvLog.single.errorLog('Must use --kill flag with rm for global and globalEnv variables');
                 process.exit(3);
               }
@@ -675,19 +670,14 @@ export class ParamsModule extends PackageModule {
           break;
         } else {
           if (exitOnFail) {
-            if (inCenvRoot) {
-              CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
-              process.exit(4);
-            } else {
-              CenvLog.single.errorLog(`${param} does not exist in the current env: ${CenvFiles.ENVIRONMENT}`);
-              process.exit(5);
-            }
+            CenvLog.single.errorLog(`${param} does not exist in the current env: ${CenvFiles.ENVIRONMENT}`);
+            process.exit(5);
           } else {
             CenvLog.single.errorLog(`${param} does not exist in this package ${process.cwd()}`);
           }
         }
       }
-      return { cenvPackage, paramData, rootPaths, inCenvRoot };
+      return { packageName: this.pkg.packageName, paramData, rootPaths, inCenvRoot: options.allTypes };
     } catch (e) {
       CenvLog.single.catchLog(new Error('buildDataRemoveLinks'));
     }
@@ -854,8 +844,7 @@ export class ParamsModule extends PackageModule {
       for (const type of Object.keys(diff)) {
         if (diff[type]) {
           for (const key of Object.keys(diff[type])) {
-            if (diff[type])
-            await this.removeParameters([key], { kill: true, force: true }, [type], true)
+            await this.removeParameters([key], { kill: true, force: true, allTypes: true }, [type], true)
           }
         }
       }

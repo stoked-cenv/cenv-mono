@@ -76,7 +76,8 @@ export class ECSServiceStack extends Stack {
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
     this.cluster = new ecs.Cluster(this, `${stackPrefix()}-cluster`, {
-      vpc: this.vpc, clusterName: `${stackPrefix()}-cluster`,
+      vpc: this.vpc,
+      clusterName: `${stackPrefix()}-cluster`,
     });
 
     // Lookup a hosted zone in the current account/region based on query parameters.

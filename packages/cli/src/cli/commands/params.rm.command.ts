@@ -103,11 +103,13 @@ export class ParamsRemoveCommand extends BaseCommand {
         return;
       }
 
+      const originalCwd = process.cwd();
       if (packages?.length) {
         for (let i = 0; i < packages?.length;) {
           const app = packages.shift();
+          const allTypes = originalCwd === app?.path;
           if (app && app.chDir() && app.params) {
-            await app.params.removeParameters(params, options, types);
+            await app.params.removeParameters(params, { ...options, allTypes}, types);
           }
         }
         return;

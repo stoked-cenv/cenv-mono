@@ -6,6 +6,7 @@ import {SyncCommandOutput, SyncOptions} from "s3-sync-client/dist/commands/SyncC
 import { TransferMonitor } from 's3-sync-client';
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import {SdkStreamMixin} from "@smithy/types";
+import { humanFileSize } from '../utils';
 
 
 let _client: S3Client;
@@ -14,6 +15,7 @@ let _sync: (source: string, target: string, options?: SyncOptions) => Promise<Sy
 export interface BucketObject  {
   key: string,
   size: number,
+  fileSize: string,
   date: Date,
   url?: string
 }
@@ -70,7 +72,7 @@ export async function listObjects({region, bucket}: { region: string, bucket: st
     return Contents
     .filter((obj) => obj && obj.Key && obj.Size && obj.LastModified)
     .map((o) => {
-      return {key: o.Key, size: o.Size, date: o.LastModified} as BucketObject;
+      return {key: o.Key, size: o.Size, fileSize: humanFileSize(o.Size!, true, 1), date: o.LastModified} as BucketObject;
     })
     .sort((a, b) => {
       if (b.size < a.size) {
