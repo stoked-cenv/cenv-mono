@@ -46,7 +46,7 @@ export async function s3sync(path: string, bucketName: string) {
     monitor.on('progress', (progress) => console.log(progress));
 
     const sync = getSync();
-    return await sync(path, `s3://${bucketName}`, { partSize: 100 * 1024 * 1024, monitor }); // uses multipart uploads for files higher than 100MB
+    return await sync(path, `s3://${bucketName}`, { del: true, partSize: 100 * 1024 * 1024, monitor }); // uses multipart uploads for files higher than 100MB
   } catch (e) {
     CenvLog.single.errorLog(`failed to get vpc id: ${CenvLog.colors.errorBold(e as string)}`);
     Cenv.dashboard.debug(CenvLog.colors.errorBold(e as string))

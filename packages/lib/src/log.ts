@@ -400,6 +400,7 @@ export class CenvLog {
     } else {
       appendFileSync(errorLogPath, errorMessage);
     }
+    this.errorLog(error);
     process.exit(23);
   }
 

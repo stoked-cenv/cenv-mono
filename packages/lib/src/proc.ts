@@ -226,7 +226,6 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
       if (packageInfo && process.env.CENV_VERBOSE_SPAWN_OPTIONS) {
         packageInfo.info(packageInfo.packageName, JSON.stringify(opt, null, 2));
       }
-      CenvLog.single.info(cmd, JSON.stringify(opt.env, null, 2))
       const proc = child.spawn(cmdFinal as string, spawnArgs, opt);
       const processName = `${packageInfo ? `[${packageInfo.stackName}] ` : ''}${cmd}`;
       Cenv.addSpawnedProcess(packageInfo ? packageInfo.stackName : 'GLOBAL', processName, proc);

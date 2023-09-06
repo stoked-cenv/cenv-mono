@@ -23,10 +23,12 @@ export class DockerModule extends PackageModule {
   dockerName: string;
   envVars = { DOCKER_BUILDKIT: 1 };
   dockerBaseImage?: string;
+  child?: DockerModule;
 
-  constructor(pkg: Package, path: string, meta: TPackageMeta) {
+  constructor(pkg: Package, path: string, meta: TPackageMeta, childDockerModule?: DockerModule) {
     super(pkg, path, meta, PackageModuleType.DOCKER);
     this.dockerName = Package.packageNameToDockerName(this.name);
+    this.child = childDockerModule;
   }
 
   static async checkDockerStatus() {
@@ -265,6 +267,15 @@ export class DockerModule extends PackageModule {
       CenvLog.single.catchLog(['docker module without docker name', this.pkg.packageName].join(' '));
     }
 
+    if (this.meta.cenv?.loadPackageVars) {
+      const varPackage = Package.getPackages().filter((p: Package) => p.packageName === this.meta.cenv?.loadPackageVars);
+      if (varPackage?.length) {
+        await varPackage[0].params?.loadVars();
+        const vars = varPackage[0].params?.materializedVars;
+        options.cenvVars = { ...options.cenvVars, ...vars };
+      }
+    }
+
     if (!DockerModule.ecrAuthHelperInstalled) {
       const dockerCredHelperRes = await execCmd('which docker-credential-ecr-login');
       if (!dockerCredHelperRes.length) {
@@ -275,7 +286,7 @@ export class DockerModule extends PackageModule {
 
     // run pre build scripts defined in meta
 
-    await runScripts(this, this.meta.preBuildScripts);
+    await runScripts(this, this.meta?.preBuildScripts);
 
     if (this.dockerBaseImage) {
       await this.pushBaseImage();
@@ -285,7 +296,11 @@ export class DockerModule extends PackageModule {
     options.cenvVars = { CENV_PKG_DIGEST: this.digest || this.pkg.stack?.deployedDigest };
 
     // run post build scripts defined in meta
-    await runScripts(this, this.pkg.meta.data.postBuildScripts);
+    await runScripts(this, this.pkg.meta?.data?.postBuildScripts);
+
+    if (this.child) {
+      await this.child.deploy(options);
+    }
   }
 
   upToDate(): boolean {

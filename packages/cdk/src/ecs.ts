@@ -71,7 +71,7 @@ export class ECSServiceStack extends Stack {
 
     this.vpc = getVPCByName(this);
 
-    const domains = getDomains();
+    const domains = getDomains(subdomain);
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
@@ -145,7 +145,10 @@ export class ECSServiceStack extends Stack {
           'appconfig:ListEnvironments',
           'appconfig:ListConfigurationProfiles',
           'appconfig:ListDeploymentStrategies',
-          'appconfig:GetLatestConfiguration'
+          'appconfig:GetLatestConfiguration',
+          's3:ListBucket',
+          's3:GetObject',
+          's3:ListObjects'
         ],
         resources: ['*'],
       })],

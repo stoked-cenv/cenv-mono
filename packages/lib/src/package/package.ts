@@ -246,6 +246,7 @@ export interface CenvStackMeta {
 export interface CenvDockerMeta {
   context: string;
   file: string;
+  containers?: string[];
 }
 
 export interface CenvLibMeta {
@@ -258,6 +259,7 @@ export interface CenvMeta {
   stackTemplatePath?: string;
   docker?: CenvDockerMeta;
   lib?: CenvLibMeta;
+  loadPackageVars?: string;
 }
 
 export type TPackageMeta = {
@@ -374,12 +376,12 @@ export class PackageMetaConsolidated extends PackageMeta {
 
   addModule(module: PackageModule, packagePath: string) {
     this.modules[module.constructor.name] = packagePath;
-    if (this.metas[packagePath].bin) {
-      this.data.bin = this.data.bin ? this.data.bin : {};
+    if (this.metas[packagePath]?.bin) {
+      this.data.bin = this.data?.bin ? this.data.bin : {};
       this.data.bin[packagePath] = this.metas[packagePath].bin;
     }
     this.data.scripts = this.data.scripts ? this.data.scripts : {};
-    this.data.scripts[packagePath] = this.metas[packagePath].scripts;
+    this.data.scripts[packagePath] = this.metas[packagePath]?.scripts;
   }
 }
 
@@ -540,6 +542,10 @@ export class Package implements IPackage {
 
         if (existsSync(path.join(pkgPath, './Dockerfile'))) {
           this.docker = new DockerModule(this, pkgPath, this.meta.data);
+        } else if (pathMeta?.cenv?.docker?.containers ) {
+          for (const container of pathMeta?.cenv?.docker?.containers) {
+            this.meta.data.deployDependencies?.push(new Package(container));
+          }
         }
 
         if (this.meta?.metas[pkgPath].bin) {

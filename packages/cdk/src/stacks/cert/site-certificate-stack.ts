@@ -4,10 +4,6 @@ import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { Certificate, CertificateValidation, DnsValidatedCertificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { getDomains, stackPrefix, tagStack } from '../../index';
 
-const {
-  ENV, ROOT_DOMAIN, ASSIGNED_DOMAIN,  APP,
-} = process.env;
-
 export class SiteCertificateStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);

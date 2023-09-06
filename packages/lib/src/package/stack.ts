@@ -1,6 +1,6 @@
 import { PackageModule, PackageModuleType, ProcessMode } from './module';
 import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
-import { deleteStack, describeStacks } from '../aws/cloudformation';
+import { s3sync, deleteStack, describeStacks, createInvalidation } from '../aws';
 import { parse, SemVer } from 'semver';
 import { CenvLog, LogLevel } from '../log';
 import { removeScope, semVerParse } from '../utils';
@@ -9,7 +9,6 @@ import * as path from 'path';
 import {CenvFiles, IParameter} from '../file'
 import { runScripts } from '../proc';
 import { Deployment } from '../deployment';
-import {s3sync} from "../aws/s3";
 import {inspect} from 'util';
 import {ParamsModule} from './params';
 
@@ -138,7 +137,7 @@ export class StackModule extends PackageModule {
       await this.destroy();
     }
 
-    await runScripts(this, this.meta.postDeployScripts);
+    await runScripts(this, this.meta.preDeployScripts);
 
     if (!process.env.CENV_SKIP_CDK) {
       const opt = await this.getOptions({}, ProcessMode.DEPLOY);
@@ -150,7 +149,7 @@ export class StackModule extends PackageModule {
 
       let deployCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DEPLOY)];
       let skip = false;
-      if (deployOptions.force) {
+      if (deployOptions.force || process.env.CENV_CDK_SYNTH) {
         deployCommand += ' --force';
         let diffCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DIFF)];
         CenvLog.single.infoLog('opt' + JSON.stringify(opt, null, 2));
@@ -168,6 +167,9 @@ export class StackModule extends PackageModule {
       CenvLog.single.infoLog('cenvVars: ' + JSON.stringify(opt.cenvVars, null, 2));
       if (!skip) {
         await this.pkg.pkgCmd(deployCommand, opt);
+        if (opt.invalidation) {
+          await createInvalidation(opt.invalidation, 100);
+        }
       }
     }
 
@@ -216,6 +218,7 @@ export class StackModule extends PackageModule {
         const componentPackageParts = Package.getPackageComponent(componentPackage);
         if (componentPackageParts.component === 'spa') {
           opt.cenvVars = { CENV_BUCKET_NAME: this.pkg.bucketName, ...opt.cenvVars };
+          opt.invalidate = this.getOutput('DistributionId');
         }
         if (this.meta?.cenv?.stack?.buildPath || this.meta?.cenv?.stackTemplatePath) {
           opt.cenvVars = { CENV_BUILD_PATH: path.join(this.path, this.meta?.cenv?.stack?.buildPath || this.meta.cenv.stackTemplatePath!), ...opt.cenvVars };

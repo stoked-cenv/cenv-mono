@@ -711,19 +711,19 @@ export class ParamsModule extends PackageModule {
 
     if (local && this.localVarsTyped) {
       if (CenvLog.logLevel !== LogLevel.MINIMAL) {
-        CenvLog.single.stdLog('local:', this.pkg.stackName);
+        CenvLog.single.stdLog(`${this.pkg.stackName} local:`, this.pkg.stackName);
       }
       CenvLog.single.stdLog(JSON.stringify(typed ? this.localVarsTyped : this.localVars, null, 2), this.pkg.stackName);
     }
     if (deployed && this.pushedVarsTyped) {
       if (CenvLog.logLevel !== LogLevel.MINIMAL) {
-        CenvLog.single.stdLog('deployed:', this.pkg.stackName);
+        CenvLog.single.stdLog(`${this.pkg.stackName} deployed:`, this.pkg.stackName);
       }
       CenvLog.single.stdLog(JSON.stringify(typed ? this.pushedVarsTyped : this.pushedVars, null, 2), this.pkg.stackName);
     }
     if (materialized && this.materializedVarsTyped) {
       if (CenvLog.logLevel !== LogLevel.MINIMAL) {
-        CenvLog.single.stdLog('materialized:', this.pkg.stackName);
+        CenvLog.single.stdLog(`${this.pkg.stackName} materialized:`, this.pkg.stackName);
       }
       CenvLog.single.stdLog(JSON.stringify(typed ? this.materializedVarsTyped : this.materializedVars, null, 2), this.pkg.stackName);
     }
@@ -844,6 +844,10 @@ export class ParamsModule extends PackageModule {
     this.chDir();
     const data = await CenvFiles.GetLocalVars(applicationName, true, decrypted);
     const deployedData = await this.pull(false, false, true, false, false, false, undefined, true);
+    if (data.app === undefined) data.app = {};
+    if (data.environment === undefined) data.environment = {};
+    if (data.global === undefined) data.global = {};
+    if (data.globalEnv === undefined) data.globalEnv = {};
     const diff = deepDiffMapper.map(deployedData, data, [DiffMapperType.VALUE_DELETED]);
     CenvLog.single.infoLog('push diff: ' + JSON.stringify(diff, null, 2), Package.packageNameToStackName(applicationName));
     if (diff && Object.keys(diff).length !== 0) {
@@ -1321,35 +1325,38 @@ export class ParamsModule extends PackageModule {
 
   checkForDuplicates() {
     if (this.localVarsTyped.app) {
-      Object.keys(this.localVarsTyped?.app).forEach((v, i) => {
+      const l = this.localVarsTyped;
+      Object.keys(l.app).forEach((v, i) => {
         const section = 'app';
-        if (this.localVarsTyped?.environment[v]) {
+        if (l?.environment && l?.environment[v]) {
           this.pushDuplicate(v, section, 'environment');
         }
-        if (this.localVarsTyped?.globalEnv[v]) {
+        if (l?.globalEnv && l?.globalEnv[v]) {
           this.pushDuplicate(v, section, 'globalEnv');
         }
-        if (this.localVarsTyped?.global[v]) {
+        if (l?.global && l?.global[v]) {
           this.pushDuplicate(v, section, 'global');
         }
       });
     }
 
     if (this.localVarsTyped.environment) {
-      Object.keys(this.localVarsTyped.environment).forEach((v, i) => {
+      const l = this.localVarsTyped;
+      Object.keys(l.environment).forEach((v, i) => {
         const section = 'environment';
-        if (this.localVarsTyped?.globalEnv[v]) {
+        if (l?.globalEnv && l?.globalEnv[v]) {
           this.pushDuplicate(v, section, 'globalEnv');
         }
-        if (this.localVarsTyped?.global[v]) {
+        if (l?.global && l?.global[v]) {
           this.pushDuplicate(v, section, 'global');
         }
       });
     }
 
     if (this.localVarsTyped.globalEnv) {
+      const l = this.localVarsTyped;
       Object.keys(this.localVarsTyped.globalEnv).forEach((v, i) => {
-        if (this.localVarsTyped?.global[v]) {
+        if (l?.global && l?.global[v]) {
           this.pushDuplicate(v, 'globalEnv', 'global');
         }
       });

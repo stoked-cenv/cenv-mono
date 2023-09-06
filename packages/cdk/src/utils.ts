@@ -56,7 +56,7 @@ export function ensureValidCerts(primary: string, root: string) {
   }
 }
 
-export function getDomains() {
+export function getDomains(subdomain?: string) {
   const APP = process.env.APP;
   console.log('APP: ' + APP);
   const ROOT_DOMAIN = process.env.ROOT_DOMAIN;
@@ -69,13 +69,14 @@ export function getDomains() {
   const appIfNotSameAsRoot = APP && rootDomainParts.shift() !== APP ? APP : undefined;
   console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
   const appMatchesRoot = !appIfNotSameAsRoot;
+  subdomain = `${subdomain ? subdomain + '.' : ''}`;
   const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
-  const env = `${process.env.PRIMARY_DOMAIN_PREFIX ? process.env.PRIMARY_DOMAIN_PREFIX + '.' : ''}${ENV}.${app}`;
+  const env = `${subdomain}${ENV}.${app}`;
   const sub = `*.${env}`;
   const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
   if (ENV === 'prod') {
     domains.app = app;
-    domains.primary = app;
+    domains.primary = `${subdomain}${app}`;
     domains.alt = [`*.${app}`, env, sub];
     if (appMatchesRoot) {
       domains.www = `www.${app}`;
