@@ -10,7 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, getDomains, stackPrefix, tagStack } from './utils';
+import { ensureValidCerts, getDomains, getVPCByName, stackPrefix, tagStack } from './utils';
 import { CenvFiles } from '@stoked-cenv/lib';
 
 export interface ECSServiceDeploymentParams {
@@ -27,25 +27,15 @@ export interface ECSServiceDeploymentParams {
   region?: string;
   healthCheck: HealthCheck,
   assignedDomain?: string;
+  actions?: string[];
 }
 
 export const defaultStackProps = {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION,
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION,
   },
 };
-
-//ensureValidCerts(domains.primary, domains.root);
-
-export const VPC_NAME = `${CenvFiles.ENVIRONMENT}-net`;
-const getVPCByName = (construct: Construct, id = CenvFiles.ENVIRONMENT + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
-  vpcName,
-});
-
-export function useCDKStackOutput(env: string, varName: string, envVariables: Record<string, string>): Record<string, string> {
-  envVariables[varName.toUpperCase().replace(/-/g, '_')] = Fn.importValue(env.toUpperCase() + '-' + varName.toUpperCase());
-  return envVariables;
-}
 
 export class ECSServiceStack extends Stack {
   vpc: IVpc;
@@ -135,25 +125,15 @@ export class ECSServiceStack extends Stack {
         publicLoadBalancer: true, // Default is false,
       });
 
-    // attach inline policy for interacting with AppConfig
-    this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
-      statements: [new iam.PolicyStatement({
-        actions: [
-          'appconfig:ListHostedConfigurationVersions',
-          'appconfig:CreateConfigurationProfile',
-          'appconfig:StartConfigurationSession',
-          'appconfig:ListApplications',
-          'appconfig:ListEnvironments',
-          'appconfig:ListConfigurationProfiles',
-          'appconfig:ListDeploymentStrategies',
-          'appconfig:GetLatestConfiguration',
-          's3:ListBucket',
-          's3:GetObject',
-          's3:ListObjects'
-        ],
-        resources: ['*'],
-      })],
-    }));
+    if (this.params.actions) {
+      // attach inline policy for interacting with AppConfig
+      this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
+        statements: [new iam.PolicyStatement({
+          actions: this.params.actions,
+          resources: ['*'],
+        })],
+      }));
+    }
 
     tagStack(this);
 

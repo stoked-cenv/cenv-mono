@@ -152,7 +152,6 @@ export class StackModule extends PackageModule {
       if (deployOptions.force || process.env.CENV_CDK_SYNTH) {
         deployCommand += ' --force';
         let diffCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DIFF)];
-        CenvLog.single.infoLog('opt' + JSON.stringify(opt, null, 2));
         const diffRes = await this.pkg.pkgCmd(diffCommand,  {...opt, failOnError: false, returnOutput: false});
         if (diffRes.stdout === "") {
           skip = true;
@@ -163,8 +162,6 @@ export class StackModule extends PackageModule {
         CenvLog.single.infoLog(inspect({...opt, dashboardOptions: undefined,  }));
       }
       deployCommand += ` -o ${this.getCdkOut()}`;
-      //console.log(this.pkg.packageName, 'cenvVars', JSON.stringify(opt.cenvVars));
-      CenvLog.single.infoLog('cenvVars: ' + JSON.stringify(opt.cenvVars, null, 2));
       if (!skip) {
         await this.pkg.pkgCmd(deployCommand, opt);
         if (opt.invalidation) {

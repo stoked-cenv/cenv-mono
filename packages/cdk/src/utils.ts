@@ -4,7 +4,8 @@ import { CenvFiles, CenvLog } from '@stoked-cenv/lib';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 import process from 'process';
-
+import { Construct } from 'constructs';
+import { Vpc } from 'aws-cdk-lib/aws-ec2';
 
 export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
@@ -21,6 +22,20 @@ export function tagStack(stack: Stack) {
   tagIfExists(stack, 'CENV_APPLICATION_NAME');
 }
 
+export const VPC_NAME = `${CenvFiles.ENVIRONMENT}-net`;
+
+export const getVPCByName = (construct: Construct, id = CenvFiles.ENVIRONMENT + '-net', vpcName = VPC_NAME) => Vpc.fromLookup(construct, id, {
+  vpcName,
+});
+
+export function getDefaultStackEnv() {
+  return{
+    env: {
+      account: process.env.CDK_DEFAULT_ACCOUNT,
+      region: process.env.CDK_DEFAULT_REGION,
+    },
+  };
+}
 export function tagIfExists(stack: Stack, EnvVar: string, EnvVarValue?: string) {
   if (process.env[EnvVarValue || EnvVar]) {
     console.log(`[${CenvFiles.ENVIRONMENT}] stack tag: { ${EnvVar}: ${process.env[EnvVarValue || EnvVar]!} }`);

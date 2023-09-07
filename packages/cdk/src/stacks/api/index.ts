@@ -18,7 +18,7 @@ console.log('environment variables', JSON.stringify(envVars.allSafe, null, 2));
 
 new ECSServiceStack({
                       env: CenvFiles.ENVIRONMENT,
-                      subdomain: 'api',
+                      subdomain: 'ecs-job',
                       stackName: process.env.CENV_STACK_NAME!,
                       ecrRepositoryName: process.env.CENV_DOCKER_NAME!,
                       healthCheck: {
