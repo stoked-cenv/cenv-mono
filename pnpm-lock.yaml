@@ -121,7 +121,7 @@ importers:
         specifier: ^2.41.0
         version: 2.41.0(@aws-solutions-constructs/core@2.41.0)(aws-cdk-lib@2.82.0)(constructs@10.2.69)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.104
+        specifier: ^2.0.0-a.105
         version: link:../lib
       aws-cdk:
         specifier: 2.43.1
@@ -191,10 +191,10 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0(@nestjs/common@10.0.0)(@nestjs/core@10.0.0)
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.104
+        specifier: ^2.0.0-a.105
         version: link:../lib
       '@stoked-cenv/ui':
-        specifier: ^2.0.0-a.104
+        specifier: ^2.0.0-a.105
         version: link:../ui
       eslint:
         specifier: ^8.45.0
@@ -394,7 +394,7 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
       '@stoked-cenv/cli-select':
-        specifier: ^2.0.0-a.104
+        specifier: ^2.0.0-a.105
         version: link:../cli-select
       ajv:
         specifier: ^8.12.0
@@ -479,7 +479,7 @@ importers:
         specifier: ^3.259.0
         version: 3.259.0
       '@stoked-cenv/lib':
-        specifier: ^2.0.0-a.104
+        specifier: ^2.0.0-a.105
         version: link:../lib
       async-mutex:
         specifier: ^0.4.0
@@ -6544,8 +6544,8 @@ packages:
       '@smithy/types': 2.0.2
       tslib: 2.6.1
 
-  /@stoked-cenv/cli-select@2.0.0-a.104:
-    resolution: {integrity: sha512-VpRJmSngm8PodkjBCUeuPL6ApdQpCE3hrXksjyOF59Lb1VG+pFLxKaIJ2hrKurWpWeClBlWOG9GV6dUNTYLcBg==}
+  /@stoked-cenv/cli-select@2.0.0-a.105:
+    resolution: {integrity: sha512-zhyDlFd+7N+vOZMwADRj28vGwrX1MrYdm2NTXVZjcyqqz7BVipzhfO0PPMsBmrOeZ4AV8isLVRXDwFJYs3O5DA==}
     dependencies:
       ansi-escapes: 3.2.0
     dev: true
@@ -6578,7 +6578,7 @@ packages:
       '@jest/types': 29.6.1
       '@nestjs/common': 10.0.0(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@smithy/types': 1.2.0
-      '@stoked-cenv/cli-select': 2.0.0-a.104
+      '@stoked-cenv/cli-select': 2.0.0-a.105
       '@types/js-yaml': 4.0.5
       '@types/mute-stream': 0.0.1
       '@types/node-cron': 3.0.8

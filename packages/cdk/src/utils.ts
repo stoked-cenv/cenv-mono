@@ -9,6 +9,11 @@ import process from 'process';
 export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
 }
+
+export function stackName(name: string) {
+  return `${stackPrefix()}-${name}`;
+}
+
 export function tagStack(stack: Stack) {
   tagIfExists(stack, 'CENV_PKG_VERSION');
   tagIfExists(stack, 'CENV_PKG_DIGEST');

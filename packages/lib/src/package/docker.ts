@@ -6,7 +6,7 @@ import { CenvLog } from '../log';
 import { isOsSupported, sleep } from '../utils';
 import { execCmd, runScripts,spawnCmd } from '../proc'
 import { Package, PackageCmd, TPackageMeta } from './package';
-import { Cenv } from '../cenv';
+import { SemVer } from 'semver';
 
 export class DockerModule extends PackageModule {
   static build: { [key: string]: number } = {};
@@ -14,6 +14,8 @@ export class DockerModule extends PackageModule {
   digest?: string;
   images?: ImageIdentifier[];
   latestImage?: ImageIdentifier;
+  currentVersionImage?: ImageIdentifier;
+  deployedImage?: ImageIdentifier;
   tags?: string[];
   repoUri?: string;
   repo?: Repository;
@@ -308,7 +310,7 @@ export class DockerModule extends PackageModule {
   }
 
   imageUpToDate(): boolean {
-    return semver.parse(this.latestImage?.imageTag)?.toString() === this.pkg?.rollupVersion?.toString();
+    return !!this.currentVersionImage && this.latestImage?.imageDigest === this.currentVersionImage?.imageDigest
   }
 
   getDetails() {
@@ -322,7 +324,7 @@ export class DockerModule extends PackageModule {
     } else if (!this.images?.length) {
       this.status.incomplete.push(this.statusLine('repo empty', `the repo [${this.dockerName}] has no images`, true));
     } else {
-      this.status.incomplete.push(this.versionMismatch(this.latestImage?.imageTag as string));
+      this.status.incomplete.push(this.versionMismatch(this.deployedImage?.imageTag as string));
     }
   }
 
@@ -397,19 +399,37 @@ export class DockerModule extends PackageModule {
     this.images = sortedTags;
     const AWS_REGION = process.env.AWS_REGION;
 
-    const imagesWithMatchingTags = this.images.filter((i) => {
-      return semver.parse(i.imageTag) === this.pkg.rollupVersion;
+    this.currentVersionImage = this.images.find((i) => {
+      return semver.parse(i.imageTag) == this.pkg.rollupVersion;
     });
 
-    this.latestImage = imagesWithMatchingTags?.length ? imagesWithMatchingTags[0] : undefined;
-    let latest: any = this.images.filter((i) => i.imageTag === 'latest');
-    if (latest.length) {
-      latest = latest[0];
-      latest = this.images.filter((i) => i.imageDigest === latest.imageDigest && i.imageTag !== 'latest');
-      if (latest) {
-        this.latestImage = latest[0];
+    this.latestImage = this.images.find((i) => {
+      return i.imageTag === 'latest';
+    });
+
+    this.digest = this.pkg.stack?.deployedDigest ? this.pkg.stack.deployedDigest : undefined;
+    if (this.digest) {
+      this.deployedImage = this.images.find((i) => {
+        return i.imageDigest === this.digest;
+      });
+    }
+
+
+    /*if (imagesWithMatchingTags?.length) {
+      let latestImage: ImageIdentifier = imagesWithMatchingTags.shift();
+      for (const image of imagesWithMatchingTags) {
+        const current = image;
+        const currentVersion = semver.parse(current.imageTag);
+        if (!currentVersion || !latestImage || currentVersion < latestImage) {
+          continue;
+        }
+        if (!this.latestImage || latest.compare(this.latestImage) === 1) {
+          latest = current;
+        }
       }
     }
+
+     */
 
     this.tags = images.map((i) => i.imageTag as string).filter((t) => !!t && t !== '');
     const status = this.upToDate();
@@ -421,7 +441,7 @@ export class DockerModule extends PackageModule {
     }
 
     this.pkg.links.push(`ECR (repo): https://${AWS_REGION}.console.aws.amazon.com/ecr/repositories/private/${process.env.CDK_DEFAULT_ACCOUNT}/${this.dockerName}?region=${process.env.AWS_REGION}`);
-    this.digest = this.pkg.stack?.deployedDigest ? this.pkg.stack.deployedDigest : undefined;
+
     this.printCheckStatusComplete(silent);
   }
 
