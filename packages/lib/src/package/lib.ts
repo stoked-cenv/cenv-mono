@@ -7,9 +7,9 @@ import { computeMetaHash } from '../utils';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { CenvFiles } from '../file';
-import {PackageCmd} from './package';
-import {execCmd} from "../proc";
-import {SemVer, parse} from "semver";
+import { PackageCmd } from './package';
+import { execCmd } from "../proc";
+import { SemVer, parse } from "semver";
 
 export enum LibStatus {
   SUCCESS = 'SUCCESS', FAILED = 'FAILED', UNBUILT = 'UNBUILT', PREVIOUSLY_BUILT = 'PREVIOUSLY_BUILT'
@@ -30,7 +30,6 @@ export class LibModule extends PackageModule {
     super(pkg, path, meta, PackageModuleType.LIB);
     this.isPublishable = !!this.cenv('publish');
   }
-
   get anythingDeployed(): boolean {
     return this.buildStatus === LibStatus.SUCCESS || this.buildStatus === LibStatus.PREVIOUSLY_BUILT;
   }
@@ -84,7 +83,7 @@ export class LibModule extends PackageModule {
     }
     await Package.global.pkgCmd(`nx affected:build --all --output-style=static${options.force ? ' --skip-nx-cache' : ''} ${parallel}`);
 
-    //const projects = await execCmd(getMonoRoot(), 'nx show projects --all')
+    return;
   }
 
   static fromModule(module: PackageModule) {
@@ -228,6 +227,7 @@ export class LibModule extends PackageModule {
         throw e;
       }
     }
+    return false;
   }
 
   // TODO: must compute separate hashes per module..

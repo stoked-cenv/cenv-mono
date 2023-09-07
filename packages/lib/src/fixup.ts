@@ -10,12 +10,15 @@ export class Fixup {
   static distRoot = 'dist';
   static packageRoot = 'packages';
 
+  static loadMeta(path: string) {
+    return { path, meta: require(path) };
+  }
+
   static loadMetas(root: string, packageDirs: string[]) {
     const metas: Record<string, any> = {};
     for (const dir of packageDirs) {
-      const pkgPath = join(process.cwd(), root, dir, 'package.json');
-      const meta = require(pkgPath);
-      metas[meta.name] = { meta, path: pkgPath };
+      const metaObj = this.loadMeta(join(process.cwd(), root, dir, 'package.json'));
+      metas[metaObj.meta.name] = metaObj;
     }
     return metas
   }
@@ -34,16 +37,16 @@ export class Fixup {
   }
 
   static updateDepType(metas: Record<string, any>, depType: Record<string, string>) {
+    const sortedDepType: Record<string, string> = {};
     if (depType) {
-      const sortedDepType: Record<string, string> = {};
       Object.keys(depType).sort().map((dep) => {
         if (metas[dep]) {
           depType[dep] = `^${metas[dep].meta.version}`;
         }
         sortedDepType[dep] = depType[dep];
       })
-      return sortedDepType;
     }
+    return sortedDepType;
   }
 
   static updateDeps(metas: Record<string, any>, fixupMetas?: Record<string, any>) {
