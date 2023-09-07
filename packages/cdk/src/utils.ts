@@ -6,7 +6,9 @@ import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 import process from 'process';
 import { Construct } from 'constructs';
 import { Vpc } from 'aws-cdk-lib/aws-ec2';
-import { Repository, ContainerImage } from 'aws-cdk-lib/aws-ecr'
+import { Repository } from 'aws-cdk-lib/aws-ecr';
+import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
+
 export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
 }
