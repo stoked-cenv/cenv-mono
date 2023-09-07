@@ -246,6 +246,7 @@ export interface CenvStackMeta {
 export interface CenvDockerMeta {
   context: string;
   file: string;
+  name?: string;
   containers?: string[];
 }
 

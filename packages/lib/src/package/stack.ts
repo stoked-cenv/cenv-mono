@@ -241,7 +241,9 @@ export class StackModule extends PackageModule {
 
          */
         opt.cenvVars.CENV_PKG_DIGEST = this.pkg.docker.digest || this.pkg.docker.latestImage?.imageDigest;
-        opt.cenvVars.CENV_DOCKER_NAME = this.pkg.docker.dockerName;
+        opt.cenvVars.CENV_DOCKER_NAME = this.pkg.docker.dockerName || this.meta?.cenv?.docker?.name;
+      } else if (this.meta?.cenv?.docker?.name) {
+        opt.cenvVars.CENV_DOCKER_NAME = this.meta?.cenv?.docker?.name;
       }
       if (this.meta?.cenv?.stack?.assignedSubDomain) {
         opt.cenvVars['CENV_SUBDOMAIN'] = this.meta.cenv.stack.assignedSubDomain;

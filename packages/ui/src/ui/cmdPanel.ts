@@ -63,7 +63,7 @@ export default class CmdPanel extends CenvPanel {
       });
 
       this.stderr = this.addGridWidget(blessed.box, {
-        fg: 'brightRed', label: 'stderr', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
+        fg: 'brightRed', label: 'stderr', keys: true, mouse: true, scrollable: true, scrollbar: {
           ch: ' ', inverse: true,
         }, style: {
           fg: 'brightRed', bg: 'black', border: {fg: 'gray'}, label: {fg: 'gray'}

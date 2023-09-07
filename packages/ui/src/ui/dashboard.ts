@@ -1159,10 +1159,11 @@ export class Dashboard {
   createBaseWidgets() {
     const title = this.getTitle();
     const screen = blessed.screen({
-                                    smartCSR: true, autoPadding: true, warnings: true, title: title, cursor: {
-        shape: 'line', artificial: true, blink: true, color: null, // null for default
-      }
-                                  });
+      smartCSR: true,
+      autoPadding: true,
+      warnings: true,
+      title: title
+    });
     screen.render();
     this.screen = screen;
 

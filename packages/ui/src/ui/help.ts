@@ -270,13 +270,7 @@ export class HelpUI {
   createBaseWidgets() {
     try {
       const title = this.getTitle();
-      const screen = blessed.screen({
-                                      smartCSR: true, autoPadding: true, warnings: true, title: title, cursor: {
-          artificial: true, shape: 'line', blink: true, color: null, // null for default
-        },
-                                    });
-
-      this.screen = screen;
+      this.screen = blessed.screen({ smartCSR: true, autoPadding: true, warnings: true, title: title });
       //create layout and widgets
       this.grid = new contrib.grid({rows: 6, cols: 5, screen: this.screen});
     } catch (e) {

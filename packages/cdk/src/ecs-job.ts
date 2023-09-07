@@ -32,7 +32,6 @@ export interface ECSJobDeploymentParams {
 export class ECSJobStack extends Stack {
   cluster: ecs.Cluster;
   queueProcessingFargateService: ecs_patterns.QueueProcessingFargateService;
-  scalableTarget: ecs.ScalableTaskCount;
   logGroup: logs.LogGroup;
   params: ECSJobDeploymentParams;
   vpc: IVpc;
@@ -94,22 +93,6 @@ export class ECSJobStack extends Stack {
     }));
 
     tagStack(this);
-
-    // An attribute representing the minimum and maximum task count for an AutoScalingGroup.
-    this.scalableTarget = this.queueProcessingFargateService.service.autoScaleTaskCount({
-      minCapacity: 1,
-      maxCapacity: 5,
-    });
-
-    // Scales in or out to achieve a target CPU utilization.
-    this.scalableTarget.scaleOnCpuUtilization('CpuScaling', {
-      targetUtilizationPercent: 50,
-    });
-
-    // Scales in or out to achieve a target memory utilization.
-    this.scalableTarget.scaleOnMemoryUtilization('MemoryScaling', {
-      targetUtilizationPercent: 50,
-    });
 
     new cloudwatch.Metric({
       metricName: 'CPUUtilization',
