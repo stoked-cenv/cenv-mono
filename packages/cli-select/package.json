@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/cli-select",
-  "version": "2.0.0-a.104",
+  "version": "2.0.0-a.105",
   "description": "Simple and interactive solution to provide a list of selectable items on the command line",
   "author": "Brian Stoker <b@stokedconsulting.com>",
   "license": "MIT",
