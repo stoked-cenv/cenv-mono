@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { App, Stack } from 'aws-cdk-lib';
-import { CenvFiles, CenvLog } from '@stoked-cenv/lib';
+import { CenvFiles, CenvLog, Package } from '@stoked-cenv/lib';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 import process from 'process';
@@ -13,8 +13,8 @@ export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
 }
 
-export function stackName(name: string) {
-  return `${stackPrefix()}-${name}`;
+export function stackName(name: string, suffix?: string) {
+  return `${stackPrefix()}-${name}${suffix ? '-' + suffix : ''}`;
 }
 
 export function tagStack(stack: Stack) {
@@ -37,6 +37,11 @@ export function getDefaultStackEnv() {
       region: process.env.CDK_DEFAULT_REGION,
     },
   };
+}
+
+export function createContainer(packageName: string) {
+  const pkg = new Package(packageName);
+  pkg.deploy({});
 }
 
 export function getImage(construct: Construct, repositoryName: string) {

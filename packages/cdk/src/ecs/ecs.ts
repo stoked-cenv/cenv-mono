@@ -10,7 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, getDomains, getVPCByName, stackPrefix, tagStack } from './utils';
+import { ensureValidCerts, getDomains, getVPCByName, stackPrefix, tagStack } from '../utils';
 import { CenvFiles } from '@stoked-cenv/lib';
 
 export interface ECSServiceDeploymentParams {
@@ -104,7 +104,9 @@ export class ECSServiceStack extends Stack {
       `${stackPrefix()}-fg`,
       {
         cluster: this.cluster, // Required
-        assignPublicIp: true, loadBalancerName: `${stackPrefix()}-lb`, serviceName: `${stackPrefix()}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
+        assignPublicIp: true,
+        loadBalancerName: `${stackPrefix()}-lb`,
+        serviceName: `${stackPrefix()}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
         desiredCount: 1, // Default is 1
         domainZone: this.zone,
         domainName: domains.primary,

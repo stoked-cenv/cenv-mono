@@ -1,18 +1,12 @@
-import { App, Duration, Fn, Stack, StackProps } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
+import { App, Duration, Stack, StackProps } from 'aws-cdk-lib';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import { IVpc, Vpc } from 'aws-cdk-lib/aws-ec2';
-import { HealthCheck } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { HostedZone, IHostedZone } from 'aws-cdk-lib/aws-route53';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack } from './utils';
-import { CenvFiles } from '@stoked-cenv/lib';
-import { VPC } from 'aws-sdk/clients/sms';
+import { getDefaultStackEnv, stackName, getVPCByName, stackPrefix, tagStack } from '../utils';
 
 export interface ECSJobDeploymentParams {
   env: string;
@@ -26,8 +20,8 @@ export interface ECSJobDeploymentParams {
   logRetention?: logs.RetentionDays;
   region?: string;
   actions?: string[];
+  suffix?: string;
 }
-
 
 export class ECSJobStack extends Stack {
   cluster: ecs.Cluster;
@@ -37,18 +31,16 @@ export class ECSJobStack extends Stack {
   vpc: IVpc;
 
   constructor(params: ECSJobDeploymentParams) {
-    super(new App(), params.id ?? `${params.env}-${params.stackName}`, params.stackProps ?? getDefaultStackEnv());
+    super(new App(), params.id ?? `${params.env}-${params.stackName}${params.suffix ? '-' + params.suffix : ''}`, params.stackProps ?? getDefaultStackEnv());
     this.params = params;
     this.vpc = this.params.defaultVpc ? Vpc.fromLookup(this, 'VPC', { isDefault: true }) : getVPCByName(this);
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
     this.cluster = new ecs.Cluster(
-      this,
-      `${stackPrefix()}-cluster`,
-      {
+      this, stackName('cluster', 'gen'), {
         vpc: this.vpc,
-        clusterName: `${stackPrefix()}-cluster`,
+        clusterName: stackName('cluster', 'gen'),
       });
 
 
@@ -85,12 +77,13 @@ export class ECSJobStack extends Stack {
       });
 
     // attach inline policy for interacting with AppConfig
-    this.queueProcessingFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
-      statements: [new iam.PolicyStatement({
-        actions: params.actions,
-        resources: ['*'],
-      })],
-    }));
+    if (params.actions) {
+      this.queueProcessingFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
+        statements: [new iam.PolicyStatement({
+          actions: params.actions, resources: ['*'],
+        })],
+      }));
+    }
 
     tagStack(this);
 

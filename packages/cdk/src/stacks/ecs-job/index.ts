@@ -4,7 +4,7 @@ import { ECSServiceStack, getVPCByName } from '../../index';
 import { CenvFiles, EnvVars } from '@stoked-cenv/lib';
 import { existsSync, rmSync } from 'fs';
 import path from 'path';
-import { ECSJobStack } from '../../ecs-job';
+import { ECSJobStack } from '../../ecs/ecs-job';
 
 const context = path.join(__dirname, 'cdk.context.json');
 if (existsSync(context)) {
