@@ -6,7 +6,7 @@ import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
 import process from 'process';
 import { Construct } from 'constructs';
 import { Vpc } from 'aws-cdk-lib/aws-ec2';
-
+import { Repository, ContainerImage } from 'aws-cdk-lib/aws-ecr'
 export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
 }
@@ -36,6 +36,12 @@ export function getDefaultStackEnv() {
     },
   };
 }
+
+export function getImage(construct: Construct, repositoryName: string) {
+  const repo = Repository.fromRepositoryName(construct, repositoryName, repositoryName);
+  return ContainerImage.fromEcrRepository(repo, 'latest');
+}
+
 export function tagIfExists(stack: Stack, EnvVar: string, EnvVarValue?: string) {
   if (process.env[EnvVarValue || EnvVar]) {
     console.log(`[${CenvFiles.ENVIRONMENT}] stack tag: { ${EnvVar}: ${process.env[EnvVarValue || EnvVar]!} }`);
