@@ -9,7 +9,7 @@ import {SdkStreamMixin} from "@smithy/types";
 import { humanFileSize } from '../utils';
 
 
-let _client: S3Client;
+
 let _sync: (source: string, target: string, options?: SyncOptions) => Promise<SyncCommandOutput>;
 
 export interface BucketObject  {
@@ -19,16 +19,17 @@ export interface BucketObject  {
   date: Date,
   url?: string
 }
-function getClient() {
-  if (_client) {
-    return _client;
-  }
-  const {AWS_REGION, AWS_ENDPOINT} = process.env;
 
-  _client = new S3Client({
-                            region: AWS_REGION, endpoint: AWS_ENDPOINT
-                          });
-  return _client;
+function getClient() {
+  const {
+    AWS_REGION,
+    AWS_ENDPOINT
+  } = process.env;
+
+  return new S3Client({
+    region: AWS_REGION,
+    endpoint: AWS_ENDPOINT
+  });
 }
 
 function getSync() {
