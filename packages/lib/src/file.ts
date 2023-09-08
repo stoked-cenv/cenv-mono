@@ -910,17 +910,17 @@ export class CenvFiles {
   }
 
   static packagePaths: Record<string, string> = {};
-  static stackPath(codifiedName: string): string | false {
-    const pkgComp = Package.getPackageComponent(codifiedName);
+  static stackPath(codifiedPackageName: string): string | false {
+    const pkgComp = Package.getPackageComponent(codifiedPackageName);
     const result = this.packagePath(pkgComp.package, __dirname);
     if (!result || !result.length) {
-      CenvLog.alert(`could not find the related files for the codified package name ${codifiedName} `);
+      CenvLog.alert(`could not find the related files for the codified package name ${codifiedPackageName} `);
       return false;
     }
 
     const compResults = search_sync(result, true, true, pkgComp.component, {excludedDirs: ['cdk.out', 'node_modules', 'dist']}) as string[];
     if (!compResults || !compResults.length) {
-      CenvLog.alert(`found the package ${pkgComp.package} could not find the related files for the codified package name ${codifiedName} `);
+      CenvLog.alert(`found the package ${pkgComp.package} could not find the related files for the codified package name ${codifiedPackageName} `);
       return false;
     }
     return compResults[0]

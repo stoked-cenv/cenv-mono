@@ -209,8 +209,8 @@ export class StackModule extends PackageModule {
       }
 
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {
-        const componentPackage = this.meta.cenv?.stack?.package || this.pkg.packageName;
-        opt.pkgPath = CenvFiles.stackPath(`${componentPackage}`);
+        const componentPackage = this.meta.cenv?.stack?.package || this.pkg.codifiedName;
+        opt.pkgPath = CenvFiles.stackPath(componentPackage);
 
         const componentPackageParts = Package.getPackageComponent(componentPackage);
         if (componentPackageParts.component === 'spa') {
