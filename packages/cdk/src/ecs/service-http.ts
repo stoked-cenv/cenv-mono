@@ -1,5 +1,4 @@
 import { App, Duration, Fn, Stack, StackProps } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import { IVpc, Vpc } from 'aws-cdk-lib/aws-ec2';
@@ -10,10 +9,10 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { ensureValidCerts, getDomains, getVPCByName, stackPrefix, tagStack } from '../utils';
+import {getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack} from '../utils';
 import { CenvFiles } from '@stoked-cenv/lib';
 
-export interface ECSServiceDeploymentParams {
+export interface EcsHttpDeploymentParams {
   env: string;
   id?: string;
   envVariables?: Record<string, string>;
@@ -30,24 +29,17 @@ export interface ECSServiceDeploymentParams {
   actions?: string[];
 }
 
-export const defaultStackProps = {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION,
-  },
-};
-
-export class ECSServiceStack extends Stack {
+export class EcsHttpStack extends Stack {
   vpc: IVpc;
   cluster: ecs.Cluster;
   loadBalancedFargateService: ecs_patterns.ApplicationLoadBalancedFargateService;
   zone: IHostedZone;
   scalableTarget: ecs.ScalableTaskCount;
   logGroup: logs.LogGroup;
-  params: ECSServiceDeploymentParams;
+  params: EcsHttpDeploymentParams;
 
-  constructor(params: ECSServiceDeploymentParams) {
-    super(new App(), params.id ?? `${params.env}-${params.stackName}`, params.stackProps ?? defaultStackProps);
+  constructor(params: EcsHttpDeploymentParams) {
+    super(new App(), params.id ?? `${params.env}-${params.stackName}`, params.stackProps ?? getDefaultStackEnv());
     const {
       env,
       subdomain,

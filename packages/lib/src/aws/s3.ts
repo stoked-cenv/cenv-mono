@@ -67,7 +67,10 @@ export async function getPresignedUrl({region, bucket, key}: { region: string, b
 }
 
 export async function listObjects({region, bucket}: { region: string, bucket: string }): Promise<BucketObject[] | false> {
+  console.log('region', region);
+  console.log('bucket', bucket);
   const client = new S3Client({region});
+
   const {Contents} = await client.send(new ListObjectsCommand({Bucket: bucket}));
   if (Contents) {
     return Contents

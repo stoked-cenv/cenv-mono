@@ -397,7 +397,6 @@ export interface PkgSummary {
 }
 
 export interface IPackage {
-  name: string;
   stackName: string;
   fullType?: string;
   params?: ParamsModule;
@@ -433,7 +432,6 @@ export interface CommandEvents {
 }
 
 export interface PackageNameComponents {
-  complete: string,
   scope?: string,
   name: string,
   component?: string,
@@ -450,9 +448,10 @@ export class Package implements IPackage {
   public static maxVisibleLength = 29;
   public static cache: { [stackName: string]: Package } = {};
 
-  name: string;
+  //name: string;
   fullType = 'pkg';
   stackName: string;
+  stackNameNoEnv: string;
   params?: ParamsModule;
   docker?: DockerModule;
   stack?: StackModule;
@@ -498,7 +497,7 @@ export class Package implements IPackage {
     this.local = local;
     this.packageNameComponents = Package.parsePackageName(packageName);
     this.stackName = Package.packageNameToStackName(packageName);
-    this.name = this.stackName.replace(CenvFiles.ENVIRONMENT + '-', '');
+    this.stackNameNoEnv = Package.noEnv(this.stackName);
     CenvLog.single.verboseLog('load packageName: ' + packageName, this.stackName, true);
 
     if (useCache) {
@@ -510,14 +509,14 @@ export class Package implements IPackage {
     }
 
     try {
-      const isRoot = this.package === Package.getRootPackageName();
+      const isRoot = this.packageName === Package.getRootPackageName();
       let pkgPath;
       if (isRoot || isGlobal) {
         pkgPath = CenvFiles.getGuaranteedMonoRoot();
       } else {
-        pkgPath = CenvFiles.packagePath(this.package);
+        pkgPath = CenvFiles.packagePath(this.packageName);
         if (!pkgPath) {
-          pkgPath = CenvFiles.packagePath(this.package, __dirname);
+          pkgPath = CenvFiles.packagePath(this.packageName, __dirname);
         }
       }
 
@@ -572,7 +571,7 @@ export class Package implements IPackage {
 
       if (!isGlobal && !this.docker && !this.params && !this.docker && !this.lib && !this.exec) {
         if (!this.local) {
-          const errString = `${CenvLog.colors.alertBold(this.codifiedName)} is not a valid package`;
+          const errString = `${CenvLog.colors.alertBold(this.packageName)} is not a valid package`;
           CenvLog.single.infoLog(errString);
           process.exit();
         }
@@ -608,11 +607,11 @@ export class Package implements IPackage {
       process.exit(3);
     }
   }
-  get codifiedName() {
-    return this.packageNameComponents.complete;
-  }
-  get package(): string {
-    return this.packageNameComponents.packageName;
+  //get codifiedName() {
+  //  return this.packageNameComponents.packageName;
+  //}
+  static noEnv(name: string) {
+    return name.replace(CenvFiles.ENVIRONMENT + '-', '');
   }
 
   get packageNoScope(): string {
@@ -633,7 +632,7 @@ export class Package implements IPackage {
 
     const componentParts = ['complete', 'scope', 'name', 'component', 'instance'];
     const components: any = {
-      complete: packageName,
+      packageName,
       name: packageName
     }
     if ((m = packageRegExp.exec(packageName)) !== null) {
@@ -643,9 +642,7 @@ export class Package implements IPackage {
       });
     }
 
-    components.packageName = components.name;
     if (components.scope) {
-      components.packageName = `${components.scope}/${components.name}`;
       components.name = components.name.replace(components.scope, '');
     }
 
@@ -653,7 +650,12 @@ export class Package implements IPackage {
   }
 
   get envSummary(): EnvPackageSummary {
-    let res: any = { name: this.name, version: this.moduleVersion, status: this.environmentStatus, modules: Object.values(this.modules).map(m => m.type) };
+    let res: any = {
+      name: this.stackNameNoEnv,
+      version: this.moduleVersion,
+      status: this.environmentStatus,
+      modules: Object.values(this.modules).map(m => m.type)
+    };
     delete res.stackName;
     return res;
   }
@@ -666,7 +668,7 @@ export class Package implements IPackage {
   }
 
   get codifiedNameVis(): string {
-    return this.codifiedName.substring(0, Package.maxVisibleLength);
+    return this.packageName.substring(0, Package.maxVisibleLength);
   }
 
   get stackNameFinal() {
@@ -685,7 +687,7 @@ export class Package implements IPackage {
   get stackNameVis(): string {
     let stack = this.stackName;
     if (this.component) {
-      stack = Package.packageNameToStackName(this.codifiedName);
+      stack = Package.packageNameToStackName(this.packageName);
     }
     return stack.substring(0, Package.maxVisibleLength);
   }
@@ -695,7 +697,7 @@ export class Package implements IPackage {
   }
 
   public get packageName() {
-    return this.isGlobal ? this.stackName : this.packageNameComponents.complete;
+    return this.isGlobal ? this.stackName : this.packageNameComponents.packageName;
   }
 
   public get path() {

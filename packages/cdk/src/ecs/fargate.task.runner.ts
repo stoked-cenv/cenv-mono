@@ -6,11 +6,11 @@ import {
 
 const client = new ECSClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-export interface FargateTaskProps {
+export interface FargateTaskRunnerProps {
   overrides?: RunTaskCommandInput['overrides'];
 }
 
-export class FargateTask {
+export class FargateTaskRunner {
   private taskDefinition: string;
   private cluster?: RunTaskCommandInput['cluster'];
   private networkConfiguration?: RunTaskCommandInput['networkConfiguration'];
@@ -29,7 +29,7 @@ export class FargateTask {
     this.networkConfiguration = networkConfiguration;
   }
 
-  async run(props: FargateTaskProps) {
+  async run(props: FargateTaskRunnerProps) {
     const command = new RunTaskCommand({
       cluster: this.cluster,
       taskDefinition: this.taskDefinition,

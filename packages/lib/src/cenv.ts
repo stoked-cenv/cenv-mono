@@ -17,7 +17,7 @@ import {EnvironmentStatus, EnvPackageSummary, Package, PackageCmd, ProcessStatus
 import {createFunction, deleteFunction, getFunction} from './aws/lambda';
 import {createDeploymentStrategy, getDeploymentStrategy,} from './aws/appConfig';
 import {CenvParams} from './params';
-import {Environment} from './environment';
+import {Environment, PossiblePackage} from './environment';
 import {Export} from '@aws-sdk/client-cloudformation';
 import {listExports} from './aws/cloudformation';
 import {CenvFiles, cenvRoot} from './file';
@@ -244,7 +244,7 @@ export class Cenv {
     PackageCmd.silent = false;
     const vals = Object.values(env.packages).flat(1);
     const keys = Object.keys(vals[0].envSummary);
-    const meta = getMeta(vals.map((p: Package) => p.envSummary), Object.keys(vals[0].envSummary));
+    const meta = getMeta(vals.map((p: PossiblePackage) => p.envSummary), Object.keys(vals[0].envSummary));
     if (!meta) {
       CenvLog.single.errorLog('could not create column meta for profile results');
       return;

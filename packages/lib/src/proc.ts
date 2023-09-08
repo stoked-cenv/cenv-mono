@@ -368,7 +368,7 @@ export async function execCmd(cmd: string, options: {
     const consoleFolder = path.resolve(newCwd).split('/').pop();
     const cons = `${process.env.USER}@${hostname()} ${consoleFolder} %`;
     try {
-      if (pkg.name && !silent) {
+      if (pkg.stackNameNoEnv && !silent) {
         //log(`${cons} cd ${infoBold(folder)}`);
         CenvLog.single.stdLog(envVarDisplay ? envVarDisplay.split(' ').join(CenvLog.colors.info(`\n`) + `export `).replace('\n', '') : '', pkg.stackName);
         CenvLog.single.infoLog(`${CenvLog.colors.info(cons)} ${cmd}`, pkg?.stackName);

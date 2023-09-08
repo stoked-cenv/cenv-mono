@@ -1,5 +1,5 @@
 import {CenvLog} from './log';
-import {Package} from './package/package';
+import {EnvironmentStatus, Package, PackageNameComponents} from './package/package';
 import {describeStacks, listStacks} from './aws/cloudformation'
 import {Suite} from './suite';
 import {StackSummary, Stack } from '@aws-sdk/client-cloudformation';
@@ -21,8 +21,30 @@ export class Environments {
   }
 }
 
-interface StackInfo { summary: StackSummary, stack: Stack, stackName: string, package: Package }
-interface PackageInfo { [packageName: string]: Package[] }
+interface PackageNotFound {
+  packageName: string,
+  version: SemVer,
+  summary: StackSummary,
+  stack: Stack,
+  component?: PackageNameComponents,
+  envSummary: {
+    name: string,
+    version: SemVer,
+    status: 'unknown',
+    modules: ['?']
+  }
+}
+
+export type PossiblePackage = Package | PackageNotFound;
+
+interface StackInfo {
+  summary: StackSummary,
+  stack: Stack,
+  stackName: string,
+  package: PossiblePackage
+}
+
+interface PackageInfo { [packageName: string]:  PossiblePackage[] }
 
 export class Environment {
   name: string;
@@ -72,10 +94,20 @@ export class Environment {
         if (packageName) {
           res.stackName = Package.packageNameToStackName(packageName);
           res.package = Package.cache[res.stackName];
-          if (!Package.cache[res.stackName]) {
+          console.log('res.stackName',  res.stackName);
+          if (!Package.cache[res.stackName] && CenvFiles.packagePath(packageName)) {
             res.package = new Package(packageName);
             res.package.stack.summary = s.summary;
             res.package.stack.detail = s.detail;
+          } else {
+            const component = Package.parsePackageName(packageName);
+            res.package = {
+              packageName,
+              component,
+              version,
+              stack: s.detail,
+              summary: s.summary,
+            };
           }
         }
         results.push(res);
@@ -87,17 +119,17 @@ export class Environment {
   async load() {
     this.stacks = await Environment.getStackInfos(this.name)
     this.stacks.map((s) => {
-      if (s.package) {
+      if (s.package as PackageNotFound) {
         if (s.package.component) {
-          if (!this.packages[s.package.package + '|' + s.package.component]) {
-            this.packages[s.package.package + '|' + s.package.component] = [];
+          if (!this.packages[s.package.packageName + '|' + s.package.component]) {
+            this.packages[s.package.packageName + '|' + s.package.component] = [];
           }
-          this.packages[s.package.package + '|' + s.package.component].push(s.package);
+          this.packages[s.package.packageName + '|' + s.package.component].push(s.package);
         } else {
-          if (!this.packages[s.package.package]) {
-            this.packages[s.package.package] = [];
+          if (!this.packages[s.package.packageName]) {
+            this.packages[s.package.packageName] = [];
           }
-          this.packages[s.package.package].push(s.package);
+          this.packages[s.package.packageName].push(s.package);
         }
       }
     });

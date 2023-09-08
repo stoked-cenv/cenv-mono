@@ -8,7 +8,7 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import { getDefaultStackEnv, stackName, getVPCByName, stackPrefix, tagStack } from '../utils';
 
-export interface ECSJobDeploymentParams {
+export interface EcsQueueDeploymentParams {
   env: string;
   id?: string;
   envVariables?: Record<string, string>;
@@ -23,14 +23,14 @@ export interface ECSJobDeploymentParams {
   suffix?: string;
 }
 
-export class ECSJobStack extends Stack {
+export class EcsQueueStack extends Stack {
   cluster: ecs.Cluster;
   queueProcessingFargateService: ecs_patterns.QueueProcessingFargateService;
   logGroup: logs.LogGroup;
-  params: ECSJobDeploymentParams;
+  params: EcsQueueDeploymentParams;
   vpc: IVpc;
 
-  constructor(params: ECSJobDeploymentParams) {
+  constructor(params: EcsQueueDeploymentParams) {
     super(new App(), params.id ?? `${params.env}-${params.stackName}${params.suffix ? '-' + params.suffix : ''}`, params.stackProps ?? getDefaultStackEnv());
     this.params = params;
     this.vpc = this.params.defaultVpc ? Vpc.fromLookup(this, 'VPC', { isDefault: true }) : getVPCByName(this);

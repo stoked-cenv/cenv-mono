@@ -209,7 +209,7 @@ export class StackModule extends PackageModule {
       }
 
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {
-        const componentPackage = this.meta.cenv?.stack?.package || this.pkg.codifiedName;
+        const componentPackage = this.meta.cenv?.stack?.package || this.pkg.packageName;
         opt.pkgPath = CenvFiles.stackPath(`${componentPackage}`);
 
         const componentPackageParts = Package.getPackageComponent(componentPackage);
@@ -485,7 +485,7 @@ export class StackModule extends PackageModule {
   }
 
   getLambdaUrl() {
-    const functionName = `${CenvFiles.ENVIRONMENT}-${this.pkg.name}-fn}`;
+    const functionName = `${CenvFiles.ENVIRONMENT}-${this.pkg.packageName}-fn}`;
     let url = 'https://AWS_REGION.console.aws.amazon.com/lambda/home?region=AWS_REGION#/functions/FUNCTION_NAME';
     url = this.updateRegion(url);
     return url.replace(/FUNCTION_NAME/g, functionName);
