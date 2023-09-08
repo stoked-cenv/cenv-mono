@@ -1,9 +1,9 @@
 {
 
-  "defaultSuite": "cenv",
+  "defaultSuite": "default",
   "scope": "@stoked-cenv",
   "suites": {
-    "cenv": {
+    "default": {
       "packages": [
         "@stoked-cenv/ui",
         "@stoked-cenv/lib",
