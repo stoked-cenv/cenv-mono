@@ -7,8 +7,10 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import { getDefaultStackEnv, stackName, getVPCByName, stackPrefix, tagStack } from '../utils';
+import { Construct } from 'constructs';
 
 export interface EcsQueueDeploymentParams {
+  scope?: Construct;
   env: string;
   id?: string;
   envVariables?: Record<string, string>;
@@ -31,7 +33,7 @@ export class EcsQueueStack extends Stack {
   vpc: IVpc;
 
   constructor(params: EcsQueueDeploymentParams) {
-    super(new App(), params.id ?? `${params.env}-${params.stackName}${params.suffix ? '-' + params.suffix : ''}`, params.stackProps ?? getDefaultStackEnv());
+    super(params?.scope ? params?.scope : new App(), params.id ?? `${params.env}-${params.stackName}${params.suffix ? '-' + params.suffix : ''}`, params.stackProps ?? getDefaultStackEnv());
     this.params = params;
     this.vpc = this.params.defaultVpc ? Vpc.fromLookup(this, 'VPC', { isDefault: true }) : getVPCByName(this);
 

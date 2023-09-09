@@ -517,9 +517,9 @@ export class Package implements IPackage {
       if (isRoot || isGlobal) {
         pkgPath = CenvFiles.getGuaranteedMonoRoot();
       } else {
-        pkgPath = CenvFiles.packagePath(this.codifiedName);
+        pkgPath = CenvFiles.packagePath(this.packageName);
         if (!pkgPath) {
-          pkgPath = CenvFiles.packagePath(this.codifiedName, __dirname);
+          pkgPath = CenvFiles.packagePath(this.packageName, __dirname);
         }
       }
 
@@ -648,6 +648,10 @@ export class Package implements IPackage {
       components.packageName = `${components.scope}/${components.name}`;
     }
 
+    if (!components.name) {
+      components.name = packageName;
+      components.packageName = packageName;
+    }
     return components;
   }
 

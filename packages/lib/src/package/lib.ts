@@ -96,11 +96,11 @@ export class LibModule extends PackageModule {
 
   getDetails() {
     if (this.buildStatus === LibStatus.SUCCESS) {
-      this.status.deployed.push(this.statusLine('build succeeded', `build succeeded at [${this.timestamp?.toLocaleString()}]`, false));
+      this.status.deployed.push(this.statusLine('build succeeded', `at [${this.timestamp?.toLocaleString()}]`, false));
     } else if (this.hasBeenBuilt) {
-      this.status.deployed.push(this.statusLine('build succeeded', `previously a build succeeded at [${this.previousBuildTs?.toLocaleString()}]`, false));
+      this.status.deployed.push(this.statusLine('build succeeded', `previously at [${this.previousBuildTs?.toLocaleString()}]`, false));
     } else if (this.buildStatus === LibStatus.FAILED) {
-      this.status.incomplete.push(this.statusLine('build failed', `build failed at [${this.timestamp?.toLocaleString()}]`, true));
+      this.status.incomplete.push(this.statusLine('build failed', `at [${this.timestamp?.toLocaleString()}]`, true));
     } else {
       this.status.incomplete.push(this.statusLine('unbuilt', `no attempt to build has been made yet`, true));
     }

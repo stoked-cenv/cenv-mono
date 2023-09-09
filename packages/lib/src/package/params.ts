@@ -1226,6 +1226,13 @@ export class ParamsModule extends PackageModule {
     this.materializedVars = {};
     this.localCounts = new CenvVarsCount();
     this.pushedCounts = new CenvVarsCount();
+    this.localOnlyVars = [];
+    this.notFoundInMaterializationVars = [];
+    this.deployedOnlyVars = [];
+    this.localNotFoundVars = [];
+    this.unmatchedVarValues = [];
+    this.unmatchedMaterializedVars = [];
+    this.unmatchedDeployedVars = [];
     this.materializedTotal = 0;
     this.duplicates = [];
     this.materializedDeploymentNumber = undefined;
