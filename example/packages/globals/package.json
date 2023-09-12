@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/globals",
-  "version": "2.0.0-a.115",
+  "version": "2.0.0-a.116",
   "cenv": {
     "globals": true
   }

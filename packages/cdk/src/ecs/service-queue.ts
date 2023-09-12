@@ -29,6 +29,7 @@ export interface EcsQueueDeploymentParams {
   suffix?: string;
   cluster?: ecs.ICluster;
   clusterName?: string;
+  taskDefinition?: ecs.FargateTaskDefinition
 }
 
 export class EcsQueueStack extends Stack {
@@ -108,8 +109,10 @@ export class EcsQueueStack extends Stack {
           {"upper": 0, "change": 0},
           {"lower": 1, "change": +1},
         ], // this defines how the service shall autoscale
-        environment: params.envVariables
+        environment: params.envVariables,
+        taskDefinition: params.taskDefinition,
       });
+
 
     // attach inline policy for interacting with AppConfig
     if (params.actions) {
