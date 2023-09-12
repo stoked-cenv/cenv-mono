@@ -29,7 +29,8 @@ export interface EcsQueueDeploymentParams {
   suffix?: string;
   cluster?: ecs.ICluster;
   clusterName?: string;
-  taskDefinition?: ecs.FargateTaskDefinition
+  taskDefinition?: ecs.FargateTaskDefinition,
+  queue?: sqs.IQueue;
 }
 
 export class EcsQueueStack extends Stack {
@@ -81,7 +82,7 @@ export class EcsQueueStack extends Stack {
 
     // creates a fifo queue
     const queue = new sqs.Queue(this, stackName('queue'), {
-      queueName: 'thumbnailer-queue.fifo',
+      queueName: stackName('fifo-queue'),
       contentBasedDeduplication: true,
       fifo: true,
       receiveMessageWaitTime: Duration.seconds(20),
@@ -99,7 +100,7 @@ export class EcsQueueStack extends Stack {
         cluster: this.cluster, // Required
         assignPublicIp: true,
         serviceName: `${stackPrefix()}-svc`,
-        queue,
+        queue: params?.queue ? params.queue : queue,
         cpu: 256, // Default is 256 // 0.25 CPU
         image,
         memoryLimitMiB: 512, // Default is 512

@@ -13,6 +13,7 @@ export default class CmdPanel extends CenvPanel {
   cmdList: blessed.list;
   stdout: blessed.text;
   stderr: blessed.box;
+  displayRegion: blessed.box;
   cdkInfo: any;
   selectedCmdIndex = -1;
   debugStr: any;
@@ -61,6 +62,20 @@ export default class CmdPanel extends CenvPanel {
         [0, 2, 1, 3],
         true,);
       this.cdkInfo.name = 'cdk'
+
+      this.displayRegion = this.grid.set(5, 4, 1, 2, blessed.box, {
+        fg: 'white',
+        label: '',
+        style: {
+          fg: 'white',
+          bg: 'pink',
+          label: {},
+        },
+        height: 1,
+        hideBorder: true,
+      });
+      this.displayRegion.name = 'displayRegion';
+      this.displayRegion.setLabel(process.env.AWS_PROFILE);
 
       //setInterval(async ()=> {
       //  if (Dashboard.cdkToggle) {
@@ -507,6 +522,8 @@ export default class CmdPanel extends CenvPanel {
     this.cdkInfo.left = left;
     this.cdkInfo.height = this.stdout.height;
     this.cdkInfo.top = this.stdout.top;
+    this.displayRegion.position.width = 10;
+    this.displayRegion.position.top = this.screen.height - 1;
   }
 
   render() {
@@ -581,6 +598,7 @@ export default class CmdPanel extends CenvPanel {
     this.cmdList.show();
     this.stderr.show();
     this.showMain();
+    this.displayRegion.show();
   }
 
   setBack() {
@@ -593,6 +611,7 @@ export default class CmdPanel extends CenvPanel {
     this.cmdList.setFront();
     this.stderr.setFront();
     this.setMainFront();
+    this.displayRegion.setFront();
   }
 
   detach() {
