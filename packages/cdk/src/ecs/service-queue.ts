@@ -82,7 +82,7 @@ export class EcsQueueStack extends Stack {
 
     // creates a fifo queue
     const queue = new sqs.Queue(this, stackName('queue'), {
-      queueName: stackName('fifo-queue'),
+      queueName: stackName('fifo-queue.fifo'),
       contentBasedDeduplication: true,
       fifo: true,
       receiveMessageWaitTime: Duration.seconds(20),
