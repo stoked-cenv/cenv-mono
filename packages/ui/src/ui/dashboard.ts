@@ -30,7 +30,11 @@ import {HelpUI} from "./help";
 import Groups from "./group";
 
 export enum ModuleDeployMode {
-  ALL, PARAMETERS, STACK, DOCKER, NONE
+  ALL,
+  PARAMETERS,
+  STACK,
+  DOCKER,
+  NONE
 }
 
 export enum DashboardMode {
@@ -595,6 +599,7 @@ export class Dashboard {
 
       this.screen.on('resize', () => {
         this.updateVis();
+        //this.cmdPanel?.updateCdk(true);
       });
 
       const commandButtons = {
@@ -901,7 +906,7 @@ export class Dashboard {
               this.setStatusBar('cycle params', this.statusText(`cycle param mode`, ParamsMode.getKey(Dashboard.paramsToggle)));
             });
           }
-        }, cdk: {
+        }/*, cdk: {
           keys: ['k'], callback: () => {
             this.debounceCallback('toggle cdk mode', async () => {
               Dashboard.cdkToggle = !Dashboard.cdkToggle;
@@ -913,7 +918,7 @@ export class Dashboard {
               this.setStatusBar('toggle output mode', this.statusText(`toggle mode`, Dashboard.cdkToggle ? 'cdk' : 'stdout'));
             });
           }
-        }
+        }*/
       }
 
       this.statusOptions = new Menu(this.statusPanel?.screen, statusButtons, {top: 0, left: 0, right: 0});
@@ -1800,6 +1805,7 @@ export class Dashboard {
         this.packages.rows.select(0);
       }
 
+      //this.cmdPanel?.updateCdk();
       this.updateStatus();
       this.updatePackageVisuals();
 
@@ -1967,15 +1973,25 @@ export class Dashboard {
     }
     this.maxProcessOptionsHeight = Package.getPackages(true).length + 14;
     this.packages.width = tableCalcs.tableWidth;
-    this.packages.top = 0;
+    this.packages.top = 3;
     this.packages.height = Package.getPackages().length + 5;
 
     let hideProcessOptions = false;
 
-    if (this.screen.height < this.maxProcessOptionsHeight || this.hideStatusOptions) {
-      this.minimizeStatusPanel = true;
-      hideProcessOptions = true;
+    if (this.screen.height < this.maxProcessOptionsHeight) {
+      this.packages.top = 0;
       this.packages.height -= this.maxProcessOptionsHeight - this.screen.height;
+      this.processOptions?.hide();
+    } else {
+      if (this.processOptions) {
+        this.processOptions.bar.width = tableCalcs.tableWidth;
+        this.processOptions.bar.top = 0;
+      }
+      this.processOptions?.show();
+    }
+
+    this.minimizeStatusPanel = this.hideStatusOptions
+    if (this.hideStatusOptions) {
       if (this.autoHidePanelHeight) {
         Dashboard.dependencyToggle = false;
         Dashboard.moduleToggle = false;
@@ -1983,18 +1999,7 @@ export class Dashboard {
       }
       this.statusOptions?.hide();
     } else {
-      this.minimizeStatusPanel = false;
       this.statusOptions?.show();
-    }
-
-    if (this.processOptions) {
-      if (!hideProcessOptions) {
-        this.processOptions.bar.width = tableCalcs.tableWidth;
-        this.processOptions.bar.top = this.packages.height;
-        this.processOptions.show();
-      } else {
-        this.processOptions.hide();
-      }
     }
 
     const screenHeight = this.screen.height - 1;

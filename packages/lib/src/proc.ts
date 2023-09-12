@@ -1,5 +1,5 @@
-import { PackageModule } from './package/module';
-import { CommandEvents, Package, PackageCmd } from './package/package';
+import {PackageModule, ProcessMode} from './package/module';
+import {CommandEvents, Package, PackageCmd, PackageNameComponents} from './package/package';
 import { inputArgsToEnvVars, printConfigurationExports } from './utils';
 import path from 'path';
 import { existsSync, readFileSync } from 'fs';
@@ -10,6 +10,8 @@ import { Cenv } from './cenv';
 import { CenvFiles } from './file';
 import { deleteCenvData } from './aws/appConfig';
 import {  CenvLog } from './log'
+import * as crypto from "crypto";
+import {cdkout} from "./cdk";
 
 export async function runScripts(pkgModule: PackageModule, scripts: (string | { exec: string, options: object })[] | undefined) {
   if (scripts) {
@@ -25,14 +27,13 @@ export async function runScripts(pkgModule: PackageModule, scripts: (string | { 
   }
 }
 
-function spawnInfo(options: any, chunk: string, output: string) {
-  // match cdk status output
-
+function spawnInfo(options: any, chunk: string, output: string, pkg?: Package) {
   if (options.returnOutput) {
     output += chunk;
   }  else {
     options.pkgCmd?.info(chunk);
   }
+  cdkout(options, chunk, output, pkg);
 }
 
 function log(options: any, cmdLog?: PackageCmd, packageInfo?: Package, ...text: string[]) {
@@ -111,6 +112,7 @@ export interface ICmdOptions {
   pkgCmd?: PackageCmd;
   silent?: boolean;
   commandEvents?: CommandEvents;
+  cdkSupported?: ProcessMode,
 }
 
 export async function spawnCmd(folder: string, cmd: string, name?: string, options: ICmdOptions = {
@@ -126,7 +128,8 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
   returnOutput: false,
   redirectStdErrToStdOut: false,
   pipedOutput: false,
-  commandEvents: undefined
+  commandEvents: undefined,
+  cdkSupported: undefined,
 }, packageInfo?: Package): Promise<any> {
 
   if (cmd.length === 0) {
@@ -135,8 +138,11 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
   let cmdLog = options.pkgCmd;
   if (packageInfo && !cmdLog && !options.silent) {
     cmdLog = packageInfo.createCmd(cmd);
+    options.pkgCmd = cmdLog;
   }
-
+  if (cmdLog) {
+    cmdLog.uniqueId = crypto.randomBytes(8).toString('hex');
+  }
   //packageInfo.alert('options', JSON.stringify(options, null, 2))
 
 
@@ -237,7 +243,7 @@ export async function spawnCmd(folder: string, cmd: string, name?: string, optio
         proc.stdout.setEncoding('utf-8');
         proc.stderr.setEncoding('utf-8');
         proc.stdout.on('data', function (chunk) {
-          spawnInfo(options, chunk, output);
+          spawnInfo(options, chunk, output, packageInfo);
         });
         proc.stderr.on('data', function (chunk) {
           spawnErr(chunk, options, errors, output, cmdLog, packageInfo );

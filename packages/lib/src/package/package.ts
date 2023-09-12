@@ -1,7 +1,7 @@
 import { removeScope, semVerParse, Timer } from '../utils';
 import { existsSync, readFileSync } from 'fs';
 import * as path from 'path';
-import { PackageModule, PackageModuleType, PackageStatus } from './module';
+import {PackageModule, PackageModuleType, PackageStatus, ProcessMode} from './module';
 import { CenvLog, LogLevel, Mouth } from '../log';
 import { coerce, inc, parse, SemVer } from 'semver';
 import { ParamsModule } from './params';
@@ -13,6 +13,7 @@ import { LibModule } from './lib';
 import { ExecutableModule } from './executable';
 import { Deployment } from '../deployment';
 import * as util from 'util';
+import { CdkProcess, CdkResource } from '../cdk';
 import { spawnCmd, execCmd } from '../proc';
 
 //const envVars = validateEnvVars(['CDK_DEFAULT_ACCOUNT', 'ENV', 'AWS_REGION', 'CENV_BUILD_TYPE',])
@@ -147,6 +148,7 @@ export class PackageCmd implements Cmd {
   minOut = '';
   cmds: PackageCmd[] = [];
   silent = false;
+  uniqueId?: string;
   static silent = false;
 
   constructor(pkg: Package, cmd: string, relativePath = './', code?: number, message?: string, failOnError = true, silent = false) {
@@ -412,6 +414,7 @@ export interface IPackage {
   timer?: Timer;
 
   cmds: PackageCmd[];
+  cdkProcesses: { [processId: string]: CdkProcess }
   isGlobal: boolean;
   isRoot: boolean;
   activeCmdIndex: number;
@@ -446,9 +449,10 @@ export class Package implements IPackage {
   static loading = true;
   static deployment: any;
   static callbacks: any = {};
-  public static maxVisibleLength = 29;
+  public static maxVisibleLength = 42;
   public static cache: { [stackName: string]: Package } = {};
 
+  cdkProcesses: { [processId: string]: CdkProcess } = {};
   codifiedName: string;
   fullType = 'pkg';
   stackName: string;
@@ -892,7 +896,7 @@ export class Package implements IPackage {
       process.exit(238);
     }
 
-    return Package.cache[stackName].packageName;
+    return Package.cache[stackName].codifiedName;
   }
 
   static getCurrentVersion(dir: string, isRoot = false) {
@@ -1089,6 +1093,7 @@ export class Package implements IPackage {
       if (this.isStackDeploy(deployOptions)) {
         await this.stack?.deploy(deployOptions, options);
       }
+
     } catch (ex) {
       if (ex instanceof Error) {
         CenvLog.single.errorLog(ex?.stack as string, this.stackName, true);

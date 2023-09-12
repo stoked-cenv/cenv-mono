@@ -25,5 +25,15 @@ new EcsHttpStack({
   healthCheck: {
     path: envVars.check('HEALTH_CHECK_PATH') ? envVars.get('HEALTH_CHECK_PATH') : '/',
   },
+  actions: [
+    "appconfig:CreateConfigurationProfile",
+    "appconfig:GetLatestConfiguration",
+    "appconfig:ListApplications",
+    "appconfig:ListConfigurationProfiles",
+    "appconfig:ListDeploymentStrategies",
+    "appconfig:ListEnvironments",
+    "appconfig:ListHostedConfigurationVersions",
+    "appconfig:StartConfigurationSession"
+  ],
   envVariables: envVars.all,
 });

@@ -13,18 +13,13 @@ import {Package} from "../package/package";
 import {checkExceptions} from '@aws-sdk/util-waiter'
 import { CenvFiles } from '../file';
 
-let _client: CloudFormationClient;
 
-function getClient() {
-  if (_client) {
-    return _client;
-  }
-  const {AWS_REGION, AWS_ENDPOINT} = process.env;
-
-  _client = new CloudFormationClient({
-                                       region: AWS_REGION, endpoint: AWS_ENDPOINT
-                                     });
-  return _client;
+function getClient(AWS_REGION = process.env.AWS_REGION) {
+  const {AWS_ENDPOINT} = process.env;
+  return new CloudFormationClient({
+    region: AWS_REGION,
+    endpoint: AWS_ENDPOINT
+  });
 }
 
 const aliasName = 'alias/curb-key';
@@ -54,10 +49,10 @@ export async function listStacks(StackStatusFilter: string[]) {
   return [];
 }
 
-export async function describeStacks(stackName: string, silent = false) {
+export async function describeStacks(stackName: string, silent = false, region = process.env.AWS_REGION) {
   try {
     let cmd = new DescribeStacksCommand({StackName: stackName});
-    let res = await getClient().send(cmd);
+    let res = await getClient(region).send(cmd);
     let stacks = res.Stacks;
     if (!stacks) {
       return [];

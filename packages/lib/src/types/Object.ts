@@ -61,17 +61,15 @@ export const printItemColumns = <T extends Object>(data: T, colors: {valueColor:
   return colors.keyColor(output);
 }
 
-
-export const printColumns = <A extends Object[]>(data: A, getColors: (data: A) => {valueColor: Chalk, keyColor: Chalk}, keys: string[]) => {
-  const colors = getColors(data);
-
+export const printColumns = <A extends Object>(data: A[], getColors: (item: A) => {valueColor: Chalk, keyColor: Chalk}, keys: string[]) => {
   let output = '';
   const meta = getMeta(data, keys);
+  let lines = '';
   for (const item of data) {
-    console.log(printItemColumns(item, colors, keys, meta));
+    const colors = getColors(item);
+    lines += printItemColumns(item, colors, keys, meta) + '\n';
   }
-
-  return colors.keyColor(output);
+  return lines;
 }
 
 

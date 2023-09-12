@@ -1,22 +1,34 @@
 import {blessed, contrib} from './blessed';
-
 import colors from 'colors/safe';
 import {Dashboard} from './dashboard';
 import {CenvPanel} from './panel';
-import {CenvLog, Cmd, PackageCmd} from '@stoked-cenv/lib';
+import {CdkProcess, CdkResource, CenvLog, Cmd, EnvironmentStatus, Package, PackageCmd, ProcessStatus} from '@stoked-cenv/lib';
+import chalk from 'chalk';
 
 blessed.text.prototype.name = '';
 blessed.list.prototype.name = ''
 blessed.box.prototype.name = '';
+
 export default class CmdPanel extends CenvPanel {
   cmdList: blessed.list;
   stdout: blessed.text;
   stderr: blessed.box;
+  cdkInfo: any;
   selectedCmdIndex = -1;
   debugStr: any;
+  selectedPackageBg = [65, 65, 65];
+  selectedPackageFg = [14, 221, 14];
+  columnSpacing =2;
+  cdkProcess: CdkProcess | false = false;
+  width = 0;
+  columnWidths = [4, 25, 25, 25, 18, 25];
 
   constructor(dashboard: Dashboard) {
     super(dashboard);
+  }
+
+  get defaultColumnWidth() {
+    return this.columnWidths;
   }
 
   init() {
@@ -31,6 +43,30 @@ export default class CmdPanel extends CenvPanel {
         }, hidden: false
       }, [0, 2, 1, 3], true,);
       this.cmdList.name = 'tasks';
+
+      this.cdkInfo = this.addGridWidget(contrib.table, {
+        mouse: true,
+        keys: true,
+        interactive: true,
+        fg: 'green',
+        selectedFg: this.selectedPackageFg,
+        selectedBg: this.selectedPackageBg,
+        columnSpacing: this.columnSpacing,
+        columnWidth: this.defaultColumnWidth,
+        style: {
+          border: {fg: [24, 242, 24]},
+        },
+        hidden: true
+      },
+        [0, 2, 1, 3],
+        true,);
+      this.cdkInfo.name = 'cdk'
+
+      //setInterval(async ()=> {
+      //  if (Dashboard.cdkToggle) {
+          //await this.updateCdk();
+      //  }
+      //}, 200);
 
       this.stdout = this.addGridWidget(blessed.text, {
         vi: true, fg: 'white', label: 'stdout', tags: true, keys: true, mouse: true, scrollable: true, scrollbar: {
@@ -96,7 +132,6 @@ export default class CmdPanel extends CenvPanel {
         this.setFocus(index);
       });
 
-
       const cdkOutput = (stdout?: string) => {
 
         if (!stdout) {
@@ -152,6 +187,146 @@ export default class CmdPanel extends CenvPanel {
       CenvLog.single.catchLog(e);
     }
     return;
+  }
+
+  styleResourceRow(resource: CdkResource) {
+    const statusColor = CmdPanel.getResourceStatusColor(resource.status);
+    const row = [resource.step, resource.logicalId, resource.type, resource.status, resource.time, resource.reason];
+    const newRow = [];
+    for (let i = 0; i < this.columnWidths.length; i++) {
+      newRow.push(row[i] ? statusColor(row[i].substring(0, this.columnWidths[i])) : '');
+    }
+    return newRow;
+  }
+
+  getColumnWidths() {
+    let widthCalc = parseInt(`${this.width}`);
+    const columnWidths = [];
+    let columnIndex = 0;
+    const maxColumnWidth = [4, 25, 25, 25, 18, 25];
+    const minColumnWidth = [4, 25, 20, 20, 18, 15];
+    while(widthCalc > 0) {
+      const max = maxColumnWidth[columnIndex];
+      const min = minColumnWidth[columnIndex];
+      if (widthCalc >= max) {
+        columnWidths.push(max);
+        widthCalc -= max;
+      } else {
+        if (widthCalc >= min) {
+          columnWidths.push(widthCalc);
+        }
+        widthCalc = 0;
+      }
+      columnIndex++;
+    }
+    Dashboard.debug(`${columnWidths.join(', ')}`);
+    return columnWidths;
+  }
+
+  getCdkProcess() {
+    const cmd = this.getPkgCmd(this.selectedCmdIndex);
+    const pkg = this.getPkg();
+    if (!cmd || !cmd.uniqueId) {
+      return false;
+    }
+    const cdkProcess = pkg.cdkProcesses[cmd.uniqueId];
+    if (!cdkProcess) {
+      return false;
+    }
+    return cdkProcess;
+  }
+
+  updateCdk(resize = false) {
+
+    const cdkProcess = this.getCdkProcess();
+    if (!cdkProcess || !Dashboard.cdkToggle || !cdkProcess.resources || !Object.values(cdkProcess.resources)?.length) {
+      this.cdkInfo.hide();
+      this.stdout.show();
+      this.cdkProcess = false;
+      return;
+    }
+
+    if (this.cdkInfo.hidden) {
+      this.cdkInfo.show();
+      this.stdout.hide();
+    }
+
+    this.cdkProcess = cdkProcess;
+
+    if (!cdkProcess.updated && !resize) {
+      return;
+    }
+
+    this.columnWidths = this.getColumnWidths();
+    const progress = Object.values(cdkProcess.resources)?.map((p: any) => {
+      return this.styleResourceRow(p);
+    });
+
+    const headers = [
+      '',
+      ' resource',
+      ' type',
+      ' status',
+      ' time',
+      ' reason'
+    ];
+
+    this.cdkInfo.options.columnWidth = this.columnWidths;
+    this.cdkInfo.setData({
+      headers: headers.slice(0, this.columnWidths.length + 1),
+      data: progress,
+    });
+    cdkProcess.updated = false;
+  }
+
+  static getResourceStatusGroup(status: string) {
+    let group;
+    switch(status) {
+      case "CREATE_COMPLETE":
+      case "DELETE_COMPLETE":
+      case "DELETE_SKIPPED":
+      case "IMPORT_COMPLETE":
+      case "UPDATE_COMPLETE":
+      case "IMPORT_ROLLBACK_COMPLETE":
+      case "ROLLBACK_COMPLETE":
+        group = "success";
+        break;
+      case "CREATE_FAILED":
+      case "DELETE_FAILED":
+      case "IMPORT_FAILED":
+      case "UPDATE_FAILED":
+      case "ROLLBACK_FAILED":
+      case "IMPORT_ROLLBACK_FAILED":
+      case "UPDATE_ROLLBACK_FAILED":
+        group = "error";
+        break;
+      case "CREATE_IN_PROGRESS":
+      case "DELETE_IN_PROGRESS":
+      case "IMPORT_IN_PROGRESS":
+      case "UPDATE_IN_PROGRESS":
+      case "UPDATE_ROLLBACK_IN_PROGRESS":
+      case "IMPORT_ROLLBACK_IN_PROGRESS":
+        group = "progress";
+        break;
+    }
+    return group;
+  }
+
+  static getResourceStatusColor(status: string): chalk.Chalk {
+    const group = this.getResourceStatusGroup(status);
+    Dashboard.debug('group', status ? status : 'N/A', group ? group : 'N/A');
+    if (group === "success") {
+      return CenvLog.colors.success;
+    } else if (status === "error") {
+      return CenvLog.colors.alert;
+    } else if (status === "progress") {
+      return CenvLog.colors.smooth;
+    }
+    return CenvLog.colors.warning;
+  }
+
+  headers() {
+    return ;
   }
 
   getCmdText(cmdIndex: number, cmd: Cmd) {
@@ -241,6 +416,8 @@ export default class CmdPanel extends CenvPanel {
       this.cmdList.select(this.selectedCmdIndex);
       this.selectCmdOutput(this.selectedCmdIndex);
     }
+
+
   }
 
   createCmd(cmd: string): any {
@@ -310,6 +487,7 @@ export default class CmdPanel extends CenvPanel {
   }
 
   set(left: number, width: number, top: number, height: number) {
+    this.width = width;
     this.cmdList.top = top;
 
     const cmdListAdditionalHeight = this.cmdList.hidden ? 0 : this.cmdList.height;
@@ -321,10 +499,14 @@ export default class CmdPanel extends CenvPanel {
     this.stderr.left = left;
     this.stdout.left = left;
     this.cmdList.width = width;
-    this.stderr.top = this.stdout.hidden ? top + cmdListAdditionalHeight : this.stdout.top + this.stdout.height;
+    this.stderr.top = this.stdout.hidden && this.cdkInfo.hidden ? top + cmdListAdditionalHeight : this.stdout.top + this.stdout.height;
     this.stderr.width = width;
     this.stderr.height = height - (this.stdout.hidden ? 0 : this.stdout.top + this.stdout.height) - 1;
     this.stdout.width = width;
+    this.cdkInfo.width = width;
+    this.cdkInfo.left = left;
+    this.cdkInfo.height = this.stdout.height;
+    this.cdkInfo.top = this.stdout.top;
   }
 
   render() {
@@ -342,13 +524,38 @@ export default class CmdPanel extends CenvPanel {
     this.stdout.hide();
   }
 
+  showMain() {
+    if (Dashboard.cdkToggle && this.cdkProcess) {
+      this.cdkInfo.show();
+      this.stdout.hide();
+    } else {
+      this.cdkInfo.hide();
+      this.stdout.show();
+    }
+  }
+
+  hideMain() {
+    this.cdkInfo.hide();
+    this.stdout.hide();
+  }
+
+  setMainBack(){
+    this.cdkInfo.setBack();
+    this.stdout.setBack();
+  }
+
+  setMainFront(){
+    this.cdkInfo.setFront();
+    this.stdout.setFront();
+  }
+
   updateVis() {
     super.show();
     const cmds = this.getPkgCmds();
     if (!cmds || !cmds.length) {
       this.cmdList.hide();
       this.stderr.hide();
-      this.stdout.show();
+      //this.showMain();
       return;
     }
 
@@ -363,9 +570,9 @@ export default class CmdPanel extends CenvPanel {
     }
 
     if (!cmds[this.selectedCmdIndex]?.stderr || (cmds[this.selectedCmdIndex]?.stdout) && !Dashboard.toggleDebug) {
-      this.stdout.show();
+      this.showMain();
     } else {
-      this.stdout.hide();
+      this.hideMain();
     }
   }
 
@@ -373,19 +580,19 @@ export default class CmdPanel extends CenvPanel {
     super.show();
     this.cmdList.show();
     this.stderr.show();
-    this.stdout.show();
+    this.showMain();
   }
 
   setBack() {
     this.cmdList.setBack();
     this.stderr.setBack();
-    this.stdout.setBack();
+    this.setMainBack();
   }
 
   setFront() {
     this.cmdList.setFront();
     this.stderr.setFront();
-    this.stdout.setFront();
+    this.setMainFront();
   }
 
   detach() {

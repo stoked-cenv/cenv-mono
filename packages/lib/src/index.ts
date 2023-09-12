@@ -7,6 +7,7 @@ export * from './log';
 export * from './stdio';
 export * from './file';
 export * from './version';
+export * from './cdk';
 import Fake from './fake';
 
 export {Fake}

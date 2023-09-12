@@ -47,10 +47,14 @@ export abstract class CenvPanel {
     return newWidget
   }
 
-  getPkgCmd(cmdIndex: number) {
+  getPkgCmd(cmdIndex?: number) {
     const cmds = this.getPkgCmds();
     if (cmds) {
-      return cmds[cmdIndex];
+      if (cmdIndex === undefined && cmds.length) {
+        return cmds[cmds.length - 1];
+      } else if (cmdIndex !== undefined) {
+        return cmds[cmdIndex];
+      }
     }
     return false;
   }

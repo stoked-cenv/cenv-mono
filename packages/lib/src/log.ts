@@ -4,7 +4,7 @@ import {Injectable} from '@nestjs/common';
 import chalk, {Chalk} from 'chalk';
 import { EnvironmentStatus, ProcessStatus } from './package/package';
 import path from 'path';
-import { existsSync, writeFileSync, appendFileSync } from 'fs';
+import {existsSync, writeFileSync, appendFileSync, mkdirSync} from 'fs';
 import { CenvFiles } from './file';
 
 export enum LogLevel {
@@ -56,7 +56,12 @@ export class CenvLog {
     smoothBold: chalk.blue.bold,
     smoothHighlight: chalk.blueBright,
     smoothBg: chalk.bgBlue,
+    warning: chalk.rgb(245, 165, 0),
+    warningDim: chalk.rgb(245, 165, 0).dim,
+    warningBold: chalk.rgb(245, 165, 0).bold,
+    warningHighlight: chalk.rgb(255, 185, 0).bold,
     bold: chalk.bold
+
   }
   static chalk: Chalk = chalk;
   static colorSets = [[CenvLog.colors.error, CenvLog.colors.errorDim, CenvLog.colors.errorBold], [CenvLog.colors.info, CenvLog.colors.infoDim, CenvLog.colors.infoBold], [CenvLog.colors.success, CenvLog.colors.successDim, CenvLog.colors.successBold]]
@@ -394,7 +399,10 @@ export class CenvLog {
     this.errorLog(stack)
     const errorMessage = `${error}\n${stack}\n\n`
 
-    const errorLogPath = path.join(CenvFiles.LOG_PATH, 'error.log')
+    if (!existsSync(CenvFiles.LOG_PATH)) {
+      mkdirSync(CenvFiles.LOG_PATH, {recursive: true});
+    }
+    const errorLogPath = path.join(CenvFiles.LOG_PATH, 'error.log');
     if (!existsSync(errorLogPath)) {
     writeFileSync( errorLogPath, errorMessage);
     } else {

@@ -144,24 +144,24 @@ export class DockerModule extends PackageModule {
   }
 
   async push(url: string) {
+      const commandEvents = {
+        postCommandFunc: async (pkgCmd?: PackageCmd) => {
+          if (!pkgCmd) {
+            throw new Error('docker push failed: no digest found');
+          }
+          // get the digest from the pushed container
+          const digestRes = await this.getDigest(pkgCmd);
+          if (!digestRes) {
+            throw new Error('docker push failed: no digest found');
+          }
 
-    const commandEvents = {
-      postCommandFunc: async (pkgCmd?: PackageCmd) => {
-        if (!pkgCmd) {
-          throw new Error('docker push failed: no digest found');
-        }
-        // get the digest from the pushed container
-        const digestRes = await this.getDigest(pkgCmd);
-        if (!digestRes) {
-          throw new Error('docker push failed: no digest found');
-        }
+          // verify that the digest exists in the docker repo
+          await this.verifyDigest(digestRes);
+        },
+      };
 
-        // verify that the digest exists in the docker repo
-        await this.verifyDigest(digestRes);
-      },
-    };
+      await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, {commandEvents});
 
-    await this.pkg.pkgCmd(`docker push ${url}/${this.dockerName} --all-tags`, { commandEvents });
   }
 
   async build(args: any, cmdOptions: any = { build: true, push: true, dependencies: false }) {
@@ -186,7 +186,7 @@ export class DockerModule extends PackageModule {
     }
 
     if (build) {
-      const force = cmdOptions.force ? ' --no-cache' : '';
+      const force = cmdOptions.force ? ' --no-cache=true' : '';
       //const buildCmd = `docker build${force} -t ${this.dockerName}:latest -t ${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:${this.pkg.rollupVersion} -t ${DockerModule.ecrUrl}/${this.dockerName}:latest .`;
 
       let context = '.';
@@ -295,7 +295,7 @@ export class DockerModule extends PackageModule {
     }
 
     await this.build(options.cenvVars || {}, { build: true, push: true, dependencies: false, ...options });
-    options.cenvVars = { CENV_PKG_DIGEST: this.digest || this.pkg.stack?.deployedDigest };
+    //options.cenvVars = { CENV_PKG_DIGEST: this.digest || this.pkg.stack?.deployedDigest };
 
     // run post build scripts defined in meta
     await runScripts(this, this.pkg.meta?.data?.postBuildScripts);

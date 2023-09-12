@@ -4,10 +4,14 @@ import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import { IVpc, Vpc } from 'aws-cdk-lib/aws-ec2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import { getDefaultStackEnv, stackName, getVPCByName, stackPrefix, tagStack } from '../utils';
 import { Construct } from 'constructs';
+
+import {aws_autoscaling as autoscaling} from 'aws-cdk-lib';
+import { aws_applicationautoscaling as app_autoscaling} from 'aws-cdk-lib';
 
 export interface EcsQueueDeploymentParams {
   scope?: Construct;
@@ -23,10 +27,12 @@ export interface EcsQueueDeploymentParams {
   region?: string;
   actions?: string[];
   suffix?: string;
+  cluster?: ecs.ICluster;
+  clusterName?: string;
 }
 
 export class EcsQueueStack extends Stack {
-  cluster: ecs.Cluster;
+  cluster: ecs.ICluster;
   queueProcessingFargateService: ecs_patterns.QueueProcessingFargateService;
   logGroup: logs.LogGroup;
   params: EcsQueueDeploymentParams;
@@ -39,11 +45,18 @@ export class EcsQueueStack extends Stack {
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
-    this.cluster = new ecs.Cluster(
-      this, stackName('cluster', 'gen'), {
-        vpc: this.vpc,
-        clusterName: stackName('cluster', 'gen'),
+    if (!params.cluster) {
+      this.cluster = new ecs.Cluster(this, stackName('cluster'), {
+        vpc: this.vpc, clusterName: stackName('cluster', 'gen'),
       });
+    } else if (params.clusterName) {
+      const cluster = ecs.Cluster.fromClusterAttributes(this, 'Cluster', {
+        clusterName: params.clusterName,
+        vpc: Vpc.fromLookup(this, 'VPC', { isDefault: params.defaultVpc }),
+        securityGroups: []
+      });
+      this.cluster = params.cluster;
+    }
 
 
     this.logGroup = new logs.LogGroup(this, `lg`, {
@@ -63,6 +76,18 @@ export class EcsQueueStack extends Stack {
     const containerName = `${stackPrefix()}-${process.env.CENV_PKG_VERSION}-${shortDigest}`.replace(/\./g, '-');
 
     const image = ecs.ContainerImage.fromEcrRepository(repository, 'latest');
+
+
+    // creates a fifo queue
+    const queue = new sqs.Queue(this, stackName('queue'), {
+      queueName: 'thumbnailer-queue.fifo',
+      contentBasedDeduplication: true,
+      fifo: true,
+      receiveMessageWaitTime: Duration.seconds(20),
+      retentionPeriod: Duration.seconds(345600),
+      visibilityTimeout: Duration.seconds(43200)
+    })
+
     // Create a load-balanced Fargate service and make it public
     // A Fargate service running on an ECS cluster fronted by an application load balancer.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs_patterns.ApplicationLoadBalancedFargateService.html
@@ -73,9 +98,17 @@ export class EcsQueueStack extends Stack {
         cluster: this.cluster, // Required
         assignPublicIp: true,
         serviceName: `${stackPrefix()}-svc`,
+        queue,
         cpu: 256, // Default is 256 // 0.25 CPU
         image,
-        memoryLimitMiB: 512 // Default is 512
+        memoryLimitMiB: 512, // Default is 512
+        minScalingCapacity: 0, // min number of tasks
+        maxScalingCapacity: 1, // the max number of tasks a service can spin up
+        scalingSteps: [
+          {"upper": 0, "change": 0},
+          {"lower": 1, "change": +1},
+        ], // this defines how the service shall autoscale
+        environment: params.envVariables
       });
 
     // attach inline policy for interacting with AppConfig
@@ -86,29 +119,41 @@ export class EcsQueueStack extends Stack {
         })],
       }));
     }
+/*
+    // initialise the fargate service CPU usage metric to average over 3 minutes
+    const fargateServiceCpuMetric =  this.queueProcessingFargateService.service.metricCpuUtilization({
+      period: Duration.minutes(3),
+      statistic: "avg"
+    });
 
+    // add an alarm to our fargate service CPU usage
+    const scaleInInit = fargateServiceCpuMetric.createAlarm(this, 's3-tools-thumbnailer-ScaleInInit', {
+      alarmDescription: "For when sample app is idle, scale service to 0",
+      alarmName: 'queueIdleAlarm',
+      evaluationPeriods: 1,
+      threshold: 0.01, // set threshold of cpu usage.
+      actionsEnabled: true,
+      //# create comparison operator so that we compare our cpu usage with our threshold. We want it less than or equal to the threshold             comparison_operator=cw.ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+
+      datapointsToAlarm: 1
+    });
+
+    // define our auto scaling target for our fargate service
+    const scalableTarget = app_autoscaling.ScalableTarget.fromScalableTargetId(
+      this,
+      's3-tools-thumbnailer-scalable-target',
+      `service/${this.queueProcessingFargateService.cluster.clusterName}/${this.queueProcessingFargateService.service.serviceName}|ecs:service:DesiredCount|ecs`,
+    );
+
+    // define the action taken on our scaling target
+    const scalingAction = new app_autoscaling.StepScalingAction(
+      this,
+      's3-tools-thumbnailer-scaleToZero', {
+        scalingTarget: scalableTarget,
+        adjustmentType: autoscaling.AdjustmentType.EXACT_CAPACITY,
+      });
+   */
     tagStack(this);
-
-    new cloudwatch.Metric({
-      metricName: 'CPUUtilization',
-      namespace: 'ECS/ContainerInsights',
-      dimensionsMap: {
-        ServiceName: this.queueProcessingFargateService.service.serviceName,
-        ClusterName: this.cluster.clusterName,
-      },
-      statistic: 'avg',
-      period: Duration.minutes(5),
-    });
-
-    new cloudwatch.Metric({
-      metricName: 'MemoryUtilization',
-      namespace: 'ECS/ContainerInsights',
-      dimensionsMap: {
-        ServiceName: this.queueProcessingFargateService.service.serviceName,
-        ClusterName: this.cluster.clusterName,
-      }, statistic: 'avg',
-      period: Duration.minutes(5),
-    });
   }
 
   getTaskImageOptions(): Partial<ecs_patterns.ApplicationLoadBalancedTaskImageOptions> {

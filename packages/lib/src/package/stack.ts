@@ -11,6 +11,7 @@ import { runScripts } from '../proc';
 import { Deployment } from '../deployment';
 import {inspect} from 'util';
 import {ParamsModule} from './params';
+import {writeFileSync} from 'fs';
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -111,6 +112,7 @@ export class StackModule extends PackageModule {
         let opt: any = { cenvVars: {} };
         opt = await this.getOptions(opt, ProcessMode.DESTROY);
         opt.parentCmd = packageCmd;
+        opt.cdkSupported = ProcessMode.DESTROY;
         await this.pkg.pkgCmd(actualCommand, opt);
       }
 
@@ -129,6 +131,7 @@ export class StackModule extends PackageModule {
     actualCommand += ` -o ${this.getCdkOut()}`;
 
     const opt: any = await this.getOptions({ cenvVars: {} }, ProcessMode.DESTROY);
+    opt.cdkSupported = ProcessMode.SYNTH;
     await this.pkg.pkgCmd(actualCommand, opt);
   }
 
@@ -144,6 +147,7 @@ export class StackModule extends PackageModule {
       await this.resetVolatileKeys(opt);
 
       if (this.meta.deployStack) {
+        opt.cdkSupported = ProcessMode.DEPLOY;
         return await this.pkg.pkgCmd(this.meta.deployStack, opt);
       }
 
@@ -163,7 +167,17 @@ export class StackModule extends PackageModule {
       }
       deployCommand += ` -o ${this.getCdkOut()}`;
       if (!skip) {
+        opt.cdkSupported = ProcessMode.DEPLOY;
         await this.pkg.pkgCmd(deployCommand, opt);
+
+        CenvLog.single.infoLog(' uniqueId: ' + opt.pkgCmd?.uniqueId + ' - ' + JSON.stringify(this.pkg.cdkProcesses[this.pkg.cmds[this.pkg.cmds.length - 1].uniqueId!], null, 2), this.pkg.stackName)
+        const resPath = path.join(this.path, 'stack-resources.cenv');
+        CenvLog.single.infoLog('writing stack resources to ' + resPath);
+        if (this.pkg?.cmds && this.pkg?.cmds.length && opt.pkgCmd?.uniqueId && this.pkg?.cmds[opt.pkgCmd?.uniqueId] ) {
+          writeFileSync(resPath, JSON.stringify(this.pkg.cdkProcesses[opt.pkgCmd?.uniqueId], null, 2));
+          writeFileSync(this.pkg.path + '/stack-resources.cenv', JSON.stringify(this.pkg.cdkProcesses[opt.pkgCmd?.uniqueId], null, 2));
+        }
+
         if (opt.invalidation) {
           await createInvalidation(opt.invalidation, 100);
         }
@@ -334,7 +348,8 @@ export class StackModule extends PackageModule {
       }
     }
 
-    const stacks = await describeStacks(this.pkg.stackNameFinal, true);
+    const stackRegion = this.pkg?.params?.localVars ? this.pkg.params.localVars['STACK_REGION'] : undefined;
+    const stacks = await describeStacks(this.pkg.stackNameFinal, true, stackRegion);
     if (stacks && stacks.length) {
       this.detail = stacks[0];
       const versionTag = this.getTag(`CENV_PKG_VERSION`, this.pkg.stackName);
