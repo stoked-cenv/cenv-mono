@@ -32,7 +32,7 @@ function spawnInfo(options: any, chunk: string, output: string, pkg?: Package) {
     output += chunk;
   }  else {
     // options.pkgCmd?.info(chunk);
-    CenvLog.single.infoLog(chunk, pkg?.stackName);
+    CenvLog.single.infoLog(chunk, options.pkg.stackName || options?.pkgCmd?.pkg?.stackName);
   }
   cdkout(options, chunk, output, pkg);
 }
