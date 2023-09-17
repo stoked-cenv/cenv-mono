@@ -43,7 +43,7 @@ export class EcsQueueStack extends Stack {
   constructor(params: EcsQueueDeploymentParams) {
     super(params?.scope ? params?.scope : new App(), params.id ?? `${params.env}-${params.stackName}${params.suffix ? '-' + params.suffix : ''}`, params.stackProps ?? getDefaultStackEnv());
     this.params = params;
-    this.vpc = this.params.defaultVpc ? Vpc.fromLookup(this, 'VPC', { isDefault: true }) : getVPCByName(this);
+    this.vpc = this.params.defaultVpc ? Vpc.fromLookup(this, 'VPC', { isDefault: params.defaultVpc }) : getVPCByName(this);
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
@@ -54,7 +54,7 @@ export class EcsQueueStack extends Stack {
     } else if (params.clusterName) {
       const cluster = ecs.Cluster.fromClusterAttributes(this, 'Cluster', {
         clusterName: params.clusterName,
-        vpc: Vpc.fromLookup(this, 'VPC', { isDefault: params.defaultVpc }),
+        vpc: this.vpc,
         securityGroups: []
       });
       this.cluster = params.cluster;
