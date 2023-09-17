@@ -250,6 +250,7 @@ export class DockerModule extends PackageModule {
   }
 
   async destroy() {
+    this.pkg.currentModule = this.type;
     const repositories = await describeRepositories();
 
     if (!repositories || !repositories?.length) {
@@ -264,6 +265,7 @@ export class DockerModule extends PackageModule {
   }
 
   async deploy(options: any) {
+    this.pkg.currentModule = this.type;
 
     if (!this.dockerName) {
       CenvLog.single.catchLog(['docker module without docker name', this.pkg.packageName].join(' '));

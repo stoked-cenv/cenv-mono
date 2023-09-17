@@ -66,6 +66,7 @@ export class StackModule extends PackageModule {
     if (this.detail?.LastUpdatedTime) {
       items.push(`latest stack deployed: ${this.detail?.LastUpdatedTime}`);
     }
+    items.push(`stack region: ${this.stackRegion}`);
     return items;
   }
 
@@ -100,6 +101,7 @@ export class StackModule extends PackageModule {
   }
 
   async destroy(packageCmd?: PackageCmd) {
+    this.pkg.currentModule = this.type;
     try {
       if (Deployment.options.hard) {
         const deployCmd = this.pkg.createCmd(`cenv destroy ${this.pkg.packageName} --hard`);
@@ -107,6 +109,9 @@ export class StackModule extends PackageModule {
         deployCmd.result(0);
       } else {
         let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.DESTROY)];
+        if (this.deployStack) {
+          actualCommand += ` ${this.deployStack}`;
+        }
         actualCommand += ` -o ${this.getCdkOut()}`;
 
         let opt: any = { cenvVars: {} };
@@ -126,8 +131,20 @@ export class StackModule extends PackageModule {
     }
   }
 
+  get deployStack() {
+    if (this.meta?.cenv?.stack?.all) {
+      return '--all';
+    } else if (this.meta?.cenv?.stack?.deployStack) {
+      return this.meta.cenv.stack.deployStack;
+    }
+    return false
+  }
+
   async synth() {
     let actualCommand = StackModule.commands[Object.keys(ProcessMode).indexOf(ProcessMode.SYNTH)];
+    if (this.deployStack) {
+      actualCommand += ` ${this.deployStack}`;
+    }
     actualCommand += ` -o ${this.getCdkOut()}`;
 
     const opt: any = await this.getOptions({ cenvVars: {} }, ProcessMode.DESTROY);
@@ -136,6 +153,7 @@ export class StackModule extends PackageModule {
   }
 
   async deploy(deployOptions: any, options: any) {
+    this.pkg.currentModule = this.type;
     if (this.needsAutoDelete()) {
       await this.destroy();
     }
@@ -164,6 +182,9 @@ export class StackModule extends PackageModule {
 
       if (CenvLog.logLevel === LogLevel.VERBOSE) {
         CenvLog.single.infoLog(inspect({...opt, dashboardOptions: undefined,  }));
+      }
+      if (this.deployStack) {
+        deployCommand += ` ${this.deployStack}`;
       }
       deployCommand += ` -o ${this.getCdkOut()}`;
       if (!skip) {
@@ -330,6 +351,11 @@ export class StackModule extends PackageModule {
     }
     this.checked = true;
     this.getDetails();
+  }
+
+  get stackRegion() {
+    const stackRegion = this.pkg?.params?.localVars ? this.pkg.params.localVars['STACK_REGION'] : undefined;
+    return stackRegion || process.env.AWS_REGION;
   }
 
   async checkStatus(silent = false) {

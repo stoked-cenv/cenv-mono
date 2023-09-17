@@ -135,6 +135,7 @@ export class LibModule extends PackageModule {
   }
 
   async deploy(force = false, completedWhenDone = false) {
+    this.pkg.currentModule = this.type;
     await this.build(force, completedWhenDone);
     if (this.isPublishable) {
       await this.publish();
@@ -176,58 +177,59 @@ export class LibModule extends PackageModule {
   }
 
   async build(force = false, completedWhenDone = false, cmd?: PackageCmd) {
-    try {
-      if (this.meta.skipDeployBuild && !force) {
-        return true;
-      }
-      this.pkg.processStatus = ProcessStatus.BUILDING;
-      if (!this.pkg.isRoot) {
-        const buildCmdString = `cenv build ${this.name}`;
-        if (cmd) {
-          cmd.out(buildCmdString);
-        }
-        const buildCmd = cmd ? cmd : this.pkg.createCmd(buildCmdString);
-        try {
-          const opt = { cenvVars: {}, pkgCmd: buildCmd };
-          if (this.pkg.params && this.meta?.cenv?.lib?.loadVars) {
-            await this.pkg.params.loadVars();
-          }
-          const res = await this.pkg.pkgCmd(`pnpm --filter ${this.name} build`, {
-            packageModule: this, redirectStdErrToStdOut: true, ...opt,
-          });
-          buildCmd.result(res.res !== undefined ? res.res : res);
-        } catch (e) {
-          if (buildCmd.code === undefined) {
-            buildCmd.result(-44);
-          }
-          this.pkg.setBroken(`[${this.name}] build failed`, true);
-          Deployment.setDeployStatus(this.pkg, ProcessStatus.FAILED);
-          this.buildStatus = LibStatus.FAILED;
-          return false;
-        }
-      }
-      if (Version.bumpMode !== BumpMode.DISABLED) {
-        this.pkg.processStatus = ProcessStatus.HASHING;
-        await this.hash();
-      }
-      this.writeBuildLog();
-      if (completedWhenDone) {
-        this.pkg.processStatus = ProcessStatus.COMPLETED;
-      } else {
-        this.pkg.processStatus = ProcessStatus.PROCESSING;
-      }
-      this.buildStatus = LibStatus.SUCCESS;
-      this.timestamp = new Date();
-      this.verbose(`timestamp: ${this.timestamp?.toLocaleString()}`, `[${this.buildStatus}]`, 'build status');
-      this.hasBeenBuilt = true;
+    if (this.meta.skipDeployBuild && !force) {
       return true;
-    } catch (e) {
-      if (e instanceof Error) {
-        CenvLog.single.errorLog(e.stack || 'build failed', this.pkg.stackName, true);
+    }
+    this.pkg.processStatus = ProcessStatus.BUILDING;
+    if (!this.pkg.isRoot) {
+      const buildCmdString = `cenv build ${this.name}`;
+      if (cmd) {
+        cmd.out(buildCmdString);
+      }
+      const buildCmd = cmd ? cmd : this.pkg.createCmd(buildCmdString);
+      try {
+        const opt = {
+          cenvVars: {},
+          pkgCmd: buildCmd
+        };
+        if (this.pkg.params && this.meta?.cenv?.lib?.loadVars) {
+          await this.pkg.params.loadVars();
+        }
+        const res = await this.pkg.pkgCmd(`pnpm --filter ${this.name} build`,
+          {
+          packageModule: this,
+          redirectStdErrToStdOut: true,
+          ...opt,
+        });
+        buildCmd.result(res.res !== undefined ? res.res : res);
+      } catch (e) {
+        this.buildStatus = LibStatus.FAILED;
         throw e;
+      //  if (buildCmd.code === undefined) {
+      //    buildCmd.result(-44);
+      //  }
+      //  this.pkg.setBroken(`[${this.name}] build failed`, true);
+      //  Deployment.setDeployStatus(this.pkg, ProcessStatus.FAILED);
+      //  this.buildStatus = LibStatus.FAILED;
+      // return false;
       }
     }
-    return false;
+    if (Version.bumpMode !== BumpMode.DISABLED) {
+      this.pkg.processStatus = ProcessStatus.HASHING;
+      await this.hash();
+    }
+    this.writeBuildLog();
+    if (completedWhenDone) {
+      this.pkg.processStatus = ProcessStatus.COMPLETED;
+    } else {
+      this.pkg.processStatus = ProcessStatus.PROCESSING;
+    }
+    this.buildStatus = LibStatus.SUCCESS;
+    this.timestamp = new Date();
+    this.verbose(`timestamp: ${this.timestamp?.toLocaleString()}`, `[${this.buildStatus}]`, 'build status');
+    this.hasBeenBuilt = true;
+    return true;
+
   }
 
   // TODO: must compute separate hashes per module..

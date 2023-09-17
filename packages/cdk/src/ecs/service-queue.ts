@@ -49,7 +49,7 @@ export class EcsQueueStack extends Stack {
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
     if (!params.cluster) {
       this.cluster = new ecs.Cluster(this, stackName('cluster'), {
-        vpc: this.vpc, clusterName: stackName('cluster', 'gen'),
+        vpc: this.vpc, clusterName: stackName('cluster'),
       });
     } else if (params.clusterName) {
       const cluster = ecs.Cluster.fromClusterAttributes(this, 'Cluster', {
@@ -112,6 +112,7 @@ export class EcsQueueStack extends Stack {
         ], // this defines how the service shall autoscale
         environment: params.envVariables,
         taskDefinition: params.taskDefinition,
+
       });
 
 

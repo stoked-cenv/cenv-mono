@@ -954,6 +954,13 @@ export class Dashboard {
     }
   }
 
+  static focus(element: any) {
+    const index = Dashboard.instance?.focusPool.map((e: any) => e.name).indexOf(element.name);
+    if (index) {
+      Dashboard.instance?.setFocusIndex(index);
+    }
+  }
+
   get tableHeaders() {
     //return [' name', ' ver.', ' type', ' environment', ' process', ' time'];
     return [' name', ' ver.', ' environment', ' process', ' time'];
@@ -986,7 +993,7 @@ export class Dashboard {
     }
 
     if (Dashboard.instance) {
-      Dashboard.instance?.debugLog.setContent(text.join())
+      Dashboard.instance?.debugLog.setContent('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n' + text.join() + '\n' + '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
     }
   }
 
@@ -1283,12 +1290,8 @@ export class Dashboard {
       const box = this.focusedBox?.rows ? this.focusedBox.rows : this.focusedBox;
       if (box.style?.selected) {
         box.style.selected.bold = true;
-        //box.style.selected.fg = 'white';
-        //box.style.selected.bg = [15, 40, 15];
       }
       if (box.style?.item) {
-        //box.style.item.fg = [140, 140, 140];
-        //box.style.item.bg = 'black';
       }
       if (this.focusedBox?.style?.label?.oldFg) {
         this.focusedBox.style.label.fg = this.focusedBox.style.label.oldFg;

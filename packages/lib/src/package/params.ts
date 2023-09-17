@@ -352,6 +352,7 @@ export class ParamsModule extends PackageModule {
   }
 
   async destroy(parameterStore = true, appConfig = true) {
+    this.pkg.currentModule = this.type;
     if (parameterStore) {
       await deleteParametersByPath(`/service/${stripPath(this.pkg.packageName)}`, '    -', this.pkg.packageName);
     }
@@ -776,6 +777,7 @@ export class ParamsModule extends PackageModule {
   }
 
   async deploy(options: any) {
+    this.pkg.currentModule = this.type;
     const [value, release] = await ParamsModule.semaphore.acquire();
 
      try {

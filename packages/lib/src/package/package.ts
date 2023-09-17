@@ -243,6 +243,8 @@ export interface CenvStackMeta {
   assignedSubDomain?: string
   certArnName?: string
   clearContext: boolean;
+  all?: boolean;
+  deployStack?: string;
 }
 
 export interface CenvDockerMeta {
@@ -496,6 +498,7 @@ export class Package implements IPackage {
   packageNameComponents: PackageNameComponents;
   NextPollConfigurationToken?: string;
   MetaNextPollConfigurationToken?: string;
+  currentModule?: PackageModuleType;
 
   constructor(packageName: string, useCache = true, local = false) {
     const isGlobal = packageName === 'GLOBAL';
@@ -1518,8 +1521,15 @@ export class Package implements IPackage {
     commandEvents?: CommandEvents;
     pkgPath?: string;
     force?: boolean;
+    throwErrorPassthrough?: boolean;
   } = {
-    envVars: {}, cenvVars: {}, redirectStdErrToStdOut: false, returnOutput: false, failOnError: true, silent: false,
+    envVars: {},
+    cenvVars: {},
+    redirectStdErrToStdOut: false,
+    returnOutput: false,
+    failOnError: true,
+    silent: false,
+    throwErrorPassthrough: false
   }) {
     try {
 
@@ -1559,7 +1569,6 @@ export class Package implements IPackage {
 
       return res;
     } catch (e) {
-
       let etype = e?.toString();
       if (e instanceof Error) {
         etype = e.stack?.toString();

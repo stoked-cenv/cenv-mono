@@ -148,7 +148,6 @@ function displayConfigVars(title: string, configVars: any, exports = false) {
     }
   }
 
-  console.log(new Error(title).stack)
   console.log('*************************************************************************');
   console.log(`****************************** ${CenvLog.colors.stdHighlightUnderline(title)} ******************************`);
   console.log('*************************************************************************');

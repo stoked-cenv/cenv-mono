@@ -4,6 +4,7 @@ import {Dashboard} from './dashboard';
 import {CenvPanel} from './panel';
 import {CdkProcess, CdkResource, CenvLog, Cmd, EnvironmentStatus, Package, PackageCmd, ProcessStatus} from '@stoked-cenv/lib';
 import chalk from 'chalk';
+import * as util from "util";
 
 blessed.text.prototype.name = '';
 blessed.list.prototype.name = ''
@@ -35,14 +36,41 @@ export default class CmdPanel extends CenvPanel {
   init() {
     try {
       this.cmdList = this.addGridWidget(blessed.list, {
-        keys: true, mouse: true, interactive: true, style: {
-          text: 'red', selected: {
-            bold: true, fg: [24, 242, 24], bg: 'black',
-          }, border: {fg: 'grey'}, label: {side: 'left', fg: 'gray'}, focus: {fg: 'red'}
-        }, template: {lines: true}, selectedInverse: false, scrollable: true, scrollbar: {
-          ch: ' ', inverse: true,
-        }, hidden: false
-      }, [0, 2, 1, 3], true,);
+        keys: true,
+        mouse: true,
+        interactive: true,
+        style: {
+          text: 'red',
+          selected: {
+            bold: true,
+            fg: [24, 242, 24],
+            bg: 'black',
+          },
+          border: {
+            fg: 'grey'
+          },
+          label: {
+            side: 'left',
+            fg: 'gray'
+          },
+          focus: {
+            fg: 'red'
+          }
+        },
+        template: {
+          lines: true
+        },
+        selectedInverse: false,
+        scrollable: true,
+        scrollbar: {
+          ch: ' ',
+          inverse: true,
+        },
+        hidden: false
+      },
+        [0, 2, 1, 3],
+        true
+      );
       this.cmdList.name = 'tasks';
 
       this.cdkInfo = this.addGridWidget(contrib.table, {
@@ -93,24 +121,20 @@ export default class CmdPanel extends CenvPanel {
       this.stdout.name = 'stdout'
 
       this.stdout.on('wheeldown',  () => {
-        const index = this.focusPool.indexOf(this.stdout);
-        this.setFocus(index);
+        Dashboard.focus(this.stdout)
+
         this.stdout.scroll((this.stdout.height / 2) | 0 || 1);
         this.stdout.screen.render();
       });
 
       this.stdout.on('wheelup', () => {
-        const index = this.focusPool.indexOf(this.stdout);
-        this.setFocus(index);
+        Dashboard.focus(this.stdout)
         this.stdout.scroll(-((this.stdout.height / 2) | 0) || -1);
         this.stderr.screen.render();
       });
 
       this.stdout.on('click', () => {
-        const index = this.focusPool?.indexOf(this.stdout);
-        if (index !== undefined) {
-          this.setFocus(index);
-        }
+        Dashboard.focus(this.stdout)
       });
 
       this.stderr = this.addGridWidget(blessed.box, {
@@ -124,27 +148,23 @@ export default class CmdPanel extends CenvPanel {
       this.stderr.setLabel(CenvLog.colors.info(`stderr`));
 
       this.stderr.on('click', () => {
-        const index = this.focusPool.indexOf(this.stderr);
-        this.setFocus(index);
+        Dashboard.focus(this.stderr)
       });
 
       this.stderr.on('wheeldown', () => {
-        const index = this.focusPool.indexOf(this.stderr);
-        this.setFocus(index);
+        Dashboard.focus(this.stderr)
         this.stderr.scroll((this.stderr.height / 2) | 0 || 1);
         this.stderr.screen.render();
       });
 
       this.stderr.on('wheelup', () => {
-        const index = this.focusPool.indexOf(this.stderr);
-        this.setFocus(index);
+        Dashboard.focus(this.stderr)
         this.stderr.scroll(-((this.stderr.height / 2) | 0) || -1);
         this.stderr.screen.render();
       });
 
       this.cmdList.on('click', ()=> {
-        const index = this.focusPool.indexOf(this.cmdList);
-        this.setFocus(index);
+        Dashboard.focus(this.cmdList)
       });
 
       const cdkOutput = (stdout?: string) => {
@@ -175,6 +195,7 @@ export default class CmdPanel extends CenvPanel {
 
         return stdout;
       }
+
       this.cmdList.on('select item', (item: any, index: number) => {
         if (this.selectedCmdIndex === index) {
           return;
@@ -193,7 +214,13 @@ export default class CmdPanel extends CenvPanel {
         } else {
           this.stdout.setContent(cmd.stdout);
         }
-
+        const selected = this.cmdList.selected === index;
+        if (selected) {
+          //this.cmdList.items[this.cmdList.selected].style.fg = [22, 242, 100];
+        }
+        if (Dashboard.instance) {
+          Dashboard.focus(this.cmdList)
+        }
         this.selectedCmdIndex = index;
         this.stderr.setScrollPerc(0);
         this.stdout.setScrollPerc(0);
@@ -345,17 +372,18 @@ export default class CmdPanel extends CenvPanel {
   }
 
   getCmdText(cmdIndex: number, cmd: Cmd) {
-    const selected = this.cmdList.selected === cmdIndex;
     let color = '';
     if (cmd.code === undefined) {
+      Dashboard.debugSet('green', 'undefined', cmd?.cmd !== undefined ? util.inspect(cmd,false, 1) : 'undefined')
       color = 'green';
     } else if (cmd.code === 0) {
-      //Dashboard.debug('code 0')
+      Dashboard.debug('gray', cmd.code.toString(), cmd?.cmd !== undefined ? cmd.cmd : 'undefined')
       color = 'gray';
     } else if (cmd.code) {
-      //Dashboard.debug('code != undefined || 0')
+      Dashboard.debug('red', cmd.code.toString(), cmd?.cmd !== undefined ? cmd.cmd : 'undefined')
       color = 'red';
     }
+
     const colorFunc = colors[color as keyof typeof colors];
     if (colorFunc !== false && colorFunc !== true) {
       return colorFunc(cmd.cmd!);
@@ -381,8 +409,7 @@ export default class CmdPanel extends CenvPanel {
           if (!c.hasClicker) {
             c.on('click', () => {
               this.getPkg().activeCmdIndex = i;
-              const index = this.focusPool.indexOf(this.cmdList);
-              this.dashboard.setFocusIndex(index);
+              Dashboard.focus(this.cmdList)
             });
             c.hasClicker = true;
           }
