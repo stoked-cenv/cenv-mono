@@ -47,7 +47,7 @@ export class EcsQueueStack extends Stack {
 
     // A regional grouping of one or more container instances on which you can run tasks and services.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
-    if (!params.cluster) {
+    if (!params.cluster && !params.clusterName) {
       this.cluster = new ecs.Cluster(this, stackName('cluster'), {
         vpc: this.vpc, clusterName: stackName('cluster'),
       });
