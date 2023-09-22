@@ -38,6 +38,7 @@
     "@nestjs/common": "^10.0.0",
     "@smithy/types": "^1.2.0",
     "@stoked-cenv/cli-select": "^2.0.0-a.125",
+    "@stoked-cenv/lib": "^2.0.0-a.125",
     "ajv": "^8.12.0",
     "async-mutex": "^0.4.0",
     "chalk": "^4.1.2",

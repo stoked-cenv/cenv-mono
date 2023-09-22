@@ -245,6 +245,8 @@ export interface CenvStackMeta {
   clearContext: boolean;
   all?: boolean;
   deployStack?: string;
+  props?: any;
+  envVarKeys?: string[];
 }
 
 export interface CenvDockerMeta {
@@ -498,7 +500,7 @@ export class Package implements IPackage {
   packageNameComponents: PackageNameComponents;
   NextPollConfigurationToken?: string;
   MetaNextPollConfigurationToken?: string;
-  currentModule?: PackageModuleType;
+  protected currentModule?: PackageModuleType;
 
   constructor(packageName: string, useCache = true, local = false) {
     const isGlobal = packageName === 'GLOBAL';
@@ -616,6 +618,18 @@ export class Package implements IPackage {
       CenvLog.single.catchLog(e);
       process.exit(3);
     }
+  }
+
+  setActiveModule(module: PackageModuleType) {
+    this.activeModuleIndex = this.modules.map(m => m.type).indexOf(module);
+    if (Cenv.dashboard?.selectedPackage?.stackName === this.stackName) {
+      Cenv.dashboard?.statusPanel?.modules?.select(this.activeModuleIndex);
+    }
+    this.currentModule = module;
+  }
+
+  get activeModule() {
+    return this.currentModule;
   }
 
   static noEnv(name: string) {

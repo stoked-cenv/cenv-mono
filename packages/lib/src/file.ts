@@ -269,6 +269,9 @@ export class EnvVarsFile extends File {
   public static get NAME(): string {
     const name = `${appExt}.[--env--]-[--accountId--]`;
     if (CenvFiles.ENVIRONMENT) {
+      if (CenvFiles.ENVIRONMENT === 'local') {
+        return name.replace('[--env--]', CenvFiles.ENVIRONMENT).replace('-[--accountId--]', '');
+      }
       return name.replace('[--env--]', CenvFiles.ENVIRONMENT).replace('[--accountId--]', CenvFiles.AWS_ACCOUNT_ID);
     }
     return name;
@@ -841,9 +844,16 @@ export class CenvFiles {
       }
       delete appData.globalEnv;
     }
-    this.GlobalVars = globals;
-    this.GlobalEnvVars = globalEnvs;
-    this.AppVars = appData;
+    let overwriteData = {};
+    if (process.env.ENV === 'local') {
+      overwriteData = this.EnvVars;
+    }
+    this.GlobalVars = {...globals, ...overwriteData};
+    this.GlobalEnvVars = {...globalEnvs, ...overwriteData};;
+    this.AppVars = {...appData as VarList, ...overwriteData};
+    this.AppVars.global = appData.global;
+    this.AppVars.globalEnv = appData.globalEnv;
+
     if (decrypted) {
       const roots = CenvParams.GetRootPaths(applicationName, CenvFiles.ENVIRONMENT);
       this.GlobalVars = await this.DecryptVarsBase(roots.global, this.GlobalVars);

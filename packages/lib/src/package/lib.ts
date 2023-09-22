@@ -135,7 +135,7 @@ export class LibModule extends PackageModule {
   }
 
   async deploy(force = false, completedWhenDone = false) {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
     await this.build(force, completedWhenDone);
     if (this.isPublishable) {
       await this.publish();

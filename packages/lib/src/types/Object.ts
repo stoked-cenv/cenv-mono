@@ -124,22 +124,31 @@ export enum DiffMapperType {
 export const deepDiffMapper = function () {
   return {
     compareData: function(obj1: any, obj2: any) {
+
+      console.log('compareData', JSON.stringify(obj1, null, 2), JSON.stringify(obj2, null, 2));
+
       if (this.isFunction(obj1) || this.isFunction(obj2)) {
         throw 'Invalid argument. Function given, object expected.';
       }
       if (this.isValue(obj1) || this.isValue(obj2)) {
-        const res: any = {
-          type: this.compareValues(obj1, obj2),
-          data: obj1 === undefined ? obj2 : obj1
+        const type = this.compareValues(obj1, obj2);
+        let oldData = obj1 === undefined ? 'undefined' : obj1;
+        let data = obj2 === undefined ? 'undefined' : obj2;
+        if (type === 'created') {
+          return { type, data };
+        } else if (type === 'deleted') {
+          return { type, data: oldData };
+        } else if (type === 'updated') {
+          return { type, data, oldData };
+        } else if (type === 'unchanged') {
+          return { type, data };
         }
-        if (obj1) {
-          res['oldData'] = obj2;
-        }
-        return res;
+        CenvLog.single.catchLog(new Error('unsupported diff type: ' + type));
       }
 
       const diff: any = {};
       for (const key in obj1) {
+
         if (this.isFunction(obj1[key])) {
           continue;
         }
@@ -184,6 +193,8 @@ export const deepDiffMapper = function () {
     },
     map: function(obj1: any, obj2: any, diffMapperTypes: DiffMapperType[] = [DiffMapperType.VALUE_CREATED, DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_UNCHANGED]) {
       const compared = this.compareData(obj1, obj2);
+      console.log(JSON.stringify(obj1, null, 2), JSON.stringify(obj2, null, 2));
+      console.log('compare result', JSON.stringify(compared, null, 2));
       return this.validateDiff(compared, diffMapperTypes);
     },
     unchanged: function(value1: any, value2: any) {
@@ -220,10 +231,10 @@ export const deepDiffMapper = function () {
       return Object.prototype.toString.call(x) === '[object Object]';
     },
     isValue: function (x: any) {
-      return !this.isObject(x) && !this.isArray(x);
+      return (!this.isObject(x) || !Object.keys(x).length) && !this.isArray(x);
     },
     isResult: function(x: any) {
-      return this.isObject(x) && x.type && x.data;
+      return this.isObject(x) && x.type !== undefined && x.data !== undefined;
     }
   }
 }();

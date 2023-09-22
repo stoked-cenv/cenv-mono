@@ -226,7 +226,7 @@ export function simplify(yamlData: any, printPkg?: string) {
 export function expandTemplateVars(baseVars: any) {
   // clear the protection
   Object.keys(baseVars).map((k) => {
-    baseVars[k] = baseVars[k].replace(/^<\](.*?)\[>$/, '$1');
+    baseVars[k] = baseVars[k]?.replace(/^<\](.*?)\[>$/, '$1');
   });
   let m;
   const regex = /<{(.*?)}>/gm;

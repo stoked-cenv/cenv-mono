@@ -1,4 +1,12 @@
-import {_Object, GetObjectCommand, ListBucketsCommand, ListObjectsCommand, PutObjectCommand, S3Client} from '@aws-sdk/client-s3';
+import {
+  _Object,
+  GetObjectCommand, GetObjectCommandOutput,
+  ListBucketsCommand,
+  ListObjectsCommand,
+  PutObjectCommand,
+  S3Client
+} from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
 import { S3SyncClient } from 's3-sync-client';
 import {CenvLog} from '../log';
 import {Cenv} from "../cenv";
@@ -7,6 +15,7 @@ import { TransferMonitor } from 's3-sync-client';
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import {SdkStreamMixin} from "@smithy/types";
 import { humanFileSize } from '../utils';
+import {writeFileSync} from "fs";
 
 
 
@@ -67,6 +76,7 @@ export async function getPresignedUrl({region, bucket, key}: { region: string, b
 }
 
 export async function listObjects({region, bucket}: { region: string, bucket: string }): Promise<BucketObject[] | false> {
+  console.log('process.env.AWS_PROFILE', process.env.AWS_PROFILE);
   console.log('region', region);
   console.log('bucket', bucket);
   const client = new S3Client({region});
@@ -109,17 +119,45 @@ export async function listBuckets({region}: { region: string }): Promise<{
   return false;
 }
 
-export async function getObject({region, bucket, key}: { region: string, bucket: string, key: string }): Promise<(ReadableStream & SdkStreamMixin) | false> {
+export async function getObject({region, bucket, key}: { region: string, bucket: string, key: string }): Promise<GetObjectCommandOutput | false> {
   try {
     const client = new S3Client({region});
-    const {Body} = await client.send(new GetObjectCommand({Bucket: bucket, Key: key}));
-    if (Body) {
-      return Body;
+    const res = await client.send(new GetObjectCommand({Bucket: bucket, Key: key}));
+    if (res && res.Body) {
+      return res;
     }
   } catch (e) {
     CenvLog.single.catchLog(e);
   }
   return false;
+}
+
+const getBody = (response: GetObjectCommandOutput) => {
+  return response.Body && (response.Body as Readable);
+};
+
+const getBodyAsBuffer = async (response: GetObjectCommandOutput) => {
+  const stream = getBody(response);
+  if (stream) {
+    const chunks: Buffer[] = [];
+    return new Promise<Buffer>((resolve, reject) => {
+      stream.on('data', (chunk) => chunks.push(chunk));
+      stream.on('error', (err) => reject(err));
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+  }
+};
+
+const getBodyAsString = async (response: GetObjectCommandOutput) => {
+  const buffer = await getBodyAsBuffer(response);
+  return buffer?.toString();
+};
+
+export async function writeObject({region, bucket, key}: { region: string, bucket: string, key: string }, writePath: string) {
+  const res = await getObject({region, bucket, key})
+  if (res) {
+    writeFileSync(writePath, await getBodyAsString(res));
+  }
 }
 
 export async function putObject({region, bucket, key, body}: { region: string, bucket: string, key: string, body: string }): Promise<boolean> {

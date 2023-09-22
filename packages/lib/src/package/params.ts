@@ -352,7 +352,7 @@ export class ParamsModule extends PackageModule {
   }
 
   async destroy(parameterStore = true, appConfig = true) {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
     if (parameterStore) {
       await deleteParametersByPath(`/service/${stripPath(this.pkg.packageName)}`, '    -', this.pkg.packageName);
     }
@@ -364,9 +364,13 @@ export class ParamsModule extends PackageModule {
   async loadLocal() {
     //this.pkg.stdPlain('loading local vars:', this.pkg.packageName);
     const localData = await CenvFiles.GetData(this.pkg.packageName);
+    console.log('localData', JSON.stringify(localData, null, 2));
     this.localVarsTyped = localData?.Vars;
     this.localVars = this.convertToCenvVars(this.localVarsTyped);
-    this.localVarsExpanded = expandTemplateVars(this.localVars);
+    if (this.localVars && Object.keys(this.localVars).length > 0) {
+      console.log('this.localVars', JSON.stringify(this.localVars, null, 2))
+      this.localVarsExpanded = expandTemplateVars({...this.localVars});
+    }
   }
 
   async loadDeployed() {
@@ -386,6 +390,7 @@ export class ParamsModule extends PackageModule {
     }
   }
   async loadVars(force = false, stage: undefined | string = undefined) {//options: {force: boolean, silent: boolean, stage?:
+    console.log('force', force, 'stage', stage, 'this.varsLoaded', this.varsLoaded);
     // string} =
     // {force:
     try {
@@ -692,7 +697,7 @@ export class ParamsModule extends PackageModule {
     const exported = options?.export ? options?.export : false;
 
     await this.loadVars(false, !diff ? stage : undefined);
-    let local = stage === 'local';
+    let local = stage === 'local' || process.env.ENV === 'local';
     let deployed = stage === 'deployed';
     let materialized = stage === 'materialized';
     const all = stage === 'all';
@@ -777,7 +782,7 @@ export class ParamsModule extends PackageModule {
   }
 
   async deploy(options: any) {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
     const [value, release] = await ParamsModule.semaphore.acquire();
 
      try {

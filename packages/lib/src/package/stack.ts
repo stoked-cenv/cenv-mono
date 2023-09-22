@@ -3,7 +3,7 @@ import { Stack, StackSummary } from '@aws-sdk/client-cloudformation';
 import { s3sync, deleteStack, describeStacks, createInvalidation } from '../aws';
 import { parse, SemVer } from 'semver';
 import { CenvLog, LogLevel } from '../log';
-import { removeScope, semVerParse } from '../utils';
+import {expandTemplateVars, removeScope, semVerParse} from '../utils';
 import { CommandEvents, Package, PackageCmd, TPackageMeta } from './package';
 import * as path from 'path';
 import {CenvFiles, IParameter} from '../file'
@@ -12,6 +12,7 @@ import { Deployment } from '../deployment';
 import {inspect} from 'util';
 import {ParamsModule} from './params';
 import {writeFileSync} from 'fs';
+import process from "process";
 
 export enum StackType {
   ECS = 'ECS', LAMBDA = 'LAMBDA', ACM = 'ACM', SPA = 'SPA', NETWORK = 'NETWORK'
@@ -101,7 +102,7 @@ export class StackModule extends PackageModule {
   }
 
   async destroy(packageCmd?: PackageCmd) {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
     try {
       if (Deployment.options.hard) {
         const deployCmd = this.pkg.createCmd(`cenv destroy ${this.pkg.packageName} --hard`);
@@ -153,7 +154,7 @@ export class StackModule extends PackageModule {
   }
 
   async deploy(deployOptions: any, options: any) {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
     if (this.needsAutoDelete()) {
       await this.destroy();
     }
@@ -240,7 +241,7 @@ export class StackModule extends PackageModule {
         if (!this.pkg?.params?.varsLoaded) {
           await this.pkg.params.loadVars();
         }
-        opt.cenvVars = { ...opt.cenvVars, ...this.pkg.params.cenvVars };
+        opt.cenvVars = { ...opt.cenvVars, ...this.pkg.params.materializedVars };
       }
 
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {
@@ -262,6 +263,7 @@ export class StackModule extends PackageModule {
         opt.packageModule = this.pkg.stack;
       }
 
+
       const pkgVars = {
         CENV_PKG_VERSION: this.pkg.rollupVersion,
         CENV_STACK_NAME: removeScope(this.pkg.packageName),
@@ -269,7 +271,8 @@ export class StackModule extends PackageModule {
       };
       opt.cenvVars = { ...opt.cenvVars, ...pkgVars };
       if (this.pkg.docker) {
-        /*const latestImage = await getTag(this.pkg.docker.dockerName, 'latest');
+        /*
+        const latestImage = await getTag(this.pkg.docker.dockerName, 'latest');
         if (!latestImage) {
           throw new Error(`the repository "${this.pkg.docker.dockerName}" does not have an image with the tag latest`);
         }
@@ -284,6 +287,33 @@ export class StackModule extends PackageModule {
         opt.cenvVars['CENV_SUBDOMAIN'] = this.meta.cenv.stack.assignedSubDomain;
       }
 
+      if (this.meta?.cenv?.stack?.props) {
+        let props = this.meta.cenv.stack.props;
+        if (this.pkg.params && this.pkg.params?.materializedVars && Object.keys(this.pkg.params.materializedVars)?.length) {
+          let expanded = expandTemplateVars({...this.pkg.params?.materializedVars, props: JSON.stringify(props) })
+          expanded = expandTemplateVars(expanded)
+          props = JSON.parse(expanded.props);
+        }
+        props.stackProps =  {
+          env: {
+            account: process.env.CDK_DEFAULT_ACCOUNT,
+            region: this.stackRegion,
+          }
+        },
+        opt.cenvVars['CENV_STACK_PROPS'] = JSON.stringify(props);
+      }
+      if (this.meta?.cenv?.stack?.envVarKeys) {
+        let envVars: Record<string, string | undefined> = {};
+        this.meta?.cenv?.stack?.envVarKeys.map((key) => {
+          if (this.pkg?.params?.materializedVars[key]) {
+            envVars[key] = this.pkg?.params?.materializedVars[key];
+          }
+        });
+        envVars['ENV'] = process.env.ENV;
+        envVars['AWS_REGION'] = this.stackRegion;
+        envVars['CDK_DEFAULT_ACCOUNT'] = process.env.CDK_DEFAULT_ACCOUNT;
+        opt.cenvVars['CENV_STACK_PROPS_ENV_VARS'] = JSON.stringify(envVars);
+      }
       opt.redirectStdErrToStdOut = true;
       this.getCommandEvents(opt, processType);
     } catch (e) {

@@ -130,8 +130,14 @@ export class DockerModule extends PackageModule {
     return new DockerModule(module.pkg, module.path, module.meta);
   }
 
-  async getDigest(pkgCmd: PackageCmd) {
-    const previousCmdLines = pkgCmd.minOut.split('\n');
+  async lookupDigestInStdout(pkgCmd: PackageCmd) {
+    if (!pkgCmd) {
+      pkgCmd = this.pkg.cmds[this.pkg.cmds.length - 1];
+    }
+    const previousCmdLines = pkgCmd?.stdout?.split('\n');
+    if (!previousCmdLines) {
+      return false;
+    }
     for (let i = previousCmdLines.length - 1; i > 0; --i) {
       const ln = previousCmdLines[i];
       if (ln.startsWith('latest: digest: sha256')) {
@@ -150,7 +156,7 @@ export class DockerModule extends PackageModule {
             throw new Error('docker push failed: no digest found');
           }
           // get the digest from the pushed container
-          const digestRes = await this.getDigest(pkgCmd);
+          const digestRes = await this.lookupDigestInStdout(pkgCmd);
           if (!digestRes) {
             throw new Error('docker push failed: no digest found');
           }
@@ -250,7 +256,7 @@ export class DockerModule extends PackageModule {
   }
 
   async destroy() {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
     const repositories = await describeRepositories();
 
     if (!repositories || !repositories?.length) {
@@ -265,7 +271,7 @@ export class DockerModule extends PackageModule {
   }
 
   async deploy(options: any) {
-    this.pkg.currentModule = this.type;
+    this.pkg.setActiveModule(this.type);
 
     if (!this.dockerName) {
       CenvLog.single.catchLog(['docker module without docker name', this.pkg.packageName].join(' '));
@@ -462,11 +468,13 @@ export class DockerModule extends PackageModule {
         }
       }
     }
+    CenvLog.single.infoLog('this.digest: ' + this.digest)
     const maxAttempts = 5;
     const attemptWaitSeconds = 2;
     while (!digestFound) {
       attempts++;
       await sleep(attemptWaitSeconds);
+      CenvLog.single.infoLog('hasTag(' + this.dockerName +', ' + this.pkg.rollupVersion.toString() + ', ' + this.digest);
       if (await hasTag(this.dockerName, this.pkg.rollupVersion.toString(), this.digest)) {
         digestFound = true;
         this.info(`digest (${this.digest}) push verified`);
