@@ -48,11 +48,11 @@ export interface ConfigCommandOptions extends BaseCommandOptions {
   localstackApiKey?: string;
   show?: boolean;
   key?: boolean;
+  envToParams?: boolean;
 }
 
 export interface ConfigRemoveCommandOptions extends ConfigCommandOptions {
   default?: boolean;
-  envToParams?: boolean;
 }
 
 export interface CleanCommandOptions extends BaseCommandOptions {
