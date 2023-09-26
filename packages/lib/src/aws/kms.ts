@@ -30,7 +30,7 @@ function getClient() {
   return _client;
 }
 
-const aliasName = 'alias/curb-key';
+const aliasName = 'alias/cenv-key';
 
 export async function getKey() {
   const listKeysCommand = new ListKeysCommand({});

@@ -364,11 +364,9 @@ export class ParamsModule extends PackageModule {
   async loadLocal() {
     //this.pkg.stdPlain('loading local vars:', this.pkg.packageName);
     const localData = await CenvFiles.GetData(this.pkg.packageName);
-    console.log('localData', JSON.stringify(localData, null, 2));
     this.localVarsTyped = localData?.Vars;
     this.localVars = this.convertToCenvVars(this.localVarsTyped);
     if (this.localVars && Object.keys(this.localVars).length > 0) {
-      console.log('this.localVars', JSON.stringify(this.localVars, null, 2))
       this.localVarsExpanded = expandTemplateVars({...this.localVars});
     }
   }
@@ -390,9 +388,6 @@ export class ParamsModule extends PackageModule {
     }
   }
   async loadVars(force = false, stage: undefined | string = undefined) {//options: {force: boolean, silent: boolean, stage?:
-    console.log('force', force, 'stage', stage, 'this.varsLoaded', this.varsLoaded);
-    // string} =
-    // {force:
     try {
       // switch dir
       if (!this.varsLoaded || force) {
@@ -1007,7 +1002,10 @@ export class ParamsModule extends PackageModule {
       if (this.pushedVars) {
         expandedPushedVars = expandTemplateVars(JSON.parse(JSON.stringify(this.pushedVars)));
       }
-      const expandedLocalVars = expandTemplateVars(JSON.parse(JSON.stringify(this.localVars)));
+      let expandedLocalVars: any = {};
+      if (this.localVars) {
+        expandedLocalVars = expandTemplateVars(JSON.parse(JSON.stringify(this.localVars)));
+      }
 
       let match = true;
 
@@ -1398,12 +1396,12 @@ export class ParamsModule extends PackageModule {
     return true;
   }
 
-  async envToParams(envConfig: EnvConfig): Promise<void> {
+  async envToParams(envConfig: EnvConfig = new EnvConfig({ ApplicationName: this.pkg.packageName, EnvironmentName: CenvFiles.ENVIRONMENT })): Promise<void> {
     let envFile = path.join(process.cwd(), `.env.${CenvFiles.ENVIRONMENT}`);
-    await this.envToParamsAdd(envFile, envConfig, 'appType');
+    await this.envToParamsAdd(envFile, envConfig, 'environmentType');
 
     envFile = path.join(process.cwd(), '.env');
-    await this.envToParamsAdd(envFile, envConfig, 'environmentType');
+    await this.envToParamsAdd(envFile, envConfig, 'appType');
   }
 
   async initParams(options?: ParamsCommandOptions) {

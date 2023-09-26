@@ -125,8 +125,6 @@ export const deepDiffMapper = function () {
   return {
     compareData: function(obj1: any, obj2: any) {
 
-      console.log('compareData', JSON.stringify(obj1, null, 2), JSON.stringify(obj2, null, 2));
-
       if (this.isFunction(obj1) || this.isFunction(obj2)) {
         throw 'Invalid argument. Function given, object expected.';
       }
@@ -193,8 +191,6 @@ export const deepDiffMapper = function () {
     },
     map: function(obj1: any, obj2: any, diffMapperTypes: DiffMapperType[] = [DiffMapperType.VALUE_CREATED, DiffMapperType.VALUE_DELETED, DiffMapperType.VALUE_UPDATED, DiffMapperType.VALUE_UNCHANGED]) {
       const compared = this.compareData(obj1, obj2);
-      console.log(JSON.stringify(obj1, null, 2), JSON.stringify(obj2, null, 2));
-      console.log('compare result', JSON.stringify(compared, null, 2));
       return this.validateDiff(compared, diffMapperTypes);
     },
     unchanged: function(value1: any, value2: any) {

@@ -52,6 +52,7 @@ export interface ConfigCommandOptions extends BaseCommandOptions {
 
 export interface ConfigRemoveCommandOptions extends ConfigCommandOptions {
   default?: boolean;
+  envToParams?: boolean;
 }
 
 export interface CleanCommandOptions extends BaseCommandOptions {

@@ -1,5 +1,5 @@
 import {Command, Option} from 'nest-commander';
-import {Cenv, CenvLog, Config, ConfigCommandOptions, Package, ConfigQuery} from '@stoked-cenv/lib';
+import {Cenv, CenvLog, Config, ConfigCommandOptions, Package, ConfigQuery, CenvParams} from '@stoked-cenv/lib';
 import {BaseCommand} from './base.command';
 import {ManageConfigCommand} from './config.manage.command';
 
@@ -21,11 +21,19 @@ export class ConfigCommand extends BaseCommand {
 
   @Option({
     flags: '-s, --show', description: 'Show the configuration for a specific profile',
-  }) parseShow(val: boolean): boolean {
+  })
+  parseShow(val: boolean): boolean {
     return val;
   }
 
-  async runCommand(params: string[], options  ?: ConfigCommandOptions, packages?: Package[]): Promise<void> {
+  @Option({
+    flags: '-etp, --env-to-params', description: 'Add variables in .env file(s) to the parameters for the profile',
+  })
+  parseEnvToParams(val: boolean): boolean {
+    return val;
+  }
+
+  async runCommand(params: string[], options?: ConfigCommandOptions, packages?: Package[]): Promise<void> {
     try {
       if (params.length > 1) {
         CenvLog.single.errorLog(`Too many parameters provided to config command.. only accepts one param which is the profile name..`);
@@ -40,7 +48,13 @@ export class ConfigCommand extends BaseCommand {
       if (profile) {
         const query = new ConfigQuery({name: profile});
         if (query.valid) {
+          if (options?.envToParams && packages.length) {
+            for (let pkg of packages) {
+              await pkg.params.envToParams()
+            }
+          }
           await Cenv.config.loadProfile(profile);
+          await Cenv.config.show(profile);
           process.exit();
         }
       }

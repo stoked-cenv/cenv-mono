@@ -26,6 +26,7 @@ const primaryProfileProperties: Record<string, any> = {
   AWS_REGION: 'us-east-1',
 };
 const primaryProfileKeys = Object.keys(primaryProfileProperties);
+const primaryProfileHiddenProperties: string[] = ['AWS_SECRET_ACCESS_KEY', 'AWS_ACCESS_KEY_ID'];
 
 export interface CenvConfigData {
   CENV_PROFILE: string,
@@ -91,7 +92,7 @@ export class Config {
 
   async loadProfile(name: string) {
     this.query = new ConfigQuery({ name });
-    this.envVars = new EnvVars(this.query.valid ? { ...this.query.configData } : {}, primaryProfileKeys);
+    this.envVars = new EnvVars(this.query.valid ? { ...this.query.configData } : {}, primaryProfileKeys, primaryProfileHiddenProperties);
     await this.loadVars(this.envVars);
   }
 
@@ -102,21 +103,21 @@ export class Config {
   async editProfile(name?: string) {
     this.query = new ConfigQuery({ name });
     const envConfig = this.query.valid ? { ...this.query.configData } : {};
-    this.envVars = new EnvVars(envConfig, primaryProfileKeys);
+    this.envVars = new EnvVars(envConfig, primaryProfileKeys, primaryProfileHiddenProperties);
     this.envVars = await this.prompt(this.envVars);
     await this.loadVars(this.envVars);
   }
 
   async createNewProfile(name?: string) {
     const envConfig = primaryProfileProperties;
-    this.envVars = new EnvVars(envConfig, primaryProfileKeys);
+    this.envVars = new EnvVars(envConfig, primaryProfileKeys, primaryProfileHiddenProperties);
     this.envVars = await this.prompt(this.envVars);
     await this.loadVars(this.envVars)
   }
 
   async show(name?: string) {
     this.query = new ConfigQuery({ name });
-    this.envVars = new EnvVars(this.query.valid ? { ...this.query.configData } : {}, primaryProfileKeys);
+    this.envVars = new EnvVars(this.query.valid ? { ...this.query.configData } : {}, primaryProfileKeys, primaryProfileHiddenProperties);
     await this.loadVars(this.envVars, true);
   }
 

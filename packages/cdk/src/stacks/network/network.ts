@@ -61,11 +61,13 @@ export class NetworkStack extends Stack {
       service: ec2.InterfaceVpcEndpointAwsService.ECR,
     });
 
+    /*
     new ssm.StringListParameter(this, `${ENV}-network-refs`, {
       parameterName: `/component/${process.env.ENV}/cdk-network/refs`,
       description: "references to this component",
       stringListValue: [process.env.APP!],
     });
+    */
 
     this.exportValue(cidr, {
       name: `${ENV}-cidr`,
