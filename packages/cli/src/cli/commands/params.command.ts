@@ -55,6 +55,13 @@ export class ParamsCommand extends BaseCommand {
     return val;
   }
 
+  @Option({
+    name: 'decrypt', flags: '-d, --decrypt', description: 'Decrypt encrypted parameters'
+  })
+  parseDecrypt(val: boolean): boolean {
+    return val;
+  }
+
   async runCommand(params: string[], options: ParamsCommandOptions, packages?: Package[]): Promise<void> {
     try {
       if (packages) {

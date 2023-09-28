@@ -99,7 +99,7 @@ async function parseConfig(configInput: any, allValues = false, metaConfigInput:
       let updatedConfigValue = value
       env[key] = value as string;
       if (isEncrypted(value as string)) {
-        env[key] = await decryptValue(value as string);
+        env[key] = await decryptValue(value as string, true);
         updatedConfigValue = '-=[DECRYPTED VALUE]=-';
       }
       if (ymlMetaConfig) {

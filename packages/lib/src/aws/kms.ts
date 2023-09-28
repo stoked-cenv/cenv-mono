@@ -224,7 +224,7 @@ export async function encrypt(Plaintext: any) {
 export async function decrypt(CiphertextBlob: any) {
   try {
     const cmd = new DecryptCommand({
-                                     KeyId: process.env.KeyId,
+                                     KeyId: process.env.KMS_KEY,
                                      CiphertextBlob: Uint8Array.from(atob(CiphertextBlob), (v) => v.charCodeAt(0)),
                                    });
     const decryptedBinaryData = await getClient().send(cmd);

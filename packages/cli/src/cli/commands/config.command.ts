@@ -48,11 +48,6 @@ export class ConfigCommand extends BaseCommand {
       if (profile) {
         const query = new ConfigQuery({name: profile});
         if (query.valid) {
-          if (options?.envToParams && packages.length) {
-            for (let pkg of packages) {
-              await pkg.params.envToParams()
-            }
-          }
           await Cenv.config.loadProfile(profile);
           await Cenv.config.show(profile);
           process.exit();

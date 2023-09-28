@@ -233,6 +233,7 @@ export function expandTemplateVars(baseVars: any) {
 
   const dependencyTree: { [key: string]: Set<string> } = {};
   const keys = Object.keys(baseVars);
+  console.log('keys', keys);
   keys.map((k) => {
     const value = baseVars[k];
     while ((m = regex.exec(value)) !== null) {

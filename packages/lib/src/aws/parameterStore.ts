@@ -88,17 +88,29 @@ export interface Parameters {
   [Name: string]: ParameterData;
 }
 
-export function isEncrypted(value: string) {
+function isCrypted(value: string, prefix: string) {
   if (value === undefined) {
     return false;
   }
-  return !!(value.match(/^--(ENC)=/));
+  return value.startsWith(prefix);
 }
 
-export async function decryptValue(value: string): Promise<string> {
-  value = value.replace(/^--(ENC)=/, '');
-  if (value !== 'undefined') {
-    return await decrypt(value);
+export function isEncrypted(value: string) {
+  return isCrypted(value,'--ENC=');
+}
+
+export function isDecrypted(value: string) {
+  return isCrypted(value,'--DEC=');
+}
+
+export async function decryptValue(value: string, clean = false): Promise<string> {
+  value = value.replace(/^--ENC=/, '');
+  if (value !== undefined) {
+    value = await decrypt(value);
+    if (clean) {
+      return value;
+    }
+    return `--DEC=${value}`;
   }
   CenvLog.single.catchLog('can not decrypt invalid value: ' + value)
   process.exit(329);
@@ -115,7 +127,7 @@ export async function getParametersByPath(path: string, decrypted = false) {
                                                                                    NextToken,
                                                                                    Path: strippedPath,
                                                                                    Recursive: true,
-                                                                                   WithDecryption: decrypted
+                                                                                   WithDecryption: false
                                                                                  });
 
       const remainingRequests = await ssmLimiter.removeTokens(1);
@@ -124,17 +136,11 @@ export async function getParametersByPath(path: string, decrypted = false) {
         await Promise.all(response.Parameters.map(async (param) => {
           const {Name, Type} = param;
           let Value = param.Value;
-          if (Value && Name) {
-            if (decrypted && isEncrypted(Value)) {
-              Value = Value.replace(/^--(ENC)=/, '');
-              if (Value !== 'undefined') {
-                Value = await decrypt(Value as string);
-              }
-            }
+          if (decrypted && isEncrypted(Value)) {
+            Value = await decryptValue(Value);
             responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
-            return param;
+            console.log('decrypted from parameter store: ', responseObj)
           }
-          return undefined;
         }));
       }
 
@@ -166,6 +172,9 @@ export async function putParameter(Name: string, Value: string, Overwrite = fals
       const command = new PutParameterCommand({Name: stripPath(Name), Value, Overwrite, Type, KeyId});
       const remainingRequests = await ssmLimiter.removeTokens(1);
       const response = await getClient().send(command);
+      if (isEncrypted(Value)) {
+        return Value;
+      }
     }
   } catch (e) {
     CenvLog.single.errorLog(['putParameterCommand error', Name, Value, e as string])
@@ -277,6 +286,7 @@ export async function listParameters(applicationName: string, decrypted: boolean
   try {
     const roots = CenvParams.GetRootPaths(applicationName, CenvFiles.ENVIRONMENT);
     const appVars = await getVarsByType('app', roots.app, decrypted);
+    console.log('appVars', appVars)
     const environmentVars = await getVarsByType('environment', roots.environment, decrypted);
 
     const res: any = {
@@ -344,32 +354,32 @@ export const enum UpsertResult {
 
 export async function upsertParameter(applicationName: string, parameter: {
   [x: string]: IParameter
-}, type: string): Promise<UpsertResult> {
+}, type: string): Promise<{result: UpsertResult, outputValue?: string}> {
   const [paramPath, param] = Object.entries(parameter)[0];
   let linkOnly = false;
   if (!param.Value) {
     if (!paramPath.startsWith('/global')) {
       CenvLog.single.alertLog(` - skipping ${CenvLog.colors.alertBold(paramPath)} as it has no value`);
-      return UpsertResult.SKIPPED;
+      return {result: UpsertResult.SKIPPED};
     } else {
       linkOnly = true;
     }
   }
   const getParamRes = await getParameter(paramPath, true, true);
-  let result = UpsertResult.SKIPPED;
+  let response = {result: UpsertResult.SKIPPED, outputValue: undefined };
   // if no parameter exists, write it
 
   if (!linkOnly) {
     if (!getParamRes) {
       CenvLog.info(` - writing ${param.Type === 'SecureString' ? 'encrypted ' : ''}parameter ${CenvLog.colors.infoBold(param.Name)} with value ${CenvLog.colors.infoBold(param.Value)}`);
-      await putParameter(paramPath, param.Value, false, param.Type);
-      result = UpsertResult.CREATED;
+      response.outputValue = await putParameter(paramPath, param.Value, false, param.Type);
+      response.result = UpsertResult.CREATED;
 
       // if parameter exists, check to see if the value has changed
-    } else if (param.Value !== Object.values(getParamRes)[0].Value) {
+    } else if (param.Value !== Object.values(getParamRes)[0].Value || param.Type != Object.values(getParamRes)[0].Type) {
       CenvLog.info(`- updating parameter ${param.Type === 'SecureString' ? 'encrypted ' : ''}${CenvLog.colors.infoBold(param.Name)} with value ${CenvLog.colors.infoBold(param.Value)}`);
-      await putParameter(paramPath, param.Value, true, param.Type);
-      result = UpsertResult.UPDATED;
+      response.outputValue = await putParameter(paramPath, param.Value, true, param.Type);
+      response.result = UpsertResult.UPDATED;
     }
   }
 
@@ -382,20 +392,20 @@ export async function upsertParameter(applicationName: string, parameter: {
     if (!link) {
       CenvLog.info(` - creating link parameter ${CenvLog.colors.infoBold(linkPath)} with value ${CenvLog.colors.infoBold(paramPath)}`);
       await putParameter(linkPath, paramPath, false, 'StringList');
-      result = UpsertResult.UPDATED;
+      response.result = UpsertResult.UPDATED;
     } else {
       const linkNode = link[linkPath];
       if (linkNode && linkNode.Value.indexOf(paramPath) === -1) {
         CenvLog.info(` - appending link parameter ${CenvLog.colors.infoBold(linkPath)} with value ${CenvLog.colors.infoBold(paramPath)}`);
         await appendParameter(linkPath, `,${paramPath}`);
-        result = UpsertResult.UPDATED;
+        response.result = UpsertResult.UPDATED;
       }
     }
   }
   //if (result !== UpsertResult.SKIPPED && !linkOnly) {
   //  updateTemplates(true, pathToEnvVarKey(param.Name, paramPath), type, param.Value)
   //}
-  return result;
+  return response;
 }
 
 export function updateTemplates(add: boolean, envVar: string, type: string, value?: string) {

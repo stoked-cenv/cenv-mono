@@ -6,6 +6,7 @@ import { BaseCommand } from './base.command';
 interface ParamsDeployCommandOptions extends BaseCommandOptions {
   init?: boolean;
   materialize?: boolean;
+  envToParams?: boolean;
 }
 
 @SubCommand({
@@ -14,7 +15,6 @@ interface ParamsDeployCommandOptions extends BaseCommandOptions {
 export class ParamsDeployCommand extends BaseCommand {
   constructor() {
     super();
-
   }
 
   @Option({
@@ -31,10 +31,20 @@ export class ParamsDeployCommand extends BaseCommand {
     return val;
   }
 
+  @Option({
+    flags: '-etp, --env-to-params', description: 'Add variables in .env file(s) to the parameters for the profile',
+  })
+  parseEnvToParams(val: boolean): boolean {
+    return val;
+  }
+
   async runCommand(param: string[], options: ParamsDeployCommandOptions, packages?: Package[]): Promise<void> {
     try {
       packages?.map(async (p: Package) => {
         if (p.params) {
+          if (options?.envToParams) {
+            await p.params.envToParams()
+          }
           await p.params.deploy(options);
         }
       });

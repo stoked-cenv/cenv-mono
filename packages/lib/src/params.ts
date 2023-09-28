@@ -74,6 +74,16 @@ export interface DashboardCreateOptions {
 
 type VarTypes = 'app' | 'environment' | 'globalEnv' | 'global';
 
+export interface IRootPaths {
+  app: string,
+  globalLink: string,
+  global: string,
+  globalEnvLink: string,
+  globalEnv: string,
+  environment: string,
+  generate: string
+}
+
 export class CenvParams {
 
   static async getParamsContext() {
@@ -90,14 +100,12 @@ export class CenvParams {
     return { pkg };
   }
 
-  public static GetRootPath(ApplicationName: string, EnvironmentName: string, type: string) {
+  public static GetRootPath(ApplicationName: string, EnvironmentName: string, type: string): string {
     const paths: any = this.GetRootPaths(ApplicationName, EnvironmentName);
     return paths[type];
   }
 
-  public static GetRootPaths(ApplicationName: string, EnvironmentName: string): {
-    app: string, globalLink: string, global: string, globalEnvLink: string, globalEnv: string, environment: string, generate: string
-  } {
+  public static GetRootPaths(ApplicationName: string, EnvironmentName: string): IRootPaths {
     const app = stripPath(ApplicationName);
     const env = stripPath(EnvironmentName);
     return {
@@ -165,10 +173,12 @@ export class CenvParams {
       }
       // materialize the new app vars from the parameter store using the app config as input
       const parameters = await ParamsModule.getParams(ApplicationName, 'allTyped', 'simple', true, false, true);
+      console.log('parameters',parameters);
       if (process.env.VERBOSE_LOGS) {
         console.log('parameters', JSON.stringify(parameters, null, 2));
       }
       let materializedVars = { ...parameters.app, ...parameters.environment, ...parameters.globalEnv, ...parameters.global };
+
       // expand template variables
       const before = JSON.parse(JSON.stringify(materializedVars));
       if (process.env.VERBOSE_LOGS) {
@@ -176,6 +186,7 @@ export class CenvParams {
       }
       //let output = JSON.stringify(materializedVars, null, 2)
       materializedVars = expandTemplateVars(materializedVars);
+      console.log('parameters mat', materializedVars);
 
       const after = materializedVars;
 

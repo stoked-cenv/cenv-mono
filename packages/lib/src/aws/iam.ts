@@ -11,14 +11,15 @@ import {
   DeleteRoleCommand,
   DetachGroupPolicyCommand,
   DetachRolePolicyCommand,
-  GetGroupCommand,
+  GetGroupCommand, GetGroupPolicyCommand,
   GetPolicyCommand,
   GetRoleCommand,
   IAMClient,
   ListAttachedGroupPoliciesCommand,
   ListGroupsCommand,
   ListPolicyVersionsCommand,
-  RemoveUserFromGroupCommand, Role,
+  RemoveUserFromGroupCommand,
+  Role,
   User,
 } from '@aws-sdk/client-iam';
 import {CenvLog} from '../log';
@@ -137,7 +138,7 @@ export async function attachPolicyToGroup(GroupName: string, PolicyName: string,
   return false;
 }
 
-export async function deleteGroup(GroupName: string, silent = true) {
+export async function deleteGroup(GroupName: string, PolicyName: string, silent = true) {
   try {
     const listGroupsCmd = new ListGroupsCommand({});
     const listGroupsRes = await getClient().send(listGroupsCmd);
@@ -159,6 +160,7 @@ export async function deleteGroup(GroupName: string, silent = true) {
     }
     const getCmd = new GetGroupCommand({GroupName});
     const getRes = await getClient().send(getCmd);
+    console.log('getRes', getRes);
     if (getRes.Users === undefined) {
       return false;
     }
@@ -168,17 +170,17 @@ export async function deleteGroup(GroupName: string, silent = true) {
       const rmvRes = await getClient().send(rmvCmd);
     }
 
-    /*try {
+    try {
       const rmvPolCmd = new DetachGroupPolicyCommand({
                                                        GroupName,
-                                                       PolicyArn: `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/KmsPolicy`
+                                                       PolicyArn: `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT}:policy/${PolicyName}`
                                                      });
       const rmvPolRes = await getClient().send(rmvPolCmd);
     } catch (e) {
       if (!silent && e instanceof Error) {
         CenvLog.single.errorLog(`detach policy error: ${CenvLog.colors.errorBold(e.message)}`)
       }
-    }/*/
+    }
     const cmd = new DeleteGroupCommand({GroupName});
     const res = await getClient().send(cmd);
     if (res) {

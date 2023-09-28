@@ -806,8 +806,8 @@ export async function createAppEnvConf(envAppConfig: IEnvConfig): Promise<IEnvCo
       process.exit(3331)
     }
     envAppConfig.ApplicationId = appRes.Id;
-    const parameter = await ParamsModule.createParameter(envAppConfig.ApplicationName, 'application/name', envAppConfig.ApplicationName, 'app', false);
-    const res = await upsertParameter(envAppConfig.ApplicationName, parameter, 'app');
+    const parameter = await ParamsModule.createParameter(envAppConfig.ApplicationName, 'application/name', envAppConfig.ApplicationName, 'app');
+    await upsertParameter(envAppConfig.ApplicationName, parameter, 'app');
   }
 
 

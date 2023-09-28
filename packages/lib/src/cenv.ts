@@ -109,6 +109,7 @@ export interface ParamsCommandOptions extends BaseCommandOptions {
   typed?: boolean;
   poll?: boolean;
   export?: boolean;
+  decrypt?: boolean;
 }
 
 export interface CmdInfo {
@@ -469,7 +470,7 @@ export class Cenv {
       }
 
       if (process.env.KMS_KEY) {
-        const groupDelRes = await deleteGroup(this.keyGroupName, false);
+        const groupDelRes = await deleteGroup(this.keyGroupName, 'KMSPolicy', false);
 
         if (KmsPolicyExists) {
           destroyedAnything = true;

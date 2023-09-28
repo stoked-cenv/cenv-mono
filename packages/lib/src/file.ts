@@ -8,7 +8,6 @@ import { prettyPrint} from "@base2/pretty-print-object";
 import {CenvParams} from "./params";
 import {envVarToKey, pathToEnvVarKey} from './aws/parameterStore';
 import {encrypt} from './aws/kms';
-import {getConfig} from "./aws/appConfig";
 import * as path from 'path';
 import { Cenv } from './cenv';
 import { Package } from './package/package';
@@ -657,8 +656,8 @@ export class CenvFiles {
     return this.EnvConfig;
   }
 
-  public static async GetLocalVars(applicationName: string, typed = false, decrypted = true) {
-    await this.LoadVars(applicationName, decrypted);
+  public static async GetLocalVars(applicationName: string, typed = false, decrypted = true, globalLinks = false) {
+    await this.LoadVars(applicationName, decrypted, globalLinks);
     const ret: any = {
       app: this.AppVars, environment: this.EnvVars, globalEnv: this.GlobalEnvVars, global: this.GlobalVars
     };
@@ -727,19 +726,15 @@ export class CenvFiles {
     if (Object.keys(vars?.globalEnv ?? {}).length > 0) {
       finalVars.globalEnv = Object.keys(vars.globalEnv);
     }
-
     if (Object.keys(finalVars).length > 0) {
       AppVarsFile.save(finalVars, silent)
     }
-
     if (Object.keys(vars.environment).length > 0) {
       EnvVarsFile.save(vars.environment, silent);
     }
-
     if (Object.keys(vars.global).length > 0) {
       GlobalVarsFile.save(vars.global, silent, GlobalVarsFile.NAME, CenvFiles.GLOBAL_PATH);
     }
-
     if (Object.keys(vars.globalEnv).length > 0) {
       GlobalEnvVarsFile.save(vars.globalEnv, silent, GlobalEnvVarsFile.NAME, CenvFiles.GLOBAL_PATH);
     }
@@ -787,11 +782,21 @@ export class CenvFiles {
   public static async decodeParameter(paramName: string, paramValue: string, paramType: string, rootPath: string): Promise<{
     [x: string]: IParameter
   }> {
-
     const param: IParameter = {Value: paramValue, Type: 'String', ParamType: paramType, Name: paramName};
     return {[`${rootPath}/${paramName}`]: param};
   }
 
+  public static async encodeParameter(paramName: string, paramValue: string, paramType: string, rootPath: string): Promise<{
+    [x: string]: IParameter
+  }> {
+    if (paramValue.startsWith('--DEC=')) {
+      paramValue = paramValue.replace('--DEC=', '');
+      paramValue = await encrypt(paramValue);
+      paramValue = `--ENC=${paramValue}`;
+    }
+    const param: IParameter = {Value: paramValue, Type: 'String', ParamType: paramType, Name: paramName};
+    return {[`${rootPath}/${paramName}`]: param};
+  }
 
   private static Load(): void {
     this.LoadEnvConfig();
@@ -811,7 +816,7 @@ export class CenvFiles {
     this.Load();
   }
 
-  private static async LoadVars(applicationName: string, decrypted = true) {
+  private static async LoadVars(applicationName: string, decrypted = true, globalLinks = false) {
     const appData = File.read(AppVarsFile.PATH, AppVarsFile.SCHEMA, true) as AppVars;
     this.EnvVars = File.read(EnvVarsFile.PATH, EnvVarsFile.SCHEMA, true) as VarList;
     if (!this.EnvVars) {
@@ -831,7 +836,9 @@ export class CenvFiles {
           globals[globalVar] = allGlobals[globalVar];
         }
       }
-      delete appData.global;
+      if (!globalLinks) {
+        delete appData.global;
+      }
     }
 
     const globalEnvs: any = {};
@@ -842,8 +849,11 @@ export class CenvFiles {
           globalEnvs[globalEnvVar] = allGlobalEnvVars[globalEnvVar];
         }
       }
-      delete appData.globalEnv;
+      if (!globalLinks) {
+        delete appData.globalEnv;
+      }
     }
+
     let overwriteData = {};
     if (process.env.ENV === 'local') {
       overwriteData = this.EnvVars;
