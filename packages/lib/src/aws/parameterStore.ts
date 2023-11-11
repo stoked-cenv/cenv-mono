@@ -56,7 +56,7 @@ export async function getParameter(path: string, silent = false, decrypted = fal
 
 export async function getParameters(Names: string[], decrypted = false) {
   try {
-    const command = new GetParametersCommand({Names: Names.map(stripPath), WithDecryption: decrypted});
+    const command = new GetParametersCommand({Names: Names.map(stripPath), WithDecryption: false});
     const remainingRequests = await ssmLimiter.removeTokens(1);
     const response = await getClient().send(command);
 
@@ -64,8 +64,11 @@ export async function getParameters(Names: string[], decrypted = false) {
     if (response.Parameters) {
       for (let i = 0; i < response.Parameters.length; i++) {
         const param = response.Parameters[i];
+        if (decrypted && isEncrypted(param.Value)) {
+          param.Value = await decryptValue(param.Value);
+        }
         results[param.Name as string] = {
-          Value: param.Value && param.Type === 'SecureString' ? param.Value.replace('kms:alias/aws/ssm:', '') : param.Value,
+          Value: param.Value,
           Type: param.Type,
           ARN: param.ARN
         };
@@ -137,10 +140,11 @@ export async function getParametersByPath(path: string, decrypted = false) {
           const {Name, Type} = param;
           let Value = param.Value;
           if (decrypted && isEncrypted(Value)) {
+            console.log('decrypting', Value)
             Value = await decryptValue(Value);
-            responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
-            console.log('decrypted from parameter store: ', responseObj)
+            console.log('decrypted', Value)
           }
+          responseObj[Name] = {Name: Name.replace(`${strippedPath}/`, ''), Value, Type};
         }));
       }
 
@@ -149,7 +153,6 @@ export async function getParametersByPath(path: string, decrypted = false) {
       }
       NextToken = response.NextToken;
     }
-
     return responseObj;
   } catch (e) {
     CenvLog.single.errorLog(['getParametersByPath error', e as string])
@@ -286,7 +289,6 @@ export async function listParameters(applicationName: string, decrypted: boolean
   try {
     const roots = CenvParams.GetRootPaths(applicationName, CenvFiles.ENVIRONMENT);
     const appVars = await getVarsByType('app', roots.app, decrypted);
-    console.log('appVars', appVars)
     const environmentVars = await getVarsByType('environment', roots.environment, decrypted);
 
     const res: any = {

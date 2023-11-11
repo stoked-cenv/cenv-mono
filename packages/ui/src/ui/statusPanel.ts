@@ -95,7 +95,7 @@ export default class StatusPanel extends CenvPanel {
       this.global = this.addParamCtrl('global', [2, 3, 3, 3]);
       this.globalEnv = this.addParamCtrl('globalEnv', [2, 3, 3, 3]);
       this.paramCtrlMap = {
-        app: this.app, environment: this.environment, global: this.global, globalEnv: this.globalEnv,
+        app: this.app, environment: this.environment, globalEnv: this.globalEnv, global: this.global,
       };
 
       /*

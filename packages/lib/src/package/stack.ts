@@ -192,9 +192,10 @@ export class StackModule extends PackageModule {
         opt.cdkSupported = ProcessMode.DEPLOY;
         await this.pkg.pkgCmd(deployCommand, opt);
 
-        CenvLog.single.infoLog(' uniqueId: ' + opt.pkgCmd?.uniqueId + ' - ' + JSON.stringify(this.pkg.cdkProcesses[this.pkg.cmds[this.pkg.cmds.length - 1].uniqueId!], null, 2), this.pkg.stackName)
+        //CenvLog.single.infoLog(' uniqueId: ' + opt.pkgCmd?.uniqueId + ' - ' +
+        // JSON.stringify(this.pkg.cdkProcesses[this.pkg.cmds[this.pkg.cmds.length - 1].uniqueId!], null, 2), this.pkg.stackName)
         const resPath = path.join(this.path, 'stack-resources.cenv');
-        CenvLog.single.infoLog('writing stack resources to ' + resPath);
+        //CenvLog.single.infoLog('writing stack resources to ' + resPath);
         if (this.pkg?.cmds && this.pkg?.cmds.length && opt.pkgCmd?.uniqueId && this.pkg?.cmds[opt.pkgCmd?.uniqueId] ) {
           writeFileSync(resPath, JSON.stringify(this.pkg.cdkProcesses[opt.pkgCmd?.uniqueId], null, 2));
           writeFileSync(this.pkg.path + '/stack-resources.cenv', JSON.stringify(this.pkg.cdkProcesses[opt.pkgCmd?.uniqueId], null, 2));
@@ -242,6 +243,11 @@ export class StackModule extends PackageModule {
           await this.pkg.params.loadVars();
         }
         opt.cenvVars = { ...opt.cenvVars, ...this.pkg.params.materializedVars };
+        if (this.meta?.cenv?.stack?.skipVars) {
+          this.meta.cenv.stack.skipVars.map((key) => {
+            delete opt.cenvVars[key];
+          });
+        }
       }
 
       if (this.meta?.cenv?.stack?.package || this.pkg.component) {

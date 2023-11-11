@@ -1,10 +1,5 @@
 import {
-  _Object,
-  GetObjectCommand, GetObjectCommandOutput,
-  ListBucketsCommand,
-  ListObjectsCommand,
-  PutObjectCommand,
-  S3Client
+  _Object, DeleteObjectCommand, GetObjectCommand, GetObjectCommandOutput, ListBucketsCommand, ListObjectsCommand, PutObjectCommand, S3Client
 } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 import { S3SyncClient } from 's3-sync-client';
@@ -164,6 +159,18 @@ export async function putObject({region, bucket, key, body}: { region: string, b
   try {
     const client = new S3Client({region});
     await client.send(new PutObjectCommand({Bucket: bucket, Key: key, Body: body}));
+    return true;
+  } catch (e) {
+    CenvLog.single.catchLog(e);
+  }
+  return false;
+}
+
+
+export async function deleteObject({region, bucket, key}: { region: string, bucket: string, key: string }): Promise<boolean> {
+  try {
+    const client = new S3Client({region});
+    await client.send(new DeleteObjectCommand({Bucket: bucket, Key: key}));
     return true;
   } catch (e) {
     CenvLog.single.catchLog(e);

@@ -247,6 +247,7 @@ export interface CenvStackMeta {
   deployStack?: string;
   props?: any;
   envVarKeys?: string[];
+  skipVars?: string[];
 }
 
 export interface CenvDockerMeta {
@@ -267,6 +268,7 @@ export interface CenvMeta {
   docker?: CenvDockerMeta;
   lib?: CenvLibMeta;
   loadPackageVars?: string;
+
 }
 
 export type TPackageMeta = {

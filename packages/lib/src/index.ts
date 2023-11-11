@@ -18,11 +18,12 @@ export * from './cenv';
 export * from './types/Queue'
 export * from './types/EnvVars'
 export * from './test';
-export * from './proc'
-export * from './cli'
-export * from './config'
-export * from './initNew'
-export * from './fixup'
+export * from './proc';
+export * from './cli';
+export * from './config';
+export * from './initNew';
+export * from './fixup';
+export * from './crypt';
 
 export {toUtf8} from '@aws-sdk/util-utf8-node';
 

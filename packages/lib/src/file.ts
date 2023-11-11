@@ -543,6 +543,7 @@ export class CenvFiles {
   private static GitTempPath: string | null = null;
   private static LogPath: string | null = null;
   private static ArtifactsPath: string | null = null;
+  private static DumpPath: string | null = null;
   private static path = cenvRoot;
   private static environment: string = process.env.ENV!;
 
@@ -583,6 +584,14 @@ export class CenvFiles {
       process.exit(799);
     }
     return this.ArtifactsPath;
+  }
+
+  public static get DUMP_PATH(): string {
+    if (!this.DumpPath) {
+      CenvLog.single.catchLog('CenvFiles.DumpPath is trying to be accessed but has not been set');
+      process.exit(799);
+    }
+    return this.DumpPath;
   }
 
   public static get SESSION_PARAMS(): {
@@ -823,7 +832,7 @@ export class CenvFiles {
       this.EnvVars = File.read(EnvVarsFile.TEMPLATE_PATH, EnvVarsFile.SCHEMA, true) as VarList;
     }
     const allGlobals = File.read(GlobalVarsFile.PATH, GlobalVarsFile.SCHEMA, true) as VarList;
-    let  allGlobalEnvVars = File.read(GlobalEnvVarsFile.PATH, GlobalEnvVarsFile.SCHEMA, true) as VarList;
+    let allGlobalEnvVars = File.read(GlobalEnvVarsFile.PATH, GlobalEnvVarsFile.SCHEMA, true) as VarList;
     if (!allGlobalEnvVars) {
       allGlobalEnvVars = File.read(GlobalEnvVarsFile.TEMPLATE_PATH, GlobalEnvVarsFile.SCHEMA, true) as VarList;
     }
@@ -858,11 +867,23 @@ export class CenvFiles {
     if (process.env.ENV === 'local') {
       overwriteData = this.EnvVars;
     }
-    this.GlobalVars = {...globals, ...overwriteData};
-    this.GlobalEnvVars = {...globalEnvs, ...overwriteData};;
-    this.AppVars = {...appData as VarList, ...overwriteData};
+    /*
+    const pickMatchingProps = (template: object, dataToMatch: object) => {
+      const templateCp = JSON.parse(JSON.stringify(template));
+      for (let key in templateCp) if (!dataToMatch[key]) delete templateCp[key]
+      return templateCp;
+    }
+
+    this.GlobalVars = {...globals, ...pickMatchingProps(overwriteData, globals)};
+    this.GlobalEnvVars = {...globalEnvs, ...pickMatchingProps(overwriteData, globalEnvs)};
+    this.AppVars = {...appData as VarList, ...pickMatchingProps(overwriteData, appData)};
     this.AppVars.global = appData.global;
     this.AppVars.globalEnv = appData.globalEnv;
+
+     */
+    this.GlobalVars = globals;
+    this.GlobalEnvVars = globalEnvs;
+    this.AppVars = appData;
 
     if (decrypted) {
       const roots = CenvParams.GetRootPaths(applicationName, CenvFiles.ENVIRONMENT);
@@ -1067,6 +1088,7 @@ export class CenvFiles {
   static setGlobalPath(globalPath: string) {
     this.GlobalPath = globalPath;
   }
+
   static setPaths() {
     if (!process.env.HOME) {
       process.env.HOME = require('os').homedir();
@@ -1082,19 +1104,17 @@ export class CenvFiles {
       this.ensurePath(this.ProfilePath);
     }
 
-    if (!this.GitTempPath) {
-      this.GitTempPath = path.join(process.env.HOME!, cenvRoot, 'gitTemp');
-      this.ensurePath(this.GitTempPath);
+    function ensure(folder: string, memberPath: string) {
+      if (!memberPath) {
+        memberPath = path.join(process.env.HOME!, cenvRoot, folder);
+        CenvFiles.ensurePath(memberPath);
+      }
     }
 
-    if (!this.ArtifactsPath) {
-      this.ArtifactsPath = path.join(process.env.HOME!, cenvRoot, 'artifacts');
-      this.ensurePath(this.ArtifactsPath);
-    }
-    if (!this.LogPath) {
-      this.LogPath = path.join(process.env.HOME!, cenvRoot, 'logs');
-      this.ensurePath(this.LogPath);
-    }
+    ensure('gitTemp', this.GitTempPath);
+    ensure('artifacts', this.ArtifactsPath);
+    ensure('logs', this.LogPath);
+    ensure('dump', this.DumpPath);
   }
 
   static async deleteFilesSearch(search: string | RegExp, options: any) {

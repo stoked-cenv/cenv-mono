@@ -225,15 +225,18 @@ export function simplify(yamlData: any, printPkg?: string) {
 
 export function expandTemplateVars(baseVars: any) {
   // clear the protection
-  Object.keys(baseVars).map((k) => {
-    baseVars[k] = baseVars[k]?.replace(/^<\](.*?)\[>$/, '$1');
-  });
+  if (Object.keys(baseVars).length) {
+    Object.keys(baseVars).map((k) => {
+      if (typeof baseVars[k] === 'string') {
+        baseVars[k] = baseVars[k]?.replace(/^<\](.*?)\[>$/, '$1');
+      }
+    });
+  }
   let m;
   const regex = /<{(.*?)}>/gm;
 
   const dependencyTree: { [key: string]: Set<string> } = {};
   const keys = Object.keys(baseVars);
-  console.log('keys', keys);
   keys.map((k) => {
     const value = baseVars[k];
     while ((m = regex.exec(value)) !== null) {
@@ -269,16 +272,22 @@ export function expandTemplateVars(baseVars: any) {
   while (dependencies.size) {
     for (const dep of Array.from(dependencies)) {
       if (!dependencyTree[dep]) {
-        Object.keys(baseVars).map((k) => {
-          baseVars[k] = baseVars[k].replace(`<{${dep}}>`, baseVars[dep]);
-        });
-        Object.keys(dependencyTree).map((key) => {
-          dependencyTree[key].delete(dep);
-          if (dependencyTree[key].size === 0) {
-            delete dependencyTree[key];
-          }
-        });
-        dependencies.delete(dep);
+        if (Object.keys(baseVars).length) {
+          Object.keys(baseVars).map((k) => {
+            if (typeof baseVars[k] === 'string') {
+              baseVars[k] = baseVars[k].replace(`<{${dep}}>`, baseVars[dep]);
+            }
+          });
+        }
+        if (Object.keys(dependencyTree).length) {
+          Object.keys(dependencyTree).map((key) => {
+            dependencyTree[key].delete(dep);
+            if (dependencyTree[key].size === 0) {
+              delete dependencyTree[key];
+            }
+          });
+          dependencies.delete(dep);
+        }
       }
     }
     iteration++;

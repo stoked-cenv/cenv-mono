@@ -20,14 +20,13 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "dependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.80",
+    "@stoked-cenv/lib": "^2.0.0-a.128",
     "async-mutex": "^0.4.0",
     "build": "^0.1.4",
     "js-yaml": "^4.1.0",
     "rimraf": "^4.4.1"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "skipDeployBuild": true,
   "verifyStack": "cenv i --verify",
   "deployStack": "cenv i -cenv",

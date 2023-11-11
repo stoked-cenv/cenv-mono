@@ -735,7 +735,7 @@ export class Dashboard {
               this.setStatusBar('toggleDebug', this.statusText(Dashboard.toggleDebug ? `toggle debug view` : `toggle status view`, Dashboard.toggleDebug ? `debug view enabled` : `status view enabled`));
             });
           }
-        }, /*
+        },
         "save dump": {
           keys: ['s'],
           callback: () => {
@@ -752,7 +752,7 @@ export class Dashboard {
             });
           }
         },
-
+        /*
         "fix dupes": {
           keys: ['u'],
           callback: () => {

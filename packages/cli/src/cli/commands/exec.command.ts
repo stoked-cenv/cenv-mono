@@ -5,7 +5,6 @@ import {
 } from '@stoked-cenv/lib';
 import {BaseCommand} from './base.command'
 
-
 interface ExecCommandOptions extends BaseCommandOptions {
   module?: string;
   doubleDash?: string;

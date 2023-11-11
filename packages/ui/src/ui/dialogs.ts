@@ -1,6 +1,6 @@
 /// <reference types="../../types/blessed"/>
 import blessed from 'blessed';
-import { CenvFiles, IPackage, Package } from '@stoked-cenv/lib';
+import {CenvFiles, IPackage, Package, PackageCmd} from '@stoked-cenv/lib';
 import * as path from 'path';
 import {existsSync, readFileSync, writeFileSync} from 'fs';
 import {Dashboard} from './dashboard';
@@ -144,8 +144,29 @@ export default class Dialogs {
   }
 
   static saveDump(screen: any, exit = false) {
+
+    const fieldsToDump = ['cmd', 'stderr', 'stdout', 'vars', 'code', 'stackName', 'index', 'minout', 'uniqueId'];
+    const pkgCmdToObj = (pkgCmd: PackageCmd) => {
+      const obj: Record<string, any> = {};
+      fieldsToDump.map(f => {
+        if (pkgCmd[f]) {
+          obj[f] = pkgCmd[f];
+        }
+      });
+      return obj;
+    }
+
+    const pkgCmdsToArray = (pkg: Package) => {
+      const arr: Record<string, any>[] = [];
+      pkg.cmds.map((pkgCmd: PackageCmd) => {
+        arr.push(pkgCmdToObj(pkgCmd));
+      });
+      return arr;
+    }
+
     const dump = {
       ts: Date.now(), packages: Package.getPackages(true).map((p: Package) => {
+        return {[p.packageName]: pkgCmdsToArray(p)};
         /*
         Error:(148, 18) TS2790: The operand of a 'delete' operator must be optional.
         if (p?.params?.pkg) {

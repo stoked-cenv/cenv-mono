@@ -4,7 +4,7 @@ import { updateLambdas } from './aws/lambda';
 import { CenvLog } from './log';
 
 import { expandTemplateVars } from './utils';
-import { CenvFiles, IParameter } from './file';
+import {CenvFiles, CenvVars, IParameter} from './file';
 import { cpSync } from 'fs';
 import { Package } from './package/package';
 import { Environment } from './environment';
@@ -56,9 +56,13 @@ export function validateZeroOrOneType(options: string[]) {
 }
 
 export interface LambdaProcessResponse {
-  before?: string,
-  after?: string,
+  before?: { [x: string]: string; },
+  after?: { [x: string]: string; },
   error?: Error
+}
+
+export const collapseParams = (params: CenvVars) => {
+  return { ...params.global, ...params.globalEnv, ...params.environment, ...params.app };
 }
 
 export declare class Dashboard {
@@ -137,14 +141,19 @@ export class CenvParams {
 
   public static async MaterializeCore(event: any = undefined): Promise<LambdaProcessResponse> {
     try {
-      console.log(JSON.stringify(event, null, 2));
       const {
-        ApplicationId, EnvironmentId, ConfigurationProfileId, ApplicationName, EnvironmentName, MetaConfigurationProfileId,
+        ApplicationId,
+        EnvironmentId,
+        ConfigurationProfileId,
+        ApplicationName,
+        EnvironmentName,
+        MetaConfigurationProfileId,
       } = event;
 
       if (!CenvFiles.ENVIRONMENT) {
         CenvFiles.ENVIRONMENT = EnvironmentName;
       }
+
       if (!ApplicationName || !EnvironmentName || !ApplicationId || !EnvironmentId || !ConfigurationProfileId) {
         console.log('Missing required parameters in event');
         return { error: new Error('Materialization Failed: Missing required parameters in event') };
@@ -172,12 +181,11 @@ export class CenvParams {
         console.log('appConfigMeta', appConfigMeta);
       }
       // materialize the new app vars from the parameter store using the app config as input
-      const parameters = await ParamsModule.getParams(ApplicationName, 'allTyped', 'simple', true, false, true);
-      console.log('parameters',parameters);
+      const parameters = await ParamsModule.getParams(ApplicationName, 'allTyped', 'simple', false, false, true);
       if (process.env.VERBOSE_LOGS) {
         console.log('parameters', JSON.stringify(parameters, null, 2));
       }
-      let materializedVars = { ...parameters.app, ...parameters.environment, ...parameters.globalEnv, ...parameters.global };
+      let materializedVars = collapseParams(parameters);
 
       // expand template variables
       const before = JSON.parse(JSON.stringify(materializedVars));
@@ -186,7 +194,6 @@ export class CenvParams {
       }
       //let output = JSON.stringify(materializedVars, null, 2)
       materializedVars = expandTemplateVars(materializedVars);
-      console.log('parameters mat', materializedVars);
 
       const after = materializedVars;
 
@@ -201,7 +208,6 @@ export class CenvParams {
       if (appConfigMeta) {
         // deploy the materialized vars to a new config profile version
         const materializedMeta = this.getMaterializedMeta(materializedVars, parameters);
-        console.log('materializedMeta', materializedMeta);
         await deployConfig(materializedMeta, appConfigMeta);
       }
       if (!before && !after) {

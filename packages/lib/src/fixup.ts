@@ -20,11 +20,18 @@ export class Fixup {
       const metaObj = this.loadMeta(join(process.cwd(), root, dir, 'package.json'));
       metas[metaObj.meta.name] = metaObj;
     }
+    metas.loadMeta = function loadMeta(path: string){
+      const paramsObj = Fixup.loadMeta(path);
+      this[paramsObj.meta.name] = paramsObj;
+    }.bind(metas);
     return metas
   }
 
   static updateDist(metas: Record<string, { meta: any, path: string }>) {
     for (const name in metas) {
+      if (Object.prototype.toString.call(metas[name]) === '[object Function]') {
+        continue;
+      }
       console.log('fixing dist: ', name, metas[name].path);
       if ( metas[name].meta.bin) {
         for (const key in metas[name].meta.bin) {
@@ -52,7 +59,11 @@ export class Fixup {
   static updateDeps(metas: Record<string, any>, fixupMetas?: Record<string, any>) {
     const metasToFix = fixupMetas ? fixupMetas : metas;
     for (const name in metasToFix) {
+      if (Object.prototype.toString.call(metasToFix[name]) === '[object Function]') {
+        continue;
+      }
       console.log('fixing deps: ', name);
+
       if (metasToFix[name].meta?.peerDependencies) {
         metasToFix[name].meta.peerDependencies = this.updateDepType(metas, metasToFix[name].meta.peerDependencies);
       }

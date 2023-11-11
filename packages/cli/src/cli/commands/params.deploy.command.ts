@@ -40,16 +40,14 @@ export class ParamsDeployCommand extends BaseCommand {
 
   async runCommand(param: string[], options: ParamsDeployCommandOptions, packages?: Package[]): Promise<void> {
     try {
-      packages?.map(async (p: Package) => {
+      for(const p of packages) {
         if (p.params) {
           if (options?.envToParams) {
             await p.params.envToParams()
           }
           await p.params.deploy(options);
         }
-      });
-
-      //}
+      }
     } catch (e) {
       console.log(CenvLog.colors.error(e));
     }

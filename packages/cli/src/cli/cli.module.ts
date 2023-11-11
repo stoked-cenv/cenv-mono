@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import {
+  BootstrapCommand,
   BuildCommand,
   CenvCommand,
   ConfigCommand,
+  DecryptCommand,
   DeployCommand,
   DestroyCommand,
   DockerCommand,
   DocsCommand,
+  EncryptCommand,
   EnvCommand,
   ExecCommand,
   LambdaCommand,
@@ -22,14 +25,17 @@ import { CenvLog } from '@stoked-cenv/lib';
 @Module({
   providers:
     [
+      BootstrapCommand,
       CenvLog,
       CenvCommand,
       BuildCommand,
       ...ConfigCommand.registerWithSubCommands(),
+      DecryptCommand,
       DeployCommand,
       DestroyCommand,
       DockerCommand,
       DocsCommand,
+      EncryptCommand,
       EnvCommand,
       ExecCommand,
       LambdaCommand,

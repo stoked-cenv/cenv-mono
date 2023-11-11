@@ -18,7 +18,7 @@ import * as path from 'path';
 import { join } from 'path';
 import { existsSync, readFileSync, rmSync } from 'fs';
 import { createAppEnvConf, destroyAppConfig, destroyRemainingConfigs, getConfig, getEnvironment, getEnvironmentAppConfigs } from '../aws/appConfig';
-import {CenvParams, IRootPaths, validateOneType, variableTypes} from '../params';
+import {CenvParams, collapseParams, IRootPaths, LambdaProcessResponse, validateOneType, variableTypes} from '../params';
 import { CenvLog, LogLevel } from '../log';
 import { expandTemplateVars, simplify, sleep } from '../utils';
 import {
@@ -247,7 +247,7 @@ export class ParamsModule extends PackageModule {
     return new ParamsModule(module.pkg, module.path, module.meta);
   }
 
-  static async getParams(packageName: string, type = 'all', format: string, decrypted = false, materialized = false, silent = false) {
+  static async getParams(packageName: string, type = 'all', format: string, decrypted = false, materialized = false, silent = false): Promise<any> {
     const printPkg = format.endsWith('-pkg') ? packageName : undefined;
     format = format.replace('-pkg', '');
 
@@ -264,7 +264,7 @@ export class ParamsModule extends PackageModule {
     }
     let noTypeSet = false;
     if (type === 'all') {
-      output = { ...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv };
+      output = collapseParams(parameters);
     } else if (type === 'allTyped') {
       if (parameters) {
         if (!silent) {
@@ -278,7 +278,7 @@ export class ParamsModule extends PackageModule {
       noTypeSet = true;
     }
 
-    let result = noTypeSet ? { ...parameters.app, ...parameters.environment, ...parameters.global, ...parameters.globalEnv } : output;
+    let result = noTypeSet ? collapseParams(parameters) : output;
     if (format === 'simple') {
       result = simplify(result, printPkg);
     }
@@ -413,6 +413,27 @@ export class ParamsModule extends PackageModule {
     this.varsLoaded = true;
   }
 
+  displayMaterializationResult(response: { title: string, result: LambdaProcessResponse }) {
+    const {before, after, error} = response.result;
+    if (error) {
+      CenvLog.single.errorLog(JSON.stringify(error, null, 2));
+      return;
+    }
+
+    if (before) {
+      let output = '';
+      for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
+        CenvLog.single.verboseLog(`${CenvLog.colors.std(beforeKey + ':')} ${CenvLog.colors.stdHighlightUnderline(isEncrypted(beforeValue) ? '-=[ENCRYPTED]=-' : beforeValue)}`);
+        for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
+          if (afterKey === beforeKey) {
+            output += `${CenvLog.colors.std(afterKey + ':')} ${CenvLog.colors.stdHighlightUnderline(isEncrypted(afterValue) ? '-=[ENCRYPTED]=-' : afterValue)}\n`;
+          }
+        }
+      }
+      CenvLog.single.stdLog(CenvLog.colors.infoBold(`\n${response.title}: \n\n`) + output, this.pkg.stackName);
+    }
+  }
+
   public async materialize(test = false) {
 
     // switch dir
@@ -426,28 +447,14 @@ export class ParamsModule extends PackageModule {
       return;
     }
 
-    if (test) {
-      const res = await CenvParams.MaterializeCore(data);
-      CenvLog.single.infoLog('materialization test results:\n' + JSON.stringify(res, null, 2));
-    } else {
-      const { before, after, error } = await invoke('cenv-params', JSON.stringify(data));
-      if (error) {
-        CenvLog.single.errorLog(JSON.stringify(error, null, 2));
-        return;
+    const execMaterialization = async (test: boolean) => {
+      if (test) {
+        return { result: await CenvParams.MaterializeCore(data), title: 'materialization test results' };
       }
-
-      if (before) {
-        let output = '';
-        for (const [beforeKey, beforeValue] of Object.entries(before) as [string, string][]) {
-          for (const [afterKey, afterValue] of Object.entries(after) as [string, string][]) {
-            if (afterKey === beforeKey) {
-              output += `'${CenvLog.colors.infoBold(afterKey)}': '${CenvLog.colors.infoBold(afterValue)}' ${(process.env.CENV_LOG_LEVEL === 'VERBOSE' && beforeValue !== afterValue) ? `- ${CenvLog.colors.success(beforeValue)}` : ''}\n`;
-            }
-          }
-        }
-        CenvLog.single.infoLog('materialization results:\n' + output, this.pkg.stackName);
-      }
+      return { result: await invoke('cenv-params', JSON.stringify(data)), title: 'materialization results' };
     }
+    const response= await execMaterialization(test);
+    this.displayMaterializationResult(response);
   }
 
   async addParam(pkg: Package, params: string[], options: Record<string, any>) {
@@ -781,7 +788,6 @@ export class ParamsModule extends PackageModule {
     const [value, release] = await ParamsModule.semaphore.acquire();
 
      try {
-
        let deploy = false;
        if (!options?.init) {
          const config = await getConfig(this.pkg.packageName);
@@ -796,7 +802,6 @@ export class ParamsModule extends PackageModule {
            }
          }
        }
-
 
        if (!deploy) {
          options.push = true;
@@ -816,7 +821,6 @@ export class ParamsModule extends PackageModule {
            const cmd = this.pkg.createCmd(`cenv params materialize ${this.pkg.packageName}`);
            await this.materialize();
            cmd.result(0);
-
          }
        }
 
@@ -840,6 +844,7 @@ export class ParamsModule extends PackageModule {
     if (data.environment === undefined) data.environment = {};
     if (data.global === undefined) data.global = {};
     if (data.globalEnv === undefined) data.globalEnv = {};
+
     const diff = deepDiffMapper.map(deployedData, data, [DiffMapperType.VALUE_DELETED]);
     if (diff && Object.keys(diff).length !== 0) {
       for (const type of Object.keys(diff)) {
@@ -868,7 +873,7 @@ export class ParamsModule extends PackageModule {
     CenvFiles.SaveVars(pushOutput, CenvFiles.ENVIRONMENT, false);
 
     let parametersVerified = false;
-    const condensed = { ...pushOutput.app, ...pushOutput.environment, ...pushOutput.globalEnv, ...pushOutput.global };
+    const condensed = collapseParams(pushOutput);
     let count = 2;
     while (!parametersVerified || count === 0) {
       const params = await ParamsModule.getParams(applicationName, 'all', 'simple', false, false, true);
@@ -963,7 +968,6 @@ export class ParamsModule extends PackageModule {
     } else {
       variables = await getConfigVars(this.pkg.packageName, allValues, silent);
     }
-
     // merge app data
     if (init) {
       const mergeAppDataRes = await this.mergeDataType(AppVarsFile, variables.app, 'baseVariables');
@@ -978,6 +982,7 @@ export class ParamsModule extends PackageModule {
       const mergeGlobalDataRes = await this.mergeDataType(GlobalVarsFile, variables.global, 'globalVariables');
       variables.global = mergeGlobalDataRes.vars;
 
+      console.log('derp')
       const changed = mergeAppDataRes.changed || mergeEnvDataRes.changed || mergeGlobalEnvDataRes.changed || mergeGlobalDataRes.changed;
       if (save || changed) {
         CenvFiles.SaveVars(variables, CenvFiles.ENVIRONMENT, false);
@@ -985,7 +990,7 @@ export class ParamsModule extends PackageModule {
       if (push || changed) {
         await this.push(this.pkg.packageName, true, false);
       }
-    } else if (Object.keys(variables).length > 0) {
+    } else if (variables && Object.keys(variables).length > 0) {
       if (save) {
         CenvFiles.SaveVars(variables, CenvFiles.ENVIRONMENT, false);
       }
@@ -1221,9 +1226,7 @@ export class ParamsModule extends PackageModule {
       //delete vars.globalEnvironmentTemplate;
     }
     vars = simplify(vars);
-    return {
-      ...vars.app, ...vars.environment, ...vars.global, ...vars.globalEnv,
-    };
+    return collapseParams(vars);
   }
 
   reset() {
@@ -1454,10 +1457,14 @@ export class ParamsModule extends PackageModule {
         if (type === 'app' && (key === 'global' || key === 'globalEnv')) {
           continue;
         }
+
+        if (typeof value !== 'string') {
+          throw new Error(`param ${JSON.stringify(vars, null, 2)} in ${type} is not a string: ${value}`);
+        }
+
         const parameter = await this.createParameter(envVarToKey(key), value, type);
         const res = await upsertParameter(applicationName, parameter, type);
         if (res.outputValue) {
-          console.log('res.outputValue', res.outputValue)
           outputVars[key] = res.outputValue;
         }
         if (res.result !== 'SKIPPED') {
