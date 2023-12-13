@@ -1094,8 +1094,6 @@ export class CenvFiles {
       process.env.HOME = require('os').homedir();
     }
 
-    console.log('setPaths','--setPaths--')
-
     if (!process.env.CENV_PROFILE_PATH) {
       let final = 'profiles';
       if (CenvFiles.ENVIRONMENT === 'test') {
@@ -1103,7 +1101,6 @@ export class CenvFiles {
       }
       process.env.CENV_PROFILE_PATH = path.join(process.env.HOME!, cenvRoot, final);
       this.ProfilePath = process.env.CENV_PROFILE_PATH;
-      console.log('this.ProfilePath', this.ProfilePath)
       this.ensurePath(this.ProfilePath);
     }
 
