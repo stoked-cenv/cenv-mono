@@ -248,6 +248,7 @@ export interface CenvStackMeta {
   props?: any;
   envVarKeys?: string[];
   skipVars?: string[];
+  createCluster?: boolean;
 }
 
 export interface CenvDockerMeta {
@@ -268,7 +269,6 @@ export interface CenvMeta {
   docker?: CenvDockerMeta;
   lib?: CenvLibMeta;
   loadPackageVars?: string;
-
 }
 
 export type TPackageMeta = {

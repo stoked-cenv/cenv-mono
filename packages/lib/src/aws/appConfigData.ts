@@ -26,6 +26,7 @@ export async function startSession(applicationName: string, typed = false) {
   try {
     let config: any = CenvFiles.EnvConfig;
     if (!config || !config.ApplicationId || !config.EnvironmentId || (!config.ConfigurationProfileId && !typed) || (!config.MetaConfigurationProfileId && typed)) {
+      console.log(applicationName, CenvFiles.ENVIRONMENT);
       config = await getConfig(applicationName, CenvFiles.ENVIRONMENT, typed ? 'config_meta': 'config', false);
 
       if (!config) {

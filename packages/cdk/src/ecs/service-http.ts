@@ -27,11 +27,12 @@ export interface EcsHttpDeploymentParams {
   healthCheck: HealthCheck,
   assignedDomain?: string;
   actions?: string[];
+  createCluster: boolean;
 }
 
 export class EcsHttpStack extends Stack {
   vpc: IVpc;
-  cluster: ecs.Cluster;
+  cluster: ecs.ICluster;
   loadBalancedFargateService: ecs_patterns.ApplicationLoadBalancedFargateService;
   zone: IHostedZone;
   scalableTarget: ecs.ScalableTaskCount;
@@ -48,6 +49,7 @@ export class EcsHttpStack extends Stack {
       logRetention = logs.RetentionDays.ONE_WEEK,
       region = process.env.CDK_DEFAULT_REGION,
       healthCheck,
+      createCluster = params.createCluster ?? true
     } = params;
     this.params = params;
 
@@ -55,12 +57,19 @@ export class EcsHttpStack extends Stack {
 
     const domains = getDomains(subdomain);
 
-    // A regional grouping of one or more container instances on which you can run tasks and services.
-    // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
-    this.cluster = new ecs.Cluster(this, `${stackPrefix()}-cluster`, {
-      vpc: this.vpc,
-      clusterName: `${stackPrefix()}-cluster`,
-    });
+    if (createCluster) {
+      // A regional grouping of one or more container instances on which you can run tasks and services.
+      // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
+      this.cluster = new ecs.Cluster(this, `${stackPrefix()}-cluster`, {
+        vpc: this.vpc, clusterName: `${stackPrefix()}-cluster`,
+      });
+    } else {
+      this.cluster = ecs.Cluster.fromClusterAttributes(this, `${stackPrefix()}-cluster`, {
+        clusterName: `${stackPrefix()}-cluster`,
+        vpc: this.vpc,
+        securityGroups: [],
+      });
+    }
 
     // Lookup a hosted zone in the current account/region based on query parameters.
     // Requires environment, you must specify env for the stack.

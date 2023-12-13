@@ -119,6 +119,7 @@ export class StackModule extends PackageModule {
         opt = await this.getOptions(opt, ProcessMode.DESTROY);
         opt.parentCmd = packageCmd;
         opt.cdkSupported = ProcessMode.DESTROY;
+        CenvLog.single.infoLog(inspect({...opt, dashboardOptions: undefined,  }));
         await this.pkg.pkgCmd(actualCommand, opt);
       }
 
@@ -292,7 +293,9 @@ export class StackModule extends PackageModule {
       if (this.meta?.cenv?.stack?.assignedSubDomain) {
         opt.cenvVars['CENV_SUBDOMAIN'] = this.meta.cenv.stack.assignedSubDomain;
       }
-
+      if (this.meta?.cenv?.stack?.createCluster) {
+        opt.cenvVars['CENV_CREATE_CLUSTER'] = this.meta.cenv.stack.createCluster;
+      }
       if (this.meta?.cenv?.stack?.props) {
         let props = this.meta.cenv.stack.props;
         if (this.pkg.params && this.pkg.params?.materializedVars && Object.keys(this.pkg.params.materializedVars)?.length) {

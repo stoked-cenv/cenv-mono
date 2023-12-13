@@ -1,0 +1,15 @@
+APP: <{DES_APP}>
+APPLICATION_NAME: '@desirable/des-common'
+DOMAIN: irable.com
+globalEnv:
+  - AUTH0_AUDIENCE
+  - DES_API_DOMAIN
+  - DES_API_URL
+  - DES_API_VERSION
+  - DES_APP
+  - DES_DOMAIN
+  - DES_PORT
+  - DES_SOCKET_DOMAIN
+  - DES_SOCKET_PORT
+  - DES_SOCKET_URL
+  - DES_URL

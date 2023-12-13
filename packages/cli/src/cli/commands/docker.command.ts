@@ -9,7 +9,7 @@ export class DockerCommand extends BaseCommand {
 
   constructor() {
     super();
-    this.config.allowUI = true;
+    this.config.allowUI = false;
   }
 
   @Option({
