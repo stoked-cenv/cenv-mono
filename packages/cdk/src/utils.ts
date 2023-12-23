@@ -89,7 +89,7 @@ export function ensureValidCerts(primary: string, root: string) {
   }
 }
 
-export function getDomains(subdomain?: string) {
+export function getDomains(subdomain: string = "") {
   const APP = process.env.APP;
   console.log('APP: ' + APP);
   const ROOT_DOMAIN = process.env.ROOT_DOMAIN;
@@ -111,10 +111,8 @@ export function getDomains(subdomain?: string) {
     const env = `${subdomainInstance}${ENV}.${app}`;
     const sub = `*.${env}`;
     const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
-    if (finalDomains) {
-      finalDomains.alt.push(env);
-      finalDomains.alt.push(sub);
-    } else  if (ENV === 'prod') {
+
+    if (ENV === 'prod') {
       domains.app = app;
       domains.primary = `${subdomainInstance}${app}`;
       domains.alt = [`*.${app}`, env, sub];
@@ -123,16 +121,22 @@ export function getDomains(subdomain?: string) {
         domains.alt.push(domains.www);
       }
     }
-    finalDomains = domains;
 
-    console.log('primary domain: ' + domains.primary);
-    if (domains.app) {
-      console.log('app domain: ' + domains.app);
+    if (finalDomains) {
+      finalDomains.alt.push(env);
+      finalDomains.alt.push(sub);
+    } else {
+      finalDomains = domains;
     }
-    console.log('environment domain: ' + domains.env);
-    console.log('subDomain: ' + domains.sub);
-    console.log('rootDomain: ' + domains.root);
-    console.log('altDomains: ' + domains.alt.join(', '));
+
+    console.log('primary domain: ' + finalDomains.primary);
+    if (domains.app) {
+      console.log('app domain: ' + finalDomains.app);
+    }
+    console.log('environment domain: ' + finalDomains.env);
+    console.log('subDomain: ' + finalDomains.sub);
+    console.log('rootDomain: ' + finalDomains.root);
+    console.log('altDomains: ' + finalDomains.alt.join(', '));
   }
   return finalDomains;
 }
