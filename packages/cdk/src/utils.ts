@@ -102,28 +102,15 @@ export function getDomains(subdomain?: string) {
   const appIfNotSameAsRoot = APP && rootDomainParts.shift() !== APP ? APP : undefined;
   console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
   const appMatchesRoot = !appIfNotSameAsRoot;
-  let subs = [];
-  if (subdomain) {
-    subs = subdomain.split(',').map(s => `${s}.`);
-  }
-  if (subs.length > 0) {
-    subdomain = subs[0];
-  }
+  subdomain = `${subdomain ? subdomain + '.' : ''}`;
   const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
-  if (subs.length > 1) {
-    for (let i = 1; i < subs.length; i++) {
-      subs[i] = `${subs[i]}${ENV}.${app}`;
-      subs[i] = `*.${subs[i]}`;
-    }
-  }
   const env = `${subdomain}${ENV}.${app}`;
   const sub = `*.${env}`;
-  const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: subs, root: rootDomain }
+  const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
   if (ENV === 'prod') {
     domains.app = app;
     domains.primary = `${subdomain}${app}`;
     domains.alt = [`*.${app}`, env, sub];
-    domains.alt = domains.alt.concat(subs);
     if (appMatchesRoot) {
       domains.www = `www.${app}`;
       domains.alt.push(domains.www);

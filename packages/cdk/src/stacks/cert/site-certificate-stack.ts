@@ -1,7 +1,7 @@
 import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
-import { Certificate, CertificateValidation, DnsValidatedCertificate } from 'aws-cdk-lib/aws-certificatemanager';
+import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { getDomains, stackPrefix, tagStack } from '../../index';
 
 export class SiteCertificateStack extends Stack {
