@@ -838,6 +838,10 @@ export class ParamsModule extends PackageModule {
     this.info(`deploying ${CenvLog.colors.infoBold(CenvFiles.ENVIRONMENT)} variables to cloud`, this.pkg.packageName);
     let updatedCount = 0;
     this.chDir();
+    const packagePath = CenvFiles.packagePath(this.pkg.packageName);
+    if (applicationName != this.pkg.packageName || packagePath != process.cwd()) {
+      CenvLog.info('hi hi hi')
+    }
     const data = await CenvFiles.GetLocalVars(applicationName, true, decrypted, true);
     const deployedData = await this.pull(false, false, true, false, false, false, undefined, true);
     if (data.app === undefined) data.app = {};
@@ -869,8 +873,9 @@ export class ParamsModule extends PackageModule {
     res = await this.pushType(data, 'global', applicationName, res.updated);
     pushOutput.global = {...data.global, ...res.outputVars };
 
-    //console.log('pushOutput', pushOutput);
-    CenvFiles.SaveVars(pushOutput, CenvFiles.ENVIRONMENT, false);
+    if (!Cenv.frozenParams) {
+      CenvFiles.SaveVars(pushOutput, CenvFiles.ENVIRONMENT, false);
+    }
 
     let parametersVerified = false;
     const condensed = collapseParams(pushOutput);

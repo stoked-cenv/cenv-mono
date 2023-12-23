@@ -152,9 +152,11 @@ export class CommandInfo {
   packagesRequired = true;
   configRequired = true;
   cenvRootRequired = true;
+  frozenParams = false;
 }
 
 export class Cenv {
+  static frozenParams: boolean = false;
   static runningProcesses?: { [stackName: string]: StackProc[] } = {};
   static processes: { [pid: number]: StackProc } = {};
   static dashboard: any = null;

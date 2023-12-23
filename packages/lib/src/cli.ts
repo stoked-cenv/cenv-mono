@@ -14,6 +14,7 @@ export async function parseCmdParams(params: string[], options: any, cmdInfo: Co
   parsedParams: string[], validatedOptions: any, packages?: Package[], suite?: Suite, environment?: Environment
 }> {
 
+  Cenv.frozenParams = cmdInfo.frozenParams;
   if (!cmdInfo.allowPackages) {
     validateBaseOptions({packages: [], options, cmd: cmdInfo.deploymentMode});
     return {packages: [], parsedParams: params, validatedOptions: options};

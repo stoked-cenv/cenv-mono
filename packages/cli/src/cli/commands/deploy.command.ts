@@ -13,6 +13,7 @@ export class DeployCommand extends BaseCommand {
     this.config.packagesRequired = true;
     this.config.allowRootPackage = false;
     this.config.allowUI = true;
+    this.config.frozenParams = true;
   }
 
   @Option({

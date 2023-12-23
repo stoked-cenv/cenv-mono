@@ -572,6 +572,10 @@ export class CenvFiles {
 
   public static get PROFILE_PATH(): string {
     if (!this.ProfilePath) {
+      console.log('new test');
+      this.setPaths();
+    }
+    if (!this.ProfilePath) {
       CenvLog.single.catchLog('CenvFiles.ProfilePath is trying to be accessed but has not been set');
       process.exit(799);
     }
@@ -1100,9 +1104,10 @@ export class CenvFiles {
         final = 'test-' + final;
       }
       process.env.CENV_PROFILE_PATH = path.join(process.env.HOME!, cenvRoot, final);
-      this.ProfilePath = process.env.CENV_PROFILE_PATH;
-      this.ensurePath(this.ProfilePath);
     }
+
+    this.ProfilePath = process.env.CENV_PROFILE_PATH;
+    this.ensurePath(this.ProfilePath);
 
     function ensure(folder: string, memberPath: string) {
       if (!memberPath) {

@@ -10,8 +10,8 @@ if (existsSync(context)) {
   rmSync(path.join(__dirname, 'cdk.context.json'))
 }
 
-const {CENV_SUBDOMAIN, CENV_STACK_NAME} = process.env;
+const {CENV_SUBDOMAINS, CENV_STACK_NAME} = process.env;
 
 new ClusterStack({
-  env: CenvFiles.ENVIRONMENT, subdomain: CENV_SUBDOMAIN || 'api', stackName: CENV_STACK_NAME!,
+  env: CenvFiles.ENVIRONMENT, subdomain: CENV_SUBDOMAINS || 'api', stackName: CENV_STACK_NAME!,
 });

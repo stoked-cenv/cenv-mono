@@ -1,16 +1,17 @@
-import { App, Duration, Fn, Stack, StackProps } from 'aws-cdk-lib';
+import {App, Duration, Fn, Stack, StackProps} from 'aws-cdk-lib';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
-import { IVpc, Vpc } from 'aws-cdk-lib/aws-ec2';
-import { HealthCheck } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { HostedZone, IHostedZone } from 'aws-cdk-lib/aws-route53';
+import {IVpc} from 'aws-cdk-lib/aws-ec2';
+import {HealthCheck} from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import {HostedZone, IHostedZone} from 'aws-cdk-lib/aws-route53';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
+import {Certificate} from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+
 import {getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack} from '../utils';
-import { CenvFiles } from '@stoked-cenv/lib';
 
 export interface EcsHttpDeploymentParams {
   env: string;
@@ -33,7 +34,7 @@ export interface EcsHttpDeploymentParams {
 export class EcsHttpStack extends Stack {
   vpc: IVpc;
   cluster: ecs.ICluster;
-  loadBalancedFargateService: ecs_patterns.ApplicationLoadBalancedFargateService;
+  httpService: ecs_patterns.ApplicationLoadBalancedFargateService;
   zone: IHostedZone;
   scalableTarget: ecs.ScalableTaskCount;
   logGroup: logs.LogGroup;
@@ -100,7 +101,7 @@ export class EcsHttpStack extends Stack {
     // Create a load-balanced Fargate service and make it public
     // A Fargate service running on an ECS cluster fronted by an application load balancer.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs_patterns.ApplicationLoadBalancedFargateService.html
-    this.loadBalancedFargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(
+    this.httpService = new ecs_patterns.ApplicationLoadBalancedFargateService(
       this,
       `${stackPrefix()}-fg`,
       {
@@ -128,9 +129,34 @@ export class EcsHttpStack extends Stack {
         publicLoadBalancer: true, // Default is false,
       });
 
+
+    if (process.env.CENV_SECONDARY_CONTAINER_PORT) {
+
+      const secondaryService = this.httpService.loadBalancer.addListener('secondary',
+        {
+          port: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT),
+          protocol: elbv2.ApplicationProtocol.HTTP,
+          certificates: [certificate],
+      });
+
+      secondaryService.addTargets('secondaryTarget', {
+        targets: [this.httpService.service],
+        port: 81,
+        protocol: elbv2.ApplicationProtocol.HTTPS,
+        healthCheck: {
+          path: '/',
+          interval: Duration.minutes(1)
+        }
+      });
+
+      this.httpService.taskDefinition.defaultContainer?.addPortMappings({
+        containerPort: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT),
+      });
+    }
+
     if (this.params.actions) {
       // attach inline policy for interacting with AppConfig
-      this.loadBalancedFargateService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
+      this.httpService.taskDefinition.taskRole?.attachInlinePolicy(new iam.Policy(this, `${stackPrefix()}-config`, {
         statements: [new iam.PolicyStatement({
           actions: this.params.actions,
           resources: ['*'],
@@ -148,10 +174,10 @@ export class EcsHttpStack extends Stack {
       unhealthyThresholdCount: 10
     };
 
-    this.loadBalancedFargateService.targetGroup.configureHealthCheck(hChk);
+    this.httpService.targetGroup.configureHealthCheck(hChk);
 
     // An attribute representing the minimum and maximum task count for an AutoScalingGroup.
-    this.scalableTarget = this.loadBalancedFargateService.service.autoScaleTaskCount({
+    this.scalableTarget = this.httpService.service.autoScaleTaskCount({
                                                                                        minCapacity: 1, maxCapacity: 5,
                                                                                      });
 
@@ -167,13 +193,13 @@ export class EcsHttpStack extends Stack {
 
     new cloudwatch.Metric({
                             metricName: 'CPUUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
-        ServiceName: this.loadBalancedFargateService.service.serviceName, ClusterName: this.cluster.clusterName,
+        ServiceName: this.httpService.service.serviceName, ClusterName: this.cluster.clusterName,
       }, statistic: 'avg', period: Duration.minutes(5),
                           });
 
     new cloudwatch.Metric({
                             metricName: 'MemoryUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
-        ServiceName: this.loadBalancedFargateService.service.serviceName, ClusterName: this.cluster.clusterName,
+        ServiceName: this.httpService.service.serviceName, ClusterName: this.cluster.clusterName,
       }, statistic: 'avg', period: Duration.minutes(5),
                           });
   }
