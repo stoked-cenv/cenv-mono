@@ -20,7 +20,7 @@
   "author": "Brian Stoker",
   "license": "MIT",
   "dependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.135",
+    "@stoked-cenv/lib": "^2.0.0-a.136",
     "async-mutex": "^0.4.0",
     "build": "^0.1.4",
     "js-yaml": "^4.1.0",
