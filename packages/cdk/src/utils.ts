@@ -133,5 +133,5 @@ export function getDomains(subdomain?: string) {
     console.log('rootDomain: ' + domains.root);
     console.log('altDomains: ' + domains.alt.join(', '));
   }
-  return domains;
+  return finalDomains;
 }
