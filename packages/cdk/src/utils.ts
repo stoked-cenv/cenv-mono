@@ -102,29 +102,36 @@ export function getDomains(subdomain?: string) {
   const appIfNotSameAsRoot = APP && rootDomainParts.shift() !== APP ? APP : undefined;
   console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
   const appMatchesRoot = !appIfNotSameAsRoot;
-  subdomain = `${subdomain ? subdomain + '.' : ''}`;
-  const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
-  const env = `${subdomain}${ENV}.${app}`;
-  const sub = `*.${env}`;
-  const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
-  if (ENV === 'prod') {
-    domains.app = app;
-    domains.primary = `${subdomain}${app}`;
-    domains.alt = [`*.${app}`, env, sub];
-    if (appMatchesRoot) {
-      domains.www = `www.${app}`;
-      domains.alt.push(domains.www);
+  let finalDomains = null;
+  for (let i = 0; i < subdomain.split(',').length; i++) {
+    let subdomainInstance = subdomain.split(',')[i];
+    subdomainInstance = `${subdomainInstance ? subdomainInstance + '.' : ''}`;
+    const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
+    const env = `${subdomainInstance}${ENV}.${app}`;
+    const sub = `*.${env}`;
+    const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
+    if (finalDomains) {
+      finalDomains.alt.push(env);
+      finalDomains.alt.push(sub);
+    } else  if (ENV === 'prod') {
+      domains.app = app;
+      domains.primary = `${subdomainInstance}${app}`;
+      domains.alt = [`*.${app}`, env, sub];
+      if (appMatchesRoot) {
+        domains.www = `www.${app}`;
+        domains.alt.push(domains.www);
+      }
     }
-  }
+    finalDomains = domains;
 
-  console.log('primary domain: ' + domains.primary);
-  if (domains.app) {
-    console.log('app domain: ' + domains.app);
+    console.log('primary domain: ' + domains.primary);
+    if (domains.app) {
+      console.log('app domain: ' + domains.app);
+    }
+    console.log('environment domain: ' + domains.env);
+    console.log('subDomain: ' + domains.sub);
+    console.log('rootDomain: ' + domains.root);
+    console.log('altDomains: ' + domains.alt.join(', '));
   }
-  console.log('environment domain: ' + domains.env);
-  console.log('subDomain: ' + domains.sub);
-  console.log('rootDomain: ' + domains.root);
-  console.log('altDomains: ' + domains.alt.join(', '));
-
   return domains;
 }
