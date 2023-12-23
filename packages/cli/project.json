@@ -37,7 +37,7 @@
           "./git-check.sh",
           "pnpm version:bump:all",
           "pnpm build:no-cache",
-          "git add package.json && pnpm -r exec git add package.json && git commit -m 'bump' && git push",
+          "pnpm push:packages",
           "pnpm publish:bump:all",
           "pnpm version:example:sync",
           "ts-node fixup-example-deps.ts"
