@@ -103,7 +103,8 @@ export function getDomains(subdomain?: string) {
   console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
   const appMatchesRoot = !appIfNotSameAsRoot;
   let finalDomains = null;
-  for (let i = 0; i < subdomain.split(',').length; i++) {
+  console.log('subdomain', subdomain);
+  for (let i = 0; i < subdomain?.split(',').length; i++) {
     let subdomainInstance = subdomain.split(',')[i];
     subdomainInstance = `${subdomainInstance ? subdomainInstance + '.' : ''}`;
     const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
