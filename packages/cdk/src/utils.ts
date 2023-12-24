@@ -1,13 +1,13 @@
 import * as cdk from 'aws-cdk-lib';
-import { App, Stack } from 'aws-cdk-lib';
-import { CenvFiles, CenvLog, Package } from '@stoked-cenv/lib';
-import { HostedZone } from 'aws-cdk-lib/aws-route53';
-import { SiteCertificateStack } from './stacks/cert/site-certificate-stack';
+import {App, Stack} from 'aws-cdk-lib';
+import {CenvFiles, CenvLog, Package} from '@stoked-cenv/lib';
+import {HostedZone} from 'aws-cdk-lib/aws-route53';
+import {SiteCertificateStack} from './stacks/cert/site-certificate-stack';
 import process from 'process';
-import { Construct } from 'constructs';
-import { Vpc } from 'aws-cdk-lib/aws-ec2';
-import { Repository } from 'aws-cdk-lib/aws-ecr';
-import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
+import {Construct} from 'constructs';
+import {Vpc} from 'aws-cdk-lib/aws-ec2';
+import {Repository} from 'aws-cdk-lib/aws-ecr';
+import {ContainerImage} from 'aws-cdk-lib/aws-ecs';
 
 export function stackPrefix() {
   return `${CenvFiles.ENVIRONMENT}-${process.env.APP}`;
@@ -31,10 +31,9 @@ export const getVPCByName = (construct: Construct, id = CenvFiles.ENVIRONMENT + 
 });
 
 export function getDefaultStackEnv() {
-  return{
+  return {
     env: {
-      account: process.env.CDK_DEFAULT_ACCOUNT,
-      region: process.env.CDK_DEFAULT_REGION,
+      account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION,
     },
   };
 }
@@ -78,7 +77,7 @@ export function ensureValidCerts(primary: string, root: string) {
       while (subDomain !== nextSub) {
         nextSub = assignedParts.pop() as string;
         new SiteCertificateStack(new cdk.App(), `${primary.replace(/\./g, '-')}`, {
-          env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+          env: {account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION},
         });
         currDomain = `${nextSub}.${root}`;
         nextSub = assignedParts.pop() as string;
@@ -110,33 +109,45 @@ export function getDomains(subdomain: string = "") {
     const app = appIfNotSameAsRoot ? `${APP}.${rootDomain}` : rootDomain;
     const env = `${subdomainInstance}${ENV}.${app}`;
     const sub = `*.${env}`;
-    const domains: {env: string, sub: string, app?: string, primary: string, alt: string[], root: string, www?: string} = { env, sub, primary: env, alt: [sub], root: rootDomain }
-
-    if (ENV === 'prod') {
-      domains.app = app;
-      domains.primary = `${subdomainInstance}${app}`;
-      domains.alt = [`*.${app}`, env, sub];
-      if (appMatchesRoot) {
-        domains.www = `www.${app}`;
-        domains.alt.push(domains.www);
-      }
+    const domains: {
+      env: string,
+      sub: string,
+      app?: string,
+      primary: string,
+      alt: string[],
+      root: string,
+      www?: string
+    } = {
+      env,
+      sub,
+      primary: env,
+      alt: [sub],
+      root: rootDomain
     }
 
     if (finalDomains) {
       finalDomains.alt.push(env);
       finalDomains.alt.push(sub);
     } else {
+      if (ENV === 'prod') {
+        domains.app = app;
+        domains.primary = `${subdomainInstance}${app}`;
+        domains.alt = [`*.${app}`, env, sub];
+        if (appMatchesRoot) {
+          domains.www = `www.${app}`;
+          domains.alt.push(domains.www);
+        }
+      }
       finalDomains = domains;
     }
-
-    console.log('primary domain: ' + finalDomains.primary);
-    if (domains.app) {
-      console.log('app domain: ' + finalDomains.app);
-    }
-    console.log('environment domain: ' + finalDomains.env);
-    console.log('subDomain: ' + finalDomains.sub);
-    console.log('rootDomain: ' + finalDomains.root);
-    console.log('altDomains: ' + finalDomains.alt.join(', '));
   }
+  console.log('primary domain: ' + finalDomains.primary);
+  if (finalDomains.app) {
+    console.log('app domain: ' + finalDomains.app);
+  }
+  console.log('environment domain: ' + finalDomains.env);
+  console.log('subDomain: ' + finalDomains.sub);
+  console.log('rootDomain: ' + finalDomains.root);
+  console.log('altDomains: ' + finalDomains.alt.join(', '));
   return finalDomains;
 }

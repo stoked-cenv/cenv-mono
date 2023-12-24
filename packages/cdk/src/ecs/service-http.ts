@@ -135,7 +135,7 @@ export class EcsHttpStack extends Stack {
       const secondaryService = this.httpService.loadBalancer.addListener('secondary',
         {
           port: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT),
-          protocol: elbv2.ApplicationProtocol.HTTP,
+          protocol: elbv2.ApplicationProtocol.HTTPS,
           certificates: [certificate],
       });
 
