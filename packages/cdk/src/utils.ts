@@ -88,21 +88,37 @@ export function ensureValidCerts(primary: string, root: string) {
   }
 }
 
-export function getDomains(subdomain: string = "") {
+export function getDomains(subdomain: string = ""): {
+  env: string,
+  sub: string,
+  app?: string,
+  primary: string,
+  alt: string[],
+  root: string,
+  www?: string
+} {
   const APP = process.env.APP;
-  console.log('APP: ' + APP);
+  //console.log('APP: ' + APP);
   const ROOT_DOMAIN = process.env.ROOT_DOMAIN;
-  console.log('ROOT_DOMAIN: ' + ROOT_DOMAIN);
+  //console.log('ROOT_DOMAIN: ' + ROOT_DOMAIN);
   const DOMAIN = process.env.DOMAIN;
-  console.log('DOMAIN: ' + DOMAIN);
+  //console.log('DOMAIN: ' + DOMAIN);
   const rootDomain = DOMAIN || ROOT_DOMAIN!;
   const rootDomainParts = rootDomain.split('.');
   const ENV = CenvFiles.ENVIRONMENT;
   const appIfNotSameAsRoot = APP && rootDomainParts.shift() !== APP ? APP : undefined;
-  console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
+  //console.log('appIfNotSameAsRoot', appIfNotSameAsRoot);
   const appMatchesRoot = !appIfNotSameAsRoot;
-  let finalDomains = null;
-  console.log('subdomain', subdomain);
+  let finalDomains: {
+    env: string,
+    sub: string,
+    app?: string,
+    primary: string,
+    alt: string[],
+    root: string,
+    www?: string
+  } | null = null;
+  //console.log('subdomain', subdomain);
   for (let i = 0; i < subdomain?.split(',').length; i++) {
     let subdomainInstance = subdomain.split(',')[i];
     subdomainInstance = `${subdomainInstance ? subdomainInstance + '.' : ''}`;
@@ -141,7 +157,7 @@ export function getDomains(subdomain: string = "") {
       finalDomains = domains;
     }
   }
-  console.log('primary domain: ' + finalDomains.primary);
+  /* console.log('primary domain: ' + finalDomains.primary);
   if (finalDomains.app) {
     console.log('app domain: ' + finalDomains.app);
   }
@@ -149,5 +165,7 @@ export function getDomains(subdomain: string = "") {
   console.log('subDomain: ' + finalDomains.sub);
   console.log('rootDomain: ' + finalDomains.root);
   console.log('altDomains: ' + finalDomains.alt.join(', '));
+   */
+  console.log(JSON.stringify(finalDomains, null , 2));
   return finalDomains;
 }

@@ -130,28 +130,33 @@ export class EcsHttpStack extends Stack {
       });
 
 
-    if (process.env.CENV_SECONDARY_CONTAINER_PORT) {
+    if (process.env.CENV_SECONDARY_CONTAINER_PORT && this.httpService.loadBalancer.listeners.length) {
+      const listener = this.httpService.loadBalancer.listeners[0];
 
-      const secondaryService = this.httpService.loadBalancer.addListener('secondary',
-        {
-          port: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT),
-          protocol: elbv2.ApplicationProtocol.HTTPS,
-          certificates: [certificate],
+      this.httpService.taskDefinition.defaultContainer?.addPortMappings({
+        containerPort: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT),
       });
 
-      secondaryService.addTargets('secondaryTarget', {
-        targets: [this.httpService.service],
-        port: 81,
-        protocol: elbv2.ApplicationProtocol.HTTPS,
+      const target = this.httpService.service.loadBalancerTarget({
+        containerName: containerName,
+        containerPort: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT)
+      });
+
+      listener.addTargets('secondaryTarget', {
+        targets: [target],
+        protocol: elbv2.ApplicationProtocol.HTTP,
+        conditions: [
+          elbv2.ListenerCondition.hostHeaders([process.env.CENV_SECONDARY_HEADER]),
+        ],
+        priority: 100,
         healthCheck: {
           path: '/',
           interval: Duration.minutes(1)
         }
       });
 
-      this.httpService.taskDefinition.defaultContainer?.addPortMappings({
-        containerPort: parseInt(process.env.CENV_SECONDARY_CONTAINER_PORT),
-      });
+
+
     }
 
     if (this.params.actions) {
@@ -178,7 +183,7 @@ export class EcsHttpStack extends Stack {
 
     // An attribute representing the minimum and maximum task count for an AutoScalingGroup.
     this.scalableTarget = this.httpService.service.autoScaleTaskCount({
-                                                                                       minCapacity: 1, maxCapacity: 5,
+                                                                                       minCapacity: 1, maxCapacity: 1,
                                                                                      });
 
     // Scales in or out to achieve a target CPU utilization.
