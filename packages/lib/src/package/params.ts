@@ -874,7 +874,7 @@ export class ParamsModule extends PackageModule {
     pushOutput.global = {...data.global, ...res.outputVars };
 
     if (!Cenv.frozenParams) {
-      CenvFiles.SaveVars(pushOutput, CenvFiles.ENVIRONMENT, false);
+      CenvFiles.SaveVars(pushOutput, CenvFiles.ENVIRONMENT, false, this.path);
     }
 
     let parametersVerified = false;

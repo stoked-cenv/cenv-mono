@@ -21,7 +21,8 @@ import {
   ProcessStatus,
   validateBaseOptions,
   PkgSummary,
-  CenvFiles, DockerModule,
+  CenvFiles,
+  DockerModule, sleep,
 } from '@stoked-cenv/lib';
 import CmdPanel from './cmdPanel';
 import StatusPanel from './statusPanel';
@@ -181,6 +182,7 @@ export class Dashboard {
           fg: 'white', bg: 'black', bold: true, border: {fg: 'black'}, label: {bold: true},
         }, border: false, transparent: true, height: 1, hideBorder: true,
       });
+
 
       const pkgButtons = {
         deploy: {
@@ -949,11 +951,18 @@ export class Dashboard {
       this.debug(`isMinimal=${CenvLog.single.isStdout}`)
       this.debug(`isNone=${CenvLog.single.isNone}`)
 */
+      const delayDeployStart = async () => {
+        await this.delayDeploy();
+      }
+      delayDeployStart();
     } catch (e) {
       CenvLog.single.catchLog(e);
     }
   }
-
+ async delayDeploy() {
+    await sleep(15);
+    await this.launchDeployment(ProcessMode.DEPLOY);
+  }
   static focus(element: any) {
     const index = Dashboard.instance?.focusPool.map((e: any) => e.name).indexOf(element.name);
     if (index) {
