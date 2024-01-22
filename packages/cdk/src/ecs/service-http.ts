@@ -3,15 +3,17 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import {IVpc} from 'aws-cdk-lib/aws-ec2';
 import {HealthCheck} from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import {HostedZone, IHostedZone} from 'aws-cdk-lib/aws-route53';
+import {ARecord, HostedZone, IHostedZone, RecordTarget} from 'aws-cdk-lib/aws-route53';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import {Certificate} from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 
 import {getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack} from '../utils';
+import {CloudFrontTarget} from "aws-cdk-lib/aws-route53-targets";
 
 export interface EcsHttpDeploymentParams {
   env: string;
@@ -155,7 +157,11 @@ export class EcsHttpStack extends Stack {
         }
       });
 
-
+      new ARecord(this, `${stackPrefix()}-sec-a`, {
+        recordName: process.env.CENV_SECONDARY_HEADER,
+        target: RecordTarget.fromAlias(new targets.LoadBalancerTarget(this.httpService.loadBalancer)),
+        zone: this.zone,
+      });
 
     }
 
