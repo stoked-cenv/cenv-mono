@@ -1,5 +1,5 @@
 import {Command, Option} from 'nest-commander';
-import {BaseCommandOptions, Cenv, CenvLog, listStacks, processEnvFiles} from '@stoked-cenv/lib'
+import {BaseCommandOptions, Cenv, CenvLog, listBuckets, listBucketsWithRegion, listStacks, processEnvFiles} from '@stoked-cenv/lib'
 import {BaseCommand} from './base.command'
 
 interface EnvCommandOptions extends BaseCommandOptions {
@@ -7,6 +7,8 @@ interface EnvCommandOptions extends BaseCommandOptions {
   changedFiles?: string;
   deletedFiles?: string;
   listStacks?: string;
+  listBuckets?: boolean,
+  listBucketsWithRegion?: boolean,
   cidr?: boolean;
   exports?: boolean;
 }
@@ -78,6 +80,18 @@ export class EnvCommand extends BaseCommand {
   }
 
   @Option({
+    flags: '-lb, --list-buckets', description: `List buckets`})
+  parseListBuckets(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
+    flags: '-lbwr, --list-buckets-with-region', description: `List buckets with region`})
+  parseWithBucketLocation(val: boolean): boolean {
+    return val;
+  }
+
+  @Option({
     flags: '-cidr, --cidr', description: `Return the current cidr if network exists.`,
   }) parseCidr(val: boolean): boolean {
     return val;
@@ -96,6 +110,25 @@ export class EnvCommand extends BaseCommand {
         const stacks = await listStacks(filter);
         CenvLog.single.infoLog(`stacks:`);
         stacks.forEach(s => CenvLog.single.infoLog(JSON.stringify(s, null, 2)));
+        return;
+      } else if (options?.listBucketsWithRegion) {
+        const buckets = await listBucketsWithRegion({region: process.env.AWS_REGION});
+        if  (!buckets) {
+          CenvLog.single.errorLog(`list buckets failed`);
+          return;
+        }
+        CenvLog.single.infoLog(`buckets:`);
+
+        buckets.forEach(s => CenvLog.single.infoLog(JSON.stringify(s, null, 2)));
+        return;
+      } else if (options?.listBuckets) {
+        const buckets = await listBuckets({region: process.env.AWS_REGION});
+        CenvLog.single.infoLog(`buckets:`);
+        if  (!buckets) {
+          CenvLog.single.errorLog(`list buckets failed`);
+          return;
+        }
+        buckets.forEach(s => CenvLog.single.infoLog(JSON.stringify(s, null, 2)));
         return;
       } else if (options?.addedFiles || options?.changedFiles || options?.deletedFiles) {
         if (params.length !== 1) {

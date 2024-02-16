@@ -1,5 +1,12 @@
 import {
-  _Object, DeleteObjectCommand, GetObjectCommand, GetObjectCommandOutput, ListBucketsCommand, ListObjectsCommand, PutObjectCommand, S3Client
+  _Object,
+  DeleteObjectCommand, GetBucketLocationCommand,
+  GetObjectCommand,
+  GetObjectCommandOutput,
+  ListBucketsCommand,
+  ListObjectsCommand,
+  PutObjectCommand,
+  S3Client
 } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 import { S3SyncClient } from 's3-sync-client';
@@ -112,10 +119,59 @@ export async function listBuckets({region}: { region: string }): Promise<{
       return {
         name: bucket.Name!, date: bucket.CreationDate!
       };
+    })
+    .sort((a, b) => {
+      if (b.name < a.name) {
+        return -1;
+      } else if (b.name > a.name) {
+        return 1;
+      }
+      return 0;
     });
 
   }
   return false;
+}
+
+
+export async function listBucketsWithRegion({region}: { region: string }): Promise<{
+  date: Date;
+  name: string;
+  region: string;
+}[] | false> {
+  const client = new S3Client({region});
+  const Buckets: false | { date: Date; name: string }[] = await listBuckets({region: 'us-east-1'});
+  if (Buckets) {
+    const res =  Buckets.filter(bucket => bucket.name && bucket.date);
+
+    let buckets = [];
+    for (let bucket of res) {
+      const region = await getBucketRegion({bucket: bucket.name});
+      buckets.push({ ...bucket, region});
+    }
+
+    return buckets.sort((a, b) => {
+      if (b.name < a.name) {
+        return 1;
+      } else if (b.name > a.name) {
+        return -1;
+      }
+      return 0;
+    });
+
+  }
+  return false;
+}
+
+
+export async function getBucketRegion({bucket}: { bucket: string }): Promise<string | false> {
+  const { AWS_REGION} = process.env;
+  const client = new S3Client({region:AWS_REGION});
+  const {LocationConstraint} = await client.send(new GetBucketLocationCommand({Bucket: bucket }));
+  if (LocationConstraint) {
+    return LocationConstraint;
+  }
+  return 'us-east-1';
 }
 
 export async function getObject({region, bucket, key}: { region: string, bucket: string, key: string }): Promise<GetObjectCommandOutput | false> {
