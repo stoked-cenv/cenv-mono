@@ -74,23 +74,27 @@ export async function listObjects({region, bucket}: { region: string, bucket: st
   console.log('process.env.AWS_PROFILE', process.env.AWS_PROFILE);
   console.log('region', region);
   console.log('bucket', bucket);
-  const client = new S3Client({region});
+  try {
+    const client = new S3Client({region});
 
-  const {Contents} = await client.send(new ListObjectsCommand({Bucket: bucket}));
-  if (Contents) {
-    return Contents
-    .filter((obj) => obj && obj.Key && obj.Size && obj.LastModified)
-    .map((o) => {
-      return {key: o.Key, size: o.Size, fileSize: humanFileSize(o.Size!, true, 1), date: o.LastModified} as BucketObject;
-    })
-    .sort((a, b) => {
-      if (b.size < a.size) {
-        return -1;
-      } else if (b.size > a.size) {
-        return 1;
-      }
-      return 0;
-    });
+    const {Contents} = await client.send(new ListObjectsCommand({Bucket: bucket}));
+    if (Contents) {
+      return Contents
+      .filter((obj) => obj && obj.Key && obj.Size && obj.LastModified)
+      .map((o) => {
+        return {key: o.Key, size: o.Size, fileSize: humanFileSize(o.Size!, true, 1), date: o.LastModified} as BucketObject;
+      })
+      .sort((a, b) => {
+        if (b.size < a.size) {
+          return -1;
+        } else if (b.size > a.size) {
+          return 1;
+        }
+        return 0;
+      });
+    }
+  } catch (e) {
+    console.log(e);
   }
   return false;
 }
