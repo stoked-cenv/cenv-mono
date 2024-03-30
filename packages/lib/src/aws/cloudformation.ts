@@ -4,7 +4,7 @@ import {
   DeleteStackCommand,
   DescribeStacksCommand,
   ListExportsCommand,
-  ListStacksCommand,
+  ListStacksCommand, StackStatus,
   waitUntilStackDeleteComplete,
 } from '@aws-sdk/client-cloudformation';
 
@@ -26,7 +26,7 @@ const aliasName = 'alias/curb-key';
 
 export async function listStacks(StackStatusFilter: string[]) {
   try {
-    let cmd = new ListStacksCommand({StackStatusFilter: StackStatusFilter});
+    let cmd = new ListStacksCommand({StackStatusFilter: (StackStatusFilter as StackStatus[])});
     let res = await getClient().send(cmd);
     let stacks = res.StackSummaries;
     if (!stacks) {

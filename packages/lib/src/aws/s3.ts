@@ -1,10 +1,11 @@
 import {
   _Object,
-  DeleteObjectCommand, GetBucketLocationCommand,
+  DeleteObjectCommand,
+  GetBucketLocationCommand,
   GetObjectCommand,
   GetObjectCommandOutput,
   ListBucketsCommand,
-  ListObjectsCommand,
+  ListObjectsCommand, ListObjectsV2Command,
   PutObjectCommand,
   S3Client
 } from '@aws-sdk/client-s3';
@@ -77,14 +78,14 @@ export async function getPresignedUrl({region, bucket, key}: { region: string, b
   return await createPresignedUrlWithClient({region, bucket, key});
 }
 
-export async function listObjects({region, bucket}: { region: string, bucket: string }): Promise<BucketObject[] | false> {
+export async function listObjects({region, bucket, maxKeys, continuationToken}: { region: string, bucket: string, maxKeys?: number, continuationToken?: string }): Promise<BucketObject[] | false> {
   console.log('process.env.AWS_PROFILE', process.env.AWS_PROFILE);
   console.log('region', region);
   console.log('bucket', bucket);
   try {
     const client = new S3Client({region});
 
-    const {Contents} = await client.send(new ListObjectsCommand({Bucket: bucket}));
+    const {Contents} = await client.send(new ListObjectsV2Command({Bucket: bucket, MaxKeys: maxKeys, ContinuationToken: continuationToken}));
     if (Contents) {
       return Contents
       .filter((obj) => obj && obj.Key && obj.Size && obj.LastModified)
@@ -163,7 +164,6 @@ export async function listBucketsWithRegion({region}: { region: string }): Promi
   return false;
 }
 
-
 export async function getBucketRegion({bucket}: { bucket: string }): Promise<string | false> {
   const { AWS_REGION} = process.env;
   const client = new S3Client({region:AWS_REGION});
@@ -211,7 +211,8 @@ const getBodyAsString = async (response: GetObjectCommandOutput) => {
 export async function writeObject({region, bucket, key}: { region: string, bucket: string, key: string }, writePath: string) {
   const res = await getObject({region, bucket, key})
   if (res) {
-    writeFileSync(writePath, await getBodyAsString(res));
+    let body = await getBodyAsString(res);
+    writeFileSync(writePath, body);
   }
 }
 

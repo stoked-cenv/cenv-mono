@@ -11,6 +11,7 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as autoscaling from 'aws-cdk-lib/aws-applicationautoscaling';
 
 import {getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack} from '../utils';
 import {CloudFrontTarget} from "aws-cdk-lib/aws-route53-targets";
@@ -99,7 +100,8 @@ export class EcsHttpStack extends Stack {
     const shortDigest = process.env.CENV_PKG_DIGEST ? process.env.CENV_PKG_DIGEST!.substring(process.env.CENV_PKG_DIGEST!.length - 8) : '';
     const containerName = `${stackPrefix()}-${process.env.CENV_PKG_VERSION}-${shortDigest}`.replace(/\./g, '-');
 
-    const image = ecs.ContainerImage.fromEcrRepository(repository, 'latest');
+    const serviceName = `${stackPrefix()}-svc`;
+      const image = ecs.ContainerImage.fromEcrRepository(repository, 'latest');
     // Create a load-balanced Fargate service and make it public
     // A Fargate service running on an ECS cluster fronted by an application load balancer.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs_patterns.ApplicationLoadBalancedFargateService.html
@@ -110,7 +112,8 @@ export class EcsHttpStack extends Stack {
         cluster: this.cluster, // Required
         assignPublicIp: true,
         loadBalancerName: `${stackPrefix()}-lb`,
-        serviceName: `${stackPrefix()}-svc`, cpu: 256, // Default is 256 // 0.25 CPU
+        serviceName: `${stackPrefix()}-svc`,
+        cpu: 256, // Default is 256 // 0.25 CPU
         desiredCount: 1, // Default is 1
         domainZone: this.zone,
         domainName: domains.primary,
@@ -188,8 +191,8 @@ export class EcsHttpStack extends Stack {
     this.httpService.targetGroup.configureHealthCheck(hChk);
 
     // An attribute representing the minimum and maximum task count for an AutoScalingGroup.
-    this.scalableTarget = this.httpService.service.autoScaleTaskCount({
-                                                                                       minCapacity: 1, maxCapacity: 1,
+    /*this.scalableTarget = this.httpService.service.autoScaleTaskCount({
+                                                                                       minCapacity: 0, maxCapacity: 1,
                                                                                      });
 
     // Scales in or out to achieve a target CPU utilization.
@@ -201,6 +204,32 @@ export class EcsHttpStack extends Stack {
     this.scalableTarget.scaleOnMemoryUtilization('MemoryScaling', {
       targetUtilizationPercent: 50,
     });
+
+     */
+    const scalableTarget = new autoscaling.ScalableTarget(this, 'ScalableTarget', {
+      serviceNamespace: autoscaling.ServiceNamespace.ECS,
+      resourceId: `service/${serviceName}/${this.cluster.clusterName}`,
+      scalableDimension: 'ecs:service:DesiredCount',
+      minCapacity: 0,
+      maxCapacity: 1,
+    });
+
+    const scalingPolicy = new autoscaling.TargetTrackingScalingPolicy(this, 'ScalingPolicy', {
+      policyName: 'RequestCountScalingPolicy',
+      targetValue: 1000,
+      scaleOutCooldown: Duration.seconds(60),
+      scaleInCooldown: Duration.seconds(60),
+      scalingTarget: scalableTarget,
+      predefinedMetric: autoscaling.PredefinedMetric.ALB_REQUEST_COUNT_PER_TARGET,
+      resourceLabel: `app/${this.httpService.loadBalancer.loadBalancerFullName}/${this.httpService.targetGroup.targetGroupFullName}`
+    });
+
+
+    scalableTarget.scaleToTrackMetric('Tracking', {
+      targetValue: 50000,
+      predefinedMetric: autoscaling.PredefinedMetric.ALB_REQUEST_COUNT_PER_TARGET,
+    });
+
 
     new cloudwatch.Metric({
                             metricName: 'CPUUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {

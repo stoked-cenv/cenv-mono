@@ -5,7 +5,7 @@
     "cenv": "nx run @stoked-cenv/cli:cenv",
     "publish:link": "pnpm run build",
     "publish:cli": "nx run @stoked-cenv/cli:package",
-    "build": "ts-node fixup-deps.ts && nx affected:build && ts-node ./fixup-dist.ts && pnpm run link:cli && pnpm run link:lib &&  pnpm run link:ui && pnpm run link:cdk",
+    "build": "ts-node fixup-deps.ts && nx affected:build --exclude=example && ts-node ./fixup-dist.ts && pnpm run link:cli && pnpm run link:lib &&  pnpm run link:ui && pnpm run link:cdk",
     "build:no-cache": "ts-node fixup-deps.ts && nx affected:build --skip-nx-cache && ts-node ./fixup-dist.ts && pnpm run link:cli",
     "rebuild": "pnpm -r exec npx rimraf node_modules pnpm-lock.yaml; pnpm i; pnpm run build",
     "build:all": "pnpm -r run build",

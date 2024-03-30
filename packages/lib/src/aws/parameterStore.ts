@@ -6,7 +6,7 @@ import {
   GetParametersCommand,
   PutParameterCommand,
   SSMClient,
-  DeleteParametersCommandOutput
+  DeleteParametersCommandOutput, ParameterType
 } from '@aws-sdk/client-ssm';
 
 import {RateLimiter} from "limiter";
@@ -162,16 +162,15 @@ export async function getParametersByPath(path: string, decrypted = false) {
 // Allow 150 requests per hour (the Twitter search limit). Also understands
 // 'second', 'minute', 'day', or a number of milliseconds
 
-export async function putParameter(Name: string, Value: string, Overwrite = false, Type = 'String') {
+export async function putParameter(Name: string, Value: string, Overwrite = false, Type: ParameterType = ParameterType.STRING) {
   try {
     if (Name.indexOf('global') > -1 && Value === '') {
       new DeleteParameterCommand({Name: stripPath(Name)});
     } else {
       let KeyId: string | undefined = undefined;
-      if (Type === 'SecureString') {
+      if (Type === ParameterType.SECURE_STRING) {
         KeyId = process.env.KMS_KEY
       }
-
       const command = new PutParameterCommand({Name: stripPath(Name), Value, Overwrite, Type, KeyId});
       const remainingRequests = await ssmLimiter.removeTokens(1);
       const response = await getClient().send(command);
@@ -184,7 +183,7 @@ export async function putParameter(Name: string, Value: string, Overwrite = fals
   }
 }
 
-export async function appendParameter(Name: string, Value: string, Type = 'String') {
+export async function appendParameter(Name: string, Value: string, Type: ParameterType = ParameterType.STRING) {
   try {
     const getParamRes = await getParameter(stripPath(Name));
     if (!getParamRes){
@@ -193,7 +192,7 @@ export async function appendParameter(Name: string, Value: string, Type = 'Strin
     const newValue = Object.values(getParamRes)[0].Value + Value;
 
     let KeyId: string| undefined = undefined;
-    if (Type === 'SecureString') {
+    if (Type === ParameterType.SECURE_STRING) {
       KeyId = process.env.KMS_KEY
     }
 
@@ -374,13 +373,13 @@ export async function upsertParameter(applicationName: string, parameter: {
   if (!linkOnly) {
     if (!getParamRes) {
       CenvLog.info(` - writing ${param.Type === 'SecureString' ? 'encrypted ' : ''}parameter ${CenvLog.colors.infoBold(param.Name)} with value ${CenvLog.colors.infoBold(param.Value)}`);
-      response.outputValue = await putParameter(paramPath, param.Value, false, param.Type);
+      response.outputValue = await putParameter(paramPath, param.Value, false, param.Type as ParameterType);
       response.result = UpsertResult.CREATED;
 
       // if parameter exists, check to see if the value has changed
     } else if (param.Value !== Object.values(getParamRes)[0].Value || param.Type != Object.values(getParamRes)[0].Type) {
       CenvLog.info(`- updating parameter ${param.Type === 'SecureString' ? 'encrypted ' : ''}${CenvLog.colors.infoBold(param.Name)} with value ${CenvLog.colors.infoBold(param.Value)}`);
-      response.outputValue = await putParameter(paramPath, param.Value, true, param.Type);
+      response.outputValue = await putParameter(paramPath, param.Value, true, param.Type as ParameterType);
       response.result = UpsertResult.UPDATED;
     }
   }

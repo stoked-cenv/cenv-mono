@@ -10,14 +10,16 @@ import {
   DeleteApplicationCommand,
   DeleteConfigurationProfileCommand,
   DeleteEnvironmentCommand,
-  DeleteHostedConfigurationVersionCommand, DeploymentSummary,
+  DeleteHostedConfigurationVersionCommand,
+  DeploymentSummary,
   Environment,
+  GrowthType,
   ListApplicationsCommand,
   ListConfigurationProfilesCommand,
   ListDeploymentsCommand,
   ListDeploymentStrategiesCommand,
   ListEnvironmentsCommand,
-  ListHostedConfigurationVersionsCommand,
+  ListHostedConfigurationVersionsCommand, ReplicateTo,
   StartDeploymentCommand,
 } from '@aws-sdk/client-appconfig';
 import * as yaml from 'js-yaml';
@@ -25,7 +27,7 @@ import { deleteParametersByPath, stripPath, upsertParameter } from './parameterS
 import {CenvLog} from '../log';
 import {isString} from '../utils';
 import { CenvFiles, IEnvConfig } from '../file';
-import { ParamsModule } from '../package/params';
+import { ParamsModule } from '../package';
 
 
 function getClient() {
@@ -136,14 +138,14 @@ export async function createHostedConfigurationVersion(ApplicationId: string, Co
   }
 }
 
-export async function createDeploymentStrategy(name = 'Instant.AllAtOnce', deploymentDurationInMinutes = 0, growthFactor = 100, growthType = 'LINEAR', finalBakeTimeInMinutes = 0, replicateTo = 'NONE'): Promise<any> {
+export async function createDeploymentStrategy(name: string = 'Instant.AllAtOnce', deploymentDurationInMinutes = 0, growthFactor = 100, growthType = GrowthType.LINEAR, finalBakeTimeInMinutes = 0, replicateTo= ReplicateTo.NONE): Promise<any> {
 
   const createDepParams = {
     Name: name,
     DeploymentDurationInMinutes: deploymentDurationInMinutes,
     FinalBakeTimeInMinutes: finalBakeTimeInMinutes,
     GrowthFactor: growthFactor,
-    GrowthType: growthType,
+    GrowthType: GrowthType.LINEAR,
     ReplicateTo: replicateTo
   }
   const command = new CreateDeploymentStrategyCommand(createDepParams);
