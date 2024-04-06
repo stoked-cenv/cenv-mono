@@ -1,7 +1,0 @@
-{
-  "name": "@stoked-cenv/globals",
-  "version": "2.0.0-a.147",
-  "cenv": {
-    "globals": true
-  }
-}

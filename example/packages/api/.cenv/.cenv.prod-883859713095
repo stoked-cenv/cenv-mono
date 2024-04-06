@@ -1,4 +1,0 @@
-API_VERSION: v1
-CENV_API_VERSION: v1
-CLIENT_ORIGIN_URL: https://cenv.stokedconsulting.com
-PORT: '80'

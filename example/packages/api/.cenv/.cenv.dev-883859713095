@@ -1,3 +1,0 @@
-CLIENT_ORIGIN_URL: https://cenv.stokedconsulting.com
-PORT: '80'
-AUDIENCE: <{CENV_AUTH0_AUDIENCE}>

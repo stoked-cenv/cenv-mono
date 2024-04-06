@@ -1,20 +1,21 @@
-import {App, Duration, Fn, Stack, StackProps} from 'aws-cdk-lib';
+import { App, aws_cloudwatch, CfnOutput, Duration, Fn, Stack, StackProps } from 'aws-cdk-lib';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
-import {IVpc} from 'aws-cdk-lib/aws-ec2';
-import {HealthCheck} from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import {ARecord, HostedZone, IHostedZone, RecordTarget} from 'aws-cdk-lib/aws-route53';
+import { IVpc } from 'aws-cdk-lib/aws-ec2';
+import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import { HealthCheck } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import { ARecord, HostedZone, IHostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import {Certificate} from 'aws-cdk-lib/aws-certificatemanager';
-import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
-import * as autoscaling from 'aws-cdk-lib/aws-applicationautoscaling';
 
-import {getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack} from '../utils';
-import {CloudFrontTarget} from "aws-cdk-lib/aws-route53-targets";
+import * as appscaling from 'aws-cdk-lib/aws-applicationautoscaling';
+import { AdjustmentType } from 'aws-cdk-lib/aws-applicationautoscaling';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+
+import { getDefaultStackEnv, getDomains, getVPCByName, stackPrefix, tagStack } from '../utils';
 
 export interface EcsHttpDeploymentParams {
   env: string;
@@ -66,6 +67,7 @@ export class EcsHttpStack extends Stack {
       // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.Cluster.html
       this.cluster = new ecs.Cluster(this, `${stackPrefix()}-cluster`, {
         vpc: this.vpc, clusterName: `${stackPrefix()}-cluster`,
+        containerInsights: true
       });
     } else {
       this.cluster = ecs.Cluster.fromClusterAttributes(this, `${stackPrefix()}-cluster`, {
@@ -190,58 +192,167 @@ export class EcsHttpStack extends Stack {
 
     this.httpService.targetGroup.configureHealthCheck(hChk);
 
-    // An attribute representing the minimum and maximum task count for an AutoScalingGroup.
-    /*this.scalableTarget = this.httpService.service.autoScaleTaskCount({
-                                                                                       minCapacity: 0, maxCapacity: 1,
-                                                                                     });
 
-    // Scales in or out to achieve a target CPU utilization.
-    this.scalableTarget.scaleOnCpuUtilization('CpuScaling', {
-      targetUtilizationPercent: 50,
-    });
 
-    // Scales in or out to achieve a target memory utilization.
-    this.scalableTarget.scaleOnMemoryUtilization('MemoryScaling', {
-      targetUtilizationPercent: 50,
-    });
-
-     */
-    const scalableTarget = new autoscaling.ScalableTarget(this, 'ScalableTarget', {
-      serviceNamespace: autoscaling.ServiceNamespace.ECS,
-      resourceId: `service/${serviceName}/${this.cluster.clusterName}`,
+    const scalableTarget = new appscaling.ScalableTarget(this, 'ScalableTarget', {
+      serviceNamespace: appscaling.ServiceNamespace.ECS,
+      resourceId: `service/${this.cluster.clusterName}/${serviceName}`,
       scalableDimension: 'ecs:service:DesiredCount',
       minCapacity: 0,
       maxCapacity: 1,
     });
 
-    const scalingPolicy = new autoscaling.TargetTrackingScalingPolicy(this, 'ScalingPolicy', {
+    const metricIn = new cloudwatch.Metric({
+      namespace: 'AWS/ApplicationELB',
+      metricName: 'ActiveConnectionCount',
+      dimensionsMap: {
+        LoadBalancer: `app/${this.httpService.loadBalancer.loadBalancerFullName}`
+      },
+      period: Duration.minutes(1)
+    });
+
+    scalableTarget.scaleOnMetric('ActiveConnectionScaling', {
+      metric: metricIn,
+      scalingSteps: [
+        { upper: 1, change: -1 }, // Scale in when requests per minute are below 1000
+        { lower: 1, change: +1 },
+      ],
+      adjustmentType: AdjustmentType.CHANGE_IN_CAPACITY
+    });
+
+/*
+    // Output the DNS where the service is available
+    new CfnOutput(this, 'ServiceURL', {
+      value: this.httpService.loadBalancer.loadBalancerDnsName,
+    });
+
+
+    const scalableTarget = new appscaling.ScalableTarget(this, 'ScalableTarget', {
+      serviceNamespace: appscaling.ServiceNamespace.ECS,
+      resourceId: `service/${this.cluster.clusterName}/${serviceName}`,
+      scalableDimension: 'ecs:service:DesiredCount',
+      minCapacity: 0,
+      maxCapacity: 1,
+    });
+    const scalingPolicy = new appscaling.TargetTrackingScalingPolicy(this, 'ScalingPolicy', {
       policyName: 'RequestCountScalingPolicy',
-      targetValue: 1000,
+      targetValue: 1,
       scaleOutCooldown: Duration.seconds(60),
       scaleInCooldown: Duration.seconds(60),
       scalingTarget: scalableTarget,
-      predefinedMetric: autoscaling.PredefinedMetric.ALB_REQUEST_COUNT_PER_TARGET,
-      resourceLabel: `app/${this.httpService.loadBalancer.loadBalancerFullName}/${this.httpService.targetGroup.targetGroupFullName}`
+      customMetric: {
+
+      }
     });
 
 
-    scalableTarget.scaleToTrackMetric('Tracking', {
-      targetValue: 50000,
-      predefinedMetric: autoscaling.PredefinedMetric.ALB_REQUEST_COUNT_PER_TARGET,
+    const metricOut = new cloudwatch.Metric({
+      namespace: 'AWS/ApplicationELB',
+      metricName: 'HTTPCode_ELB_503_Count',
+      cus
+      dimensionsMap: {
+        LoadBalancer: `app/${this.httpService.loadBalancer.loadBalancerFullName}`
+        TargetGr
+      },
+      period: Duration.minutes(1)
     });
 
+    scalableTarget.scaleOnMetric('RequestCountScalingOut', {
+      metric: metricOut,
+      scalingSteps: [
+        { lower: 1, change: +1 },
+        { lower: 0, change: +1 }, // Scale out when requests per minute exceed 2000
+      ],
+      adjustmentType: AdjustmentType.CHANGE_IN_CAPACITY
+    });
 
-    new cloudwatch.Metric({
-                            metricName: 'CPUUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
-        ServiceName: this.httpService.service.serviceName, ClusterName: this.cluster.clusterName,
-      }, statistic: 'avg', period: Duration.minutes(5),
-                          });
+    const metricIn = new cloudwatch.Metric({
+      namespace: 'AWS/ApplicationELB',
+      metricName: 'ActiveConnectionCount',
+      dimensionsMap: {
+        LoadBalancer: `app/${this.httpService.loadBalancer.loadBalancerFullName}`
+      },
+      period: Duration.minutes(1)
+    });
 
-    new cloudwatch.Metric({
-                            metricName: 'MemoryUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
-        ServiceName: this.httpService.service.serviceName, ClusterName: this.cluster.clusterName,
-      }, statistic: 'avg', period: Duration.minutes(5),
-                          });
+    scalableTarget.scaleOnMetric('RequestCountScalingIn', {
+      metric: metricIn,
+      scalingSteps: [
+        { upper: 1, change: -1 }, // Scale in when requests per minute are below 1000
+        { upper: 2, change: -1 },
+      ],
+      adjustmentType: AdjustmentType.CHANGE_IN_CAPACITY
+    });
+
+*/
+    /*
+       const scalableTarget = this.httpService.service.autoScaleTaskCount({
+         minCapacity: 0,
+         maxCapacity: 1,
+       });
+
+       scalableTarget.scaleOnMetric('RequestCountScaling', {
+         requestsPerTarget: 1,
+         targetGroup: this.httpService.targetGroup,
+         scaleInCooldown: Duration.hours(1),
+         scaleOutCooldown: Duration.seconds(30),
+       });
+
+       // An attribute representing the minimumnd maximum task count for an AutoScalingGroup.
+       /*this.scaleTarget = this.httpService.service.autoScaleTaskCount({
+                                                                                          minCapacity: 0, maxCapacity: 1,
+                                                                                        });
+
+       // Scales in or out to achieve a target CPU utilization.
+       this.scalableTarget.scaleOnCpuUtilization('CpuScaling', {
+         targetUtilizationPercent: 50,
+       });
+
+       // Scales in or out to achieve a target memory utilization.
+       this.scalableTarget.scaleOnMemoryUtilization('MemoryScaling', {
+         targetUtilizationPercent: 50,
+       });
+
+       const scalableTarget = new autoscaling.ScalableTarget(this, 'ScalableTarget', {
+         serviceNamespace: autoscaling.ServiceNamespace.ECS,
+         resourceId: `service/${this.cluster.clusterName}/${serviceName}`,
+         scalableDimension: 'ecs:service:DesiredCount',
+         minCapacity: 0,
+         maxCapacity: 1,
+       });
+
+       const scalingPolicy = new autoscaling.TargetTrackingScalingPolicy(this, 'ScalingPolicy', {
+         policyName: 'RequestCountScalingPolicy',
+         targetValue: 1000,
+         scaleOutCooldown: Duration.seconds(60),
+         scaleInCooldown: Duration.seconds(60),
+         scalingTarget: scalableTarget,
+         predefinedMetric: autoscaling.PredefinedMetric.ALB_REQUEST_COUNT_PER_TARGET,
+         resourceLabel: `app/${this.httpService.loadBalancer.loadBalancerFullName}/${this.httpService.targetGroup.targetGroupFullName}`
+       });
+
+
+       scalableTarget.scaleToTrackMetric('Tracking', {
+         targetValue: 50000,
+         predefinedMetric: autoscaling.PredefinedMetric.ALB_REQUEST_COUNT_PER_TARGET,
+       });
+
+
+       new cloudwatch.Metric({
+                               metricName: 'CPUUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
+           ServiceName: this.httpService.service.serviceName,
+           ClusterName: this.cluster.clusterName,
+         }, statistic: 'avg', period: Duration.minutes(5),
+                             });
+
+       new cloudwatch.Metric({
+                               metricName: 'MemoryUtilization', namespace: 'ECS/ContainerInsights', dimensionsMap: {
+           ServiceName: this.httpService.service.serviceName, ClusterName: this.cluster.clusterName,
+         }, statistic: 'avg', period: Duration.minutes(5),
+                             });
+
+
+     */
   }
 
   getTaskImageOptions(): Partial<ecs_patterns.ApplicationLoadBalancedTaskImageOptions> {

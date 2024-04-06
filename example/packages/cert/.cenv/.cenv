@@ -1,3 +1,0 @@
-APP: <{CENV_APP}>
-global:
-  - CENV_APP
