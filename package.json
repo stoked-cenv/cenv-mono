@@ -15,7 +15,7 @@
     "list-dep-mismatches": "syncpack list-mismatches",
     "fix-dep-mismatches": "syncpack fix-mismatches",
     "clean:js": "rimraf --glob src/**/*.js",
-    "clean:build": "rimraf --glob **/node_modules ./pnpm-lock.yaml",
+    "clean:build": "npx --yes rimraf --glob **/node_modules ./pnpm-lock.yaml",
     "test": "nx run @stoked-cenv/cli:test",
     "cli": "nx run @stoked-cenv/cli:cli",
     "update:global": "pnpm up --global",
@@ -53,7 +53,9 @@
     "publish:bump:cli": "cd dist/cli && npm publish --access public",
     "publish:bump:cli-select": "cd dist/cli-select && npm publish --access public",
     "publish:bump:all": "pnpm run publish:bump:cli-select && pnpm run publish:bump:lib && pnpm run publish:bump:ui && pnpm run publish:bump:cdk && pnpm run publish:bump:cli",
-    "push:packages": "git add package.json packages/cli/package.json packages/cli-select/package.json packages/lib/package.json packages/ui/package.json packages/cdk/package.json && git commit -m \"auto: push packages\" && git push"
+    "push:packages": "git add package.json packages/cli/package.json packages/cli-select/package.json packages/lib/package.json packages/ui/package.json packages/cdk/package.json && git commit -m \"auto: push packages\" && git push",
+    "install:cli": "pnpm i && pnpm build && pnpm link:all",
+    "uninstall:cli": "pnpm unlink:all && pnpm clean:build"
   },
   "husky": {
     "hooks": {
@@ -110,5 +112,10 @@
   "peerDependencies": {
     "@stoked-cenv/lib": "^2.0.0-a.147"
   },
-  "license": "UNLICENSED"
+  "engines": {
+    "node": ">=20.9.0",
+    "pnpm": ">=8.15.6",
+    "typescript": ">=5.4.4"
+  },
+  "license": "MIT"
 }
