@@ -47,6 +47,7 @@
     "version:set:ui": "cd packages/ui && npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
     "version:set:root": "npm version --allow-same-version --include-workspace-root --no-commit-hooks --no-git-tag-version",
     "version:sync": "version=$(cenv -s -v) && pnpm version:set:root $version && pnpm version:set:lib $version && pnpm version:set:ui $version && pnpm version:set:cdk $version && pnpm version:set:cli-select $version",
+    "version:pnpm": "pnpm --version",
     "publish:bump:lib": "cd dist/lib && npm publish --access public",
     "publish:bump:ui": "cd dist/ui && npm publish --access public",
     "publish:bump:cdk": "cd dist/cdk && npm publish --access public",
