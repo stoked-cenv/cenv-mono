@@ -1,6 +1,6 @@
 {
   "name": "@stoked-cenv/lib",
-  "version": "2.0.0-a.147",
+  "version": "2.0.0-a.148",
   "description": "Library responsible for cenv params.",
   "main": "src/index.ts",
   "scripts": {
@@ -37,8 +37,8 @@
     "@base2/pretty-print-object": "^1.0.2",
     "@nestjs/common": "^10.0.0",
     "@smithy/types": "^1.2.0",
-    "@stoked-cenv/cli-select": "^2.0.0-a.147",
-    "@stoked-cenv/lib": "^2.0.0-a.147",
+    "@stoked-cenv/cli-select": "^2.0.0-a.148",
+    "@stoked-cenv/lib": "^2.0.0-a.148",
     "ajv": "^8.12.0",
     "async-mutex": "^0.4.0",
     "chalk": "^4.1.2",
