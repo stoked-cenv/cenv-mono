@@ -1,6 +1,6 @@
 {
   "name": "stoked-cenv",
-  "version": "2.0.0-a.149",
+  "version": "2.0.0-a.150",
   "scripts": {
     "cenv": "nx run @stoked-cenv/cli:cenv",
     "publish:link": "pnpm run build",
@@ -75,7 +75,7 @@
     "@nrwl/node": "16.5.5",
     "@nrwl/nx-cloud": "15.3.5",
     "@nrwl/workspace": "16.5.5",
-    "@stoked-cenv/lib": "^2.0.0-a.149",
+    "@stoked-cenv/lib": "^2.0.0-a.150",
     "@swc/core": "1.3.70",
     "@swc/register": "0.1.10",
     "@types/jest": "29.1.2",
@@ -111,7 +111,7 @@
     }
   ],
   "peerDependencies": {
-    "@stoked-cenv/lib": "^2.0.0-a.149"
+    "@stoked-cenv/lib": "^2.0.0-a.150"
   },
   "engines": {
     "node": ">=20.9.0",
