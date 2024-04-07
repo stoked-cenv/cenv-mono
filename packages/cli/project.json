@@ -38,9 +38,7 @@
           "pnpm version:bump:all",
           "pnpm build:no-cache",
           "pnpm push:packages",
-          "pnpm publish:bump:all",
-          "pnpm version:example:sync",
-          "ts-node fixup-example-deps.ts"
+          "pnpm publish:bump:all"
         ],
         "parallel": false
       }

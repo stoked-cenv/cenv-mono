@@ -20,6 +20,5 @@ cdk.out
 env.cdk.out
 .cenv.*-*.config
 cdk.context.json
-example/packages/spa/build/**/*
 tmp
 !ts-main.js

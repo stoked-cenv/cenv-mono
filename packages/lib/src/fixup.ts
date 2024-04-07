@@ -5,8 +5,6 @@ import * as util from "util";
 export class Fixup {
   static tsPackages = ['lib', 'ui', 'cdk', 'cli'];
   static allPackages = [...Fixup.tsPackages, 'cli-select'];
-  static examplePackages = ['api', 'globals', 'spa'];
-  static exampleRoot = 'example/packages';
   static distRoot = 'dist';
   static packageRoot = 'packages';
 
