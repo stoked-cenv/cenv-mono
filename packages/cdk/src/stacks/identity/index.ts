@@ -5,6 +5,6 @@ import { CognitoIdentityPoolStack } from "./cognito_identity_pool_stack";
 
 const app = new cdk.App();
 
-new CognitoIdentityPoolStack(app, `${process.env.ENV}-${process.env.APP}-cert`, {
+new CognitoIdentityPoolStack(app, `${process.env.ENV}-${process.env.APP}-identity`, {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
